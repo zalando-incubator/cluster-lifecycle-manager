@@ -1,0 +1,1002 @@
+swagger: '2.0'
+
+info:
+  version: "0.0.1"
+  title: Cluster Registry
+  description: Registry to store information about infrastructure accounts and Kubernetes clusters.
+
+schemes:
+    - "https"
+basePath: /
+produces:
+  - application/json
+consumes:
+  - application/json
+
+securityDefinitions:
+  oauth2:
+    type: oauth2
+    flow: password
+    tokenUrl: https://auth.example.org
+    scopes:
+      uid: Unique identifier of the user accessing the service.
+
+security:
+  - oauth2: [uid]
+
+paths:
+  '/infrastructure-accounts':
+    get:
+      summary: List all registered infrastructure accounts
+      tags:
+        - InfrastructureAccounts
+      operationId: listInfrastructureAccounts
+      parameters:
+        - name: criticality_level
+          in: query
+          required: false
+          type: integer
+          format: int32
+          description: Filter on criticality level.
+        - name: environment
+          in: query
+          required: false
+          type: string
+          description: Filter on environment.
+        - name: external_id
+          in: query
+          required: false
+          type: string
+          description: Filter on external id.
+        - name: lifecycle_status
+          in: query
+          required: false
+          type: string
+          enum:
+            - requested
+            - creating
+            - ready
+            - decommissioned
+          description: Filter on cluster lifecycle status.
+        - name: name
+          in: query
+          required: false
+          type: string
+          description: Filter on name.
+        - name: owner
+          in: query
+          required: false
+          type: string
+          description: Filter on owner.
+        - name: type
+          in: query
+          required: false
+          type: string
+          description: Filter on type.
+      responses:
+        200:
+          description: List of all infrastructure accounts.
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                    '$ref': '#/definitions/InfrastructureAccount'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      summary: Create infrastructure account
+      description: |
+        Creates a new infrastructure account
+      tags:
+        - InfrastructureAccounts
+      operationId: createInfrastructureAccount
+      parameters:
+        - name: infrastructure_account
+          required: true
+          in: body
+          description: Account that will be created.
+          schema:
+            '$ref': '#/definitions/InfrastructureAccount'
+      responses:
+        201:
+          description: Infrastructure account was scheduled for creation.
+          schema:
+            '$ref': '#/definitions/InfrastructureAccount'
+        400:
+          description: Invalid parameters
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        409:
+          description: Conflict, already existing.
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+  '/infrastructure-accounts/{account_id}':
+    patch:
+      summary: Update infrastructure account
+      description: update an infrastructure account.
+      tags:
+        - InfrastructureAccounts
+      operationId: updateInfrastructureAccount
+      parameters:
+        - $ref: '#/parameters/account_id'
+        - name: infrastructure_account
+          required: true
+          in: body
+          description: Infrastructure Account that will be updated.
+          schema:
+            '$ref': '#/definitions/InfrastructureAccountUpdate'
+      responses:
+        200:
+          description: The infrastructure account update request is accepted
+          schema:
+            '$ref': '#/definitions/InfrastructureAccount'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: InfrastructureAccount not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    get:
+      summary: Get single infrastructure account
+      description: |
+        Read information regarding the infrastructure account.
+      tags:
+        - InfrastructureAccounts
+      operationId: getInfrastructureAccount
+      parameters:
+        - $ref: '#/parameters/account_id'
+      responses:
+        200:
+          description: Infrastructure account information.
+          schema:
+            '$ref': '#/definitions/InfrastructureAccount'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: InfrastructureAccount not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+  '/kubernetes-clusters':
+    get:
+      summary: List all Kubernetes clusters
+      description: |
+        Returns the list of all Kubernetes clusters.
+      tags:
+        - Clusters
+      operationId: listClusters
+      parameters:
+        - name: alias
+          in: query
+          required: false
+          type: string
+          description: Filter on cluster alias.
+        - name: api_server_url
+          in: query
+          required: false
+          type: string
+          description: Filter on API server URL.
+        - name: channel
+          in: query
+          required: false
+          type: string
+          description: Filter on channel.
+        - name: criticality_level
+          in: query
+          required: false
+          type: integer
+          format: int32
+          description: Filter on criticality level.
+        - name: environment
+          in: query
+          required: false
+          type: string
+          description: Filter on environment.
+        - name: infrastructure_account
+          in: query
+          required: false
+          type: string
+          description: Filter on infrastructure account.
+        - name: lifecycle_status
+          in: query
+          required: false
+          type: string
+          enum:
+            - requested
+            - creating
+            - ready
+            - decommission-requested
+            - decommissioned
+          description: Filter on cluster lifecycle status.
+        - name: local_id
+          in: query
+          required: false
+          type: string
+          description: Filter on local id.
+        - name: provider
+          in: query
+          required: false
+          type: string
+          description: Filter on provider.
+        - name: region
+          in: query
+          required: false
+          type: string
+          description: Filter on region.
+        - name: verbose
+          in: query
+          required: false
+          type: boolean
+          default: true
+          description: Include technical data (config items, node pools) in the response, true by default
+      responses:
+        200:
+          description: List of all Kubernetes clusters.
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  '$ref': '#/definitions/Cluster'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      summary: Create cluster
+      description: Create a cluster.
+      tags:
+        - Clusters
+      operationId: createCluster
+      parameters:
+        - name: cluster
+          required: true
+          in: body
+          description: Cluster that will be created.
+          schema:
+            '$ref': '#/definitions/Cluster'
+      responses:
+        201:
+          description: The cluster creation request is accepted
+          schema:
+            '$ref': '#/definitions/Cluster'
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        409:
+          description: Conflict, already existing
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+  '/kubernetes-clusters/{cluster_id}':
+    patch:
+      summary: Update cluster
+      description: update a cluster.
+      tags:
+        - Clusters
+      operationId: updateCluster
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - name: cluster
+          required: true
+          in: body
+          description: Cluster that will be updated.
+          schema:
+            '$ref': '#/definitions/ClusterUpdate'
+      responses:
+        200:
+          description: The cluster update request is performed and the updated cluster is returned.
+          schema:
+            '$ref': '#/definitions/Cluster'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Cluster not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    get:
+      summary: Get single cluster
+      description: Read the details of the cluster.
+      tags:
+        - Clusters
+      operationId: getCluster
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - name: verbose
+          in: query
+          required: false
+          type: boolean
+          default: true
+          description: Include technical data (config items, node pools) in the response, true by default
+      responses:
+        200:
+          description: Cluster information.
+          schema:
+            '$ref': '#/definitions/Cluster'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Cluster not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+    delete:
+      summary: Delete cluster
+      description: |
+         Cluster identified by the ID.
+      tags:
+        - Clusters
+      operationId: deleteCluster
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+      responses:
+        204:
+          description: Cluster deleted
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/Error'
+        404:
+          description: Cluster not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+  '/kubernetes-clusters/{cluster_id}/config-items/{config_key}':
+    put:
+      summary: Add/update config item
+      description: Add/update a configuration item unique to the cluster.
+      tags:
+        - ConfigItems
+      operationId: addOrUpdateConfigItem
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/config_key'
+        - name: value
+          required: true
+          in: body
+          description: Config value.
+          schema:
+            '$ref': '#/definitions/ConfigValue'
+      responses:
+        200:
+          description: The config items add/update request is accepted.
+          schema:
+            '$ref': '#/definitions/ConfigValue'
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      summary: Delete config item
+      description: Deletes config item.
+      tags:
+        - ConfigItems
+      operationId: deleteConfigItem
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/config_key'
+      responses:
+        204:
+          description: Config item deleted.
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Config item not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+  '/kubernetes-clusters/{cluster_id}/node-pools':
+    get:
+      summary: List node pools
+      description: List all node pools of a cluster.
+      tags:
+        - NodePools
+      operationId: listNodePools
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+      responses:
+        200:
+          description: List of node pools
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  '$ref': '#/definitions/NodePool'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+
+  '/kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}':
+    put:
+      summary: Create/update node pool
+      description: Create/update a node pool.
+      tags:
+        - NodePools
+      operationId: createOrUpdateNodePool
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/node_pool_name'
+        - name: node-pool
+          required: true
+          in: body
+          description: Node pool to be created.
+          schema:
+            '$ref': '#/definitions/NodePool'
+      responses:
+        200:
+          description: The node pool create request is accepted.
+          schema:
+            '$ref': '#/definitions/NodePool'
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      summary: Delete node pool
+      description: Deletes node pool.
+      tags:
+        - NodePools
+      operationId: deleteNodePool
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/node_pool_name'
+      responses:
+        204:
+          description: Node pool deleted.
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Node pool not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+  '/healthz':
+    get:
+      summary: Health endpoint
+      description: Get health of the application.
+      tags:
+        - Health
+      operationId: getHealth
+      security: []
+      responses:
+        200:
+          description: Application is healthy
+          schema:
+            $ref: '#/definitions/Health'
+
+        503:
+          description: Application is unhealthy
+
+  '/.well-known/schema-discovery':
+    get:
+      summary: Ignore schema discovery endpoint
+      description: Ignore schema discovery endpoint.
+      tags:
+        - SchemaDiscovery
+      operationId: getSchema
+      security: []
+      responses:
+        200:
+          description: Application has no schema discovery
+          schema:
+            $ref: '#/definitions/Health'
+
+        503:
+          description: Application has no schema discovery
+
+
+parameters:
+  account_id:
+    name: account_id
+    in: path
+    type: string
+    description: ID of the infrastructure account.
+    required: true
+    pattern: "^[a-z][a-z0-9-:]*[a-z0-9]$"
+
+  cluster_id:
+    name: cluster_id
+    in: path
+    type: string
+    description: ID of the cluster.
+    required: true
+    pattern: "^[a-z][a-z0-9-:]*[a-z0-9]$"
+
+  node_pool_name:
+    name: node_pool_name
+    in: path
+    type: string
+    description: Name of the node pool.
+    required: true
+    pattern: "^[a-z][a-z0-9-]*[a-z0-9]$"
+
+  config_key:
+    name: config_key
+    in: path
+    type: string
+    description: Key for the config value.
+    required: true
+    pattern: "^[a-z][a-z0-9_]*[a-z0-9]$"
+
+
+definitions:
+
+  InfrastructureAccount:
+    type: object
+    properties:
+      id:
+        type: string
+        example: "aws:123456789012"
+        description: Globally unique ID of the infrastructure account.
+      type:
+        type: string
+        example: aws
+        description: Type of the infrastructure account. Possible types are "aws", "gcp", "dc".
+      name:
+        type: string
+        example: foo
+        description: Name of the infrastructure account
+      owner:
+        type: string
+        example: team/bar
+        description: Owner of the infrastructure account (references an object in the organization service)
+      environment:
+        type: string
+        example: production
+        description: Environment. possible values are "production" or "test".
+      criticality_level:
+        type: integer
+        format: int32
+        example: 2
+        description: Level of criticality as defined by tech controlling. 1 is non critical, 2 is standard production, 3 is PCI
+      external_id:
+        type: string
+        example: "123456789012"
+        description: The external identifier of the account (i.e. AWS account ID)
+      lifecycle_status:
+        type: string
+        enum:
+          - requested
+          - creating
+          - ready
+          - decommissioned
+        description: Lifecycle Status is used to describe the current status of the account.
+    required:
+      - id
+      - type
+      - name
+      - owner
+      - environment
+      - criticality_level
+      - external_id
+      - lifecycle_status
+
+  InfrastructureAccountUpdate:
+    type: object
+    properties:
+      id:
+        type: string
+        example: "aws:123456789012"
+        description: Globally unique ID of the infrastructure account.
+      type:
+        type: string
+        example: aws
+        description: |
+          Type of the infrastructure account. Possible types are "aws", "gcp",
+          "dc".
+      name:
+        type: string
+        example: foo
+        description: Name of the infrastructure account
+      owner:
+        type: string
+        example: team/bar
+        description: Owner of the infrastructure account (references an object in the organization service)
+      environment:
+        type: string
+        example: production
+        description: |
+          Environment. possible values are "production" or "test".
+      criticality_level:
+        type: integer
+        format: int32
+        example: 2
+        description: |
+          Level of criticality as defined by tech controlling. 1 is non
+          critical, 2 is standard production, 3 is PCI
+      external_id:
+        type: string
+        example: "123456789012"
+        description: The external identifier of the account (i.e. AWS account ID)
+      lifecycle_status:
+        type: string
+        enum:
+          - requested
+          - creating
+          - ready
+          - decommissioned
+        description: Lifecycle Status is used to describe the current status of the account.
+
+  Cluster:
+    type: object
+    properties:
+      id:
+        type: string
+        example: aws:123456789012:eu-central-1:kube-1
+        description: Globally unique ID of the Kubernetes cluster
+      alias:
+        type: string
+        pattern: "^[a-z][a-z0-9-]*[a-z0-9]$"
+        example: production-cluster
+        description: |
+          Human readable alias for the Kubernetes cluster. The alias is unique
+          but can be changed.
+      infrastructure_account:
+        type: string
+        example: aws:123456789012
+        description: The identifier of the infrastructure account in which the cluster will live in
+      region:
+        type: string
+        example: eu-central-1
+        description: The region of the cluster
+      local_id:
+        type: string
+        example: kube-1
+        description: Cluster identifier which is local to the region
+      provider:
+        type: string
+        example: zalando-aws
+        description: The provider of the cluster. Possible values are "zalando-aws", "GKE", ... #TODO: enum?
+      api_server_url:
+        type: string
+        example: https://kube-1.foo.example.org/
+        description: URL of the Kubernetes API server endpoint
+      channel:
+        type: string
+        example: alpha
+        description: A version channel for the cluster.
+      environment:
+        type: string
+        example: production
+        description: |
+          The environment in which the cluster run.
+      criticality_level:
+        type: integer
+        format: int32
+        example: 2
+        description: Level of criticality as defined by tech controlling. 1 is non critical, 2 is standard production, 3 is PCI.
+      lifecycle_status:
+        type: string
+        enum:
+          - requested
+          - creating
+          - ready
+          - decommission-requested
+          - decommissioned
+        example: ready
+        description: Status of the cluster.
+      status:
+        $ref: '#/definitions/ClusterStatus'
+      config_items:
+        type: object
+        additionalProperties:
+          type: string
+        example:
+          product_x_key: "abcde"
+          product_y_key: "12345"
+        description: |
+          Configuration items unique to the cluster. E.g. custom API key used
+          by one of the cluster services.
+      node_pools:
+        type: array
+        items:
+          $ref: '#/definitions/NodePool'
+    required:
+      - id
+      - alias
+      - infrastructure_account
+      - region
+      - local_id
+      - provider
+      - api_server_url
+      - channel
+      - environment
+      - criticality_level
+      - lifecycle_status
+
+  ClusterUpdate:
+    type: object
+    properties:
+      id:
+        type: string
+        example: aws:123456789012:eu-central-1:kube-1
+        description: Globally unique ID of the Kubernetes cluster
+      alias:
+        type: string
+        example: production-cluster
+        description: |
+          Human readable alias for the Kubernetes cluster. The alias is unique
+          but can be changed.
+      infrastructure_account:
+        type: string
+        example: aws:123456789012
+        description: |
+          The identifier of the infrastructure account in which the cluster will
+          live in
+      region:
+        type: string
+        example: eu-central-1
+        description: The region of the cluster
+      local_id:
+        type: string
+        example: kube-1
+        description: Cluster identifier which is local to the region
+      provider:
+        type: string
+        example: zalando-aws
+        description: The provider of the cluster. Possible values are "zalando-aws", "GKE", ... #TODO: enum?
+      api_server_url:
+        type: string
+        example: https://kube-1.foo.example.org/
+        description: URL of the Kubernetes API server endpoint
+      channel:
+        type: string
+        example: alpha
+        description: A version channel for the cluster. Possible values are "alpha", "stable" #TODO: enum?
+      environment:
+        type: string
+        example: production
+        description: |
+          The environment in which the cluster run.
+      criticality_level:
+        type: integer
+        format: int32
+        example: 2
+        description: |
+          Level of criticality as defined by tech controlling. 1 is non
+          critical, 2 is standard production, 3 is PCI.
+      lifecycle_status:
+        type: string
+        enum:
+          - requested
+          - creating
+          - ready
+          - decommission-requested
+          - decommissioned
+        example: ready
+        description: Status of the cluster.
+      status:
+        $ref: '#/definitions/ClusterStatus'
+      config_items:
+        type: object
+        additionalProperties:
+          type: string
+        example:
+          product_x_key: "abcde"
+          product_y_key: "12345"
+        description: |
+          Configuration items unique to the cluster. E.g. custom API key used
+          by one of the cluster services.
+
+  ConfigValue:
+    type: object
+    properties:
+      value:
+        type: string
+        example: secret-key-id
+        description: Value of the Config value.
+    required:
+      - value
+
+  ClusterStatus:
+    type: object
+    properties:
+      current_version:
+        type: string
+        example: a1b2c3d4e5f6
+        description: |
+          Current version of the cluster. This can refer to a commit hash or
+          any valid version string in the context.
+      last_version:
+        type: string
+        example: a2b3c4d5e6f7
+        description: |
+          Last working version of the cluster. This can refer to a commit
+          hash or any valid version string in the context. In case any
+          problems are defined for the current_version then it should be
+          safe to roll back to this last version.
+      next_version:
+        type: string
+        example: a3b4c5d6e7f8
+        description: |
+          Next version of the cluster. This field indicates that the cluster is
+          being updated to a new version. This can refer to a commit hash or any
+          valid version string in the context.
+      problems:
+        type: array
+        items:
+          type: object
+          properties:
+            type:
+              type: string
+              example: https://cluster-status.example.org/service-apply-failed
+              description: A URI reference the indentifies the problem type.
+            title:
+              type: string
+              example: "Failed to apply service 'kubernetes-dashboard'"
+              description: |
+                A short, human-readable summary of the problem type.
+            status:
+              type: integer
+              format: int32
+              example: 401
+              description: |
+                The HTTP status code generated by the origin server for this
+                occurence of the problem.
+            detail:
+              type: string
+              example: |
+                Cluster lifecycle manager was unable to apply the
+                kubernetes-dashboard service because of insufficient
+                permissions.
+              description: |
+                A human-readable explanation specific to this occurrence of
+                the problem.
+            instance:
+              type: string
+              example: service/kubernetes-dashboard
+              description: |
+                A URI reference that identifies the specific occurrence of
+                the problem.
+          additionalProperties:
+            type: string
+          required:
+            - type
+            - title
+
+  NodePool:
+    type: object
+    properties:
+      name:
+        type: string
+        example: pool-1
+        description: Name of the node pool
+      profile:
+        type: string
+        example: worker/default
+        description: Profile used for the node pool. Possible values are "worker/default", "worker/database", "worker/gpu", "master". The "master" profile identifies the pool containing the cluster master
+      instance_type:
+        type: string
+        example: m4.medium
+        description: Type of the instance to use for the nodes in the pool. All the nodes in the pool share the same instance types
+      discount_strategy:
+        type: string
+        example: none
+        description: |
+          A discount strategy indicates the type of discount to be associated with the node pool. This might affect the availability of the nodes in the pools in case of preemptible or spot instances.
+          Possible values depend on the provider, the only common one is "none".
+      min_size:
+        type: integer
+        example: 3
+        description: Minimum size of the node pool
+      max_size:
+        type: integer
+        example: 20
+        description: Maximum size of the node pool
+    required:
+      - name
+      - profile
+      - instance_type
+      - discount_strategy
+      - min_size
+      - max_size
+
+  Health:
+    type: object
+    properties:
+      health:
+        type: boolean
+
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      fields:
+        type: string

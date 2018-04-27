@@ -1,0 +1,35 @@
+version: "2017-09-20"
+pipeline:
+- id: build
+  type: script
+  env:
+    GOPATH: /go
+    PATH: /go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+  working_dir: /go/src/github.com/zalando-incubator/cluster-lifecycle-manager
+  commands:
+  - desc: install go
+    cmd: |
+      add-apt-repository -y ppa:longsleep/golang-backports
+      apt-get update
+      apt-get install -y golang-go
+  - desc: install deps
+    cmd: |
+      go get github.com/Masterminds/glide
+      glide install -v
+  - desc: build
+    cmd: |
+      make test
+      make build.linux
+
+      if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
+          IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
+      else
+          IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager-test
+      fi
+
+      VERSION=$CDP_BUILD_VERSION IMAGE=$IMAGE make build.push
+
+notifications:
+  hipchat:
+    rooms:
+    - "Teapot CICD"
