@@ -23,11 +23,13 @@ pipeline:
 
       if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
           IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
+          VERSION=$(git describe --tags --always --dirty)
       else
           IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager-test
+          VERSION=$CDP_BUILD_VERSION
       fi
 
-      VERSION=$CDP_BUILD_VERSION IMAGE=$IMAGE make build.push
+      VERSION=$VERSION IMAGE=$IMAGE make build.push
 
 notifications:
   hipchat:
