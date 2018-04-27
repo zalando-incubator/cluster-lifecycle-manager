@@ -20,11 +20,13 @@ import (
 const (
 	clusterIDTagPrefix          = "kubernetes.io/cluster/"
 	resourceLifecycleOwned      = "owned"
+	kubeAutoScalerEnabledTagKey = "k8s.io/cluster-autoscaler/enabled"
 	nodePoolTag                 = "NodePool"
 	userDataAttribute           = "userData"
 	instanceTypeAttribute       = "instanceType"
 	instanceIdFilter            = "instance-id"
 	instanceHealthStatusHealthy = "Healthy"
+	ec2AutoscalingGroupTagKey   = "aws:autoscaling:groupName"
 )
 
 const (
@@ -129,23 +131,128 @@ func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error 
 	return err
 }
 
+// SuspendAutoscaling suspends autoscaling of the node pool if it was enabled.
+// The implementation assumes the kubernetes cluster-autoscaler is used so it
+// just removes a tag.
+func (n *ASGNodePoolsBackend) SuspendAutoscaling(nodePool *api.NodePool) error {
+	tags := map[string]string{
+		kubeAutoScalerEnabledTagKey: "",
+	}
+	return n.deleteTags(nodePool, tags)
+}
+
+// deleteTags deletes the specified tags from the node pool asg.
+func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string]string) error {
+	asg, err := n.getNodePoolASG(nodePool)
+	if err != nil {
+		return err
+	}
+
+	asgTags := make([]*autoscaling.Tag, 0, len(tags))
+
+	for key, val := range tags {
+		tag := &autoscaling.Tag{
+			Key:          aws.String(key),
+			Value:        aws.String(val),
+			ResourceId:   asg.AutoScalingGroupName,
+			ResourceType: aws.String("auto-scaling-group"),
+		}
+		asgTags = append(asgTags, tag)
+	}
+
+	params := &autoscaling.DeleteTagsInput{
+		Tags: asgTags,
+	}
+
+	_, err = n.asgClient.DeleteTags(params)
+	return err
+}
+
 // Terminate terminates a node from the ASG and optionally decrements the
 // DesiredCapacity. By default the desired capacity will not be decremented.
+// In case the new desired capacity is less then the current min size of the
+// ASG, it will also decrease the ASG minSize.
 func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
-	instanceId := aws.String(instanceIDFromProviderID(node.ProviderID, node.FailureDomain))
+	instanceId := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
+
+	// if desired should be decremented check if we also need to decrement
+	// the minSize of the ASG.
+	if decrementDesired {
+		// lookup ASG name in the EC2 tags of the instance
+		var asgName string
+		params := &ec2.DescribeTagsInput{
+			Filters: []*ec2.Filter{
+				{
+					Name:   aws.String("resource-id"),
+					Values: []*string{aws.String(instanceId)},
+				},
+				{
+					Name:   aws.String("key"),
+					Values: []*string{aws.String(ec2AutoscalingGroupTagKey)},
+				},
+			},
+		}
+		err := n.ec2Client.DescribeTagsPages(params, func(resp *ec2.DescribeTagsOutput, lastPage bool) bool {
+			for _, tag := range resp.Tags {
+				if aws.StringValue(tag.Key) == ec2AutoscalingGroupTagKey {
+					asgName = aws.StringValue(tag.Value)
+					return false
+				}
+			}
+			return true
+		})
+		if err != nil {
+			return err
+		}
+
+		if asgName == "" {
+			return fmt.Errorf("failed to get Autoscaling Group name from EC2 tags of instance '%s'", instanceId)
+		}
+
+		// get current sizes in the ASG
+		asgParams := &autoscaling.DescribeAutoScalingGroupsInput{
+			AutoScalingGroupNames: []*string{aws.String(asgName)},
+		}
+
+		resp, err := n.asgClient.DescribeAutoScalingGroups(asgParams)
+		if err != nil {
+			return err
+		}
+
+		if len(resp.AutoScalingGroups) == 0 {
+			return fmt.Errorf("failed to find ASG '%s'", asgName)
+		}
+
+		asg := resp.AutoScalingGroups[0]
+
+		newDesired := aws.Int64Value(asg.DesiredCapacity) - 1
+		minSize := aws.Int64Value(asg.MinSize)
+
+		if 0 <= newDesired && 0 < minSize && newDesired < minSize {
+			// decrement min size of ASG
+			params := &autoscaling.UpdateAutoScalingGroupInput{
+				AutoScalingGroupName: asg.AutoScalingGroupName,
+				MinSize:              aws.Int64(newDesired),
+			}
+
+			_, err = n.asgClient.UpdateAutoScalingGroup(params)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	params := &autoscaling.TerminateInstanceInAutoScalingGroupInput{
-		InstanceId:                     instanceId,
+		InstanceId:                     aws.String(instanceId),
 		ShouldDecrementDesiredCapacity: aws.Bool(decrementDesired),
 	}
 
 	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
-
 	if err != nil {
 		// could be because the instance is already being terminated, check for that
 		status, serr := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
 			IncludeAllInstances: aws.Bool(true),
-			InstanceIds:         []*string{instanceId},
+			InstanceIds:         []*string{aws.String(instanceId)},
 		})
 
 		if serr != nil || len(status.InstanceStatuses) == 0 {
@@ -231,6 +338,11 @@ func (n *ASGNodePoolsBackend) getLaunchConfiguration(asg *autoscaling.Group) (*a
 
 // getInstancesToUpdate returns a list of instances with outdated userData.
 func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[string]bool, error) {
+	// return early if the ASG is empty
+	if len(asg.Instances) == 0 {
+		return nil, nil
+	}
+
 	launchConfig, err := n.getLaunchConfiguration(asg)
 	if err != nil {
 		return nil, err

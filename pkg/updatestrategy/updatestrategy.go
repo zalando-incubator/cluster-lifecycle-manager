@@ -17,6 +17,7 @@ type UpdateStrategy interface {
 type ProviderNodePoolsBackend interface {
 	Get(nodePool *api.NodePool) (*NodePool, error)
 	Scale(nodePool *api.NodePool, replicas int) error
+	SuspendAutoscaling(nodePool *api.NodePool) error
 	Terminate(node *Node, decrementDesired bool) error
 }
 

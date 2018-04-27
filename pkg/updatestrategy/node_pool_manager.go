@@ -1,6 +1,8 @@
 package updatestrategy
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,7 +10,7 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -168,7 +170,7 @@ func (m *KubernetesNodePoolManager) TaintNode(node *Node, taintKey, taintValue s
 			_, err := m.kube.CoreV1().Nodes().Update(updatedNode)
 			if err != nil {
 				// automatically retry if there was a conflicting update.
-				serr, ok := err.(*errors.StatusError)
+				serr, ok := err.(*apiErrors.StatusError)
 				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
 					return err
 				}
@@ -193,18 +195,75 @@ func (m *KubernetesNodePoolManager) TerminateNode(node *Node, decrementDesired b
 		return err
 	}
 
-	return m.backend.Terminate(node, decrementDesired)
+	err = m.backend.Terminate(node, decrementDesired)
+	if err != nil {
+		return err
+	}
+
+	// remove the node resource from Kubernetes. This ensures that the same
+	// empty node is not drained multiple times.
+	return m.kube.CoreV1().Nodes().Delete(node.Name, nil)
 }
 
 // ScalePool scales a nodePool to the specified number of replicas.
+// On scale down it will attempt to do it gracefully by draining the nodes
+// before terminating them.
 func (m *KubernetesNodePoolManager) ScalePool(nodePool *api.NodePool, replicas int) error {
-	return m.backend.Scale(nodePool, replicas)
+	var pool *NodePool
+	var err error
+
+	// in case we are scaling down to 0 replicas, disable the autoscaler to
+	// not fight with it.
+	if replicas == 0 {
+		err := m.backend.SuspendAutoscaling(nodePool)
+		if err != nil {
+			return err
+		}
+	}
+
+	for {
+		pool, err = WaitForDesiredNodes(context.Background(), m.logger, m, nodePool)
+		if err != nil {
+			return err
+		}
+
+		if pool.Current < replicas {
+			return m.backend.Scale(nodePool, replicas)
+		}
+
+		if pool.Current > replicas {
+			// pick a random node to terminate
+			if len(pool.Nodes) < 1 {
+				return errors.New("expected at least 1 node in the node pool, found 0")
+			}
+			node := pool.Nodes[0]
+
+			// if there are already cordoned nodes prefer one of those
+			cordonedNodes := filterNodesToTerminate(pool.Nodes)
+			if len(cordonedNodes) > 0 {
+				node = cordonedNodes[0]
+			}
+
+			err := m.CordonNode(node)
+			if err != nil {
+				return err
+			}
+
+			err = m.TerminateNode(node, true)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+		return nil
+	}
 }
 
 // drain tries to evict all of the pods on a node.
 // TODO: optimization: concurrent pod eviction.
 func (m *KubernetesNodePoolManager) drain(node *Node) error {
-	m.logger.WithField("nodeName", node.Name).Info("Draining node", node.Name)
+	m.logger.WithField("node", node.Name).Info("Draining node")
 
 	// mark node as draining
 	if err := m.LabelNode(node, lifecycleStatusLabel, lifecycleStatusDraining); err != nil {
@@ -230,7 +289,7 @@ func (m *KubernetesNodePoolManager) drain(node *Node) error {
 
 			err = evictPod(m.kube, m.logger, &pod)
 			if err != nil {
-				if errors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
+				if apiErrors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
 					m.logger.WithFields(log.Fields{
 						"ns":   pod.Namespace,
 						"pod":  pod.Name,
@@ -254,7 +313,7 @@ func (m *KubernetesNodePoolManager) drain(node *Node) error {
 	backoffCfg.MaxElapsedTime = m.maxEvictTimeout
 	err := backoff.Retry(evictAll, backoffCfg)
 	if err != nil {
-		if !errors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
+		if !apiErrors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
 			return err
 		}
 	}
@@ -316,6 +375,9 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 		return err
 	}
 
+	// TODO: wait for the pod to actually be evicted. It has graceperiod
+	// time to finish what it was doing.
+
 	localLogger.Info("Pod evicted")
 	return nil
 }
@@ -358,4 +420,38 @@ func (m *KubernetesNodePoolManager) isEvictablePod(pod v1.Pod) bool {
 	}
 
 	return true
+}
+
+// WaitForDesiredNodes waits for the current number of nodes to match the
+// desired number. The final node pool will be returned.
+func WaitForDesiredNodes(ctx context.Context, logger *log.Entry, n NodePoolManager, nodePoolDesc *api.NodePool) (*NodePool, error) {
+	ctx, cancel := context.WithTimeout(ctx, operationMaxTimeout)
+	defer cancel()
+
+	var err error
+	var nodePool *NodePool
+
+	for {
+		nodePool, err = n.GetPool(nodePoolDesc)
+		if err != nil {
+			return nil, err
+		}
+
+		readyNodes := len(nodePool.ReadyNodes())
+
+		if readyNodes == nodePool.Desired {
+			break
+		}
+
+		logger.WithFields(log.Fields{"node-pool": nodePoolDesc.Name}).
+			Infof("Waiting for ready and desired number of nodes to match: %d/%d", readyNodes, nodePool.Desired)
+
+		select {
+		case <-ctx.Done():
+			return nil, errTimeoutExceeded
+		case <-time.After(operationCheckInterval):
+		}
+	}
+
+	return nodePool, nil
 }

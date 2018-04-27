@@ -233,7 +233,7 @@ func TestDescribeCorrectASG(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
 	group, err := a.describeASG("GroupName")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	if *group.AutoScalingGroupName != "GroupName" {
 		t.Fatalf("expected %s, got %s", "GroupName", *group.AutoScalingGroupName)

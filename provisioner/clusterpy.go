@@ -26,6 +26,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
@@ -42,19 +43,23 @@ import (
 )
 
 const (
-	providerID                     = "zalando-aws"
-	versionFmt                     = "%s#%s"
-	manifestsPath                  = "cluster/manifests"
-	deletionsFile                  = "deletions.yaml"
-	defaultNamespace               = "default"
-	kubectlNotFound                = "(NotFound)"
-	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
-	resourceLifecycleShared        = "shared"
-	maxApplyRetries                = 10
-	configKeyUpdateStrategy        = "update_strategy"
-	configKeyNodeMaxEvictTimeout   = "node_max_evict_timeout"
-	updateStrategyRolling          = "rolling"
-	defaultMaxRetryTime            = 5 * time.Minute
+	providerID                          = "zalando-aws"
+	versionFmt                          = "%s#%s"
+	manifestsPath                       = "cluster/manifests"
+	deletionsFile                       = "deletions.yaml"
+	defaultNamespace                    = "default"
+	kubectlNotFound                     = "(NotFound)"
+	tagNameKubernetesClusterPrefix      = "kubernetes.io/cluster/"
+	subnetELBRoleTagName                = "kubernetes.io/role/elb"
+	resourceLifecycleShared             = "shared"
+	resourceLifecycleOwned              = "owned"
+	nodePoolFeatureEnabledConfigItemKey = "node_pool_feature_enabled"
+	subnetsConfigItemKey                = "subnets"
+	maxApplyRetries                     = 10
+	configKeyUpdateStrategy             = "update_strategy"
+	configKeyNodeMaxEvictTimeout        = "node_max_evict_timeout"
+	updateStrategyRolling               = "rolling"
+	defaultMaxRetryTime                 = 5 * time.Minute
 )
 
 type clusterpyProvisioner struct {
@@ -198,11 +203,11 @@ func (p *clusterpyProvisioner) Version(cluster *api.Cluster, channelConfig *chan
 	return fmt.Sprintf(versionFmt, channelConfig.Version, sha), nil
 }
 
-// Provision provisions/updates a cluster on AWS. Provion is an idempotent
+// Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *channel.Config) error {
 	logger := log.WithField("cluster", cluster.Alias)
-	awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
+	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -230,8 +235,11 @@ func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *ch
 	if stack != nil {
 		// suspend scaling for all autoscaling worker groups
 		for _, pool := range cluster.NodePools {
-			asg, err := awsAdapter.getNodePoolASG(cluster.LocalID, pool.Name)
+			asg, err := awsAdapter.getNodePoolASG(cluster.ID, pool.Name)
 			if err != nil {
+				if err == ErrASGNotFound {
+					continue
+				}
 				return err
 			}
 			err = awsAdapter.suspendScaling(*asg.AutoScalingGroupName)
@@ -248,6 +256,42 @@ func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *ch
 	}
 	cluster.Outputs = out
 
+	cfgBaseDir := path.Join(channelConfig.Path, "cluster", "node-pools")
+
+	// provision node pools
+	nodePoolProvisioner := &AWSNodePoolProvisioner{
+		awsAdapter:      awsAdapter,
+		nodePoolManager: nodePoolManager,
+		bucketName:      fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region),
+		cfgBaseDir:      cfgBaseDir,
+		Cluster:         cluster,
+		logger:          logger,
+	}
+
+	// TODO(tech-depth): remove if-guard when feature is enabled by default
+	if nodePoolFeatureEnabled(cluster) {
+		// in case the subnets are not defined in the config items
+		// discover them from the default VPC.
+		if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+			subnets, err := awsAdapter.GetSubnets()
+			if err != nil {
+				return err
+			}
+			cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
+		}
+
+		// TODO(tech-depth): custom legacy values
+		values := map[string]string{
+			"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
+			"apiserver_count": "1",
+		}
+
+		err = nodePoolProvisioner.Provision(values)
+		if err != nil {
+			return err
+		}
+	}
+
 	// wait for API server to be ready
 	err = waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 	if err != nil {
@@ -260,8 +304,21 @@ func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *ch
 			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
 		default:
 			// update nodes
-			sort.Sort(api.NodePools(cluster.NodePools))
-			for _, nodePool := range cluster.NodePools {
+			nodePools := cluster.NodePools
+
+			// TODO(tech-depth): remove special case when node pool feature
+			// is GA.
+			if !nodePoolFeatureEnabled(cluster) {
+				master, worker, err := getLegacyNodePools(cluster)
+				if err != nil {
+					return err
+				}
+
+				nodePools = []*api.NodePool{master, worker}
+			}
+
+			sort.Sort(api.NodePools(nodePools))
+			for _, nodePool := range nodePools {
 				err := updater.Update(context.Background(), nodePool)
 				if err != nil {
 					return err
@@ -270,13 +327,104 @@ func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *ch
 		}
 	}
 
+	// If the node pool feature is enabled and we have at least 2
+	// non-legacy node pools, then scale down any empty legacy node pools.
+	// TODO(tech-depth): remove this block when all legacy node pools has
+	// been decommissioned
+	nonLegacyNodePools := len(getNonLegacyNodePools(cluster))
+	legacyNodePools := len(cluster.NodePools) - nonLegacyNodePools
+	if nodePoolFeatureEnabled(cluster) && nonLegacyNodePools >= 2 && legacyNodePools == 0 {
+		masterPool, workerPool, err := getLegacyNodePools(cluster)
+		if err != nil {
+			return err
+		}
+
+		if masterPool.MaxSize == 0 && masterPool.MinSize == 0 {
+			// gracefully downscale node pool
+			err := nodePoolManager.ScalePool(masterPool, 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		if workerPool.MaxSize == 0 && workerPool.MinSize == 0 {
+			// gracefully downscale node pool
+			err := nodePoolManager.ScalePool(workerPool, 0)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// TODO(tech-depth): remove if-guard when feature is enabled by default
+	if nodePoolFeatureEnabled(cluster) {
+		// clean up removed node pools
+		err := nodePoolProvisioner.Reconcile()
+		if err != nil {
+			return err
+		}
+	}
+
 	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
+}
+
+// selectSubnetIDs finds the best suiting subnets based on tags and AZ.
+//
+// It follows almost the same logic for finding subnets as the
+// kube-controller-manager when finding subnets for ELBs used for services of
+// type LoadBalancer.
+// https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
+func selectSubnetIDs(subnets []*ec2.Subnet) []string {
+	subnetsByAZ := make(map[string]*ec2.Subnet)
+	for _, subnet := range subnets {
+		az := aws.StringValue(subnet.AvailabilityZone)
+
+		existing, ok := subnetsByAZ[az]
+		if !ok {
+			subnetsByAZ[az] = subnet
+			continue
+		}
+
+		// prefer subnet with an ELB role tag
+		existingTags := tagsToMap(existing.Tags)
+		subnetTags := tagsToMap(subnet.Tags)
+		_, existingHasTag := existingTags[subnetELBRoleTagName]
+		_, subnetHasTag := subnetTags[subnetELBRoleTagName]
+
+		if existingHasTag != subnetHasTag {
+			if subnetHasTag {
+				subnetsByAZ[az] = subnet
+			}
+			continue
+		}
+
+		// If we have two subnets for the same AZ we arbitrarily choose
+		// the one that is first lexicographically.
+		if strings.Compare(aws.StringValue(existing.SubnetId), aws.StringValue(subnet.SubnetId)) > 0 {
+			subnetsByAZ[az] = subnet
+		}
+	}
+
+	subnetIDs := make([]string, 0, len(subnetsByAZ))
+	for _, subnet := range subnetsByAZ {
+		subnetIDs = append(subnetIDs, aws.StringValue(subnet.SubnetId))
+	}
+
+	return subnetIDs
+}
+
+// nodePoolFeatureEnabled is a temporary feature gate check used for migrating
+// legacy node pools to real node pool support.
+// TODO(tech-depth): Remove when feature is enabled by default.
+func nodePoolFeatureEnabled(cluster *api.Cluster) bool {
+	v, ok := cluster.ConfigItems[nodePoolFeatureEnabledConfigItemKey]
+	return ok && v == "true"
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
 func (p *clusterpyProvisioner) Decommission(cluster *api.Cluster, channelConfig *channel.Config) error {
 	logger := log.WithField("cluster", cluster.Alias)
-	awsAdapter, _, err := p.prepareProvision(logger, cluster, channelConfig)
+	awsAdapter, _, _, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -294,6 +442,7 @@ func (p *clusterpyProvisioner) Decommission(cluster *api.Cluster, channelConfig 
 	}
 
 	// delete all cluster infrastructure stacks
+	// TODO: delete stacks in parallel
 	err = p.deleteClusterStacks(awsAdapter, cluster)
 	if err != nil {
 		return err
@@ -375,20 +524,20 @@ func waitForAPIServer(logger *log.Entry, server string, maxTimeout time.Duration
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should
 // be refactored.
-func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, error) {
+func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, updatestrategy.NodePoolManager, error) {
 	if cluster.Provider != providerID {
-		return nil, nil, ErrProviderNotSupported
+		return nil, nil, nil, ErrProviderNotSupported
 	}
 
 	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
 
 	infrastructureAccount := strings.Split(cluster.InfrastructureAccount, ":")
 	if len(infrastructureAccount) != 2 {
-		return nil, nil, fmt.Errorf("clusterpy: Unknown format for infrastructure account '%s", cluster.InfrastructureAccount)
+		return nil, nil, nil, fmt.Errorf("clusterpy: Unknown format for infrastructure account '%s", cluster.InfrastructureAccount)
 	}
 
 	if infrastructureAccount[0] != "aws" {
-		return nil, nil, fmt.Errorf("clusterpy: Cannot work with cloud provider '%s", infrastructureAccount[0])
+		return nil, nil, nil, fmt.Errorf("clusterpy: Cannot work with cloud provider '%s", infrastructureAccount[0])
 	}
 
 	roleArn := p.assumedRole
@@ -398,12 +547,12 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 	sess, err := awsUtils.Session(p.awsConfig, roleArn)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	adapter, err := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.tokenSource, p.dryRun)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// allow clusters to override their update strategy.
@@ -421,29 +570,30 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if ok {
 		maxEvictTimeout, err = time.ParseDuration(maxEvictTimeoutStr)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	var updater updatestrategy.UpdateStrategy
+	var poolManager updatestrategy.NodePoolManager
 	switch updateStrategy {
 	case updateStrategyRolling:
 		client, err := kubernetes.NewKubeClientWithTokenSource(cluster.APIServerURL, p.tokenSource)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		// setup updater
 		poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, sess)
 
-		poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, maxEvictTimeout)
+		poolManager = updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, maxEvictTimeout)
 
 		updater = updatestrategy.NewRollingUpdateStrategy(logger, poolManager, 3)
 	default:
-		return nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
+		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
 
-	return adapter, updater, nil
+	return adapter, updater, poolManager, nil
 }
 
 // tagSubnets tags all subnets in the default VPC with the kubernetes cluster
@@ -534,31 +684,48 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 // deleteClusterStacks deletes all stacks tagged by the cluster id.
 func (p *clusterpyProvisioner) deleteClusterStacks(adapter *awsAdapter, cluster *api.Cluster) error {
 	tags := map[string]string{
-		"kubernetes.io/cluster/" + cluster.ID: "owned",
+		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}
 	stacks, err := adapter.ListStacks(tags)
 	if err != nil {
 		return err
 	}
 
-	for _, stack := range stacks {
-		deleteStack := func() error {
-			err := adapter.DeleteStack(aws.StringValue(stack.StackName))
-			if err != nil {
-				if isWrongStackStatusErr(err) {
-					return err
-				}
-				return backoff.Permanent(err)
-			}
-			return nil
-		}
+	errorsc := make(chan error, len(stacks))
 
-		backoffCfg := backoff.NewExponentialBackOff()
-		backoffCfg.MaxElapsedTime = defaultMaxRetryTime
-		err := backoff.Retry(deleteStack, backoffCfg)
+	for _, stack := range stacks {
+		go func(stack cloudformation.Stack, errorsc chan error) {
+			deleteStack := func() error {
+				err := adapter.DeleteStack(aws.StringValue(stack.StackName))
+				if err != nil {
+					if isWrongStackStatusErr(err) {
+						return err
+					}
+					return backoff.Permanent(err)
+				}
+				return nil
+			}
+
+			backoffCfg := backoff.NewExponentialBackOff()
+			backoffCfg.MaxElapsedTime = defaultMaxRetryTime
+			err := backoff.Retry(deleteStack, backoffCfg)
+			if err != nil {
+				err = fmt.Errorf("failed to delete stack %s: %s", aws.StringValue(stack.StackName), err)
+			}
+			errorsc <- err
+		}(*stack, errorsc)
+	}
+
+	errorStrs := make([]string, 0, len(stacks))
+	for i := 0; i < len(stacks); i++ {
+		err := <-errorsc
 		if err != nil {
-			return err
+			errorStrs = append(errorStrs, err.Error())
 		}
+	}
+
+	if len(errorStrs) > 0 {
+		return errors.New(strings.Join(errorStrs, ", "))
 	}
 
 	return nil
@@ -575,16 +742,51 @@ func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
 	return false
 }
 
-// getNodePools returns the master and worker node pool for a cluster.
-func getNodePools(cluster *api.Cluster) (*api.NodePool, *api.NodePool, error) {
+// TODO(tech-depth): Remove when new node poole feature is enabled by default.
+func getNonLegacyNodePools(cluster *api.Cluster) []*api.NodePool {
+	nodePools := make([]*api.NodePool, 0, len(cluster.NodePools))
+	for _, np := range cluster.NodePools {
+		if np.Name == "master-default" || np.Name == "worker-default" {
+			continue
+		}
+		nodePools = append(nodePools, np)
+	}
+	return nodePools
+}
+
+// getLegacyNodePools returns the master and worker node pool for a cluster.
+// TODO(tech-depth): Remove when new node pool feature is enabled by default.
+func getLegacyNodePools(cluster *api.Cluster) (*api.NodePool, *api.NodePool, error) {
 	masterPools := make([]*api.NodePool, 0)
 	workerPools := make([]*api.NodePool, 0)
 
 	for _, np := range cluster.NodePools {
-		if strings.HasPrefix(np.Profile, "master") {
+		if np.Name == "master-default" {
 			masterPools = append(masterPools, np)
 		}
-		if strings.HasPrefix(np.Profile, "worker") {
+		if np.Name == "worker-default" {
+			workerPools = append(workerPools, np)
+		}
+	}
+
+	if nodePoolFeatureEnabled(cluster) {
+		if len(masterPools) == 0 {
+			np := &api.NodePool{
+				Name:    "master-default",
+				Profile: "master-default",
+				MinSize: 0,
+				MaxSize: 0,
+			}
+			masterPools = append(masterPools, np)
+		}
+
+		if len(workerPools) == 0 {
+			np := &api.NodePool{
+				Name:    "worker-default",
+				Profile: "worker-default",
+				MinSize: 0,
+				MaxSize: 0,
+			}
 			workerPools = append(workerPools, np)
 		}
 	}

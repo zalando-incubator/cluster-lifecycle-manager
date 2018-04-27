@@ -46,6 +46,23 @@ func (n *mockProviderNodePoolsBackend) Scale(nodePool *api.NodePool, replicas in
 }
 
 func (n *mockProviderNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
+	newNodes := make([]*Node, 0, len(n.nodePool.Nodes))
+	for _, n := range n.nodePool.Nodes {
+		if n.Name != node.Name {
+			newNodes = append(newNodes, n)
+		}
+	}
+	n.nodePool.Current = len(newNodes)
+	n.nodePool.Desired = len(newNodes)
+	n.nodePool.Nodes = newNodes
+	return n.err
+}
+
+func (n *mockProviderNodePoolsBackend) UpdateSize(nodePool *api.NodePool) error {
+	return n.err
+}
+
+func (n *mockProviderNodePoolsBackend) SuspendAutoscaling(nodePool *api.NodePool) error {
 	return n.err
 }
 
@@ -195,22 +212,114 @@ func TestCordonNode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestScalePool(t *testing.T) {
-	mgr := &KubernetesNodePoolManager{
-		backend: &mockProviderNodePoolsBackend{
-			nodePool: &NodePool{
-				Min:        1,
-				Max:        1,
-				Current:    1,
-				Desired:    1,
-				Generation: 1,
-				Nodes: []*Node{
-					{ProviderID: "provider-id"},
+func TestScalePool(tt *testing.T) {
+	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
+		return nil
+	}
+
+	for _, tc := range []struct {
+		msg      string
+		backend  *mockProviderNodePoolsBackend
+		nodes    []*v1.Node
+		replicas int
+	}{
+		{
+			msg: "no scale needed",
+			backend: &mockProviderNodePoolsBackend{
+				nodePool: &NodePool{
+					Min:        1,
+					Max:        1,
+					Current:    1,
+					Desired:    1,
+					Generation: 1,
+					Nodes: []*Node{
+						{
+							ProviderID: "provider-id",
+							Ready:      true,
+						},
+					},
 				},
 			},
+			nodes: []*v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: v1.NodeSpec{
+						ProviderID: "provider-id",
+					},
+				},
+			},
+			replicas: 1,
 		},
+		{
+			msg: "scale up",
+			backend: &mockProviderNodePoolsBackend{
+				nodePool: &NodePool{
+					Min:        1,
+					Max:        1,
+					Current:    1,
+					Desired:    1,
+					Generation: 1,
+					Nodes: []*Node{
+						{
+							ProviderID: "provider-id",
+							Ready:      true,
+						},
+					},
+				},
+			},
+			nodes: []*v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: v1.NodeSpec{
+						ProviderID: "provider-id",
+					},
+				},
+			},
+			replicas: 2,
+		},
+		{
+			msg: "scale down",
+			backend: &mockProviderNodePoolsBackend{
+				nodePool: &NodePool{
+					Min:        1,
+					Max:        1,
+					Current:    1,
+					Desired:    1,
+					Generation: 1,
+					Nodes: []*Node{
+						{
+							ProviderID: "provider-id",
+							Ready:      true,
+						},
+					},
+				},
+			},
+			nodes: []*v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: v1.NodeSpec{
+						ProviderID: "provider-id",
+					},
+				},
+			},
+			replicas: 0,
+		},
+	} {
+		tt.Run(tc.msg, func(t *testing.T) {
+			mgr := &KubernetesNodePoolManager{
+				backend: tc.backend,
+				kube:    setupMockKubernetes(t, tc.nodes, nil),
+				logger:  log.WithField("test", true),
+			}
+			assert.NoError(t, mgr.ScalePool(&api.NodePool{Name: "test"}, tc.replicas))
+		})
 	}
-	assert.NoError(t, mgr.ScalePool(&api.NodePool{Name: "test"}, 1))
 }
 
 func TestTerminateNode(t *testing.T) {
