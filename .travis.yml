@@ -4,11 +4,12 @@ go:
   - 1.x
 
 before_install:
-  - go get -u github.com/Masterminds/glide
+  - go get github.com/Masterminds/glide
+  - go get github.com/mattn/goveralls
 
 install:
   - glide install -v
 
 script:
-  - make
-  - make test
+  - make build.docker
+  - goveralls -v -service=travis-ci
