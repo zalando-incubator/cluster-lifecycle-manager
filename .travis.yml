@@ -4,11 +4,11 @@ go:
   - 1.x
 
 before_install:
-  - go get github.com/Masterminds/glide
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - go get github.com/mattn/goveralls
 
 install:
-  - glide install -v
+  - dep ensure -vendor-only
 
 script:
   - make build.docker
