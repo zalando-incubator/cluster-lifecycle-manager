@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // helper function to setup a test repository.
@@ -57,32 +59,20 @@ func TestGitGet(t *testing.T) {
 	defer os.RemoveAll(tmpRepo)
 
 	c, err := NewGit(workdir, tmpRepo, "")
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	require.NoError(t, err)
 
-	err = c.Update()
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	versions, err := c.Update()
+	require.NoError(t, err)
 
-	_, err = c.Get(channel)
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	version, err := versions.Version(channel)
+	require.NoError(t, err)
 
-	// test geting channel when the repo has already been cloned once. E.i.
-	// do a pull in that case.
-	_, err = c.Get(channel)
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	_, err = c.Get(version)
+	require.NoError(t, err)
 
 	// cleanup repo
 	err = os.RemoveAll(workdir)
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetRepoName(t *testing.T) {

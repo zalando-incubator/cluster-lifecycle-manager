@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"path/filepath"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
-	"path/filepath"
 )
 
 // Git defines a channel source where the channels are stored in a git
@@ -24,6 +25,21 @@ type Git struct {
 	repoDir           string
 	sshPrivateKeyFile string
 	mutex             *sync.Mutex
+}
+
+type staticVersions struct {
+	channels map[string]ConfigVersion
+}
+
+func NewStaticVersions(versions map[string]ConfigVersion) ConfigVersions {
+	return &staticVersions{channels: versions}
+}
+
+func (versions *staticVersions) Version(channel string) (ConfigVersion, error) {
+	if version, ok := versions.channels[channel]; ok {
+		return version, nil
+	}
+	return "", fmt.Errorf("unknown channel: %s", channel)
 }
 
 // NewGit initializes a new git based ChannelSource.
@@ -60,21 +76,15 @@ func getRepoName(repoURI string) (string, error) {
 	return match[1], nil
 }
 
-// Get checks out the specified channel from the git repo.
-func (g *Git) Get(channel string) (*Config, error) {
-	repoDir, err := g.localClone(channel)
-	if err != nil {
-		return nil, err
-	}
-
-	version, err := g.currentRevision(repoDir)
+// Get checks out the specified version from the git repo.
+func (g *Git) Get(version ConfigVersion) (*Config, error) {
+	repoDir, err := g.localClone(string(version))
 	if err != nil {
 		return nil, err
 	}
 
 	return &Config{
-		Version: version,
-		Path:    repoDir,
+		Path: repoDir,
 	}, nil
 }
 
@@ -84,28 +94,53 @@ func (g *Git) Delete(config *Config) error {
 	return os.RemoveAll(config.Path)
 }
 
-func (g *Git) Update() error {
+func (g *Git) Update() (ConfigVersions, error) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
 	_, err := os.Stat(g.repoDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
 
 		err = g.cmd("clone", "--mirror", g.repositoryURL, g.repoDir)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	err = g.cmd("--git-dir", g.repoDir, "remote", "update", "--prune")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return g.availableChannels()
+}
+
+func (g *Git) availableChannels() (ConfigVersions, error) {
+	cmd := exec.Command("git", "--git-dir", g.repoDir, "show-ref", "--heads")
+	cmd.Stderr = nil
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]ConfigVersion)
+	for _, line := range strings.Split(string(out), "\n") {
+		if line != "" {
+			chunks := strings.Split(line, " ")
+			if len(chunks) != 2 {
+				return nil, fmt.Errorf("availableChannels: invalid line in show-ref output: %s", line)
+			}
+
+			hash := chunks[0]
+			channel := strings.Replace(chunks[1], "refs/heads/", "", 1)
+
+			result[channel] = ConfigVersion(hash)
+		}
+	}
+	return &staticVersions{channels: result}, nil
 }
 
 // localClone duplicates a repo by cloning to temp location with unix time
@@ -128,17 +163,6 @@ func (g *Git) localClone(channel string) (string, error) {
 	}
 
 	return repoDir, nil
-}
-
-// currentRevision returns the current revision of the repoDir.
-func (g *Git) currentRevision(repoDir string) (string, error) {
-	cmd := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD")
-	d, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(string(d)), err
 }
 
 // cmd executes a git command with the correct environment set.

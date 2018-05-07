@@ -5,9 +5,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 )
 
 const (
@@ -16,29 +16,30 @@ const (
 	updatePriorityAlreadyUpdating
 )
 
-type clusterInfo struct {
+type ClusterInfo struct {
 	lastProcessed time.Time
 	processing    bool
-	cluster       *api.Cluster
+	Cluster       *api.Cluster
+	Version       channel.ConfigVersion
 }
 
 // ClusterList maintains the state of all active clusters
 type ClusterList struct {
 	sync.Mutex
 	accountFilter config.IncludeExcludeFilter
-	clusters      map[string]*clusterInfo
+	clusters      map[string]*ClusterInfo
 }
 
 func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
 	return &ClusterList{
 		accountFilter: accountFilter,
-		clusters:      make(map[string]*clusterInfo),
+		clusters:      make(map[string]*ClusterInfo),
 	}
 }
 
 // UpdateAvailable adds new clusters to the list, updates the cluster data for existing ones and removes clusters
 // that are no longer active
-func (clusterList *ClusterList) UpdateAvailable(availableClusters []*api.Cluster) {
+func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions, availableClusters []*api.Cluster) {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
@@ -57,15 +58,22 @@ func (clusterList *ClusterList) UpdateAvailable(availableClusters []*api.Cluster
 
 		availableClusterIds[cluster.ID] = true
 
+		channelVersion, err := channels.Version(cluster.Channel)
+		if err != nil {
+			channelVersion = ""
+		}
+
 		if existing, ok := clusterList.clusters[cluster.ID]; ok {
 			if !existing.processing {
-				existing.cluster = cluster
+				existing.Cluster = cluster
+				existing.Version = channelVersion
 			}
 		} else {
-			clusterList.clusters[cluster.ID] = &clusterInfo{
+			clusterList.clusters[cluster.ID] = &ClusterInfo{
 				lastProcessed: time.Unix(0, 0),
 				processing:    false,
-				cluster:       cluster,
+				Cluster:       cluster,
+				Version:       channelVersion,
 			}
 		}
 	}
@@ -98,11 +106,11 @@ func updatePriority(cluster *api.Cluster) uint32 {
 // SelectNext returns the next cluster of update, if any, and marks it as being processed. A cluster with higher
 // priority will be selected first, in case of ties it'll select a cluster that hasn't been updated for the longest
 // time.
-func (clusterList *ClusterList) SelectNext() *api.Cluster {
+func (clusterList *ClusterList) SelectNext() *ClusterInfo {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
-	var nextCluster *clusterInfo
+	var nextCluster *ClusterInfo
 	var nextClusterPriority uint32
 
 	for _, cluster := range clusterList.clusters {
@@ -112,9 +120,9 @@ func (clusterList *ClusterList) SelectNext() *api.Cluster {
 
 		if nextCluster == nil {
 			nextCluster = cluster
-			nextClusterPriority = updatePriority(cluster.cluster)
+			nextClusterPriority = updatePriority(cluster.Cluster)
 		} else {
-			priority := updatePriority(cluster.cluster)
+			priority := updatePriority(cluster.Cluster)
 
 			if priority > nextClusterPriority || (priority == nextClusterPriority && cluster.lastProcessed.Before(nextCluster.lastProcessed)) {
 				nextCluster = cluster
@@ -128,15 +136,15 @@ func (clusterList *ClusterList) SelectNext() *api.Cluster {
 	}
 
 	nextCluster.processing = true
-	return nextCluster.cluster
+	return nextCluster
 }
 
 // ClusterProcessed marks a cluster as no longer being processed.
-func (clusterList *ClusterList) ClusterProcessed(id string) {
+func (clusterList *ClusterList) ClusterProcessed(cluster *ClusterInfo) {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
-	if cluster, ok := clusterList.clusters[id]; ok {
+	if cluster, ok := clusterList.clusters[cluster.Cluster.ID]; ok {
 		cluster.processing = false
 		cluster.lastProcessed = time.Now()
 	}

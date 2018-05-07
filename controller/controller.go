@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -107,7 +108,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 
 // refresh refreshes the channel configuration and the cluster list
 func (c *Controller) refresh() error {
-	err := c.channelConfigSourcer.Update()
+	channels, err := c.channelConfigSourcer.Update()
 	if err != nil {
 		return err
 	}
@@ -117,18 +118,23 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
-	c.clusterList.UpdateAvailable(clusters)
+	c.clusterList.UpdateAvailable(channels, clusters)
 	return nil
 }
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
+func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
+	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
 	}
 
-	config, err := c.channelConfigSourcer.Get(cluster.Channel)
+	if clusterInfo.Version == "" {
+		return fmt.Errorf("no version for channel %s", cluster.Channel)
+	}
+
+	config, err := c.channelConfigSourcer.Get(clusterInfo.Version)
 	if err != nil {
 		return err
 	}
@@ -143,7 +149,7 @@ func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
 		var nextVersion string
-		nextVersion, err = c.provisioner.Version(cluster, config)
+		nextVersion, err = c.provisioner.Version(cluster, clusterInfo.Version)
 		if err != nil {
 			return err
 		}
@@ -186,13 +192,15 @@ func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
 }
 
 // processCluster calls doProcessCluster and handles logging and reporting
-func (c *Controller) processCluster(workerNum uint, cluster *api.Cluster) {
-	defer c.clusterList.ClusterProcessed(cluster.ID)
+func (c *Controller) processCluster(workerNum uint, clusterInfo *ClusterInfo) {
+	defer c.clusterList.ClusterProcessed(clusterInfo)
+
+	cluster := clusterInfo.Cluster
 	clusterLog := log.WithField("cluster", cluster.Alias).WithField("worker", workerNum)
 
 	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
-	err := c.doProcessCluster(cluster)
+	err := c.doProcessCluster(clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {

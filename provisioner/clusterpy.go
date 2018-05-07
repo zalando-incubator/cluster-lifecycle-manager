@@ -98,7 +98,7 @@ func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, assumedRole string,
 
 // Version returns the version derived from a sha1 hash of the cluster struct
 // and the channel config version.
-func (p *clusterpyProvisioner) Version(cluster *api.Cluster, channelConfig *channel.Config) (string, error) {
+func (p *clusterpyProvisioner) Version(cluster *api.Cluster, channelVersion channel.ConfigVersion) (string, error) {
 	if cluster.Provider != providerID {
 		return "", ErrProviderNotSupported
 	}
@@ -200,7 +200,7 @@ func (p *clusterpyProvisioner) Version(cluster *api.Cluster, channelConfig *chan
 	}
 	sha := base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 
-	return fmt.Sprintf(versionFmt, channelConfig.Version, sha), nil
+	return fmt.Sprintf(versionFmt, string(channelVersion), sha), nil
 }
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent

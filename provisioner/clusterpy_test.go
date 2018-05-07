@@ -11,7 +11,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
 
 func TestVersion(t *testing.T) {
@@ -50,18 +49,14 @@ func TestVersion(t *testing.T) {
 		},
 	}
 
-	channelConfig := &channel.Config{
-		Version: "git-commit-hash",
-	}
-
 	token := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "foo.bar.token"})
 	provisioner := NewClusterpyProvisioner(token, "", aws.NewConfig(), nil)
-	version, err := provisioner.Version(cluster, channelConfig)
+	version, err := provisioner.Version(cluster, "git-commit-hash")
 	if err != nil {
 		t.Errorf("should not fail: %v", err)
 	}
 
-	version2, err := provisioner.Version(cluster, channelConfig)
+	version2, err := provisioner.Version(cluster, "git-commit-hash")
 	if err != nil {
 		t.Errorf("should not fail: %v", err)
 	}

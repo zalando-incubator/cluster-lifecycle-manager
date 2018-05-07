@@ -29,6 +29,6 @@ func (p *stdoutProvisioner) Decommission(cluster *api.Cluster, channelConfig *ch
 }
 
 // Version mocks geting the version based on cluster resource and channel config.
-func (p *stdoutProvisioner) Version(cluster *api.Cluster, channelConfig *channel.Config) (string, error) {
+func (p *stdoutProvisioner) Version(cluster *api.Cluster, channelVersion channel.ConfigVersion) (string, error) {
 	return "", nil
 }

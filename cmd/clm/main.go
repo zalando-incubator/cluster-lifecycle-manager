@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"golang.org/x/oauth2"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -111,6 +113,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
+	sortByEnvironmentPriority(clusters, cfg.EnvironmentOrder)
 
 	for _, cluster := range clusters {
 		if !cfg.AccountFilter.Allowed(cluster.InfrastructureAccount) {
@@ -118,12 +121,17 @@ func main() {
 			continue
 		}
 
-		err := configSource.Update()
+		channels, err := configSource.Update()
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(cluster.Channel)
+		version, err := channels.Version(cluster.Channel)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		config, err := configSource.Get(version)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -156,6 +164,19 @@ func main() {
 			log.Fatalf("unknown command: %s", command)
 		}
 	}
+}
+
+func sortByEnvironmentPriority(clusters []*api.Cluster, environmentPriority []string) {
+	computedPriorities := make(map[string]int)
+	for i, env := range environmentPriority {
+		computedPriorities[env] = i + 1
+	}
+
+	sort.SliceStable(clusters, func(i, j int) bool {
+		iPriority := computedPriorities[clusters[i].Environment]
+		jPriority := computedPriorities[clusters[j].Environment]
+		return iPriority < jPriority
+	})
 }
 
 func serveHealthCheck(listen string) {

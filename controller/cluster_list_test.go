@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 )
 
@@ -14,6 +16,11 @@ var mockStatus = &api.ClusterStatus{
 	NextVersion:    "",
 	CurrentVersion: "abc123",
 }
+
+var devRevision = channel.ConfigVersion("<dev-channel>")
+var defaultChannels = channel.NewStaticVersions(map[string]channel.ConfigVersion{
+	"dev": devRevision,
+})
 
 func TestUpdateIgnoresClusters(t *testing.T) {
 	filter := config.IncludeExcludeFilter{
@@ -30,6 +37,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "aws:123456789011:eu-central-1:decommissioned",
 				InfrastructureAccount: "aws:123456789011",
 				LifecycleStatus:       "decommissioned",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: true,
@@ -39,6 +47,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "aws:123456789011:eu-central-1:ready",
 				InfrastructureAccount: "aws:123456789011",
 				LifecycleStatus:       "ready",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: false,
@@ -48,6 +57,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "aws:123456789011:eu-central-1:requested",
 				InfrastructureAccount: "aws:123456789011",
 				LifecycleStatus:       "ready",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: false,
@@ -57,6 +67,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "aws:123456789011:eu-central-1:decommission-requested",
 				InfrastructureAccount: "aws:123456789011",
 				LifecycleStatus:       "decommission-requested",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: false,
@@ -66,6 +77,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "aws:123456789222:eu-central-1:excluded",
 				InfrastructureAccount: "aws:123456789222",
 				LifecycleStatus:       "ready",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: true,
@@ -75,13 +87,14 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				ID: "foobar:123456789011:eu-central-1:not-included",
 				InfrastructureAccount: "foobar:123456789011",
 				LifecycleStatus:       "ready",
+				Channel:               "dev",
 				Status:                mockStatus,
 			},
 			ignored: true,
 		},
 	} {
 		clusterList := NewClusterList(filter)
-		clusterList.UpdateAvailable([]*api.Cluster{ti.cluster})
+		clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{ti.cluster})
 		nextCluster := clusterList.SelectNext()
 		if ti.ignored {
 			assert.Nil(t, nextCluster, "cluster wasn't ignored: %s", ti.cluster.ID)
@@ -92,16 +105,18 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 }
 
 func allClusterIds(clusterList *ClusterList) []string {
+	var clusters []*ClusterInfo
 	var result []string
 	for {
-		cluster := clusterList.SelectNext()
-		if cluster == nil {
-			for _, id := range result {
-				clusterList.ClusterProcessed(id)
+		clusterInfo := clusterList.SelectNext()
+		if clusterInfo == nil {
+			for _, info := range clusters {
+				clusterList.ClusterProcessed(info)
 			}
 			return result
 		} else {
-			result = append(result, cluster.ID)
+			clusters = append(clusters, clusterInfo)
+			result = append(result, clusterInfo.Cluster.ID)
 		}
 	}
 }
@@ -111,27 +126,29 @@ func TestUpdateAddsNewClusters(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 	cluster2 := &api.Cluster{
 		ID: "aws:123456789012:eu-central-1:cluster2",
 		InfrastructureAccount: "aws:123456789012",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
 	clusterList := NewClusterList(config.DefaultFilter)
 
 	// No clusters yet
-	assert.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext())
 
 	// One new cluster
-	clusterList.UpdateAvailable([]*api.Cluster{cluster1})
-	assert.Equal(t, []string{cluster1.ID}, allClusterIds(clusterList))
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster1})
+	require.Equal(t, []string{cluster1.ID}, allClusterIds(clusterList))
 
 	// Another new cluster
-	clusterList.UpdateAvailable([]*api.Cluster{cluster1, cluster2})
-	assert.Equal(t, []string{cluster2.ID, cluster1.ID}, allClusterIds(clusterList))
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster1, cluster2})
+	require.Equal(t, []string{cluster2.ID, cluster1.ID}, allClusterIds(clusterList))
 }
 
 func TestUpdateUpdatesExistingClusters(t *testing.T) {
@@ -139,24 +156,31 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "requested",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
 	clusterList := NewClusterList(config.DefaultFilter)
 
-	clusterList.UpdateAvailable([]*api.Cluster{cluster})
-	assert.Equal(t, cluster.LifecycleStatus, clusterList.SelectNext().LifecycleStatus)
-	clusterList.ClusterProcessed(cluster.ID)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
+
+	next := clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, cluster.LifecycleStatus, next.Cluster.LifecycleStatus)
+	clusterList.ClusterProcessed(next)
 
 	updated := &api.Cluster{
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
-	clusterList.UpdateAvailable([]*api.Cluster{updated})
-	assert.Equal(t, updated.LifecycleStatus, clusterList.SelectNext().LifecycleStatus)
-	clusterList.ClusterProcessed(updated.ID)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
+	next = clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, updated.LifecycleStatus, next.Cluster.LifecycleStatus)
+	clusterList.ClusterProcessed(next)
 
 	assert.Equal(t, []string{cluster.ID}, allClusterIds(clusterList))
 }
@@ -171,22 +195,24 @@ func TestUpdateDeletesUnusedClusters(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 	cluster2 := &api.Cluster{
 		ID: "aws:123456789012:eu-central-1:cluster2",
 		InfrastructureAccount: "aws:123456789012",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
 	clusterList := NewClusterList(config.DefaultFilter)
 
-	clusterList.UpdateAvailable([]*api.Cluster{cluster1, cluster2})
-	assert.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIds(clusterList)))
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster1, cluster2})
+	require.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIds(clusterList)))
 
-	clusterList.UpdateAvailable([]*api.Cluster{cluster2})
-	assert.Equal(t, []string{cluster2.ID}, allClusterIds(clusterList))
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster2})
+	require.Equal(t, []string{cluster2.ID}, allClusterIds(clusterList))
 }
 
 func TestClusterPriority(t *testing.T) {
@@ -194,18 +220,21 @@ func TestClusterPriority(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:normal",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 	decommissionRequested := &api.Cluster{
 		ID: "aws:123456789012:eu-central-1:decommission-requested",
 		InfrastructureAccount: "aws:123456789012",
 		LifecycleStatus:       "decommission-requested",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 	pendingUpdate := &api.Cluster{
 		ID: "aws:123456789013:eu-central-1:pendingUpdate",
 		InfrastructureAccount: "aws:123456789013",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status: &api.ClusterStatus{
 			NextVersion:    "abc123",
 			CurrentVersion: "def456",
@@ -215,6 +244,7 @@ func TestClusterPriority(t *testing.T) {
 		ID: "aws:123456789014:eu-central-1:normal-2",
 		InfrastructureAccount: "aws:123456789014",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
@@ -228,34 +258,37 @@ func TestClusterPriority(t *testing.T) {
 	} {
 		clusterList := NewClusterList(config.DefaultFilter)
 
-		clusterList.UpdateAvailable(clusters)
+		clusterList.UpdateAvailable(defaultChannels, clusters)
 		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIds(clusterList))
 
 		// add normal2, it should now be updated before normal1
-		clusterList.UpdateAvailable(append(clusters, normal2))
+		clusterList.UpdateAvailable(defaultChannels, append(clusters, normal2))
 		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal2.ID, normal.ID}, allClusterIds(clusterList))
 	}
 }
 
 func TestClusterLastUpdated(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter)
-	clusterList.UpdateAvailable([]*api.Cluster{
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{
 		{
 			ID: "aws:123456789011:eu-central-1:cluster1",
 			InfrastructureAccount: "aws:123456789011",
 			LifecycleStatus:       "ready",
+			Channel:               "dev",
 			Status:                mockStatus,
 		},
 		{
 			ID: "aws:123456789012:eu-central-1:cluster2",
 			InfrastructureAccount: "aws:123456789012",
 			LifecycleStatus:       "ready",
+			Channel:               "dev",
 			Status:                mockStatus,
 		},
 		{
 			ID: "aws:123456789013:eu-central-1:cluster3",
 			InfrastructureAccount: "aws:123456789013",
 			LifecycleStatus:       "ready",
+			Channel:               "dev",
 			Status:                mockStatus,
 		},
 	})
@@ -266,12 +299,12 @@ func TestClusterLastUpdated(t *testing.T) {
 	next3 := clusterList.SelectNext()
 
 	// finish processing in a different order (2->1->3)
-	clusterList.ClusterProcessed(next2.ID)
-	clusterList.ClusterProcessed(next1.ID)
-	clusterList.ClusterProcessed(next3.ID)
+	clusterList.ClusterProcessed(next2)
+	clusterList.ClusterProcessed(next1)
+	clusterList.ClusterProcessed(next3)
 
 	// the same order should be preserved for next update attempts
-	assert.Equal(t, []string{next2.ID, next1.ID, next3.ID}, allClusterIds(clusterList))
+	require.Equal(t, []string{next2.Cluster.ID, next1.Cluster.ID, next3.Cluster.ID}, allClusterIds(clusterList))
 }
 
 func TestProcessingClusterNotDeleted(t *testing.T) {
@@ -279,23 +312,29 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
 	clusterList := NewClusterList(config.DefaultFilter)
-	clusterList.UpdateAvailable([]*api.Cluster{cluster})
-	assert.Equal(t, cluster.ID, clusterList.SelectNext().ID)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
+	next := clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, cluster.ID, next.Cluster.ID)
 
 	// remove the cluster
-	clusterList.UpdateAvailable([]*api.Cluster{})
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{})
 
 	// add it back, but it still should be processing
-	clusterList.UpdateAvailable([]*api.Cluster{cluster})
-	assert.Nil(t, clusterList.SelectNext())
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
+	require.Nil(t, clusterList.SelectNext())
 
 	// finish processing
-	clusterList.ClusterProcessed(cluster.ID)
-	assert.Equal(t, cluster.ID, clusterList.SelectNext().ID)
+	clusterList.ClusterProcessed(next)
+
+	next = clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, cluster.ID, next.Cluster.ID)
 }
 
 func TestProcessingClusterNotUpdated(t *testing.T) {
@@ -303,23 +342,29 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "ready",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
 	clusterList := NewClusterList(config.DefaultFilter)
-	clusterList.UpdateAvailable([]*api.Cluster{cluster})
-	assert.Equal(t, cluster.ID, clusterList.SelectNext().ID)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
+	next := clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, cluster.ID, next.Cluster.ID)
 
 	updated := &api.Cluster{
 		ID: "aws:123456789011:eu-central-1:cluster1",
 		InfrastructureAccount: "aws:123456789011",
 		LifecycleStatus:       "decommission-pending",
+		Channel:               "dev",
 		Status:                mockStatus,
 	}
 
-	clusterList.UpdateAvailable([]*api.Cluster{updated})
-	clusterList.ClusterProcessed(cluster.ID)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
+	clusterList.ClusterProcessed(next)
 
 	// cluster should not be overwritten
-	assert.Equal(t, cluster.LifecycleStatus, clusterList.SelectNext().LifecycleStatus)
+	next = clusterList.SelectNext()
+	require.NotNil(t, next)
+	require.Equal(t, cluster.LifecycleStatus, next.Cluster.LifecycleStatus)
 }

@@ -27,5 +27,5 @@ type Options struct {
 type Provisioner interface {
 	Provision(cluster *api.Cluster, channelConfig *channel.Config) error
 	Decommission(cluster *api.Cluster, channelConfig *channel.Config) error
-	Version(cluster *api.Cluster, channelConfig *channel.Config) (string, error)
+	Version(cluster *api.Cluster, channelVersion channel.ConfigVersion) (string, error)
 }
