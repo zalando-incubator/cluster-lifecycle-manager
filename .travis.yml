@@ -6,10 +6,12 @@ go:
 before_install:
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - go get github.com/mattn/goveralls
+  - go get github.com/lawrencewoodman/roveralls
 
 install:
   - dep ensure -vendor-only
 
 script:
   - make build.docker
-  - goveralls -v -service=travis-ci
+  - roveralls
+  - goveralls -v -coverprofile=roveralls.coverprofile -service=travis-ci
