@@ -44,11 +44,12 @@ scale.
 ## How to build it
 
 In order to build you first need to get the dependencies which are managed by
-[glide](https://github.com/Masterminds/glide):
+[dep](https://github.com/golang/dep). Follow the
+[installation instructions](https://github.com/golang/dep#installation) to install it and then run
+the following:
 
 ```sh
-$ go get -u github.com/Masterminds/glide
-$ glide install -v # install all dependencies
+$ dep ensure -vendor-only # install all dependencies
 ```
 
 After dependencies are installed the CLM can be built simply by running:
@@ -124,7 +125,7 @@ the CLM will read a `deletions.yaml` file of the following format:
 
 ```yaml
 pre_apply: # everything defined under here will be deleted before applying the manifests
-- name: mate 
+- name: mate
   namespace: kube-system
   kind: deployment
 post_apply: # everything defined under here will be deleted after applying the manifests

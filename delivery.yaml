@@ -14,8 +14,9 @@ pipeline:
       apt-get install -y golang-go
   - desc: install deps
     cmd: |
-      go get github.com/Masterminds/glide
-      glide install -v
+      mkdir -p $GOPATH/bin
+      curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      dep ensure -vendor-only
   - desc: build
     cmd: |
       make test
