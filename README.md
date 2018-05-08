@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/zalando-incubator/cluster-lifecycle-manager.svg?branch=master)](https://travis-ci.org/zalando-incubator/cluster-lifecycle-manager)
 [![Coverage Status](https://coveralls.io/repos/github/zalando-incubator/cluster-lifecycle-manager/badge.svg?branch=master)](https://coveralls.io/github/zalando-incubator/cluster-lifecycle-manager?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zalando-incubator/cluster-lifecycle-manager)](https://goreportcard.com/report/github.com/zalando-incubator/cluster-lifecycle-manager)
 
 The Cluster Lifecycle Manager (CLM) is a component responsible for operating
 (create, update, delete) Kubernetes clusters. It interacts with a Cluster
