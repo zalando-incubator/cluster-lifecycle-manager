@@ -11,7 +11,7 @@ func NewStaticRegistry() Registry {
 
 func (r *staticRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	clusters := []*api.Cluster{
-		&api.Cluster{
+		{
 			APIServerURL:     "http://127.0.0.1:8001",
 			Channel:          "alpha",
 			ConfigItems:      map[string]string{"foo": "bar"},

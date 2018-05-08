@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"path/filepath"
 )
 

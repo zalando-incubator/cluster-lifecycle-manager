@@ -5,9 +5,9 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-	"github.com/stretchr/testify/assert"
 )
 
 var mockStatus = &api.ClusterStatus{

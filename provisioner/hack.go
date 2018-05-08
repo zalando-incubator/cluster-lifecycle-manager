@@ -43,7 +43,7 @@ func splitStackName(stackName string) (string, string, error) {
 	if split == -1 {
 		return "", "", fmt.Errorf("unknown format for stackName '%s'", stackName)
 	}
-	return stackName[0:split], stackName[split+1 : len(stackName)], nil
+	return stackName[0:split], stackName[split+1:], nil
 }
 
 // getHostedZone gets derrive hosted zone from an APIServerURL.

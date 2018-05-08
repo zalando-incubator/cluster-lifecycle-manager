@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"k8s.io/client-go/pkg/api/v1"
 )
 

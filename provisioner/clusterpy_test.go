@@ -31,7 +31,7 @@ func TestVersion(t *testing.T) {
 			"product_y_key": "12345",
 		},
 		NodePools: []*api.NodePool{
-			&api.NodePool{
+			{
 				Name:             "master-default",
 				Profile:          "master/default",
 				InstanceType:     "m3.medium",
@@ -39,7 +39,7 @@ func TestVersion(t *testing.T) {
 				MinSize:          2,
 				MaxSize:          2,
 			},
-			&api.NodePool{
+			{
 				Name:             "worker-default",
 				Profile:          "worker/default",
 				InstanceType:     "r4.large",
