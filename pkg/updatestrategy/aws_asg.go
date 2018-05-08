@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -15,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 const (
@@ -176,11 +176,11 @@ func (n *ASGNodePoolsBackend) getNodePoolASG(nodePool *api.NodePool) (*autoscali
 	}
 
 	expectedTags := []*autoscaling.TagDescription{
-		&autoscaling.TagDescription{
+		{
 			Key:   aws.String(clusterIDTagPrefix + n.clusterID),
 			Value: aws.String(resourceLifecycleOwned),
 		},
-		&autoscaling.TagDescription{
+		{
 			Key:   aws.String(nodePoolTag),
 			Value: aws.String(nodePool.Name),
 		},
@@ -257,6 +257,9 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 		}
 		return true
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, instance := range asg.Instances {
 		params := &ec2.DescribeInstanceAttributeInput{

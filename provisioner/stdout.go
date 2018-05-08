@@ -1,9 +1,9 @@
 package provisioner
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	log "github.com/sirupsen/logrus"
 )
 
 type stdoutProvisioner struct{}

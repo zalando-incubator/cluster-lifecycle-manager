@@ -6,8 +6,8 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 type fileRegistry struct {

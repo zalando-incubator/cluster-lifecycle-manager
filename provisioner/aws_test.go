@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -18,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -241,10 +241,10 @@ func TestDescribeCorrectASG(t *testing.T) {
 }
 
 func TestAsgHasTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{&autoscaling.TagDescription{Key: aws.String("key-1"), Value: aws.String("value-1")},
-		&autoscaling.TagDescription{Key: aws.String("key-2"), Value: aws.String("value-2")}}
-	tags := []*autoscaling.TagDescription{&autoscaling.TagDescription{Key: aws.String("key-2"), Value: aws.String("value-2")},
-		&autoscaling.TagDescription{Key: aws.String("key-1"), Value: aws.String("value-1")}}
+	expected := []*autoscaling.TagDescription{{Key: aws.String("key-1"), Value: aws.String("value-1")},
+		{Key: aws.String("key-2"), Value: aws.String("value-2")}}
+	tags := []*autoscaling.TagDescription{{Key: aws.String("key-2"), Value: aws.String("value-2")},
+		{Key: aws.String("key-1"), Value: aws.String("value-1")}}
 	hasTags := asgHasTags(expected, tags)
 	if !hasTags {
 		t.Fatalf("expected %v, tags %v should succeed", expected, tags)
@@ -252,8 +252,8 @@ func TestAsgHasTags(t *testing.T) {
 }
 
 func TestNotMatchingAsgHasTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{&autoscaling.TagDescription{Key: aws.String("key"), Value: aws.String("value")}}
-	tags := []*autoscaling.TagDescription{&autoscaling.TagDescription{Key: aws.String("key"), Value: aws.String("bar")}}
+	expected := []*autoscaling.TagDescription{{Key: aws.String("key"), Value: aws.String("value")}}
+	tags := []*autoscaling.TagDescription{{Key: aws.String("key"), Value: aws.String("bar")}}
 	hasTags := asgHasTags(expected, tags)
 	if hasTags {
 		t.Fatalf("expected %v, tags %v should not succeed", expected, hasTags)
@@ -278,7 +278,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	assert.Error(t, err)
 
 	templateValue := make([]string, stackMaxSize+1)
-	for i, _ := range templateValue {
+	for i := range templateValue {
 		templateValue[i] = "x"
 	}
 	hugeTemplate := []byte(fmt.Sprintf("{\"stack\": \"%s\"}", strings.Join(templateValue, "")))

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 const hashedTmpl = `foo: {{ .LocalID }}`

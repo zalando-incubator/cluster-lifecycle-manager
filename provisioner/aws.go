@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/cbroglie/mustache"
 	"github.com/coreos/container-linux-config-transpiler/config"
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -867,11 +867,11 @@ func (a *awsAdapter) getNodePoolASG(stackName, nodePool string) (*autoscaling.Gr
 	asgs := make([]*autoscaling.Group, 0)
 
 	expectedTags := []*autoscaling.TagDescription{
-		&autoscaling.TagDescription{
+		{
 			Key:   aws.String("aws:cloudformation:stack-name"),
 			Value: aws.String(stackName),
 		},
-		&autoscaling.TagDescription{
+		{
 			Key:   aws.String("NodePool"),
 			Value: aws.String(nodePool),
 		},

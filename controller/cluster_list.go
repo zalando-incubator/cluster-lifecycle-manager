@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
