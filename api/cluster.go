@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"sort"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -33,48 +32,48 @@ type Cluster struct {
 
 // Version returns the version derived from a sha1 hash of the cluster struct
 // and the channel config version.
-func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (string, error) {
+func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterVersion, error) {
 	state := new(bytes.Buffer)
 
 	_, err := state.WriteString(cluster.ID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.InfrastructureAccount)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.LocalID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.APIServerURL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.Channel)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.Environment)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	err = binary.Write(state, binary.LittleEndian, cluster.CriticalityLevel)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.LifecycleStatus)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.Provider)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = state.WriteString(cluster.Region)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// config items are sorted by key to produce a predictable string for
@@ -87,11 +86,11 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (string, e
 	for _, key := range keys {
 		_, err = state.WriteString(key)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		_, err = state.WriteString(cluster.ConfigItems[key])
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
@@ -99,27 +98,27 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (string, e
 	for _, nodePool := range cluster.NodePools {
 		_, err = state.WriteString(nodePool.Name)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		_, err = state.WriteString(nodePool.Profile)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		_, err = state.WriteString(nodePool.InstanceType)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		_, err = state.WriteString(nodePool.DiscountStrategy)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		err = binary.Write(state, binary.LittleEndian, nodePool.MinSize)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		err = binary.Write(state, binary.LittleEndian, nodePool.MaxSize)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
@@ -127,9 +126,8 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (string, e
 	hasher := sha1.New()
 	_, err = hasher.Write(state.Bytes())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	sha := base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 
-	return fmt.Sprintf("%s#%s", string(channelVersion), sha), nil
+	return NewClusterVersion(channelVersion, base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))), nil
 }

@@ -130,11 +130,12 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 		cluster.Status = &api.ClusterStatus{}
 	}
 
-	if clusterInfo.ConfigVersion == "" {
-		return fmt.Errorf("no version for channel %s", cluster.Channel)
+	// There was an error trying to determine the target configuration, abort
+	if clusterInfo.NextError != nil {
+		return clusterInfo.NextError
 	}
 
-	config, err := c.channelConfigSourcer.Get(clusterInfo.ConfigVersion)
+	config, err := c.channelConfigSourcer.Get(clusterInfo.NextVersion.ConfigVersion)
 	if err != nil {
 		return err
 	}
@@ -148,18 +149,7 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
-		nextVersion, err := cluster.Version(clusterInfo.ConfigVersion)
-		if err != nil {
-			return err
-		}
-
-		// don't continue if the status is ready and the version is
-		// already the latest.
-		if cluster.LifecycleStatus == statusReady && cluster.Status.CurrentVersion == nextVersion {
-			break
-		}
-
-		cluster.Status.NextVersion = nextVersion
+		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
 		if !c.dryRun {
 			err = c.registry.UpdateCluster(cluster)
 			if err != nil {

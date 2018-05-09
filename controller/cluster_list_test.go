@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"regexp"
 	"sort"
 	"testing"
@@ -14,7 +15,7 @@ import (
 
 var mockStatus = &api.ClusterStatus{
 	NextVersion:    "",
-	CurrentVersion: "abc123",
+	CurrentVersion: "abc#123",
 }
 
 var devRevision = channel.ConfigVersion("<dev-channel>")
@@ -240,7 +241,7 @@ func TestClusterPriority(t *testing.T) {
 		Channel:               "dev",
 		Status: &api.ClusterStatus{
 			NextVersion:    "abc123",
-			CurrentVersion: "def456",
+			CurrentVersion: "def#456",
 		},
 	}
 	normal2 := &api.Cluster{
@@ -301,8 +302,13 @@ func TestClusterLastUpdated(t *testing.T) {
 
 	// get the next clusters to process
 	next1 := clusterList.SelectNext()
+	require.NotNil(t, next1)
+
 	next2 := clusterList.SelectNext()
+	require.NotNil(t, next2)
+
 	next3 := clusterList.SelectNext()
+	require.NotNil(t, next3)
 
 	require.Nil(t, clusterList.SelectNext())
 
@@ -333,8 +339,8 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
 
-	newVersion := channel.ConfigVersion("<updated>")
-	next.ConfigVersion = newVersion
+	newError := errors.New("<updated>")
+	next.NextError = newError
 
 	// remove the cluster
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{})
@@ -342,7 +348,7 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 	// add it back, but it still should be processing
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 	require.Nil(t, clusterList.SelectNext())
-	require.EqualValues(t, newVersion, next.ConfigVersion)
+	require.EqualValues(t, newError, next.NextError)
 
 	// finish processing
 	clusterList.ClusterProcessed(next)
@@ -351,7 +357,7 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 	next = clusterList.SelectNext()
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
-	require.EqualValues(t, next.ConfigVersion, devRevision)
+	require.EqualValues(t, next.NextError, nil)
 }
 
 func TestProcessingClusterNotUpdated(t *testing.T) {
