@@ -148,8 +148,7 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
-		var nextVersion string
-		nextVersion, err = cluster.Version(clusterInfo.ConfigVersion)
+		nextVersion, err := cluster.Version(clusterInfo.ConfigVersion)
 		if err != nil {
 			return err
 		}
@@ -169,26 +168,31 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 		}
 
 		err = c.provisioner.Provision(cluster, config)
-		if err == nil {
-			cluster.LifecycleStatus = statusReady
-
-			cluster.Status.LastVersion = cluster.Status.CurrentVersion
-			cluster.Status.CurrentVersion = cluster.Status.NextVersion
-			cluster.Status.NextVersion = ""
-			cluster.Status.Problems = []*api.Problem{}
+		if err != nil {
+			return err
 		}
+
+		cluster.LifecycleStatus = statusReady
+		cluster.Status.LastVersion = cluster.Status.CurrentVersion
+		cluster.Status.CurrentVersion = cluster.Status.NextVersion
+		cluster.Status.NextVersion = ""
+		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
 		err = c.provisioner.Decommission(cluster, config)
-		if err == nil {
-			cluster.Status.LastVersion = cluster.Status.CurrentVersion
-			cluster.Status.CurrentVersion = ""
-			cluster.Status.NextVersion = ""
-			cluster.Status.Problems = []*api.Problem{}
-			cluster.LifecycleStatus = statusDecommissioned
+		if err != nil {
+			return err
 		}
+
+		cluster.Status.LastVersion = cluster.Status.CurrentVersion
+		cluster.Status.CurrentVersion = ""
+		cluster.Status.NextVersion = ""
+		cluster.Status.Problems = []*api.Problem{}
+		cluster.LifecycleStatus = statusDecommissioned
+	default:
+		return fmt.Errorf("invalid cluster status: %s", cluster.LifecycleStatus)
 	}
 
-	return err
+	return nil
 }
 
 // processCluster calls doProcessCluster and handles logging and reporting
