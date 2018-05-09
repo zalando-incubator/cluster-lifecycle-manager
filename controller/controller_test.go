@@ -20,10 +20,6 @@ var defaultVersions = map[string]channel.ConfigVersion{"alpha": "<alpha-sha>"}
 
 type mockProvisioner struct{}
 
-func (p *mockProvisioner) Version(cluster *api.Cluster, configVersion channel.ConfigVersion) (string, error) {
-	return nextVersion, nil
-}
-
 func (p *mockProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return nil
 }
@@ -33,10 +29,6 @@ func (p *mockProvisioner) Decommission(cluster *api.Cluster, config *channel.Con
 }
 
 type mockErrProvisioner mockProvisioner
-
-func (p *mockErrProvisioner) Version(cluster *api.Cluster, configVersion channel.ConfigVersion) (string, error) {
-	return "", fmt.Errorf("failed getting version")
-}
 
 func (p *mockErrProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")

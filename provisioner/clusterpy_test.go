@@ -7,64 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/stretchr/testify/assert"
-
-	"golang.org/x/oauth2"
-
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
-
-func TestVersion(t *testing.T) {
-	cluster := &api.Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
-		InfrastructureAccount: "aws:123456789012",
-		LocalID:               "kube-1",
-		APIServerURL:          "https://kube-1.foo.example.org/",
-		Channel:               "alpha",
-		Environment:           "production",
-		CriticalityLevel:      1,
-		LifecycleStatus:       "ready",
-		Provider:              "zalando-aws",
-		Region:                "eu-central-1",
-		ConfigItems: map[string]string{
-			"product_x_key": "abcde",
-			"product_y_key": "12345",
-		},
-		NodePools: []*api.NodePool{
-			{
-				Name:             "master-default",
-				Profile:          "master/default",
-				InstanceType:     "m3.medium",
-				DiscountStrategy: "none",
-				MinSize:          2,
-				MaxSize:          2,
-			},
-			{
-				Name:             "worker-default",
-				Profile:          "worker/default",
-				InstanceType:     "r4.large",
-				DiscountStrategy: "none",
-				MinSize:          3,
-				MaxSize:          20,
-			},
-		},
-	}
-
-	token := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "foo.bar.token"})
-	provisioner := NewClusterpyProvisioner(token, "", aws.NewConfig(), nil)
-	version, err := provisioner.Version(cluster, "git-commit-hash")
-	if err != nil {
-		t.Errorf("should not fail: %v", err)
-	}
-
-	version2, err := provisioner.Version(cluster, "git-commit-hash")
-	if err != nil {
-		t.Errorf("should not fail: %v", err)
-	}
-
-	if version != version2 {
-		t.Errorf("expected version %s, got %s", version, version2)
-	}
-}
 
 func TestGetInfrastructureID(t *testing.T) {
 	expected := "12345678910"

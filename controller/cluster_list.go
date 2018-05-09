@@ -20,7 +20,7 @@ type ClusterInfo struct {
 	lastProcessed time.Time
 	processing    bool
 	Cluster       *api.Cluster
-	Version       channel.ConfigVersion
+	ConfigVersion channel.ConfigVersion
 }
 
 // ClusterList maintains the state of all active clusters
@@ -66,14 +66,14 @@ func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions,
 		if existing, ok := clusterList.clusters[cluster.ID]; ok {
 			if !existing.processing {
 				existing.Cluster = cluster
-				existing.Version = channelVersion
+				existing.ConfigVersion = channelVersion
 			}
 		} else {
 			clusterList.clusters[cluster.ID] = &ClusterInfo{
 				lastProcessed: time.Unix(0, 0),
 				processing:    false,
 				Cluster:       cluster,
-				Version:       channelVersion,
+				ConfigVersion: channelVersion,
 			}
 		}
 	}

@@ -3,10 +3,8 @@ package provisioner
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -44,7 +42,6 @@ import (
 
 const (
 	providerID                          = "zalando-aws"
-	versionFmt                          = "%s#%s"
 	manifestsPath                       = "cluster/manifests"
 	deletionsFile                       = "deletions.yaml"
 	defaultNamespace                    = "default"
@@ -94,113 +91,6 @@ func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, assumedRole string,
 	}
 
 	return provisioner
-}
-
-// Version returns the version derived from a sha1 hash of the cluster struct
-// and the channel config version.
-func (p *clusterpyProvisioner) Version(cluster *api.Cluster, channelVersion channel.ConfigVersion) (string, error) {
-	if cluster.Provider != providerID {
-		return "", ErrProviderNotSupported
-	}
-
-	state := new(bytes.Buffer)
-
-	_, err := state.WriteString(cluster.ID)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.InfrastructureAccount)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.LocalID)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.APIServerURL)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.Channel)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.Environment)
-	if err != nil {
-		return "", err
-	}
-	err = binary.Write(state, binary.LittleEndian, cluster.CriticalityLevel)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.LifecycleStatus)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.Provider)
-	if err != nil {
-		return "", err
-	}
-	_, err = state.WriteString(cluster.Region)
-	if err != nil {
-		return "", err
-	}
-
-	// config items are sorted by key to produce a predictable string for
-	// hashing.
-	keys := make([]string, 0, len(cluster.ConfigItems))
-	for key := range cluster.ConfigItems {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		_, err = state.WriteString(key)
-		if err != nil {
-			return "", err
-		}
-		_, err = state.WriteString(cluster.ConfigItems[key])
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// node pools
-	for _, nodePool := range cluster.NodePools {
-		_, err = state.WriteString(nodePool.Name)
-		if err != nil {
-			return "", err
-		}
-		_, err = state.WriteString(nodePool.Profile)
-		if err != nil {
-			return "", err
-		}
-		_, err = state.WriteString(nodePool.InstanceType)
-		if err != nil {
-			return "", err
-		}
-		_, err = state.WriteString(nodePool.DiscountStrategy)
-		if err != nil {
-			return "", err
-		}
-		err = binary.Write(state, binary.LittleEndian, nodePool.MinSize)
-		if err != nil {
-			return "", err
-		}
-		err = binary.Write(state, binary.LittleEndian, nodePool.MaxSize)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// sha1 hash the cluster content
-	hasher := sha1.New()
-	_, err = hasher.Write(state.Bytes())
-	if err != nil {
-		return "", err
-	}
-	sha := base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
-
-	return fmt.Sprintf(versionFmt, string(channelVersion), sha), nil
 }
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
