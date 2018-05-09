@@ -180,7 +180,10 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 	next = clusterList.SelectNext()
 	require.NotNil(t, next)
 	require.Equal(t, updated.LifecycleStatus, next.Cluster.LifecycleStatus)
+
 	clusterList.ClusterProcessed(next)
+	require.Nil(t, clusterList.SelectNext())
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
 
 	assert.Equal(t, []string{cluster.ID}, allClusterIds(clusterList))
 }
@@ -269,7 +272,8 @@ func TestClusterPriority(t *testing.T) {
 
 func TestClusterLastUpdated(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter)
-	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{
+
+	clusters := []*api.Cluster{
 		{
 			ID: "aws:123456789011:eu-central-1:cluster1",
 			InfrastructureAccount: "aws:123456789011",
@@ -291,19 +295,26 @@ func TestClusterLastUpdated(t *testing.T) {
 			Channel:               "dev",
 			Status:                mockStatus,
 		},
-	})
+	}
+
+	clusterList.UpdateAvailable(defaultChannels, clusters)
 
 	// get the next clusters to process
 	next1 := clusterList.SelectNext()
 	next2 := clusterList.SelectNext()
 	next3 := clusterList.SelectNext()
 
+	require.Nil(t, clusterList.SelectNext())
+
 	// finish processing in a different order (2->1->3)
 	clusterList.ClusterProcessed(next2)
 	clusterList.ClusterProcessed(next1)
 	clusterList.ClusterProcessed(next3)
 
+	require.Nil(t, clusterList.SelectNext())
+
 	// the same order should be preserved for next update attempts
+	clusterList.UpdateAvailable(defaultChannels, clusters)
 	require.Equal(t, []string{next2.Cluster.ID, next1.Cluster.ID, next3.Cluster.ID}, allClusterIds(clusterList))
 }
 
@@ -322,19 +333,25 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
 
+	newVersion := channel.ConfigVersion("<updated>")
+	next.ConfigVersion = newVersion
+
 	// remove the cluster
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{})
 
 	// add it back, but it still should be processing
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 	require.Nil(t, clusterList.SelectNext())
+	require.EqualValues(t, newVersion, next.ConfigVersion)
 
 	// finish processing
 	clusterList.ClusterProcessed(next)
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 
 	next = clusterList.SelectNext()
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
+	require.EqualValues(t, next.ConfigVersion, devRevision)
 }
 
 func TestProcessingClusterNotUpdated(t *testing.T) {
@@ -364,7 +381,11 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 	clusterList.ClusterProcessed(next)
 
 	// cluster should not be overwritten
-	next = clusterList.SelectNext()
-	require.NotNil(t, next)
 	require.Equal(t, cluster.LifecycleStatus, next.Cluster.LifecycleStatus)
+
+	// now it should get updated
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
+	next2 := clusterList.SelectNext()
+	require.NotNil(t, next2)
+	require.Equal(t, updated.LifecycleStatus, next2.Cluster.LifecycleStatus)
 }
