@@ -98,6 +98,7 @@ func main() {
 			DryRun:            cfg.DryRun,
 			SecretDecrypter:   secretDecrypter,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
+			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}
 
 		ctrl := controller.New(clusterRegistry, p, configSource, opts)

@@ -36,6 +36,7 @@ type Options struct {
 	DryRun            bool
 	SecretDecrypter   decrypter.SecretDecrypter
 	ConcurrentUpdates uint
+	EnvironmentOrder  []string
 }
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
@@ -59,7 +60,7 @@ func New(registry registry.Registry, provisioner provisioner.Provisioner, channe
 		secretDecrypter:      options.SecretDecrypter,
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
-		clusterList:          NewClusterList(options.AccountFilter),
+		clusterList:          NewClusterList(options.AccountFilter, options.EnvironmentOrder),
 		concurrentUpdates:    options.ConcurrentUpdates,
 	}
 }

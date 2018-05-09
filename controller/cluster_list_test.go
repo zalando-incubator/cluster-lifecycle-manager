@@ -94,7 +94,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 			ignored: true,
 		},
 	} {
-		clusterList := NewClusterList(filter)
+		clusterList := NewClusterList(filter, []string{})
 		clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{ti.cluster})
 		nextCluster := clusterList.SelectNext()
 		if ti.ignored {
@@ -138,7 +138,7 @@ func TestUpdateAddsNewClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 	// No clusters yet
 	require.Nil(t, clusterList.SelectNext())
@@ -161,7 +161,7 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 
@@ -210,7 +210,7 @@ func TestUpdateDeletesUnusedClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster1, cluster2})
 	require.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIds(clusterList)))
@@ -260,7 +260,7 @@ func TestClusterPriority(t *testing.T) {
 		{pendingUpdate, normal, decommissionRequested},
 		{pendingUpdate, decommissionRequested, normal},
 	} {
-		clusterList := NewClusterList(config.DefaultFilter)
+		clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 		clusterList.UpdateAvailable(defaultChannels, clusters)
 		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIds(clusterList))
@@ -271,8 +271,73 @@ func TestClusterPriority(t *testing.T) {
 	}
 }
 
+func TestClusterEnvOrder(t *testing.T) {
+	status := &api.ClusterStatus{
+		CurrentVersion: "abc123#test",
+	}
+	channels := channel.NewStaticVersions(map[string]channel.ConfigVersion{"dev": "def456"})
+
+	test1 := &api.Cluster{
+		ID: "aws:123456789011:eu-central-1:test1",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Environment:           "test",
+		Status:                status,
+	}
+	test2 := &api.Cluster{
+		ID: "aws:123456789012:eu-central-1:test2",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Environment:           "test",
+		Status:                status,
+	}
+	test3 := &api.Cluster{
+		ID: "aws:123456789012:eu-central-1:test3",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Environment:           "test",
+		Status: &api.ClusterStatus{
+			CurrentVersion: "",
+		},
+	}
+	prod := &api.Cluster{
+		ID: "aws:123456789013:eu-central-1:prod",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Environment:           "prod",
+		Status:                status,
+	}
+	staging := &api.Cluster{
+		ID: "aws:123456789014:eu-central-1:staging",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Environment:           "staging",
+		Status:                status,
+	}
+
+	pendingUpdates := func(clusters ...*api.Cluster) []string {
+		clusterList := NewClusterList(config.DefaultFilter, []string{"test", "prod"})
+		clusterList.UpdateAvailable(channels, clusters)
+		return allClusterIds(clusterList)
+	}
+
+	// ignore prod: not all test clusters have been updated
+	assert.NotContains(t, pendingUpdates(test1, test2, prod), prod.ID)
+
+	// ignore prod: some test clusters have invalid statuses
+	assert.NotContains(t, pendingUpdates(test1, test3, prod), prod.ID)
+
+	// other environments should work fine
+	assert.Contains(t, pendingUpdates(test1, test3, staging), staging.ID)
+}
+
 func TestClusterLastUpdated(t *testing.T) {
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 	clusters := []*api.Cluster{
 		{
@@ -333,7 +398,7 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 	next := clusterList.SelectNext()
 	require.NotNil(t, next)
@@ -369,7 +434,7 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 	next := clusterList.SelectNext()
 	require.NotNil(t, next)
