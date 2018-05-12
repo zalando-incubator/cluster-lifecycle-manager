@@ -19,6 +19,9 @@ It is designed in a reentrant way meaning it can be killed at any point in time
 and it will just continue any cluster updates from where it left off. All state
 is stored in the Cluster Registry and the git configuration repository.
 
+For a better understanding on how we use the CLM within Zalando, see the 2018 KubeCon EU talk:
+* [Continuously Deliver your Kubernetes Infrastructure - Mikkel Larsen, Zalando SE](https://www.youtube.com/watch?v=1xHmCrd8Qn8).
+
 ## Current state
 
 The CLM has been developed internally at Zalando since January 2017. It's
