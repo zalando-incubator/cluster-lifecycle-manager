@@ -288,14 +288,14 @@ func TestGet(tt *testing.T) {
 }
 
 func TestScale(t *testing.T) {
-	// test not getting the ASG
+	// test not getting the ASGs
 	backend := &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{},
 	}
 	err := backend.Scale(&api.NodePool{Name: "test"}, 10)
 	assert.Error(t, err)
 
-	// test success
+	// test scaling up
 	backend = &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{
 			asgs: []*autoscaling.Group{
@@ -307,11 +307,52 @@ func TestScale(t *testing.T) {
 					Instances: []*autoscaling.Instance{
 						{},
 					},
+					DesiredCapacity: aws.Int64(1),
+				},
+				{
+					Tags: []*autoscaling.TagDescription{
+						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
+						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+					},
+					Instances: []*autoscaling.Instance{
+						{},
+					},
+					DesiredCapacity: aws.Int64(1),
 				},
 			},
 		},
 	}
 	err = backend.Scale(&api.NodePool{Name: "test"}, 10)
+	assert.NoError(t, err)
+
+	// test scaling down
+	backend = &ASGNodePoolsBackend{
+		asgClient: &mockASGAPI{
+			asgs: []*autoscaling.Group{
+				{
+					Tags: []*autoscaling.TagDescription{
+						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
+						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+					},
+					Instances: []*autoscaling.Instance{
+						{},
+					},
+					DesiredCapacity: aws.Int64(1),
+				},
+				{
+					Tags: []*autoscaling.TagDescription{
+						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
+						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+					},
+					Instances: []*autoscaling.Instance{
+						{},
+					},
+					DesiredCapacity: aws.Int64(1),
+				},
+			},
+		},
+	}
+	err = backend.Scale(&api.NodePool{Name: "test"}, 1)
 	assert.NoError(t, err)
 
 	// test getting error
