@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -68,6 +69,8 @@ var (
 	errUpdateRollbackFailed   = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackFailed)
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
+	// ErrASGNotFound is the error returned when an asg is not found.
+	ErrASGNotFound = errors.New("ASG not found")
 )
 
 // cloudFormationAPI is a minimal interface containing only the methods we use from the AWS SDK for cloudformation
@@ -188,7 +191,7 @@ func decodeUserData(encodedUserData string) (string, error) {
 // CreateOrUpdateClusterStack creates or updates a cluster cloudformation
 // stack. This function is idempotent.
 func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath string, cluster *api.Cluster) (map[string]string, error) {
-	masterPool, workerPool, err := getNodePools(cluster) //FIXME this only works on one node pool for workers
+	masterPool, workerPool, err := getLegacyNodePools(cluster) //FIXME this only works on one node pool for workers
 	if err != nil {
 		return nil, err
 	}
@@ -203,24 +206,68 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		return nil, fmt.Errorf("'%s' config item is missing, must be defined", workerSharedSecretConfigItemKey)
 	}
 
-	workerNodes := workerPool.MinSize
-
-	// if stack already exists use the already generated secret and current
-	// desired worker nodes.
-	if stack != nil {
-		// get desired worker nodes
-		asg, err := a.getNodePoolASG(stackName, workerPool.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		// reduce the desired size if necessary
-		workerNodes = int64(math.Min(float64(*asg.DesiredCapacity), float64(workerPool.MaxSize)))
-	}
+	workerPoolDesired := workerPool.MinSize
+	workerPoolMinSize := workerPool.MinSize
+	workerPoolMaxSize := workerPool.MaxSize
+	workerPoolInstanceType := workerPool.InstanceType
 
 	// we currently don't support scaling for master pools
 	if masterPool.MinSize != masterPool.MaxSize {
 		return nil, fmt.Errorf("master pool must have the same min_size and max_size")
+	}
+
+	masterPoolDesired := masterPool.MinSize
+	masterPoolInstanceType := masterPool.InstanceType
+
+	// if stack already exists use the already generated secret and current
+	// desired worker nodes.
+	if stack != nil {
+		desiredCapacity := int64(0)
+
+		// get desired worker nodes
+		asg, err := a.getNodePoolASG(cluster.ID, workerPool.Name)
+		if err != nil {
+			if err != ErrASGNotFound {
+				return nil, err
+			}
+		} else {
+			desiredCapacity = aws.Int64Value(asg.DesiredCapacity)
+		}
+
+		// reduce the desired size if necessary
+		workerPoolDesired = int64(math.Min(float64(desiredCapacity), float64(workerPool.MaxSize)))
+
+		// TODO(tech-depth): this is only used for migrating from
+		// legacy node pools to real node pool support.
+		if nodePoolFeatureEnabled(cluster) {
+			workerPoolDesired = aws.Int64Value(asg.DesiredCapacity)
+			workerPoolMinSize = aws.Int64Value(asg.MinSize)
+			workerPoolMaxSize = workerPoolDesired
+
+			// get master nodepool size
+			asg, err := a.getNodePoolASG(cluster.ID, masterPool.Name)
+			if err != nil {
+				// this is a legacy node pool. If we don't find
+				// the ASG we don't care about the size, but
+				// continue.
+				if err != ErrASGNotFound {
+					return nil, err
+				}
+			} else {
+				masterPoolDesired = aws.Int64Value(asg.MinSize)
+			}
+		}
+	}
+
+	// TODO(tech-depth): this is only used for migrating from
+	// legacy node pools to real node pool support.
+	if nodePoolFeatureEnabled(cluster) {
+		if workerPoolInstanceType == "" {
+			workerPoolInstanceType = "m5.large"
+		}
+		if masterPoolInstanceType == "" {
+			masterPoolInstanceType = "m5.large"
+		}
 	}
 
 	name, version, err := splitStackName(stackName)
@@ -264,13 +311,13 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		fmt.Sprintf("UserDataWorker=%s", userDataWorker),
 		fmt.Sprintf("MasterNodePoolName=%s", masterPool.Name),
 		fmt.Sprintf("WorkerNodePoolName=%s", workerPool.Name),
-		fmt.Sprintf("MasterNodes=%d", masterPool.MaxSize),
-		fmt.Sprintf("WorkerNodes=%d", workerNodes),
-		fmt.Sprintf("MinimumWorkerNodes=%d", workerPool.MinSize),
-		fmt.Sprintf("MaximumWorkerNodes=%d", workerPool.MaxSize),
+		fmt.Sprintf("MasterNodes=%d", masterPoolDesired),
+		fmt.Sprintf("WorkerNodes=%d", workerPoolDesired),
+		fmt.Sprintf("MinimumWorkerNodes=%d", workerPoolMinSize),
+		fmt.Sprintf("MaximumWorkerNodes=%d", workerPoolMaxSize),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
-		fmt.Sprintf("MasterInstanceType=%s", masterPool.InstanceType),
-		fmt.Sprintf("InstanceType=%s", workerPool.InstanceType),
+		fmt.Sprintf("MasterInstanceType=%s", masterPoolInstanceType),
+		fmt.Sprintf("InstanceType=%s", workerPoolInstanceType),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
 	}
 
@@ -278,30 +325,34 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		args = append(args, fmt.Sprintf("EtcdS3BackupBucket=%s", bucket))
 	}
 
-	switch masterPool.DiscountStrategy {
-	case discountStrategyNone:
-		break
-	default:
-		return nil, fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
-	}
-
-	switch workerPool.DiscountStrategy {
-	case discountStrategyNone:
-		break
-	case discountStrategySpotMaxPrice:
-		instanceInfo, ok := awsExt.InstanceInfo()[workerPool.InstanceType]
-		if !ok {
-			return nil, fmt.Errorf("unknown instance type %s", workerPool.InstanceType)
+	// TODO(tech-depth): only enable this feature for legacy node pools
+	// remove once node pool support is rolled out.
+	if !nodePoolFeatureEnabled(cluster) {
+		switch masterPool.DiscountStrategy {
+		case discountStrategyNone:
+			break
+		default:
+			return nil, fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
 		}
 
-		onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]
-		if !ok {
-			return nil, fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
-		}
+		switch workerPool.DiscountStrategy {
+		case discountStrategyNone:
+			break
+		case discountStrategySpotMaxPrice:
+			instanceInfo, ok := awsExt.InstanceInfo()[workerPool.InstanceType]
+			if !ok {
+				return nil, fmt.Errorf("unknown instance type %s", workerPool.InstanceType)
+			}
 
-		args = append(args, fmt.Sprintf("WorkerSpotPrice=%s", onDemandPrice))
-	default:
-		return nil, fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
+			onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]
+			if !ok {
+				return nil, fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
+			}
+
+			args = append(args, fmt.Sprintf("WorkerSpotPrice=%s", onDemandPrice))
+		default:
+			return nil, fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
+		}
 	}
 
 	cmd := exec.Command("senza", args...)
@@ -377,16 +428,17 @@ func (a *awsAdapter) applyClusterStack(stackName string, stackTemplate []byte, c
 		templateURL = result.Location
 	}
 
-	return a.applyStack(stackName, stackBuffer.String(), templateURL, true)
+	return a.applyStack(stackName, stackBuffer.String(), templateURL, nil, true)
 }
 
 // applyStack applies a cloudformation stack.
-func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, updateStack bool) error {
+func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags []*cloudformation.Tag, updateStack bool) error {
 	createParams := &cloudformation.CreateStackInput{
 		StackName:                   aws.String(stackName),
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
 		Capabilities:                []*string{aws.String(cloudformation.CapabilityCapabilityNamedIam)},
 		EnableTerminationProtection: aws.Bool(true),
+		Tags: tags,
 	}
 
 	if stackTemplateURL != "" {
@@ -419,6 +471,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 					updateParams := &cloudformation.UpdateStackInput{
 						StackName:    createParams.StackName,
 						Capabilities: createParams.Capabilities,
+						Tags:         tags,
 					}
 
 					if stackTemplateURL != "" {
@@ -632,7 +685,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(stackName string, stackDefinitionPa
 		return err
 	}
 
-	err = a.applyStack(stackName, string(output), "", false)
+	err = a.applyStack(stackName, string(output), "", nil, false)
 	if err != nil {
 		return err
 	}
@@ -822,7 +875,7 @@ func (a *awsAdapter) uploadUserDataToS3(userData []byte, bucketName string) (str
 func clcToIgnition(data []byte) ([]byte, error) {
 	cfg, ast, report := config.Parse(data)
 	if len(report.Entries) > 0 {
-		return nil, fmt.Errorf(report.String())
+		return nil, errors.New(report.String())
 	}
 
 	ignCfg, report := config.Convert(cfg, platform.EC2, ast)
@@ -854,7 +907,9 @@ func (a *awsAdapter) getEnvVars() ([]string, error) {
 }
 
 // getNodePoolASG returns the ASG mapping to the specified node pool.
-func (a *awsAdapter) getNodePoolASG(stackName, nodePool string) (*autoscaling.Group, error) {
+// TODO: this function should be more generic. i.e. not assume clusterID
+// but just a generic tag filter.
+func (a *awsAdapter) getNodePoolASG(clusterID, nodePool string) (*autoscaling.Group, error) {
 	// TODO: handle nextToken?
 	params := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{},
@@ -868,9 +923,10 @@ func (a *awsAdapter) getNodePoolASG(stackName, nodePool string) (*autoscaling.Gr
 
 	expectedTags := []*autoscaling.TagDescription{
 		{
-			Key:   aws.String("aws:cloudformation:stack-name"),
-			Value: aws.String(stackName),
+			Key:   aws.String(tagNameKubernetesClusterPrefix + clusterID),
+			Value: aws.String(resourceLifecycleOwned),
 		},
+		// TODO: legacy node pool tag?
 		{
 			Key:   aws.String("NodePool"),
 			Value: aws.String(nodePool),
@@ -885,7 +941,7 @@ func (a *awsAdapter) getNodePoolASG(stackName, nodePool string) (*autoscaling.Gr
 	}
 
 	if len(asgs) == 0 {
-		return nil, fmt.Errorf("failed to find ASG for node pool '%s'", nodePool)
+		return nil, ErrASGNotFound
 	}
 
 	if len(asgs) != 1 {
@@ -1070,4 +1126,13 @@ func isWrongStackStatusErr(err error) bool {
 		}
 	}
 	return false
+}
+
+// tagsToMap converts a list of ec2 tags to a map.
+func tagsToMap(tags []*ec2.Tag) map[string]string {
+	tagMap := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		tagMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
+	}
+	return tagMap
 }

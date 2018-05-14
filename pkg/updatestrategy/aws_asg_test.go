@@ -27,7 +27,10 @@ type mockASGAPI struct {
 func (a *mockASGAPI) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
 	fn(&autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, true)
 	return a.err
+}
 
+func (a *mockASGAPI) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, a.err
 }
 
 func (a *mockASGAPI) DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
@@ -46,6 +49,10 @@ func (a *mockASGAPI) DescribeLoadBalancers(input *autoscaling.DescribeLoadBalanc
 	return a.descLB, a.err
 }
 
+func (a *mockASGAPI) DeleteTags(input *autoscaling.DeleteTagsInput) (*autoscaling.DeleteTagsOutput, error) {
+	return nil, a.err
+}
+
 type mockEC2API struct {
 	ec2iface.EC2API
 	err        error
@@ -53,6 +60,7 @@ type mockEC2API struct {
 	descStatus *ec2.DescribeInstanceStatusOutput
 	descSpot   *ec2.DescribeSpotInstanceRequestsOutput
 	descInsts  *ec2.DescribeInstancesOutput
+	descTags   *ec2.DescribeTagsOutput
 }
 
 func (e *mockEC2API) DescribeInstanceAttribute(input *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
@@ -70,6 +78,14 @@ func (e *mockEC2API) DescribeInstancesPages(input *ec2.DescribeInstancesInput, f
 
 func (e *mockEC2API) DescribeInstanceStatus(input *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
 	return e.descStatus, e.err
+}
+
+func (e *mockEC2API) DescribeTagsPages(input *ec2.DescribeTagsInput, fn func(*ec2.DescribeTagsOutput, bool) bool) error {
+	if e.err != nil {
+		return e.err
+	}
+	fn(e.descTags, false)
+	return nil
 }
 
 type mockELBAPI struct {
@@ -307,10 +323,83 @@ func TestScale(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDeleteTags(tt *testing.T) {
+	for _, tc := range []struct {
+		msg       string
+		asgClient autoscalingiface.AutoScalingAPI
+		nodePool  *api.NodePool
+		tags      map[string]string
+		success   bool
+	}{
+		{
+			msg: "test removing tags",
+			asgClient: &mockASGAPI{
+				asgs: []*autoscaling.Group{
+					{
+						Tags: []*autoscaling.TagDescription{
+							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
+							{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+							{Key: aws.String("tag-to-remove"), Value: aws.String("test")},
+						},
+						Instances: []*autoscaling.Instance{
+							{},
+						},
+					},
+				},
+			},
+			tags: map[string]string{
+				"tag-to-remove": "test",
+			},
+			nodePool: &api.NodePool{Name: "test"},
+			success:  true,
+		},
+		{
+			msg:       "test errors when getting asg",
+			asgClient: &mockASGAPI{err: errors.New("failed")},
+			nodePool: &api.NodePool{
+				Name:    "test",
+				MinSize: 2,
+				MaxSize: 2,
+			},
+			success: false,
+		},
+	} {
+		tt.Run(tc.msg, func(t *testing.T) {
+			backend := &ASGNodePoolsBackend{
+				asgClient: tc.asgClient,
+				clusterID: "",
+			}
+
+			err := backend.deleteTags(tc.nodePool, tc.tags)
+			if tc.success {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestTerminate(t *testing.T) {
 	// test success
 	backend := &ASGNodePoolsBackend{
-		asgClient: &mockASGAPI{},
+		asgClient: &mockASGAPI{
+			asgs: []*autoscaling.Group{
+				{
+					AutoScalingGroupName: aws.String("asg-name"),
+					DesiredCapacity:      aws.Int64(3),
+					MinSize:              aws.Int64(3),
+				},
+			},
+		},
+		ec2Client: &mockEC2API{
+			descTags: &ec2.DescribeTagsOutput{
+				Tags: []*ec2.TagDescription{
+					{
+						Key:   aws.String(ec2AutoscalingGroupTagKey),
+						Value: aws.String("asg-name"),
+					},
+				},
+			},
+		},
 	}
 	err := backend.Terminate(&Node{}, true)
 	assert.NoError(t, err)
@@ -337,7 +426,7 @@ func TestTerminate(t *testing.T) {
 			},
 		}},
 	}
-	err = backend.Terminate(&Node{}, true)
+	err = backend.Terminate(&Node{}, false)
 	assert.NoError(t, err)
 }
 

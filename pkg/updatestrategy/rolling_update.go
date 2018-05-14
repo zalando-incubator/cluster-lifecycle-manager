@@ -88,7 +88,7 @@ func (r *RollingUpdateStrategy) isUpdateDone(nodePool *NodePool) bool {
 // there is less than surge old nodes left.
 func (r *RollingUpdateStrategy) terminateCordonedNodes(nodePool *NodePool, surge int) error {
 	oldNodes, _ := r.splitOldNewNodes(nodePool)
-	nodesToTerminate := r.filterNodesToTerminate(oldNodes)
+	nodesToTerminate := filterNodesToTerminate(oldNodes)
 	r.logger.Debugf("Found %d nodes to be terminated", len(nodesToTerminate))
 
 	numOldNodes := len(oldNodes)
@@ -180,7 +180,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 		}
 
 		// wait for current number of nodes equal to the desired number of nodes
-		nodePool, err = r.waitForDesiredNodes(ctx, nodePoolDesc)
+		nodePool, err = WaitForDesiredNodes(ctx, r.logger, r.nodePoolManager, nodePoolDesc)
 		if err != nil {
 			return err
 		}
@@ -273,7 +273,7 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 	var nodePool *NodePool
 	var err error
 	for {
-		nodePool, err = r.waitForDesiredNodes(ctx, nodePoolDesc)
+		nodePool, err = WaitForDesiredNodes(ctx, r.logger, r.nodePoolManager, nodePoolDesc)
 		if err != nil {
 			return nil, err
 		}
@@ -287,39 +287,6 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 		err = r.nodePoolManager.ScalePool(nodePoolDesc, newDesired)
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	return nodePool, nil
-}
-
-// waitForDesiredNodes waits for the current number of nodes to match the
-// desired number. The final node pool will be returned.
-func (r *RollingUpdateStrategy) waitForDesiredNodes(ctx context.Context, nodePoolDesc *api.NodePool) (*NodePool, error) {
-	ctx, cancel := context.WithTimeout(ctx, operationMaxTimeout)
-	defer cancel()
-
-	var err error
-	var nodePool *NodePool
-
-	for {
-		nodePool, err = r.nodePoolManager.GetPool(nodePoolDesc)
-		if err != nil {
-			return nil, err
-		}
-
-		readyNodes := len(nodePool.ReadyNodes())
-
-		if readyNodes == nodePool.Desired {
-			break
-		}
-
-		r.logger.Infof("Waiting for ready and desired number of nodes to match: %d/%d", readyNodes, nodePool.Desired)
-
-		select {
-		case <-ctx.Done():
-			return nil, errTimeoutExceeded
-		case <-time.After(operationCheckInterval):
 		}
 	}
 
@@ -364,7 +331,7 @@ func (r *RollingUpdateStrategy) splitVolumeNoVolumeAttachedNodes(nodes []*Node) 
 
 // filterNodesToTerminate filters for nodes that are cordoned (unschedulable) and
 // wasn't already marked for draining.
-func (r *RollingUpdateStrategy) filterNodesToTerminate(nodes []*Node) []*Node {
+func filterNodesToTerminate(nodes []*Node) []*Node {
 	cordoned := make([]*Node, 0)
 	for _, node := range nodes {
 		if node.Cordoned {
