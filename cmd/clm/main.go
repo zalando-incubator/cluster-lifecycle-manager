@@ -114,7 +114,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	sortByEnvironmentPriority(clusters, cfg.EnvironmentOrder)
+	orderByEnvironmentOrder(clusters, cfg.EnvironmentOrder)
 
 	for _, cluster := range clusters {
 		if !cfg.AccountFilter.Allowed(cluster.InfrastructureAccount) {
@@ -167,9 +167,13 @@ func main() {
 	}
 }
 
-func sortByEnvironmentPriority(clusters []*api.Cluster, environmentPriority []string) {
+// orderByEnvironmentOrder orders the clusters based on the provided environment ordering.
+// If environmentOrder is [A, B], all clusters with environment A will be reordered
+// before clusters with environment B. Position of clusters with environment not in
+// environmentOrder is unspecified (current implementation will order them first)
+func orderByEnvironmentOrder(clusters []*api.Cluster, environmentOrder []string) {
 	computedPriorities := make(map[string]int)
-	for i, env := range environmentPriority {
+	for i, env := range environmentOrder {
 		computedPriorities[env] = i + 1
 	}
 
