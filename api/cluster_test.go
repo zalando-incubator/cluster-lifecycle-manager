@@ -72,7 +72,7 @@ func sampleCluster() *Cluster {
 		NodePools: []*NodePool{
 			{
 				Name:             "master-default",
-				Profile:          "master/default",
+				Profile:          "master-default",
 				InstanceType:     "m3.medium",
 				DiscountStrategy: "none",
 				MinSize:          2,
@@ -80,7 +80,7 @@ func sampleCluster() *Cluster {
 			},
 			{
 				Name:             "worker-default",
-				Profile:          "worker/default",
+				Profile:          "worker-default",
 				InstanceType:     "r4.large",
 				DiscountStrategy: "none",
 				MinSize:          3,
