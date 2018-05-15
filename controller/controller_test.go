@@ -2,8 +2,10 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -47,12 +49,17 @@ func (p *mockErrCreateProvisioner) Provision(cluster *api.Cluster, config *chann
 	return fmt.Errorf("failed to provision")
 }
 
-type mockRegistry struct{}
+type mockRegistry struct {
+	lastUpdate *api.Cluster
+}
 
 func (r *mockRegistry) ListClusters(filter registry.Filter) ([]*api.Cluster, error) {
 	return nil, nil
 }
-func (r *mockRegistry) UpdateCluster(cluster *api.Cluster) error { return nil }
+func (r *mockRegistry) UpdateCluster(cluster *api.Cluster) error {
+	r.lastUpdate = cluster
+	return nil
+}
 
 type mockChannelSource struct{}
 
@@ -203,5 +210,24 @@ func TestProcessCluster(t *testing.T) {
 		if err == nil && !ti.success {
 			t.Errorf("expected failure")
 		}
+	}
+}
+
+func TestCoalesceFailures(t *testing.T) {
+	cluster := &api.Cluster{
+		ID: "aws:123456789012:eu-central-1:kube-1",
+		InfrastructureAccount: "aws:123456789012",
+		Channel:               "alpha",
+		LifecycleStatus:       "ready",
+	}
+
+	registry := &mockRegistry{}
+	controller := New(registry, &mockErrProvisioner{}, &mockChannelSource{}, defaultOptions)
+
+	for i := 0; i < 100; i++ {
+		registry.lastUpdate = nil
+		controller.processCluster(0, cluster)
+
+		require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.lastUpdate.Status.Problems))
 	}
 }
