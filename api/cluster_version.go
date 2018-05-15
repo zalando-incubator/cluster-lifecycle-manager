@@ -6,22 +6,22 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
 
+// ClusterVersion is a combination of configuration version from the configuration repository
+// and a hash of cluster's metadata.
 type ClusterVersion struct {
 	ConfigVersion channel.ConfigVersion
 	ClusterHash   string
 }
 
-func NewClusterVersion(configVersion channel.ConfigVersion, clusterHash string) *ClusterVersion {
-	return &ClusterVersion{
-		ConfigVersion: configVersion,
-		ClusterHash:   clusterHash,
-	}
-}
-
+// ParseVersion parses a version string into a ConfigVersion. Invalid version strings are parsed
+// into empty ClusterVersion structs.
 func ParseVersion(version string) *ClusterVersion {
 	tokens := strings.Split(version, "#")
 	if len(tokens) != 2 {
-		return NewClusterVersion("", "")
+		return &ClusterVersion{
+			ConfigVersion: "",
+			ClusterHash:   "",
+		}
 	}
 	return &ClusterVersion{
 		ConfigVersion: channel.ConfigVersion(tokens[0]),
