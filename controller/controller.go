@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	errTypeGeneral = "https://cluster-lifecycle-manager.zalando.org/problems/general-error"
+	errTypeGeneral           = "https://cluster-lifecycle-manager.zalando.org/problems/general-error"
+	errTypeCoalescedProblems = "https://cluster-lifecycle-manager.zalando.org/problems/too-many-problems"
+	errorLimit               = 25
 )
 
 var (
@@ -214,6 +216,14 @@ func (c *Controller) processCluster(workerNum uint, cluster *api.Cluster) {
 				Title: err.Error(),
 				Type:  errTypeGeneral,
 			})
+
+			if len(cluster.Status.Problems) > errorLimit {
+				cluster.Status.Problems = cluster.Status.Problems[len(cluster.Status.Problems)-errorLimit:]
+				cluster.Status.Problems[0] = &api.Problem{
+					Type:  errTypeCoalescedProblems,
+					Title: "<multiple problems>",
+				}
+			}
 		} else {
 			cluster.Status.Problems = []*api.Problem{}
 		}
