@@ -284,16 +284,10 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 	// accounts.
 	s3BucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	// First try to get userdata from Container Linux Config, then from
-	// cloud-config.
-	userDataMaster, userDataWorker, err := a.getUserDataCLC(path.Dir(stackDefinitionPath), config, s3BucketName)
+	// get userdata from Container Linux Config
+	userDataMaster, userDataWorker, err := a.getUserData(path.Dir(stackDefinitionPath), config, s3BucketName)
 	if err != nil {
-		log.Warnf("Failed to get userdata from CLC: %v", err)
-
-		userDataMaster, userDataWorker, err = getUserData(path.Dir(stackDefinitionPath), config)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	hostedZone, err := getHostedZone(cluster.APIServerURL)
@@ -761,39 +755,8 @@ func userDataConfig(stackName, stackVersion, kubeletSecret string, cluster *api.
 	return config, nil
 }
 
-// getUserData reads userdata and encodes it.
-func getUserData(basePath string, config map[string]string) (string, string, error) {
-	userDataMasterPath := path.Join(basePath, "userdata-master.yaml")
-	userDataWorkerPath := path.Join(basePath, "userdata-worker.yaml")
-
-	// fail if variables are missing
-	mustache.AllowMissingVariables = false
-
-	m, err := mustache.RenderFile(userDataMasterPath, config)
-	if err != nil {
-		return "", "", err
-	}
-
-	w, err := mustache.RenderFile(userDataWorkerPath, config)
-	if err != nil {
-		return "", "", err
-	}
-
-	master, err := encodeUserData(string(m))
-	if err != nil {
-		return "", "", err
-	}
-
-	worker, err := encodeUserData(string(w))
-	if err != nil {
-		return "", "", err
-	}
-
-	return master, worker, nil
-}
-
-// getUserDataCLC reads userdata from clc files and uploads the userdata to S3.
-func (a *awsAdapter) getUserDataCLC(basePath string, config map[string]string, bucketName string) (string, string, error) {
+// getUserData reads userdata from clc files and uploads the userdata to S3.
+func (a *awsAdapter) getUserData(basePath string, config map[string]string, bucketName string) (string, string, error) {
 	userDataMasterPath := path.Join(basePath, "master.clc.yaml")
 	userDataWorkerPath := path.Join(basePath, "worker.clc.yaml")
 
