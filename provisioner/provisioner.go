@@ -25,6 +25,7 @@ type Options struct {
 // Provisioner is an interface describing how to provision or decommission
 // clusters.
 type Provisioner interface {
+	Supports(cluster *api.Cluster) bool
 	Provision(cluster *api.Cluster, channelConfig *channel.Config) error
 	Decommission(cluster *api.Cluster, channelConfig *channel.Config) error
 }

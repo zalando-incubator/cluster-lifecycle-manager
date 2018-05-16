@@ -14,11 +14,18 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
 
-const nextVersion = "version"
+const (
+	nextVersion  = "version"
+	mockProvider = "<mock>"
+)
 
 var defaultVersions = map[string]channel.ConfigVersion{"alpha": "<alpha-sha>"}
 
 type mockProvisioner struct{}
+
+func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
+	return cluster.Provider == mockProvider
+}
 
 func (p *mockProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return nil
@@ -30,6 +37,10 @@ func (p *mockProvisioner) Decommission(cluster *api.Cluster, config *channel.Con
 
 type mockErrProvisioner mockProvisioner
 
+func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
+	return true
+}
+
 func (p *mockErrProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
@@ -39,6 +50,10 @@ func (p *mockErrProvisioner) Decommission(cluster *api.Cluster, config *channel.
 }
 
 type mockErrCreateProvisioner struct{ *mockProvisioner }
+
+func (p *mockErrCreateProvisioner) Supports(cluster *api.Cluster) bool {
+	return true
+}
 
 func (p *mockErrCreateProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
@@ -59,6 +74,7 @@ func MockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mockRegist
 		Channel:               "alpha",
 		LifecycleStatus:       lifecycleStatus,
 		Status:                status,
+		Provider:              mockProvider,
 	}
 	return &mockRegistry{theCluster: cluster}
 }
@@ -184,6 +200,18 @@ func TestProcessCluster(t *testing.T) {
 			assert.Error(t, err, ti.testcase)
 		}
 	}
+}
+
+func TestIgnoreUnsupportedProvider(t *testing.T) {
+	registry := MockRegistry("ready", nil)
+	registry.theCluster.Provider = "<unsupported>"
+	controller := New(registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+
+	err := controller.refresh()
+	require.NoError(t, err)
+
+	next := controller.clusterList.SelectNext()
+	require.Nil(t, next)
 }
 
 func TestCoalesceFailures(t *testing.T) {
