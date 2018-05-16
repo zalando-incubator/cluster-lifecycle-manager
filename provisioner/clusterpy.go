@@ -93,6 +93,10 @@ func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, assumedRole string,
 	return provisioner
 }
 
+func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
+	return cluster.Provider == providerID
+}
+
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *channel.Config) error {

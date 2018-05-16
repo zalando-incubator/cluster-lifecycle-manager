@@ -119,8 +119,21 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
-	c.clusterList.UpdateAvailable(channels, clusters)
+	c.clusterList.UpdateAvailable(channels, c.dropUnsupported(clusters))
 	return nil
+}
+
+// dropUnsupported removes clusters not supported by the current provisioner
+func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
+	result := make([]*api.Cluster, 0, len(clusters))
+	for _, cluster := range clusters {
+		if !c.provisioner.Supports(cluster) {
+			log.Debugf("Unsupported cluster: %s", cluster.ID)
+			continue
+		}
+		result = append(result, cluster)
+	}
+	return result
 }
 
 // doProcessCluster checks if an action needs to be taken depending on the
