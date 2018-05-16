@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -15,11 +16,9 @@ import (
 
 const nextVersion = "version"
 
-type mockProvisioner struct{}
+var defaultVersions = map[string]channel.ConfigVersion{"alpha": "<alpha-sha>"}
 
-func (p *mockProvisioner) Version(cluster *api.Cluster, config *channel.Config) (string, error) {
-	return nextVersion, nil
-}
+type mockProvisioner struct{}
 
 func (p *mockProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return nil
@@ -30,10 +29,6 @@ func (p *mockProvisioner) Decommission(cluster *api.Cluster, config *channel.Con
 }
 
 type mockErrProvisioner mockProvisioner
-
-func (p *mockErrProvisioner) Version(cluster *api.Cluster, config *channel.Config) (string, error) {
-	return "", fmt.Errorf("failed getting version")
-}
 
 func (p *mockErrProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
@@ -50,43 +45,57 @@ func (p *mockErrCreateProvisioner) Provision(cluster *api.Cluster, config *chann
 }
 
 type mockRegistry struct {
+	theCluster *api.Cluster
 	lastUpdate *api.Cluster
 }
 
+func MockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mockRegistry {
+	if status == nil {
+		status = &api.ClusterStatus{}
+	}
+	cluster := &api.Cluster{
+		ID: "aws:123456789012:eu-central-1:kube-1",
+		InfrastructureAccount: "aws:123456789012",
+		Channel:               "alpha",
+		LifecycleStatus:       lifecycleStatus,
+		Status:                status,
+	}
+	return &mockRegistry{theCluster: cluster}
+}
+
 func (r *mockRegistry) ListClusters(filter registry.Filter) ([]*api.Cluster, error) {
-	return nil, nil
+	return []*api.Cluster{r.theCluster}, nil
 }
 func (r *mockRegistry) UpdateCluster(cluster *api.Cluster) error {
 	r.lastUpdate = cluster
 	return nil
 }
 
-type mockChannelSource struct{}
-
-func (r *mockChannelSource) Get(ch string) (*channel.Config, error) {
-	return &channel.Config{Version: nextVersion}, nil
+type mockChannelSource struct {
+	configVersions channel.ConfigVersions
+	failGet        bool
 }
 
-func (r *mockChannelSource) Update() error {
-	return nil
+func MockChannelSource(configVersions map[string]channel.ConfigVersion, failGet bool) channel.ConfigSource {
+	return &mockChannelSource{
+		configVersions: channel.NewStaticVersions(configVersions),
+		failGet:        failGet,
+	}
+}
+
+func (r *mockChannelSource) Get(version channel.ConfigVersion) (*channel.Config, error) {
+	if r.failGet {
+		return nil, fmt.Errorf("failed to checkout version %s", version)
+	}
+	return &channel.Config{}, nil
+}
+
+func (r *mockChannelSource) Update() (channel.ConfigVersions, error) {
+	return r.configVersions, nil
 }
 
 func (r *mockChannelSource) Delete(config *channel.Config) error {
 	return nil
-}
-
-type mockErrChannelSource struct{}
-
-func (r *mockErrChannelSource) Update() error {
-	return fmt.Errorf("failed to update channel config")
-}
-
-func (r *mockErrChannelSource) Get(channel string) (*channel.Config, error) {
-	return nil, fmt.Errorf("failed to get channel config")
-}
-
-func (r *mockErrChannelSource) Delete(config *channel.Config) error {
-	return fmt.Errorf("failed to delete config")
 }
 
 var defaultOptions = &Options{
@@ -94,140 +103,102 @@ var defaultOptions = &Options{
 }
 
 func TestProcessCluster(t *testing.T) {
-	cluster := &api.Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
-		InfrastructureAccount: "aws:123456789012",
-		Channel:               "alpha",
-		LifecycleStatus:       "ready",
-	}
-
 	for _, ti := range []struct {
-		registry        registry.Registry
-		provisioner     provisioner.Provisioner
-		channelSource   channel.ConfigSource
-		clusterStatus   *api.ClusterStatus
-		options         *Options
-		lifecycleStatus string
-		success         bool
+		testcase      string
+		registry      registry.Registry
+		provisioner   provisioner.Provisioner
+		channelSource channel.ConfigSource
+		options       *Options
+		success       bool
 	}{
-		// test when lifecyclestatus is requested
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockProvisioner{},
-			channelSource:   &mockChannelSource{},
-			lifecycleStatus: statusRequested,
-			options:         defaultOptions,
-			success:         true,
+			testcase:      "lifecycle status requested",
+			registry:      MockRegistry(statusRequested, nil),
+			provisioner:   &mockProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       true,
 		},
-		// test when lifecyclestatus is ready
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockProvisioner{},
-			channelSource:   &mockChannelSource{},
-			lifecycleStatus: statusReady,
-			options:         defaultOptions,
-			success:         true,
+			testcase:      "lifecycle status ready",
+			registry:      MockRegistry(statusReady, nil),
+			provisioner:   &mockProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       true,
 		},
-		// test when lifecyclestatus is decommission-requested
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockProvisioner{},
-			channelSource:   &mockChannelSource{},
-			lifecycleStatus: statusDecommissionRequested,
-			options:         defaultOptions,
-			success:         true,
+			testcase:      "lifecycle status decommission-requested",
+			registry:      MockRegistry(statusDecommissionRequested, nil),
+			provisioner:   &mockProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       true,
 		},
-		// test when lifecyclestatus is decommissioned
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockProvisioner{},
-			channelSource:   &mockChannelSource{},
-			lifecycleStatus: statusDecommissioned,
-			options:         defaultOptions,
-			success:         true,
+			testcase:      "lifecycle status requested, provisioner.Create fails",
+			registry:      MockRegistry(statusRequested, &api.ClusterStatus{CurrentVersion: nextVersion}),
+			provisioner:   &mockErrCreateProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       false,
 		},
-		// test when lifecyclestatus is requested and provisoner.Create
-		// fails
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockErrCreateProvisioner{},
-			channelSource:   &mockChannelSource{},
-			clusterStatus:   &api.ClusterStatus{CurrentVersion: nextVersion},
-			lifecycleStatus: statusRequested,
-			options:         defaultOptions,
-			success:         false,
+			testcase:      "lifecycle status ready, version up to date fails",
+			registry:      MockRegistry(statusReady, &api.ClusterStatus{CurrentVersion: nextVersion}),
+			provisioner:   &mockProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       true,
 		},
-		// test when lifecyclestatus is requested and provisoner.Create
-		// fails
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockErrCreateProvisioner{},
-			channelSource:   &mockChannelSource{},
-			clusterStatus:   &api.ClusterStatus{CurrentVersion: nextVersion},
-			lifecycleStatus: statusRequested,
-			options:         defaultOptions,
-			success:         false,
+			testcase:      "lifecycle status ready, provisioner.Version failing",
+			registry:      MockRegistry(statusReady, nil),
+			provisioner:   &mockErrProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, false),
+			options:       defaultOptions,
+			success:       false,
 		},
-		// test when lifecyclestatus is ready and version is up to date
-		// fails
 		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockProvisioner{},
-			channelSource:   &mockChannelSource{},
-			clusterStatus:   &api.ClusterStatus{CurrentVersion: nextVersion},
-			lifecycleStatus: statusReady,
-			options:         defaultOptions,
-			success:         true,
-		},
-		// test when lifecyclestatus is ready and provisioner.Version
-		// is failing.
-		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockErrProvisioner{},
-			channelSource:   &mockChannelSource{},
-			lifecycleStatus: statusReady,
-			options:         defaultOptions,
-			success:         false,
-		},
-		// test when channel.Channel fails.
-		{
-			registry:        &mockRegistry{},
-			provisioner:     &mockErrProvisioner{},
-			channelSource:   &mockErrChannelSource{},
-			lifecycleStatus: statusReady,
-			options:         defaultOptions,
-			success:         false,
+			testcase:      "lifecycle status ready, channelSource.Get() fails",
+			registry:      MockRegistry(statusReady, nil),
+			provisioner:   &mockErrProvisioner{},
+			channelSource: MockChannelSource(defaultVersions, true),
+			options:       defaultOptions,
+			success:       false,
 		},
 	} {
 		controller := New(ti.registry, ti.provisioner, ti.channelSource, ti.options)
-		cluster.LifecycleStatus = ti.lifecycleStatus
-		cluster.Status = ti.clusterStatus
-		err := controller.doProcessCluster(cluster)
-		if err != nil && ti.success {
-			t.Errorf("should not fail: %s", err)
+		err := controller.refresh()
+		assert.NoError(t, err)
+
+		next := controller.clusterList.SelectNext()
+		if !assert.NotNil(t, next, ti.testcase) {
+			continue
 		}
 
-		if err == nil && !ti.success {
-			t.Errorf("expected failure")
+		err = controller.doProcessCluster(next)
+		if ti.success {
+			assert.NoError(t, err, ti.testcase)
+		} else {
+			assert.Error(t, err, ti.testcase)
 		}
 	}
 }
 
 func TestCoalesceFailures(t *testing.T) {
-	cluster := &api.Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
-		InfrastructureAccount: "aws:123456789012",
-		Channel:               "alpha",
-		LifecycleStatus:       "ready",
-	}
-
-	registry := &mockRegistry{}
-	controller := New(registry, &mockErrProvisioner{}, &mockChannelSource{}, defaultOptions)
+	registry := MockRegistry("ready", nil)
+	controller := New(registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	for i := 0; i < 100; i++ {
-		registry.lastUpdate = nil
-		controller.processCluster(0, cluster)
+		err := controller.refresh()
+		require.NoError(t, err)
 
-		require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.lastUpdate.Status.Problems))
+		next := controller.clusterList.SelectNext()
+		require.NotNil(t, next)
+		controller.processCluster(0, next)
+
+		registry.theCluster.Status = registry.lastUpdate.Status
+		require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.theCluster.Status.Problems))
 	}
 }

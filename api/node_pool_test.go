@@ -15,13 +15,13 @@ func TestSortNodePools(t *testing.T) {
 			msg: "test master sorted first stays first",
 			pools: NodePools([]*NodePool{
 				{
-					Profile: "master/default",
+					Profile: "master-default",
 					Name:    "one",
 					MinSize: 2,
 					MaxSize: 2,
 				},
 				{
-					Profile: "worker/default",
+					Profile: "worker-default",
 					Name:    "two",
 					MinSize: 3,
 					MaxSize: 20,
@@ -33,11 +33,11 @@ func TestSortNodePools(t *testing.T) {
 			msg: "test master sorted last becomes first",
 			pools: NodePools([]*NodePool{
 				{
-					Profile: "worker/default",
+					Profile: "worker-default",
 					Name:    "two",
 				},
 				{
-					Profile: "master/default",
+					Profile: "master-default",
 					Name:    "one",
 					MinSize: 2,
 					MaxSize: 2,

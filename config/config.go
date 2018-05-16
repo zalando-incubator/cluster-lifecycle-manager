@@ -44,6 +44,7 @@ type LifecycleManagerConfig struct {
 	GitRepositoryURL    string
 	SSHPrivateKeyFile   string
 	CredentialsDir      string
+	EnvironmentOrder    []string
 	ApplyOnly           bool
 	AwsMaxRetries       int
 	AwsMaxRetryInterval time.Duration
@@ -100,5 +101,6 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("update-max-evict-timeout", "Maximum timeout for evicting pods during update.").Default(defaultUpdateMaxEvictTimeout).DurationVar(&cfg.UpdateStrategy.MaxEvictTimeout)
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning").BoolVar(&cfg.RemoveVolumes)
+	kingpin.Flag("environment-order", "Roll out channel updates to the environments in a specific order").StringsVar(&cfg.EnvironmentOrder)
 	return kingpin.Parse()
 }

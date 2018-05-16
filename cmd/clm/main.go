@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"golang.org/x/oauth2"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -96,6 +98,7 @@ func main() {
 			DryRun:            cfg.DryRun,
 			SecretDecrypter:   secretDecrypter,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
+			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}
 
 		ctrl := controller.New(clusterRegistry, p, configSource, opts)
@@ -111,6 +114,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
+	orderByEnvironmentOrder(clusters, cfg.EnvironmentOrder)
 
 	for _, cluster := range clusters {
 		if !cfg.AccountFilter.Allowed(cluster.InfrastructureAccount) {
@@ -118,12 +122,17 @@ func main() {
 			continue
 		}
 
-		err := configSource.Update()
+		channels, err := configSource.Update()
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(cluster.Channel)
+		version, err := channels.Version(cluster.Channel)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		config, err := configSource.Get(version)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -156,6 +165,23 @@ func main() {
 			log.Fatalf("unknown command: %s", command)
 		}
 	}
+}
+
+// orderByEnvironmentOrder orders the clusters based on the provided environment ordering.
+// If environmentOrder is [A, B], all clusters with environment A will be reordered
+// before clusters with environment B. Position of clusters with environment not in
+// environmentOrder is unspecified (current implementation will order them first)
+func orderByEnvironmentOrder(clusters []*api.Cluster, environmentOrder []string) {
+	computedPriorities := make(map[string]int)
+	for i, env := range environmentOrder {
+		computedPriorities[env] = i + 1
+	}
+
+	sort.SliceStable(clusters, func(i, j int) bool {
+		iPriority := computedPriorities[clusters[i].Environment]
+		jPriority := computedPriorities[clusters[j].Environment]
+		return iPriority < jPriority
+	})
 }
 
 func serveHealthCheck(listen string) {

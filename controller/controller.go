@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -35,6 +36,7 @@ type Options struct {
 	DryRun            bool
 	SecretDecrypter   decrypter.SecretDecrypter
 	ConcurrentUpdates uint
+	EnvironmentOrder  []string
 }
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
@@ -58,7 +60,7 @@ func New(registry registry.Registry, provisioner provisioner.Provisioner, channe
 		secretDecrypter:      options.SecretDecrypter,
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
-		clusterList:          NewClusterList(options.AccountFilter),
+		clusterList:          NewClusterList(options.AccountFilter, options.EnvironmentOrder),
 		concurrentUpdates:    options.ConcurrentUpdates,
 	}
 }
@@ -107,7 +109,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 
 // refresh refreshes the channel configuration and the cluster list
 func (c *Controller) refresh() error {
-	err := c.channelConfigSourcer.Update()
+	channels, err := c.channelConfigSourcer.Update()
 	if err != nil {
 		return err
 	}
@@ -117,18 +119,24 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
-	c.clusterList.UpdateAvailable(clusters)
+	c.clusterList.UpdateAvailable(channels, clusters)
 	return nil
 }
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
+func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
+	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
 	}
 
-	config, err := c.channelConfigSourcer.Get(cluster.Channel)
+	// There was an error trying to determine the target configuration, abort
+	if clusterInfo.NextError != nil {
+		return clusterInfo.NextError
+	}
+
+	config, err := c.channelConfigSourcer.Get(clusterInfo.NextVersion.ConfigVersion)
 	if err != nil {
 		return err
 	}
@@ -142,19 +150,7 @@ func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
 
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
-		var nextVersion string
-		nextVersion, err = c.provisioner.Version(cluster, config)
-		if err != nil {
-			return err
-		}
-
-		// don't continue if the status is ready and the version is
-		// already the latest.
-		if cluster.LifecycleStatus == statusReady && cluster.Status.CurrentVersion == nextVersion {
-			break
-		}
-
-		cluster.Status.NextVersion = nextVersion
+		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
 		if !c.dryRun {
 			err = c.registry.UpdateCluster(cluster)
 			if err != nil {
@@ -163,36 +159,43 @@ func (c *Controller) doProcessCluster(cluster *api.Cluster) error {
 		}
 
 		err = c.provisioner.Provision(cluster, config)
-		if err == nil {
-			cluster.LifecycleStatus = statusReady
-
-			cluster.Status.LastVersion = cluster.Status.CurrentVersion
-			cluster.Status.CurrentVersion = cluster.Status.NextVersion
-			cluster.Status.NextVersion = ""
-			cluster.Status.Problems = []*api.Problem{}
+		if err != nil {
+			return err
 		}
+
+		cluster.LifecycleStatus = statusReady
+		cluster.Status.LastVersion = cluster.Status.CurrentVersion
+		cluster.Status.CurrentVersion = cluster.Status.NextVersion
+		cluster.Status.NextVersion = ""
+		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
 		err = c.provisioner.Decommission(cluster, config)
-		if err == nil {
-			cluster.Status.LastVersion = cluster.Status.CurrentVersion
-			cluster.Status.CurrentVersion = ""
-			cluster.Status.NextVersion = ""
-			cluster.Status.Problems = []*api.Problem{}
-			cluster.LifecycleStatus = statusDecommissioned
+		if err != nil {
+			return err
 		}
+
+		cluster.Status.LastVersion = cluster.Status.CurrentVersion
+		cluster.Status.CurrentVersion = ""
+		cluster.Status.NextVersion = ""
+		cluster.Status.Problems = []*api.Problem{}
+		cluster.LifecycleStatus = statusDecommissioned
+	default:
+		return fmt.Errorf("invalid cluster status: %s", cluster.LifecycleStatus)
 	}
 
-	return err
+	return nil
 }
 
 // processCluster calls doProcessCluster and handles logging and reporting
-func (c *Controller) processCluster(workerNum uint, cluster *api.Cluster) {
-	defer c.clusterList.ClusterProcessed(cluster.ID)
+func (c *Controller) processCluster(workerNum uint, clusterInfo *ClusterInfo) {
+	defer c.clusterList.ClusterProcessed(clusterInfo)
+
+	cluster := clusterInfo.Cluster
 	clusterLog := log.WithField("cluster", cluster.Alias).WithField("worker", workerNum)
 
 	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
-	err := c.doProcessCluster(cluster)
+	err := c.doProcessCluster(clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {
