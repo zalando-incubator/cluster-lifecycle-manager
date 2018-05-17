@@ -26,7 +26,6 @@ type Cluster struct {
 	Provider              string            `json:"provider"               yaml:"provider"`
 	Region                string            `json:"region"                 yaml:"region"`
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
-	Outputs               map[string]string `json:"outputs"                yaml:"outputs"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
 }
 

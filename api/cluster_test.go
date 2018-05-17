@@ -68,7 +68,6 @@ func sampleCluster() *Cluster {
 			"product_x_key": "abcde",
 			"product_y_key": "12345",
 		},
-		Outputs: map[string]string{},
 		NodePools: []*NodePool{
 			{
 				Name:             "master-default",
@@ -101,7 +100,7 @@ func TestVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, field := range fields {
-		if field == "Alias" || field == "NodePools" || field == "Outputs" || field == "Owner" || field == "Status" {
+		if field == "Alias" || field == "NodePools" || field == "Owner" || field == "Status" {
 			continue
 		}
 

@@ -191,20 +191,20 @@ func decodeUserData(encodedUserData string) (string, error) {
 
 // CreateOrUpdateClusterStack creates or updates a cluster cloudformation
 // stack. This function is idempotent.
-func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath string, cluster *api.Cluster) (map[string]string, error) {
+func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath string, cluster *api.Cluster) error {
 	masterPool, workerPool, err := getLegacyNodePools(cluster) //FIXME this only works on one node pool for workers
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	stack, err := a.getStackByName(stackName)
 	if err != nil && !isDoesNotExistsErr(err) {
-		return nil, err
+		return err
 	}
 
 	kubeletSecret, ok := cluster.ConfigItems[workerSharedSecretConfigItemKey]
 	if !ok {
-		return nil, fmt.Errorf("'%s' config item is missing, must be defined", workerSharedSecretConfigItemKey)
+		return fmt.Errorf("'%s' config item is missing, must be defined", workerSharedSecretConfigItemKey)
 	}
 
 	workerPoolDesired := workerPool.MinSize
@@ -214,7 +214,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 
 	// we currently don't support scaling for master pools
 	if masterPool.MinSize != masterPool.MaxSize {
-		return nil, fmt.Errorf("master pool must have the same min_size and max_size")
+		return fmt.Errorf("master pool must have the same min_size and max_size")
 	}
 
 	masterPoolDesired := masterPool.MinSize
@@ -229,7 +229,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		asg, err := a.getNodePoolASG(cluster.ID, workerPool.Name)
 		if err != nil {
 			if err != ErrASGNotFound {
-				return nil, err
+				return err
 			}
 		} else {
 			desiredCapacity = aws.Int64Value(asg.DesiredCapacity)
@@ -252,7 +252,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 				// the ASG we don't care about the size, but
 				// continue.
 				if err != ErrASGNotFound {
-					return nil, err
+					return err
 				}
 			} else {
 				masterPoolDesired = aws.Int64Value(asg.MinSize)
@@ -273,12 +273,12 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 
 	name, version, err := splitStackName(stackName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	config, err := userDataConfig(stackName, version, kubeletSecret, cluster)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// create bucket name with aws account ID to ensure uniqueness across
@@ -288,12 +288,12 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 	// get userdata from Container Linux Config
 	userDataMaster, userDataWorker, err := a.getUserData(path.Dir(stackDefinitionPath), config, s3BucketName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	hostedZone, err := getHostedZone(cluster.APIServerURL)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	args := []string{
@@ -327,7 +327,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		case discountStrategyNone:
 			break
 		default:
-			return nil, fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
+			return fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
 		}
 
 		switch workerPool.DiscountStrategy {
@@ -336,17 +336,17 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		case discountStrategySpotMaxPrice:
 			instanceInfo, ok := awsExt.InstanceInfo()[workerPool.InstanceType]
 			if !ok {
-				return nil, fmt.Errorf("unknown instance type %s", workerPool.InstanceType)
+				return fmt.Errorf("unknown instance type %s", workerPool.InstanceType)
 			}
 
 			onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]
 			if !ok {
-				return nil, fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
+				return fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
 			}
 
 			args = append(args, fmt.Sprintf("WorkerSpotPrice=%s", onDemandPrice))
 		default:
-			return nil, fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
+			return fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
 		}
 	}
 
@@ -358,7 +358,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 
 	enVars, err := a.getEnvVars()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	cmd.Env = enVars
@@ -366,29 +366,24 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
+			return fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
 		}
-		return nil, err
+		return err
 	}
 
 	err = a.applyClusterStack(stackName, output, cluster, s3BucketName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
 	defer cancel()
-	outputs, err := a.waitForStack(ctx, waitTime, stackName)
+	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// convert AWS struct to plain map[string]string
-	out := make(map[string]string, len(outputs))
-	for _, o := range outputs {
-		out[*o.OutputKey] = *o.OutputValue
-	}
-	return out, nil
+	return nil
 }
 
 // applyClusterStack creates or updates a stack specified by stackName and
@@ -511,37 +506,37 @@ func (a *awsAdapter) getStackByName(stackName string) (*cloudformation.Stack, er
 	return resp.Stacks[0], nil
 }
 
-func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, stackName string) ([]*cloudformation.Output, error) {
+func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, stackName string) error {
 	for {
 		stack, err := a.getStackByName(stackName)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		switch *stack.StackStatus {
 		case cloudformation.StackStatusUpdateComplete:
-			return stack.Outputs, nil
+			return nil
 		case cloudformation.StackStatusCreateComplete:
-			return stack.Outputs, nil
+			return nil
 		case cloudformation.StackStatusDeleteComplete:
-			return stack.Outputs, nil
+			return nil
 		case cloudformation.StackStatusCreateFailed:
-			return nil, errCreateFailed
+			return errCreateFailed
 		case cloudformation.StackStatusDeleteFailed:
-			return nil, errDeleteFailed
+			return errDeleteFailed
 		case cloudformation.StackStatusRollbackComplete:
-			return nil, errRollbackComplete
+			return errRollbackComplete
 		case cloudformation.StackStatusRollbackFailed:
-			return nil, errRollbackFailed
+			return errRollbackFailed
 		case cloudformation.StackStatusUpdateRollbackComplete:
-			return nil, errUpdateRollbackComplete
+			return errUpdateRollbackComplete
 		case cloudformation.StackStatusUpdateRollbackFailed:
-			return nil, errUpdateRollbackFailed
+			return errUpdateRollbackFailed
 		}
 		a.logger.Debugf("Stack '%s' - [%s]", stackName, *stack.StackStatus)
 
 		select {
 		case <-ctx.Done():
-			return nil, errTimeoutExceeded
+			return errTimeoutExceeded
 		case <-time.After(waitTime):
 		}
 	}
@@ -621,7 +616,7 @@ func (a *awsAdapter) DeleteStack(stackName string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
 	defer cancel()
-	_, err = a.waitForStack(ctx, waitTime, stackName)
+	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
 			return nil
@@ -687,7 +682,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(stackName string, stackDefinitionPa
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
 	defer cancel()
-	_, err = a.waitForStack(ctx, waitTime, stackName)
+	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		return err
 	}
