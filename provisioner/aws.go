@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cbroglie/mustache"
+	"github.com/cenkalti/backoff"
 	"github.com/coreos/container-linux-config-transpiler/config"
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
@@ -703,18 +704,22 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 		},
 	}
 
-	_, err := a.s3Client.CreateBucket(params)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			// if the bucket already exists and is owned by us, we
-			// don't treat it as an error.
-			case s3.ErrCodeBucketAlreadyOwnedByYou:
-				return nil
+	return backoff.Retry(
+		func() error {
+			_, err := a.s3Client.CreateBucket(params)
+			if err != nil {
+				if aerr, ok := err.(awserr.Error); ok {
+					switch aerr.Code() {
+					// if the bucket already exists and is owned by us, we
+					// don't treat it as an error.
+					case s3.ErrCodeBucketAlreadyOwnedByYou:
+						return nil
+					}
+				}
 			}
-		}
-	}
-	return err
+			return err
+		},
+		backoff.WithMaxTries(backoff.NewExponentialBackOff(), 10))
 }
 
 // userDataConfig generates userData config map.
