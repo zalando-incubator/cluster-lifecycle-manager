@@ -27,17 +27,22 @@ type Git struct {
 	mutex             *sync.Mutex
 }
 
-type StaticVersions struct {
-	channels map[string]ConfigVersion
+type GitVersions struct {
+	branches map[string]ConfigVersion
 }
 
-func NewStaticVersions(versions map[string]ConfigVersion) *StaticVersions {
-	return &StaticVersions{channels: versions}
+var gitSha = regexp.MustCompile("^[a-f0-9]{40}$")
+
+func NewGitVersions(branches map[string]ConfigVersion) *GitVersions {
+	return &GitVersions{branches: branches}
 }
 
-func (versions *StaticVersions) Version(channel string) (ConfigVersion, error) {
-	if version, ok := versions.channels[channel]; ok {
+func (versions *GitVersions) Version(channel string) (ConfigVersion, error) {
+	if version, ok := versions.branches[channel]; ok {
 		return version, nil
+	}
+	if gitSha.MatchString(channel) {
+		return ConfigVersion(channel), nil
 	}
 	return "", fmt.Errorf("unknown channel: %s", channel)
 }
@@ -140,7 +145,7 @@ func (g *Git) availableChannels() (ConfigVersions, error) {
 			result[channel] = ConfigVersion(hash)
 		}
 	}
-	return NewStaticVersions(result), nil
+	return NewGitVersions(result), nil
 }
 
 // localClone duplicates a repo by cloning to temp location with unix time
