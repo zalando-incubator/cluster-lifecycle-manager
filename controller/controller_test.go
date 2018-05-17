@@ -94,7 +94,7 @@ type mockChannelSource struct {
 
 func MockChannelSource(configVersions map[string]channel.ConfigVersion, failGet bool) channel.ConfigSource {
 	return &mockChannelSource{
-		configVersions: channel.NewStaticVersions(configVersions),
+		configVersions: channel.NewGitVersions(configVersions),
 		failGet:        failGet,
 	}
 }

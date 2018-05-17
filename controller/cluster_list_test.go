@@ -19,7 +19,7 @@ var mockStatus = &api.ClusterStatus{
 }
 
 var devRevision = channel.ConfigVersion("<dev-channel>")
-var defaultChannels = channel.NewStaticVersions(map[string]channel.ConfigVersion{
+var defaultChannels = channel.NewGitVersions(map[string]channel.ConfigVersion{
 	"dev": devRevision,
 })
 
@@ -275,7 +275,7 @@ func TestClusterEnvOrder(t *testing.T) {
 	status := &api.ClusterStatus{
 		CurrentVersion: "abc123#test",
 	}
-	channels := channel.NewStaticVersions(map[string]channel.ConfigVersion{"dev": "def456"})
+	channels := channel.NewGitVersions(map[string]channel.ConfigVersion{"dev": "def456"})
 
 	test1 := &api.Cluster{
 		ID: "aws:123456789011:eu-central-1:test1",
