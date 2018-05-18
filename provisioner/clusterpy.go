@@ -114,8 +114,16 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 		return err
 	}
 
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
 	err = p.tagSubnets(awsAdapter, cluster)
 	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
 		return err
 	}
 
@@ -126,6 +134,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 	if err != nil && !isDoesNotExistsErr(err) {
 		return err
 	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
 	if stack != nil {
 		// suspend scaling for all autoscaling worker groups
 		for _, pool := range cluster.NodePools {
@@ -141,11 +154,19 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 				return err
 			}
 			defer awsAdapter.resumeScaling(*asg.AutoScalingGroupName)
+
+			if err = ctx.Err(); err != nil {
+				return err
+			}
 		}
 	}
 
 	err = awsAdapter.CreateOrUpdateClusterStack(cluster.LocalID, stackDefinitionPath, cluster)
 	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
 		return err
 	}
 
@@ -191,6 +212,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 		return err
 	}
 
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
 	if !p.applyOnly {
 		switch cluster.LifecycleStatus {
 		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
@@ -212,8 +237,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 
 			sort.Sort(api.NodePools(nodePools))
 			for _, nodePool := range nodePools {
-				err := updater.Update(context.Background(), nodePool)
+				err := updater.Update(ctx, nodePool)
 				if err != nil {
+					return err
+				}
+
+				if err = ctx.Err(); err != nil {
 					return err
 				}
 			}
@@ -256,6 +285,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
 	}
 
 	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
