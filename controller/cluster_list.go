@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ const (
 type ClusterInfo struct {
 	lastProcessed  time.Time
 	state          int
+	cancelUpdate   context.CancelFunc
 	updatePriority uint32
 	Cluster        *api.Cluster
 
@@ -137,11 +139,15 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 				existing.CurrentVersion = currentVersion
 				existing.NextVersion = nextVersion
 				existing.NextError = nextError
+			} else if existing.state == stateProcessing && cluster.UpdateBlocked() {
+				// abort an update in progress
+				existing.cancelUpdate()
 			}
 		} else {
 			clusterList.clusters[cluster.ID] = &ClusterInfo{
 				lastProcessed:  time.Unix(0, 0),
 				state:          stateIdle,
+				cancelUpdate:   func() {},
 				Cluster:        cluster,
 				CurrentVersion: currentVersion,
 				NextVersion:    nextVersion,
@@ -167,6 +173,11 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 // for update before clusters with lower priority. A special value updatePriorityNone signifies that no update is needed.
 func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo, usedVersions usedVersions) uint32 {
 	cluster := clusterInfo.Cluster
+
+	// cluster updates are blocked
+	if clusterInfo.Cluster.UpdateBlocked() {
+		return updatePriorityNone
+	}
 
 	// something is wrong with cluster configuration (e.g. missing channel)
 	if clusterInfo.NextError != nil {
@@ -204,7 +215,7 @@ func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo, usedVer
 // SelectNext returns the next cluster to update, if any, and marks it as being processed. A cluster with higher
 // priority will be selected first, in case of ties it'll select a cluster that hasn't been updated for the longest
 // time.
-func (clusterList *ClusterList) SelectNext() *ClusterInfo {
+func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc) *ClusterInfo {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
@@ -214,6 +225,7 @@ func (clusterList *ClusterList) SelectNext() *ClusterInfo {
 
 	result := clusterList.pendingUpdate[0]
 	result.state = stateProcessing
+	result.cancelUpdate = cancelUpdate
 	clusterList.pendingUpdate = clusterList.pendingUpdate[1:]
 
 	return result
@@ -226,6 +238,7 @@ func (clusterList *ClusterList) ClusterProcessed(cluster *ClusterInfo) {
 
 	if cluster, ok := clusterList.clusters[cluster.Cluster.ID]; ok {
 		cluster.state = stateProcessed
+		cluster.cancelUpdate = func() {}
 		cluster.lastProcessed = time.Now()
 	}
 }

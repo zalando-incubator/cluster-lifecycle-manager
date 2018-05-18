@@ -97,9 +97,10 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 	for {
 		select {
 		case <-time.After(c.interval):
-			nextCluster := c.clusterList.SelectNext()
+			updateCtx, cancelFunc := context.WithCancel(ctx)
+			nextCluster := c.clusterList.SelectNext(cancelFunc)
 			if nextCluster != nil {
-				c.processCluster(workerNum, nextCluster)
+				c.processCluster(updateCtx, workerNum, nextCluster)
 			}
 		case <-ctx.Done():
 			return
@@ -138,7 +139,7 @@ func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
+func (c *Controller) doProcessCluster(updateCtx context.Context, clusterInfo *ClusterInfo) error {
 	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
@@ -171,7 +172,7 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 			}
 		}
 
-		err = c.provisioner.Provision(cluster, config)
+		err = c.provisioner.Provision(updateCtx, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -200,7 +201,7 @@ func (c *Controller) doProcessCluster(clusterInfo *ClusterInfo) error {
 }
 
 // processCluster calls doProcessCluster and handles logging and reporting
-func (c *Controller) processCluster(workerNum uint, clusterInfo *ClusterInfo) {
+func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, clusterInfo *ClusterInfo) {
 	defer c.clusterList.ClusterProcessed(clusterInfo)
 
 	cluster := clusterInfo.Cluster
@@ -208,7 +209,7 @@ func (c *Controller) processCluster(workerNum uint, clusterInfo *ClusterInfo) {
 
 	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
-	err := c.doProcessCluster(clusterInfo)
+	err := c.doProcessCluster(updateCtx, clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {

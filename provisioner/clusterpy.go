@@ -99,7 +99,7 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
-func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *channel.Config) error {
+func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error {
 	logger := log.WithField("cluster", cluster.Alias)
 	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {

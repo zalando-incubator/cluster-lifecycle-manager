@@ -149,7 +149,7 @@ func main() {
 		switch command {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
-			err = p.Provision(cluster, config)
+			err = p.Provision(context.Background(), cluster, config)
 			if err != nil {
 				log.Fatalf("Fail to provision: %v", err)
 			}
