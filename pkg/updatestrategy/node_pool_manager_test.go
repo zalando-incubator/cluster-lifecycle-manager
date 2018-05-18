@@ -1,6 +1,7 @@
 package updatestrategy
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -317,7 +318,7 @@ func TestScalePool(tt *testing.T) {
 				kube:    setupMockKubernetes(t, tc.nodes, nil),
 				logger:  log.WithField("test", true),
 			}
-			assert.NoError(t, mgr.ScalePool(&api.NodePool{Name: "test"}, tc.replicas))
+			assert.NoError(t, mgr.ScalePool(context.Background(), &api.NodePool{Name: "test"}, tc.replicas))
 		})
 	}
 }
@@ -392,7 +393,7 @@ func TestTerminateNode(t *testing.T) {
 		maxEvictTimeout: 1 * time.Nanosecond,
 	}
 
-	err := mgr.TerminateNode(&Node{Name: node.Name}, false)
+	err := mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 
 	// test when evictPod returns 429
@@ -405,6 +406,6 @@ func TestTerminateNode(t *testing.T) {
 	}
 
 	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods)
-	err = mgr.TerminateNode(&Node{Name: node.Name}, false)
+	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 }

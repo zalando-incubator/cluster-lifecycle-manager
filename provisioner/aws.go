@@ -191,7 +191,7 @@ func decodeUserData(encodedUserData string) (string, error) {
 
 // CreateOrUpdateClusterStack creates or updates a cluster cloudformation
 // stack. This function is idempotent.
-func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stackName, stackDefinitionPath string, cluster *api.Cluster) error {
 	masterPool, workerPool, err := getLegacyNodePools(cluster) //FIXME this only works on one node pool for workers
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(stackName, stackDefinitionPath s
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
+	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
 	defer cancel()
 	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
@@ -585,7 +585,7 @@ func cloudformationHasTags(expected map[string]string, tags []*cloudformation.Ta
 }
 
 // DeleteStack deletes a cloudformation stack.
-func (a *awsAdapter) DeleteStack(stackName string) error {
+func (a *awsAdapter) DeleteStack(parentCtx context.Context, stackName string) error {
 	a.logger.Infof("Deleting stack '%s'", stackName)
 
 	// disable termination protection on stack before deleting
@@ -614,7 +614,7 @@ func (a *awsAdapter) DeleteStack(stackName string) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
+	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
 	defer cancel()
 	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
@@ -627,7 +627,7 @@ func (a *awsAdapter) DeleteStack(stackName string) error {
 }
 
 // CreateOrUpdateEtcdStack creates or updates an etcd stack.
-func (a *awsAdapter) CreateOrUpdateEtcdStack(stackName string, stackDefinitionPath string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinitionPath string, cluster *api.Cluster) error {
 	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
@@ -680,7 +680,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(stackName string, stackDefinitionPa
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
+	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
 	defer cancel()
 	err = a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {

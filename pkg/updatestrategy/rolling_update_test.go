@@ -56,7 +56,7 @@ func (m *mockNodePoolManager) TaintNode(node *Node, taintKey, taintValue string,
 	return nil
 }
 
-func (m *mockNodePoolManager) ScalePool(nodePool *api.NodePool, replicas int) error {
+func (m *mockNodePoolManager) ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error {
 	if replicas > m.nodePool.Current {
 		delta := replicas - m.nodePool.Current
 		for i := 0; i < delta; i++ {
@@ -73,7 +73,7 @@ func (m *mockNodePoolManager) ScalePool(nodePool *api.NodePool, replicas int) er
 	return nil
 }
 
-func (m *mockNodePoolManager) TerminateNode(node *Node, decrementDesired bool) error {
+func (m *mockNodePoolManager) TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error {
 	newNodes := make([]*Node, 0, len(m.nodePool.Nodes))
 	for _, n := range m.nodePool.Nodes {
 		if n.ProviderID != node.ProviderID {
@@ -91,7 +91,7 @@ func (m *mockNodePoolManager) TerminateNode(node *Node, decrementDesired bool) e
 
 	if !decrementDesired {
 		// rescale pool to replace 'terminated' nodes
-		return m.ScalePool(nil, replicas)
+		return m.ScalePool(context.Background(), nil, replicas)
 	}
 
 	return nil

@@ -109,7 +109,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 	// create etcd stack if needed.
 	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
 
-	err = awsAdapter.CreateOrUpdateEtcdStack("etcd-cluster-etcd", etcdStackDefinitionPath, cluster)
+	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinitionPath, cluster)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 		}
 	}
 
-	err = awsAdapter.CreateOrUpdateClusterStack(cluster.LocalID, stackDefinitionPath, cluster)
+	err = awsAdapter.CreateOrUpdateClusterStack(ctx, cluster.LocalID, stackDefinitionPath, cluster)
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 
 		if masterPool.MaxSize == 0 && masterPool.MinSize == 0 {
 			// gracefully downscale node pool
-			err := nodePoolManager.ScalePool(masterPool, 0)
+			err := nodePoolManager.ScalePool(ctx, masterPool, 0)
 			if err != nil {
 				return err
 			}
@@ -271,7 +271,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 
 		if workerPool.MaxSize == 0 && workerPool.MinSize == 0 {
 			// gracefully downscale node pool
-			err := nodePoolManager.ScalePool(workerPool, 0)
+			err := nodePoolManager.ScalePool(ctx, workerPool, 0)
 			if err != nil {
 				return err
 			}
@@ -281,7 +281,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Clust
 	// TODO(tech-depth): remove if-guard when feature is enabled by default
 	if nodePoolFeatureEnabled(cluster) {
 		// clean up removed node pools
-		err := nodePoolProvisioner.Reconcile()
+		err := nodePoolProvisioner.Reconcile(ctx)
 		if err != nil {
 			return err
 		}
@@ -367,15 +367,18 @@ func (p *clusterpyProvisioner) Decommission(cluster *api.Cluster, channelConfig 
 		logger.Error("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
 
+	// we don't support cancelling decommission operations yet
+	ctx := context.Background()
+
 	// delete all cluster infrastructure stacks
 	// TODO: delete stacks in parallel
-	err = p.deleteClusterStacks(awsAdapter, cluster)
+	err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
 	if err != nil {
 		return err
 	}
 
 	// delete the main cluster stack
-	err = awsAdapter.DeleteStack(cluster.LocalID)
+	err = awsAdapter.DeleteStack(ctx, cluster.LocalID)
 	if err != nil {
 		return err
 	}
@@ -608,7 +611,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 }
 
 // deleteClusterStacks deletes all stacks tagged by the cluster id.
-func (p *clusterpyProvisioner) deleteClusterStacks(adapter *awsAdapter, cluster *api.Cluster) error {
+func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
 	tags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}
@@ -622,7 +625,7 @@ func (p *clusterpyProvisioner) deleteClusterStacks(adapter *awsAdapter, cluster 
 	for _, stack := range stacks {
 		go func(stack cloudformation.Stack, errorsc chan error) {
 			deleteStack := func() error {
-				err := adapter.DeleteStack(aws.StringValue(stack.StackName))
+				err := adapter.DeleteStack(ctx, aws.StringValue(stack.StackName))
 				if err != nil {
 					if isWrongStackStatusErr(err) {
 						return err
