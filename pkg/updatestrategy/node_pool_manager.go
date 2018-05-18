@@ -230,7 +230,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 	}
 
 	for {
-		pool, err = WaitForDesiredNodes(context.Background(), m.logger, m, nodePool)
+		pool, err = WaitForDesiredNodes(ctx, m.logger, m, nodePool)
 		if err != nil {
 			return err
 		}
