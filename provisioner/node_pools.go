@@ -200,7 +200,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
 	defer cancel()
-	_, err = p.awsAdapter.waitForStack(ctx, waitTime, stackName)
+	err = p.awsAdapter.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		return err
 	}

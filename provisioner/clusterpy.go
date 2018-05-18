@@ -144,11 +144,10 @@ func (p *clusterpyProvisioner) Provision(cluster *api.Cluster, channelConfig *ch
 		}
 	}
 
-	out, err := awsAdapter.CreateOrUpdateClusterStack(cluster.LocalID, stackDefinitionPath, cluster)
+	err = awsAdapter.CreateOrUpdateClusterStack(cluster.LocalID, stackDefinitionPath, cluster)
 	if err != nil {
 		return err
 	}
-	cluster.Outputs = out
 
 	cfgBaseDir := path.Join(channelConfig.Path, "cluster", "node-pools")
 

@@ -136,7 +136,7 @@ func testWaitForStackWithComplete(t *testing.T) {
 	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err != nil {
 		t.Error(err)
 	}
@@ -160,7 +160,7 @@ func testWaitForStackWithTimeout(t *testing.T) {
 			}
 		}
 	}()
-	_, err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err != errTimeoutExceeded {
 		t.Errorf("should return timeout exceeded, got: %v", err)
 	}
@@ -190,7 +190,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 		}
 	}()
 
-	_, err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err != errRollbackComplete {
 		t.Errorf("should return rollback complete, got: %v", err)
 	}
