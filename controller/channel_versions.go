@@ -25,7 +25,8 @@ func (cv usedVersions) addCluster(clusterInfo *ClusterInfo) {
 	}
 }
 
-// fullyUpdated returns true if all clusters with the provided environment and channel use the provided version
+// fullyUpdated returns true if all clusters with the provided environment and channel use the provided version, or
+// if there's no matching clusters
 func (cv usedVersions) fullyUpdated(environment, channel string, version channel.ConfigVersion) bool {
 	key := versionKey{environment: environment, channel: channel}
 	if versions, ok := cv[key]; ok {
