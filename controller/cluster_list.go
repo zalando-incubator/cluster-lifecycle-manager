@@ -21,6 +21,8 @@ const (
 	stateIdle = iota
 	stateProcessing
 	stateProcessed
+
+	updateBlockedConfigItem = "cluster_update_block"
 )
 
 type ClusterInfo struct {
@@ -106,6 +108,11 @@ func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions,
 	clusterList.pendingUpdate = pendingUpdate
 }
 
+func updateBlocked(cluster *api.Cluster) bool {
+	_, ok := cluster.ConfigItems[updateBlockedConfigItem]
+	return ok
+}
+
 func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, availableClusters []*api.Cluster) {
 	availableClusterIds := make(map[string]bool)
 
@@ -139,7 +146,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 				existing.CurrentVersion = currentVersion
 				existing.NextVersion = nextVersion
 				existing.NextError = nextError
-			} else if existing.state == stateProcessing && cluster.UpdateBlocked() {
+			} else if existing.state == stateProcessing && updateBlocked(cluster) {
 				// abort an update in progress
 				existing.cancelUpdate()
 			}
@@ -175,7 +182,7 @@ func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo, usedVer
 	cluster := clusterInfo.Cluster
 
 	// cluster updates are blocked
-	if clusterInfo.Cluster.UpdateBlocked() {
+	if updateBlocked(clusterInfo.Cluster) {
 		return updatePriorityNone
 	}
 

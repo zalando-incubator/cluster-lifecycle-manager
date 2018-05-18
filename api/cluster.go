@@ -10,10 +10,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
 
-const (
-	updateBlockedConfigItem = "cluster-update-block"
-)
-
 // Cluster describes a kubernetes cluster and related configuration.
 type Cluster struct {
 	Alias                 string            `json:"alias"                  yaml:"alias"`
@@ -31,11 +27,6 @@ type Cluster struct {
 	Region                string            `json:"region"                 yaml:"region"`
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
-}
-
-func (cluster *Cluster) UpdateBlocked() bool {
-	_, ok := cluster.ConfigItems[updateBlockedConfigItem]
-	return ok
 }
 
 // Version returns the version derived from a sha1 hash of the cluster struct

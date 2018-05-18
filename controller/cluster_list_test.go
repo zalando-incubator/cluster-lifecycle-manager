@@ -92,7 +92,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 				LifecycleStatus:       "ready",
 				Channel:               "dev",
 				Status:                mockStatus,
-				ConfigItems:           map[string]string{"cluster-update-block": "please don't"},
+				ConfigItems:           map[string]string{updateBlockedConfigItem: "please don't"},
 			},
 			ignored: true,
 		},
@@ -230,7 +230,7 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 		LifecycleStatus:       "ready",
 		Channel:               "dev",
 		Status:                mockStatus,
-		ConfigItems:           map[string]string{"cluster-update-block": "please don't"},
+		ConfigItems:           map[string]string{updateBlockedConfigItem: "please don't"},
 	}
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
 	require.Equal(t, context.Canceled, ctx.Err())
