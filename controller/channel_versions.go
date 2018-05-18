@@ -36,6 +36,6 @@ func (cv usedVersions) fullyUpdated(environment, channel string, version channel
 		_, used := versions[version]
 		return used
 	} else {
-		return false
+		return true
 	}
 }

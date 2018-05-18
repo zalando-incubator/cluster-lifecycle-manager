@@ -332,6 +332,9 @@ func TestClusterEnvOrder(t *testing.T) {
 	// ignore prod: some test clusters have invalid statuses
 	assert.NotContains(t, pendingUpdates(test1, test3, prod), prod.ID)
 
+	// allow prod: no clusters in test environment
+	assert.Contains(t, pendingUpdates(staging, prod), prod.ID)
+
 	// other environments should work fine
 	assert.Contains(t, pendingUpdates(test1, test3, staging), staging.ID)
 }
