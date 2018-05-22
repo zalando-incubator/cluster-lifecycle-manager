@@ -410,28 +410,27 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 // This is to fully respect the termination expectations as described in:
 // https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
 func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
-	if pod.Spec.TerminationGracePeriodSeconds != nil {
-		waitForTermination := func() error {
-			_, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-			if err != nil {
-				if apiErrors.IsNotFound(err) {
-					return nil
-				}
-				return err
-			}
-			return fmt.Errorf("pod not terminated")
-		}
+	if pod.Spec.TerminationGracePeriodSeconds == nil {
+		// if no grace period is defined, we don't wait.
+		return nil
+	}
 
-		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)*time.Second + podEvictionHeadroom
-
-		backoffCfg := backoff.NewExponentialBackOff()
-		backoffCfg.MaxElapsedTime = gracePeriod
-		err := backoff.Retry(waitForTermination, backoffCfg)
+	waitForTermination := func() error {
+		_, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
 		if err != nil {
+			if apiErrors.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
+		return fmt.Errorf("pod not terminated")
 	}
-	return nil
+
+	gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)*time.Second + podEvictionHeadroom
+
+	backoffCfg := backoff.NewExponentialBackOff()
+	backoffCfg.MaxElapsedTime = gracePeriod
+	return backoff.Retry(waitForTermination, backoffCfg)
 }
 
 // CordonNode marks a node unschedulable.
