@@ -21,8 +21,12 @@ import (
 const (
 	mirrorPodAnnotation = "kubernetes.io/config.mirror"
 	multiplePDBsErrMsg  = "This pod has more than one PodDisruptionBudget"
-
-	maxConflictRetries = 50
+	maxConflictRetries  = 50
+	// podEvictionHeadroom is the extra time we wait to catch situations when the pod is ignoring SIGTERM and
+	// is killed with SIGKILL after TerminationGracePeriodSeconds
+	// Same headroom as the cluster-autoscaler:
+	// https://github.com/kubernetes/autoscaler/blob/cluster-autoscaler-1.2.2/cluster-autoscaler/core/scale_down.go#L77
+	podEvictionHeadroom = 30 * time.Second
 )
 
 // NodePoolManager defines an interface for managing node pools when performing
@@ -338,11 +342,19 @@ func (m *KubernetesNodePoolManager) drain(node *Node) error {
 			return err
 		}
 
-		m.logger.WithFields(log.Fields{
+		logger := m.logger.WithFields(log.Fields{
 			"ns":   pod.Namespace,
 			"pod":  pod.Name,
 			"node": pod.Spec.NodeName,
-		}).Info("Pod deleted")
+		})
+
+		// wait for pod to be terminated and gone from the node.
+		err = waitForPodTermination(m.kube, pod)
+		if err != nil {
+			logger.Warnf("Pod not terminated within grace period: %s", err)
+		}
+
+		logger.Info("Pod deleted")
 	}
 
 	return nil
@@ -368,18 +380,57 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
 		},
+		DeleteOptions: &metav1.DeleteOptions{
+			GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
+		},
 	}
 
 	err := client.CoreV1().Pods(pod.Namespace).Evict(eviction)
 	if err != nil {
 		return err
 	}
+	localLogger.Info("Evicting pod")
 
-	// TODO: wait for the pod to actually be evicted. It has graceperiod
-	// time to finish what it was doing.
+	// wait for the pod to be actually evicted and gone from the node.
+	// It has TerminationGracePeriodSeconds time to clean up.
+	start := time.Now().UTC()
+	err = waitForPodTermination(client, *pod)
+	if err != nil {
+		localLogger.Warnf("Pod not terminated within grace period: %s", err)
+	}
 
-	localLogger.Info("Pod evicted")
+	localLogger.Infof("Pod evicted. (Observed termination period: %s)", time.Now().UTC().Sub(start))
 	return nil
+}
+
+// waitForPodTermination waits for a pod to be terminated by looking up the pod
+// in the API server.
+// It waits for up to TerminationGracePeriodSeconds as specified on the pod +
+// an additional eviction head room.
+// This is to fully respect the termination expectations as described in:
+// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
+	if pod.Spec.TerminationGracePeriodSeconds == nil {
+		// if no grace period is defined, we don't wait.
+		return nil
+	}
+
+	waitForTermination := func() error {
+		_, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+		if err != nil {
+			if apiErrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		return fmt.Errorf("pod not terminated")
+	}
+
+	gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)*time.Second + podEvictionHeadroom
+
+	backoffCfg := backoff.NewExponentialBackOff()
+	backoffCfg.MaxElapsedTime = gracePeriod
+	return backoff.Retry(waitForTermination, backoffCfg)
 }
 
 // CordonNode marks a node unschedulable.
