@@ -416,14 +416,20 @@ func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
 	}
 
 	waitForTermination := func() error {
-		_, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
 		if err != nil {
 			if apiErrors.IsNotFound(err) {
 				return nil
 			}
 			return err
 		}
-		return fmt.Errorf("pod not terminated")
+
+		// statefulset pods have the same name after restart, check the uid as well
+		if newpod.GetObjectMeta().GetUID() == pod.GetObjectMeta().GetUID() {
+			return fmt.Errorf("pod not terminated")
+		}
+
+		return nil
 	}
 
 	gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)*time.Second + podEvictionHeadroom
