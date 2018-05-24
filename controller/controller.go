@@ -85,7 +85,6 @@ func (c *Controller) Run(ctx context.Context) {
 			if err != nil {
 				log.Errorf("Failed to refresh cluster list: %s", err)
 			}
-			log.Infof("Sleeping (%s) until next check", c.interval)
 		case <-ctx.Done():
 			log.Info("Terminating main controller loop.")
 			return
