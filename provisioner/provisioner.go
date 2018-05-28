@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"context"
 	"errors"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -26,6 +27,6 @@ type Options struct {
 // clusters.
 type Provisioner interface {
 	Supports(cluster *api.Cluster) bool
-	Provision(cluster *api.Cluster, channelConfig *channel.Config) error
+	Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error
 	Decommission(cluster *api.Cluster, channelConfig *channel.Config) error
 }

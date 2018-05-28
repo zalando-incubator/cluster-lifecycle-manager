@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -27,7 +28,7 @@ func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == mockProvider
 }
 
-func (p *mockProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
+func (p *mockProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
 	return nil
 }
 
@@ -41,7 +42,7 @@ func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -55,7 +56,7 @@ func (p *mockErrCreateProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrCreateProvisioner) Provision(cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrCreateProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -188,12 +189,14 @@ func TestProcessCluster(t *testing.T) {
 		err := controller.refresh()
 		assert.NoError(t, err)
 
-		next := controller.clusterList.SelectNext()
+		ctx, cancelFunc := context.WithCancel(context.Background())
+
+		next := controller.clusterList.SelectNext(cancelFunc)
 		if !assert.NotNil(t, next, ti.testcase) {
 			continue
 		}
 
-		err = controller.doProcessCluster(next)
+		err = controller.doProcessCluster(ctx, next)
 		if ti.success {
 			assert.NoError(t, err, ti.testcase)
 		} else {
@@ -210,7 +213,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 	err := controller.refresh()
 	require.NoError(t, err)
 
-	next := controller.clusterList.SelectNext()
+	next := controller.clusterList.SelectNext(func() {})
 	require.Nil(t, next)
 }
 
@@ -222,9 +225,11 @@ func TestCoalesceFailures(t *testing.T) {
 		err := controller.refresh()
 		require.NoError(t, err)
 
-		next := controller.clusterList.SelectNext()
+		ctx, cancelFunc := context.WithCancel(context.Background())
+
+		next := controller.clusterList.SelectNext(cancelFunc)
 		require.NotNil(t, next)
-		controller.processCluster(0, next)
+		controller.processCluster(ctx, 0, next)
 
 		registry.theCluster.Status = registry.lastUpdate.Status
 		require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.theCluster.Status.Problems))

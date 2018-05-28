@@ -2,7 +2,6 @@ package updatestrategy
 
 import (
 	"context"
-	"errors"
 	"math"
 	"time"
 
@@ -23,7 +22,6 @@ const (
 )
 
 var (
-	errTimeoutExceeded     = errors.New("timeout exceeded")
 	operationMaxTimeout    = 15 * time.Minute
 	operationCheckInterval = 15 * time.Second
 )
@@ -86,7 +84,7 @@ func (r *RollingUpdateStrategy) isUpdateDone(nodePool *NodePool) bool {
 // terminateCordonedNodes filters for nodes to be terminated and terminates the
 // nodes one by one. It will conditionally scale down the node pool in case
 // there is less than surge old nodes left.
-func (r *RollingUpdateStrategy) terminateCordonedNodes(nodePool *NodePool, surge int) error {
+func (r *RollingUpdateStrategy) terminateCordonedNodes(ctx context.Context, nodePool *NodePool, surge int) error {
 	oldNodes, _ := r.splitOldNewNodes(nodePool)
 	nodesToTerminate := filterNodesToTerminate(oldNodes)
 	r.logger.Debugf("Found %d nodes to be terminated", len(nodesToTerminate))
@@ -98,7 +96,7 @@ func (r *RollingUpdateStrategy) terminateCordonedNodes(nodePool *NodePool, surge
 		// scale when terminating node.
 		scaleDown := numOldNodes <= surge
 
-		err := r.nodePoolManager.TerminateNode(node, scaleDown)
+		err := r.nodePoolManager.TerminateNode(ctx, node, scaleDown)
 		if err != nil {
 			return err
 		}
@@ -123,11 +121,11 @@ func (r *RollingUpdateStrategy) cordonNodes(nodes []*Node) error {
 
 // increaseByUnmatchedNodes increases the Node Pool by the number of nodes
 // where the failure domain was unmatched by new nodes.
-func (r *RollingUpdateStrategy) increaseByUnmatchedNodes(nodePool *NodePool, nodePoolDesc *api.NodePool, unmatchedNodes []*Node) error {
+func (r *RollingUpdateStrategy) increaseByUnmatchedNodes(ctx context.Context, nodePool *NodePool, nodePoolDesc *api.NodePool, unmatchedNodes []*Node) error {
 	if len(unmatchedNodes) > 0 {
 		r.logger.Debugf("Found %d nodes with unmatched failure domain", len(unmatchedNodes))
 		newDesired := nodePool.Desired + len(unmatchedNodes)
-		err := r.nodePoolManager.ScalePool(nodePoolDesc, newDesired)
+		err := r.nodePoolManager.ScalePool(ctx, nodePoolDesc, newDesired)
 		if err != nil {
 			return err
 		}
@@ -154,15 +152,27 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 			return err
 		}
 
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+
 		// label nodes with correct lifecycle-status
 		err = r.labelNodes(nodePool)
 		if err != nil {
 			return err
 		}
 
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+
 		// taint old nodes to prevent scheduling
 		err = r.taintOldNodes(nodePool)
 		if err != nil {
+			return err
+		}
+
+		if err = ctx.Err(); err != nil {
 			return err
 		}
 
@@ -174,14 +184,22 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 		// terminate all cordoned nodes and conditionally scale
 		// down the node pool in case there are less than surge old
 		// nodes left to update
-		err = r.terminateCordonedNodes(nodePool, surge)
+		err = r.terminateCordonedNodes(ctx, nodePool, surge)
 		if err != nil {
+			return err
+		}
+
+		if err = ctx.Err(); err != nil {
 			return err
 		}
 
 		// wait for current number of nodes equal to the desired number of nodes
 		nodePool, err = WaitForDesiredNodes(ctx, r.logger, r.nodePoolManager, nodePoolDesc)
 		if err != nil {
+			return err
+		}
+
+		if err = ctx.Err(); err != nil {
 			return err
 		}
 
@@ -194,9 +212,13 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 			return err
 		}
 
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+
 		// increase node pool size by unmatched nodes in order to
 		// get new nodes in a matching failure domain
-		err = r.increaseByUnmatchedNodes(nodePool, nodePoolDesc, unmatchedNodes)
+		err = r.increaseByUnmatchedNodes(ctx, nodePool, nodePoolDesc, unmatchedNodes)
 		if err != nil {
 			return err
 		}
@@ -204,7 +226,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 		// stop update in case the context is canceled
 		select {
 		case <-ctx.Done():
-			return errTimeoutExceeded
+			return ctx.Err()
 		default:
 		}
 	}
@@ -284,7 +306,7 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 			break
 		}
 		newDesired := nodePool.Desired + surge - len(newNodes)
-		err = r.nodePoolManager.ScalePool(nodePoolDesc, newDesired)
+		err = r.nodePoolManager.ScalePool(ctx, nodePoolDesc, newDesired)
 		if err != nil {
 			return nil, err
 		}

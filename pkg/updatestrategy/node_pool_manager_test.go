@@ -1,7 +1,9 @@
 package updatestrategy
 
 import (
+	"context"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -317,7 +319,7 @@ func TestScalePool(tt *testing.T) {
 				kube:    setupMockKubernetes(t, tc.nodes, nil),
 				logger:  log.WithField("test", true),
 			}
-			assert.NoError(t, mgr.ScalePool(&api.NodePool{Name: "test"}, tc.replicas))
+			assert.NoError(t, mgr.ScalePool(context.Background(), &api.NodePool{Name: "test"}, tc.replicas))
 		})
 	}
 }
@@ -392,7 +394,7 @@ func TestTerminateNode(t *testing.T) {
 		maxEvictTimeout: 1 * time.Nanosecond,
 	}
 
-	err := mgr.TerminateNode(&Node{Name: node.Name}, false)
+	err := mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 
 	// test when evictPod returns 429
@@ -405,6 +407,133 @@ func TestTerminateNode(t *testing.T) {
 	}
 
 	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods)
-	err = mgr.TerminateNode(&Node{Name: node.Name}, false)
+	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
+}
+
+func TestTerminateNodeCancelled(t *testing.T) {
+	nodeName := "test"
+
+	evictCount := 0
+	blockEviction := sync.WaitGroup{}
+	blockHelper := sync.WaitGroup{}
+	blockEviction.Add(1)
+	blockHelper.Add(1)
+
+	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
+		// unblock so we can be cancelled
+		blockHelper.Done()
+		// wait until we're unblocked
+		blockEviction.Wait()
+		evictCount += 1
+		return nil
+	}
+
+	pods := []*v1.Pod{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "a",
+				Namespace: "default",
+			},
+			Spec: v1.PodSpec{
+				NodeName: nodeName,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "b",
+				Namespace: "default",
+				Annotations: map[string]string{
+					mirrorPodAnnotation: "",
+				},
+			},
+			Spec: v1.PodSpec{
+				NodeName: nodeName,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "c",
+				Namespace: "default",
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind: "DaemonSet",
+					},
+				},
+			},
+			Spec: v1.PodSpec{
+				NodeName: nodeName,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "d",
+				Namespace: "default",
+			},
+			Spec: v1.PodSpec{
+				NodeName: nodeName,
+			},
+		},
+	}
+
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+	}
+
+	logger := log.WithField("test", true)
+	backend := &mockProviderNodePoolsBackend{
+		nodePool: &NodePool{
+			Min:        1,
+			Max:        1,
+			Current:    1,
+			Desired:    1,
+			Generation: 1,
+			Nodes: []*Node{
+				{ProviderID: "provider-id"},
+			},
+		},
+	}
+
+	// immediate cancellation
+	{
+		mgr := &KubernetesNodePoolManager{
+			logger:          logger,
+			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
+			backend:         backend,
+			maxEvictTimeout: 1 * time.Nanosecond,
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
+		assert.Zero(t, evictCount)
+		assert.Equal(t, context.Canceled, err)
+	}
+
+	// cancel after first pod
+	{
+		mgr := &KubernetesNodePoolManager{
+			logger:          logger,
+			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
+			backend:         backend,
+			maxEvictTimeout: 1 * time.Nanosecond,
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func() {
+			// wait until evict() unblocks us
+			blockHelper.Wait()
+			cancel()
+			// unblock evict()
+			blockEviction.Done()
+		}()
+
+		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
+
+		assert.Equal(t, 1, evictCount)
+		assert.Equal(t, context.Canceled, err)
+	}
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"sort"
@@ -22,6 +23,7 @@ var devRevision = channel.ConfigVersion("<dev-channel>")
 var defaultChannels = channel.NewGitVersions(map[string]channel.ConfigVersion{
 	"dev": devRevision,
 })
+var dummyCancelFunc = func() {}
 
 func TestUpdateIgnoresClusters(t *testing.T) {
 	filter := config.IncludeExcludeFilter{
@@ -85,6 +87,17 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 		},
 		{
 			cluster: &api.Cluster{
+				ID: "aws:123456789011:eu-central-1:update-blocked",
+				InfrastructureAccount: "aws:123456789011",
+				LifecycleStatus:       "ready",
+				Channel:               "dev",
+				Status:                mockStatus,
+				ConfigItems:           map[string]string{updateBlockedConfigItem: "please don't"},
+			},
+			ignored: true,
+		},
+		{
+			cluster: &api.Cluster{
 				ID: "foobar:123456789011:eu-central-1:not-included",
 				InfrastructureAccount: "foobar:123456789011",
 				LifecycleStatus:       "ready",
@@ -96,7 +109,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 	} {
 		clusterList := NewClusterList(filter, []string{})
 		clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{ti.cluster})
-		nextCluster := clusterList.SelectNext()
+		nextCluster := clusterList.SelectNext(dummyCancelFunc)
 		if ti.ignored {
 			assert.Nil(t, nextCluster, "cluster wasn't ignored: %s", ti.cluster.ID)
 		} else {
@@ -109,7 +122,7 @@ func allClusterIds(clusterList *ClusterList) []string {
 	var clusters []*ClusterInfo
 	var result []string
 	for {
-		clusterInfo := clusterList.SelectNext()
+		clusterInfo := clusterList.SelectNext(dummyCancelFunc)
 		if clusterInfo == nil {
 			for _, info := range clusters {
 				clusterList.ClusterProcessed(info)
@@ -141,7 +154,7 @@ func TestUpdateAddsNewClusters(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter, []string{})
 
 	// No clusters yet
-	require.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 
 	// One new cluster
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster1})
@@ -165,7 +178,7 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 
-	next := clusterList.SelectNext()
+	next := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
 	require.Equal(t, cluster.LifecycleStatus, next.Cluster.LifecycleStatus)
 	clusterList.ClusterProcessed(next)
@@ -178,12 +191,12 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
-	next = clusterList.SelectNext()
+	next = clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
 	require.Equal(t, updated.LifecycleStatus, next.Cluster.LifecycleStatus)
 
 	clusterList.ClusterProcessed(next)
-	require.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
 
 	assert.Equal(t, []string{cluster.ID}, allClusterIds(clusterList))
@@ -192,6 +205,35 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 func sortedStrings(s []string) []string {
 	sort.Strings(s)
 	return s
+}
+
+func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
+	cluster := &api.Cluster{
+		ID: "aws:123456789011:eu-central-1:cluster",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Status:                mockStatus,
+	}
+
+	clusterList := NewClusterList(config.DefaultFilter, []string{})
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	next := clusterList.SelectNext(cancelFunc)
+	require.NotNil(t, next)
+	require.NoError(t, ctx.Err())
+
+	updated := &api.Cluster{
+		ID: "aws:123456789011:eu-central-1:cluster",
+		InfrastructureAccount: "aws:123456789011",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Status:                mockStatus,
+		ConfigItems:           map[string]string{updateBlockedConfigItem: "please don't"},
+	}
+	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
+	require.Equal(t, context.Canceled, ctx.Err())
 }
 
 func TestUpdateDeletesUnusedClusters(t *testing.T) {
@@ -369,23 +411,23 @@ func TestClusterLastUpdated(t *testing.T) {
 	clusterList.UpdateAvailable(defaultChannels, clusters)
 
 	// get the next clusters to process
-	next1 := clusterList.SelectNext()
+	next1 := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next1)
 
-	next2 := clusterList.SelectNext()
+	next2 := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next2)
 
-	next3 := clusterList.SelectNext()
+	next3 := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next3)
 
-	require.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 
 	// finish processing in a different order (2->1->3)
 	clusterList.ClusterProcessed(next2)
 	clusterList.ClusterProcessed(next1)
 	clusterList.ClusterProcessed(next3)
 
-	require.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 
 	// the same order should be preserved for next update attempts
 	clusterList.UpdateAvailable(defaultChannels, clusters)
@@ -403,7 +445,7 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 
 	clusterList := NewClusterList(config.DefaultFilter, []string{})
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
-	next := clusterList.SelectNext()
+	next := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
 
@@ -415,14 +457,14 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 
 	// add it back, but it still should be processing
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
-	require.Nil(t, clusterList.SelectNext())
+	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 	require.EqualValues(t, newError, next.NextError)
 
 	// finish processing
 	clusterList.ClusterProcessed(next)
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
 
-	next = clusterList.SelectNext()
+	next = clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
 	require.EqualValues(t, next.NextError, nil)
@@ -439,7 +481,7 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 
 	clusterList := NewClusterList(config.DefaultFilter, []string{})
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{cluster})
-	next := clusterList.SelectNext()
+	next := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
 	require.Equal(t, cluster.ID, next.Cluster.ID)
 
@@ -459,7 +501,7 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 
 	// now it should get updated
 	clusterList.UpdateAvailable(defaultChannels, []*api.Cluster{updated})
-	next2 := clusterList.SelectNext()
+	next2 := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next2)
 	require.Equal(t, updated.LifecycleStatus, next2.Cluster.LifecycleStatus)
 }

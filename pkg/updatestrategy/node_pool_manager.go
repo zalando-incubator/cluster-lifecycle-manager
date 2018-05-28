@@ -35,8 +35,8 @@ type NodePoolManager interface {
 	GetPool(nodePool *api.NodePool) (*NodePool, error)
 	LabelNode(node *Node, labelKey, labelValue string) error
 	TaintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error
-	ScalePool(nodePool *api.NodePool, replicas int) error
-	TerminateNode(node *Node, decrementDesired bool) error
+	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
+	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	CordonNode(node *Node) error
 }
 
@@ -193,9 +193,13 @@ func (m *KubernetesNodePoolManager) TaintNode(node *Node, taintKey, taintValue s
 // TerminateNode terminates a node and optionally decrement the desired size of
 // the node pool. Before a node is terminated it's drained to ensure that pods
 // running on the nodes are gracefully terminated.
-func (m *KubernetesNodePoolManager) TerminateNode(node *Node, decrementDesired bool) error {
-	err := m.drain(node)
+func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error {
+	err := m.drain(ctx, node)
 	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
 		return err
 	}
 
@@ -212,7 +216,7 @@ func (m *KubernetesNodePoolManager) TerminateNode(node *Node, decrementDesired b
 // ScalePool scales a nodePool to the specified number of replicas.
 // On scale down it will attempt to do it gracefully by draining the nodes
 // before terminating them.
-func (m *KubernetesNodePoolManager) ScalePool(nodePool *api.NodePool, replicas int) error {
+func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error {
 	var pool *NodePool
 	var err error
 
@@ -226,7 +230,7 @@ func (m *KubernetesNodePoolManager) ScalePool(nodePool *api.NodePool, replicas i
 	}
 
 	for {
-		pool, err = WaitForDesiredNodes(context.Background(), m.logger, m, nodePool)
+		pool, err = WaitForDesiredNodes(ctx, m.logger, m, nodePool)
 		if err != nil {
 			return err
 		}
@@ -253,7 +257,7 @@ func (m *KubernetesNodePoolManager) ScalePool(nodePool *api.NodePool, replicas i
 				return err
 			}
 
-			err = m.TerminateNode(node, true)
+			err = m.TerminateNode(ctx, node, true)
 			if err != nil {
 				return err
 			}
@@ -266,7 +270,7 @@ func (m *KubernetesNodePoolManager) ScalePool(nodePool *api.NodePool, replicas i
 
 // drain tries to evict all of the pods on a node.
 // TODO: optimization: concurrent pod eviction.
-func (m *KubernetesNodePoolManager) drain(node *Node) error {
+func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error {
 	m.logger.WithField("node", node.Name).Info("Draining node")
 
 	// mark node as draining
@@ -286,12 +290,18 @@ func (m *KubernetesNodePoolManager) drain(node *Node) error {
 
 		var lastPDBViolationErr error
 		for _, pod := range pods.Items {
+			// we check at the start because there's a continue in the loop body
+			if err = ctx.Err(); err != nil {
+				return err
+			}
+
 			// Don't bother with this pod if it's not evictable.
 			if !m.isEvictablePod(pod) {
 				continue
 			}
 
 			err = evictPod(m.kube, m.logger, &pod)
+
 			if err != nil {
 				if apiErrors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
 					m.logger.WithFields(log.Fields{
@@ -339,6 +349,10 @@ func (m *KubernetesNodePoolManager) drain(node *Node) error {
 			GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
 		})
 		if err != nil {
+			return err
+		}
+
+		if err = ctx.Err(); err != nil {
 			return err
 		}
 
@@ -505,7 +519,7 @@ func WaitForDesiredNodes(ctx context.Context, logger *log.Entry, n NodePoolManag
 
 		select {
 		case <-ctx.Done():
-			return nil, errTimeoutExceeded
+			return nil, ctx.Err()
 		case <-time.After(operationCheckInterval):
 		}
 	}

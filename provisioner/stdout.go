@@ -1,6 +1,8 @@
 package provisioner
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -19,7 +21,7 @@ func (p *stdoutProvisioner) Supports(cluster *api.Cluster) bool {
 }
 
 // Provision mocks provisioning a cluster.
-func (p *stdoutProvisioner) Provision(cluster *api.Cluster, channelConfig *channel.Config) error {
+func (p *stdoutProvisioner) Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error {
 	log.Infof("stdout: Provisioning cluster %s.", cluster.ID)
 
 	return nil
