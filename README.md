@@ -151,6 +151,34 @@ the `name` will be used. If none of them are defined, it's an error.
 
 `kind` must be one of the kinds defined in `kubectl get`.
 
+## Configuration defaults
+
+CLM will look for a `config-defaults.yaml` file in the cluster configuration
+directory. If the file exists, it will be evaluated as a Go template with all
+the usual CLM variables and functions available, and the resulting output will
+be parsed as a simple key-value map. CLM will use the contents of the file to
+populate the cluster's configuration items, taking care not to overwrite the
+existing ones.
+
+For example, you can use the defaults file to have different settings for
+production and test clusters, while keeping the manifests readable:
+
+* **config-defaults.yaml**:
+    ```yaml
+    {{ if eq .Environment "production"}}
+    autoscaling_buffer_pods: "3"
+    {{else}}
+    autoscaling_buffer_pods: "0"
+    {{end}}
+    ```
+
+* **manifests/example/example.yaml**:
+    ```yaml
+    …
+    spec:
+      replicas: {{.ConfigItems.autoscaling_buffer_pods}}
+    …
+    ```
 
 ## Non-disruptive rolling updates
 
