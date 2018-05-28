@@ -3,6 +3,7 @@ package updatestrategy
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -58,77 +59,138 @@ func NewASGNodePoolsBackend(clusterID string, sess *session.Session) *ASGNodePoo
 // launch configuration and 'outdated' for nodes with an older launch
 // configuration.
 func (n *ASGNodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
-	asg, err := n.getNodePoolASG(nodePool)
+	asgs, err := n.getNodePoolASGs(nodePool)
 	if err != nil {
 		return nil, err
 	}
 
-	oldInstances, err := n.getInstancesToUpdate(asg)
-	if err != nil {
-		return nil, err
-	}
+	nodes := make([]*Node, 0)
+	minSize := 0
+	maxSize := 0
+	desiredCapacity := 0
+	for _, asg := range asgs {
+		minSize += int(aws.Int64Value(asg.MinSize))
+		maxSize += int(aws.Int64Value(asg.MaxSize))
+		desiredCapacity += int(aws.Int64Value(asg.DesiredCapacity))
 
-	lbInstances, err := n.getLoadBalancerAttachedInstancesReadiness(asg)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: also lookup target groups for ALBs attached to the ASG (for Ingress)
-
-	nodes := make([]*Node, 0, len(asg.Instances))
-
-	for _, instance := range asg.Instances {
-		instanceID := aws.StringValue(instance.InstanceId)
-		node := &Node{
-			ProviderID:    fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.AvailabilityZone), instanceID),
-			FailureDomain: aws.StringValue(instance.AvailabilityZone),
-			Generation:    currentNodeGeneration,
-			Ready:         aws.StringValue(instance.HealthStatus) == instanceHealthStatusHealthy && aws.StringValue(instance.LifecycleState) == autoscaling.LifecycleStateInService,
+		oldInstances, err := n.getInstancesToUpdate(asg)
+		if err != nil {
+			return nil, err
 		}
 
-		if oldInstances[instanceID] {
-			node.Generation = outdatedNodeGeneration
+		lbInstances, err := n.getLoadBalancerAttachedInstancesReadiness(asg)
+		if err != nil {
+			return nil, err
 		}
 
-		// if the node is ready from the ASG point of view, check if
-		// the instance is registered in a LoadBalancer and set the
-		// readiness based on the load balancer instance state.
-		if ready, ok := lbInstances[instanceID]; node.Ready && ok {
-			node.Ready = ready
-		}
+		// TODO: also lookup target groups for ALBs attached to the ASG (for Ingress)
 
-		nodes = append(nodes, node)
+		for _, instance := range asg.Instances {
+			instanceID := aws.StringValue(instance.InstanceId)
+			node := &Node{
+				ProviderID:    fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.AvailabilityZone), instanceID),
+				FailureDomain: aws.StringValue(instance.AvailabilityZone),
+				Generation:    currentNodeGeneration,
+				Ready:         aws.StringValue(instance.HealthStatus) == instanceHealthStatusHealthy && aws.StringValue(instance.LifecycleState) == autoscaling.LifecycleStateInService,
+			}
+
+			if oldInstances[instanceID] {
+				node.Generation = outdatedNodeGeneration
+			}
+
+			// if the node is ready from the ASG point of view, check if
+			// the instance is registered in a LoadBalancer and set the
+			// readiness based on the load balancer instance state.
+			if ready, ok := lbInstances[instanceID]; node.Ready && ok {
+				node.Ready = ready
+			}
+
+			nodes = append(nodes, node)
+		}
 	}
 
 	return &NodePool{
-		Min:        int(aws.Int64Value(asg.MinSize)),
-		Max:        int(aws.Int64Value(asg.MaxSize)),
-		Desired:    int(aws.Int64Value(asg.DesiredCapacity)),
+		Min:        minSize,
+		Max:        maxSize,
+		Desired:    desiredCapacity,
 		Current:    len(nodes),
 		Generation: currentNodeGeneration,
 		Nodes:      nodes,
 	}, nil
 }
 
-// Scale sets the desired capacity of the ASG to the number of replicas.
+// Scale sets the desired capacity of the ASGs to the number of replicas.
+// If the node pool is backed by multiple ASGs the scale operation will try to
+// balance the increment/decrement of nodes over all the ASGs.
 func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error {
-	asg, err := n.getNodePoolASG(nodePool)
+	asgs, err := n.getNodePoolASGs(nodePool)
 	if err != nil {
 		return err
 	}
 
-	min := int64(math.Min(float64(replicas), float64(aws.Int64Value(asg.MinSize))))
-	max := int64(math.Max(float64(replicas), float64(aws.Int64Value(asg.MaxSize))))
-
-	params := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: asg.AutoScalingGroupName,
-		DesiredCapacity:      aws.Int64(int64(replicas)),
-		MinSize:              aws.Int64(min),
-		MaxSize:              aws.Int64(max),
+	desired := 0
+	for _, asg := range asgs {
+		desired += int(aws.Int64Value(asg.DesiredCapacity))
 	}
 
-	_, err = n.asgClient.UpdateAutoScalingGroup(params)
-	return err
+	diff := replicas - desired
+
+	if diff == 0 {
+		// nothing to change
+		return nil
+	}
+
+	// add nodes to smallest asgs
+	if diff > 0 {
+		sort.Slice(asgs, func(i, j int) bool {
+			return aws.Int64Value(asgs[i].DesiredCapacity) < aws.Int64Value(asgs[j].DesiredCapacity)
+		})
+
+	LoopIncrement:
+		for {
+			for _, asg := range asgs {
+				if diff <= 0 {
+					break LoopIncrement
+				}
+				asg.DesiredCapacity = aws.Int64(aws.Int64Value(asg.DesiredCapacity) + 1)
+				diff--
+			}
+		}
+	} else if diff < 0 { // remove nodes from biggest asgs
+		sort.Slice(asgs, func(i, j int) bool {
+			return aws.Int64Value(asgs[i].DesiredCapacity) > aws.Int64Value(asgs[j].DesiredCapacity)
+		})
+
+	LoopDecrement:
+		for {
+			for _, asg := range asgs {
+				if diff >= 0 {
+					break LoopDecrement
+				}
+				asg.DesiredCapacity = aws.Int64(aws.Int64Value(asg.DesiredCapacity) - 1)
+				diff++
+			}
+		}
+	}
+
+	for _, asg := range asgs {
+		min := int64(math.Min(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MinSize))))
+		max := int64(math.Max(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MaxSize))))
+
+		params := &autoscaling.UpdateAutoScalingGroupInput{
+			AutoScalingGroupName: asg.AutoScalingGroupName,
+			DesiredCapacity:      asg.DesiredCapacity,
+			MinSize:              aws.Int64(min),
+			MaxSize:              aws.Int64(max),
+		}
+
+		_, err := n.asgClient.UpdateAutoScalingGroup(params)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SuspendAutoscaling suspends autoscaling of the node pool if it was enabled.
@@ -141,30 +203,36 @@ func (n *ASGNodePoolsBackend) SuspendAutoscaling(nodePool *api.NodePool) error {
 	return n.deleteTags(nodePool, tags)
 }
 
-// deleteTags deletes the specified tags from the node pool asg.
+// deleteTags deletes the specified tags from the node pool ASGs.
 func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string]string) error {
-	asg, err := n.getNodePoolASG(nodePool)
+	asgs, err := n.getNodePoolASGs(nodePool)
 	if err != nil {
 		return err
 	}
 
-	asgTags := make([]*autoscaling.Tag, 0, len(tags))
+	for _, asg := range asgs {
+		asgTags := make([]*autoscaling.Tag, 0, len(tags))
 
-	for key, val := range tags {
-		tag := &autoscaling.Tag{
-			Key:          aws.String(key),
-			Value:        aws.String(val),
-			ResourceId:   asg.AutoScalingGroupName,
-			ResourceType: aws.String("auto-scaling-group"),
+		for key, val := range tags {
+			tag := &autoscaling.Tag{
+				Key:          aws.String(key),
+				Value:        aws.String(val),
+				ResourceId:   asg.AutoScalingGroupName,
+				ResourceType: aws.String("auto-scaling-group"),
+			}
+			asgTags = append(asgTags, tag)
 		}
-		asgTags = append(asgTags, tag)
+
+		params := &autoscaling.DeleteTagsInput{
+			Tags: asgTags,
+		}
+
+		_, err := n.asgClient.DeleteTags(params)
+		if err != nil {
+			return err
+		}
 	}
 
-	params := &autoscaling.DeleteTagsInput{
-		Tags: asgTags,
-	}
-
-	_, err = n.asgClient.DeleteTags(params)
 	return err
 }
 
@@ -276,8 +344,8 @@ func instanceIDFromProviderID(providerID, az string) string {
 	return strings.TrimPrefix(providerID, "aws:///"+az+"/")
 }
 
-// getNodePoolASG returns the ASG mapping to the specified node pool.
-func (n *ASGNodePoolsBackend) getNodePoolASG(nodePool *api.NodePool) (*autoscaling.Group, error) {
+// getNodePoolASGs returns a list of ASGs mapping to the specified node pool.
+func (n *ASGNodePoolsBackend) getNodePoolASGs(nodePool *api.NodePool) ([]*autoscaling.Group, error) {
 	params := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{},
 	}
@@ -293,12 +361,11 @@ func (n *ASGNodePoolsBackend) getNodePoolASG(nodePool *api.NodePool) (*autoscali
 		},
 	}
 
-	var asg *autoscaling.Group
+	var asgs []*autoscaling.Group
 	err := n.asgClient.DescribeAutoScalingGroupsPages(params, func(resp *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 		for _, group := range resp.AutoScalingGroups {
 			if asgHasAllTags(expectedTags, group.Tags) {
-				asg = group
-				return false
+				asgs = append(asgs, group)
 			}
 		}
 		return true
@@ -307,11 +374,11 @@ func (n *ASGNodePoolsBackend) getNodePoolASG(nodePool *api.NodePool) (*autoscali
 		return nil, err
 	}
 
-	if asg == nil {
-		return nil, fmt.Errorf("failed to find ASG for node pool '%s'", nodePool.Name)
+	if len(asgs) == 0 {
+		return nil, fmt.Errorf("failed to find any ASGs for node pool '%s'", nodePool.Name)
 	}
 
-	return asg, nil
+	return asgs, nil
 }
 
 // getLaunchConfiguration gets the launch configuration of an ASG.
