@@ -292,7 +292,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		for _, pod := range pods.Items {
 			// we check at the start because there's a continue in the loop body
 			if err = ctx.Err(); err != nil {
-				return err
+				return backoff.Permanent(err)
 			}
 
 			// Don't bother with this pod if it's not evictable.
