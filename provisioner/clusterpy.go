@@ -44,6 +44,7 @@ const (
 	providerID                          = "zalando-aws"
 	manifestsPath                       = "cluster/manifests"
 	deletionsFile                       = "deletions.yaml"
+	defaultsFile                        = "cluster/config-defaults.yaml"
 	defaultNamespace                    = "default"
 	kubectlNotFound                     = "(NotFound)"
 	tagNameKubernetesClusterPrefix      = "kubernetes.io/cluster/"
@@ -98,7 +99,7 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config) error {
-	defaultsFile := path.Join(channelConfig.Path, "cluster", "config-defaults.yaml")
+	defaultsFile := path.Join(channelConfig.Path, defaultsFile)
 
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
@@ -118,8 +119,8 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 	}
 
 	for k, v := range defaults {
-		_, exists := cluster.ConfigItems[k]
-		if !exists {
+		_, ok := cluster.ConfigItems[k]
+		if !ok {
 			cluster.ConfigItems[k] = v
 		}
 	}
