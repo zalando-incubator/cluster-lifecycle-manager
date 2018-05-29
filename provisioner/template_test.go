@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func ApplyTemplate(t *testing.T, templates map[string]string, templateName string, data interface{}) (string, error) {
+func render(t *testing.T, templates map[string]string, templateName string, data interface{}) (string, error) {
 	basedir, err := ioutil.TempDir(os.TempDir(), t.Name())
 	require.NoError(t, err, "unable to create temp dir")
 
@@ -23,12 +23,12 @@ func ApplyTemplate(t *testing.T, templates map[string]string, templateName strin
 		require.NoError(t, err, "error while writing %s", fullPath)
 	}
 
-	context := newApplyContext(basedir)
-	return applyTemplate(context, path.Join(basedir, templateName), data)
+	context := newTemplateContext(basedir)
+	return renderTemplate(context, path.Join(basedir, templateName), data)
 }
 
 func TestTemplating(t *testing.T) {
-	result, err := ApplyTemplate(
+	result, err := render(
 		t,
 		map[string]string{"dir/foo.yaml": "foo {{ . }}"},
 		"dir/foo.yaml",
@@ -39,7 +39,7 @@ func TestTemplating(t *testing.T) {
 }
 
 func TestBase64(t *testing.T) {
-	result, err := ApplyTemplate(
+	result, err := render(
 		t,
 		map[string]string{"dir/foo.yaml": "{{ . | base64 }}"},
 		"dir/foo.yaml",
@@ -50,7 +50,7 @@ func TestBase64(t *testing.T) {
 }
 
 func TestManifestHash(t *testing.T) {
-	result, err := ApplyTemplate(
+	result, err := render(
 		t,
 		map[string]string{
 			"dir/config.yaml": "foo {{ . }}",
@@ -64,7 +64,7 @@ func TestManifestHash(t *testing.T) {
 }
 
 func TestManifestHashMissingFile(t *testing.T) {
-	_, err := ApplyTemplate(
+	_, err := render(
 		t,
 		map[string]string{
 			"dir/foo.yaml": `{{ manifestHash "missing.yaml" }}`,
@@ -76,7 +76,7 @@ func TestManifestHashMissingFile(t *testing.T) {
 }
 
 func TestManifestHashRecursiveInclude(t *testing.T) {
-	_, err := ApplyTemplate(
+	_, err := render(
 		t,
 		map[string]string{
 			"dir/config.yaml": `{{ manifestHash "foo.yaml" }}`,

@@ -67,13 +67,13 @@ func TestApplyTemplate(t *testing.T) {
 
 	cdir, err := os.Getwd()
 	require.NoError(t, err)
-	context := newApplyContext(cdir)
+	context := newTemplateContext(cdir)
 
 	region := "eu-central"
 	localID := "kube-aws-test-rdifazio55"
 	cluster := &api.Cluster{Region: region, LocalID: localID}
 
-	s, err := applyTemplate(context, "test_template", cluster)
+	s, err := renderTemplate(context, "test_template", cluster)
 	if err == nil {
 		t.Errorf("should fail, mate hosted zone configitems are not passed!")
 	}
@@ -81,7 +81,7 @@ func TestApplyTemplate(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"mate_hosted_zone": "hosted-zone",
 	}
-	s, err = applyTemplate(context, "test_template", cluster)
+	s, err = renderTemplate(context, "test_template", cluster)
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
@@ -128,7 +128,7 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 
 	cdir, err := os.Getwd()
 	require.NoError(t, err)
-	context := newApplyContext(cdir)
+	context := newTemplateContext(cdir)
 
 	value := "value"
 
@@ -136,7 +136,7 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"my_value": value,
 	}
-	s, err := applyTemplate(context, "test_template", cluster)
+	s, err := renderTemplate(context, "test_template", cluster)
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}

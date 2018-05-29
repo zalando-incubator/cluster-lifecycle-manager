@@ -92,7 +92,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 	}
 
 	stackFilePath := path.Join(nodePoolProfilesPath, stackFileName)
-	return applyTemplate(newApplyContext(nodePoolProfilesPath), stackFilePath, params)
+	return renderTemplate(newTemplateContext(nodePoolProfilesPath), stackFilePath, params)
 }
 
 // Provision provisions node pools of the cluster.
@@ -248,7 +248,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context) error {
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
 func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config interface{}) (string, error) {
-	rendered, err := applyTemplate(newApplyContext(basedir), clcPath, config)
+	rendered, err := renderTemplate(newTemplateContext(basedir), clcPath, config)
 	if err != nil {
 		return "", err
 	}

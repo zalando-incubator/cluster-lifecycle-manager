@@ -12,23 +12,23 @@ import (
 	"text/template"
 )
 
-type applyContext struct {
+type templateContext struct {
 	manifestData          map[string]string
 	baseDir               string
 	computingManifestHash bool
 	readTemplate          func(string) ([]byte, error)
 }
 
-func newApplyContext(baseDir string) *applyContext {
-	return &applyContext{
+func newTemplateContext(baseDir string) *templateContext {
+	return &templateContext{
 		baseDir:      baseDir,
 		manifestData: make(map[string]string),
 	}
 }
 
-// applyTemplate takes a fileName of a template and the model to apply to it.
+// renderTemplate takes a fileName of a template and the model to apply to it.
 // returns the transformed template or an error if not successful
-func applyTemplate(context *applyContext, filePath string, data interface{}) (string, error) {
+func renderTemplate(context *templateContext, filePath string, data interface{}) (string, error) {
 	funcMap := template.FuncMap{
 		"getAWSAccountID": getAWSAccountID,
 		"base64":          base64Encode,
@@ -58,7 +58,7 @@ func applyTemplate(context *applyContext, filePath string, data interface{}) (st
 // manifestHash is a function for the templates that will return a hash of an interpolated sibling template
 // file. returns an error if computing manifestHash calls manifestHash again, if interpolation of that template
 // returns an error, or if the path is outside of the manifests folder.
-func manifestHash(context *applyContext, file string, template string, data interface{}) (string, error) {
+func manifestHash(context *templateContext, file string, template string, data interface{}) (string, error) {
 	if context.computingManifestHash {
 		return "", fmt.Errorf("manifestHash is not reentrant")
 	}
@@ -78,7 +78,7 @@ func manifestHash(context *applyContext, file string, template string, data inte
 
 	templateData, ok := context.manifestData[templateFile]
 	if !ok {
-		applied, err := applyTemplate(context, templateFile, data)
+		applied, err := renderTemplate(context, templateFile, data)
 		if err != nil {
 			return "", err
 		}

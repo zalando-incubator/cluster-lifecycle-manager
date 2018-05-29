@@ -93,7 +93,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
 
-	result, err := applyTemplate(newApplyContext(channelConfig.Path), defaultsFile, &withoutConfigItems)
+	result, err := renderTemplate(newTemplateContext(channelConfig.Path), defaultsFile, &withoutConfigItems)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -901,7 +901,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 		return errors.Wrapf(err, "no valid token")
 	}
 
-	applyContext := newApplyContext(manifestsPath)
+	applyContext := newTemplateContext(manifestsPath)
 
 	for _, c := range components {
 		// skip deletions.yaml if found
@@ -927,7 +927,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 			allowFailure := f.Name() == "credentials.yaml"
 
 			file := path.Join(componentFolder, f.Name())
-			manifest, err := applyTemplate(applyContext, file, cluster)
+			manifest, err := renderTemplate(applyContext, file, cluster)
 			if err != nil {
 				logger.Errorf("Error applying template %v", err)
 			}
