@@ -143,9 +143,9 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	case discountStrategyNone:
 		break
 	case discountStrategySpotMaxPrice:
-		instanceInfo, ok := awsExt.InstanceInfo()[nodePool.InstanceType]
-		if !ok {
-			return fmt.Errorf("unknown instance type %s", nodePool.InstanceType)
+		instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
+		if err != nil {
+			return err
 		}
 
 		onDemandPrice, ok := instanceInfo.Pricing[p.Cluster.Region]
