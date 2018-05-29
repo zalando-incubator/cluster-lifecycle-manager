@@ -8,12 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
-	"text/template"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -21,6 +15,9 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"os"
+	"path"
+	"strings"
 )
 
 const (
@@ -82,7 +79,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 	}
 
 	userDataPath := path.Join(nodePoolProfilesPath, userDataFileName)
-	renderedUserData, err := p.prepareUserData(userDataPath, userDataParams)
+	renderedUserData, err := p.prepareUserData(nodePoolProfilesPath, userDataPath, userDataParams)
 	if err != nil {
 		return "", err
 	}
@@ -94,9 +91,8 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 		Values:   values,
 	}
 
-	stackFileName := path.Join(nodePoolProfilesPath, stackFileName)
-
-	return renderTemplate(stackFileName, params)
+	stackFilePath := path.Join(nodePoolProfilesPath, stackFileName)
+	return applyTemplate(newApplyContext(nodePoolProfilesPath), stackFilePath, params)
 }
 
 // Provision provisions node pools of the cluster.
@@ -251,8 +247,8 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context) error {
 // prepareUserData prepares the user data by rendering the mustache template
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(clcPath string, config interface{}) (string, error) {
-	rendered, err := renderTemplate(clcPath, config)
+func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config interface{}) (string, error) {
+	rendered, err := applyTemplate(newApplyContext(basedir), clcPath, config)
 	if err != nil {
 		return "", err
 	}
@@ -299,27 +295,6 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName 
 	}
 
 	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
-}
-
-// renderTemplate renders a template from a template file and the passed data.
-func renderTemplate(templateFile string, data interface{}) (string, error) {
-	content, err := ioutil.ReadFile(templateFile)
-	if err != nil {
-		return "", err
-	}
-
-	t, err := template.New(templateFile).Option("missingkey=error").Parse(string(content))
-	if err != nil {
-		return "", err
-	}
-
-	var out bytes.Buffer
-	err = t.Execute(&out, data)
-	if err != nil {
-		return "", err
-	}
-
-	return out.String(), nil
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
