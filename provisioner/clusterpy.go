@@ -44,6 +44,7 @@ const (
 	providerID                          = "zalando-aws"
 	manifestsPath                       = "cluster/manifests"
 	deletionsFile                       = "deletions.yaml"
+	defaultsFile                        = "cluster/config-defaults.yaml"
 	defaultNamespace                    = "default"
 	kubectlNotFound                     = "(NotFound)"
 	tagNameKubernetesClusterPrefix      = "kubernetes.io/cluster/"
@@ -95,6 +96,36 @@ func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, assumedRole string,
 
 func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == providerID
+}
+
+func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config) error {
+	defaultsFile := path.Join(channelConfig.Path, defaultsFile)
+
+	withoutConfigItems := *cluster
+	withoutConfigItems.ConfigItems = make(map[string]string)
+
+	result, err := applyTemplate(newApplyContext(channelConfig.Path), defaultsFile, &withoutConfigItems)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	var defaults map[string]string
+	err = yaml.Unmarshal([]byte(result), &defaults)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range defaults {
+		_, ok := cluster.ConfigItems[k]
+		if !ok {
+			cluster.ConfigItems[k] = v
+		}
+	}
+
+	return nil
 }
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
@@ -482,6 +513,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	adapter, err := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.tokenSource, p.dryRun)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+
+	err = p.updateDefaults(cluster, channelConfig)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
 	// allow clusters to override their update strategy.
