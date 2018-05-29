@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -35,15 +34,11 @@ func applyTemplate(context *applyContext, filePath string, data interface{}) (st
 		"manifestHash":    func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 	}
 
-	f, err := os.Open(filePath)
+	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
-	content, err := ioutil.ReadFile(f.Name())
-	if err != nil {
-		return "", err
-	}
-	t, err := template.New(f.Name()).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
+	t, err := template.New(filePath).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
 	if err != nil {
 		return "", err
 	}
