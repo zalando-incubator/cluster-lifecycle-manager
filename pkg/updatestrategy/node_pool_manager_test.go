@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -414,18 +415,20 @@ func TestTerminateNode(t *testing.T) {
 func TestTerminateNodeCancelled(t *testing.T) {
 	nodeName := "test"
 
-	evictCount := 0
+	var evictCount int32
 	blockEviction := sync.WaitGroup{}
 	blockHelper := sync.WaitGroup{}
 	blockEviction.Add(1)
-	blockHelper.Add(1)
+	// add two to the wg counter because we have two pods that will be
+	// evicted in parallel.
+	blockHelper.Add(2)
 
 	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
 		// unblock so we can be cancelled
 		blockHelper.Done()
 		// wait until we're unblocked
 		blockEviction.Wait()
-		evictCount += 1
+		atomic.AddInt32(&evictCount, 1)
 		return nil
 	}
 
@@ -508,8 +511,9 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
-		assert.Zero(t, evictCount)
-		assert.Equal(t, context.Canceled, err)
+		evictCountFinal := atomic.LoadInt32(&evictCount)
+		assert.Zero(t, evictCountFinal)
+		assert.Error(t, err)
 	}
 
 	// cancel after first pod
@@ -533,7 +537,8 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
 
-		assert.Equal(t, 1, evictCount)
-		assert.Equal(t, context.Canceled, err)
+		evictCountFinal := atomic.LoadInt32(&evictCount)
+		assert.Equal(t, int32(2), evictCountFinal)
+		assert.Error(t, err)
 	}
 }

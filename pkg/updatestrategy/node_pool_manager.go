@@ -269,7 +269,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 }
 
 // drain tries to evict all of the pods on a node.
-// TODO: optimization: concurrent pod eviction.
+// pods are evicted in parallel.
 func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error {
 	m.logger.WithField("node", node.Name).Info("Draining node")
 
@@ -278,97 +278,135 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		return err
 	}
 
-	// evictAll is a function that tries to evict all evictable pods from a particular node exactly
-	// once in order of appearance. If it encounters errors due to pod disruption budget violation it
-	// ignores this pod and continues with the next. The function returns any error encountered,
-	// including the most recent error produced by a pod disruption budget violation.
-	evictAll := func() error {
-		pods, err := m.getPodsByNode(node.Name)
-		if err != nil {
-			return err
-		}
-
-		var lastPDBViolationErr error
-		for _, pod := range pods.Items {
-			// we check at the start because there's a continue in the loop body
-			if err = ctx.Err(); err != nil {
-				return backoff.Permanent(err)
-			}
-
-			// Don't bother with this pod if it's not evictable.
-			if !m.isEvictablePod(pod) {
-				continue
-			}
-
-			err = evictPod(m.kube, m.logger, &pod)
-
-			if err != nil {
-				if apiErrors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
-					m.logger.WithFields(log.Fields{
-						"ns":   pod.Namespace,
-						"pod":  pod.Name,
-						"node": pod.Spec.NodeName,
-					}).Info("Pod Disruption Budget violated")
-					lastPDBViolationErr = err
-					continue
-				}
-				return err
-			}
-		}
-
-		return lastPDBViolationErr
-	}
-
-	// We try to evict all pods of a node by calling evict on all of them once. If we encounter an
-	// error we will backoff and try again for as long as `maxEvictTimeout`. If after `maxEvictTimeout`
-	// we still receive an error related to pod disruption budget violations we will continue and
-	// forcefully shutdown the pod in the next step.
-	backoffCfg := backoff.NewExponentialBackOff()
-	backoffCfg.MaxElapsedTime = m.maxEvictTimeout
-	err := backoff.Retry(evictAll, backoffCfg)
-	if err != nil {
-		if !apiErrors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
-			return err
-		}
-	}
-
 	pods, err := m.getPodsByNode(node.Name)
 	if err != nil {
 		return err
 	}
 
+	errors := make(chan error, len(pods.Items))
+	for _, pod := range pods.Items {
+		go func(pod v1.Pod, errc chan error) {
+			evictPod := func() error {
+				// we check at the start because there's a continue in the loop body
+				err := ctx.Err()
+				if err != nil {
+					return backoff.Permanent(err)
+				}
+
+				// Don't bother with this pod if it's not evictable.
+				if !m.isEvictablePod(pod) {
+					return nil
+				}
+
+				err = evictPod(m.kube, m.logger, &pod)
+				if err != nil {
+					if apiErrors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
+						m.logger.WithFields(log.Fields{
+							"ns":   pod.Namespace,
+							"pod":  pod.Name,
+							"node": pod.Spec.NodeName,
+						}).Info("Pod Disruption Budget violated")
+					}
+					return err
+				}
+				return nil
+			}
+
+			// We try to evict all pods of a node by calling evict on all of them once. If we encounter an
+			// error we will backoff and try again for as long as `maxEvictTimeout`. If after `maxEvictTimeout`
+			// we still receive an error related to pod disruption budget violations we will continue and
+			// forcefully shutdown the pod in the next step.
+			backoffCfg := backoff.NewExponentialBackOff()
+			backoffCfg.MaxElapsedTime = m.maxEvictTimeout
+			err := backoff.Retry(evictPod, backoffCfg)
+			if err != nil {
+				if !apiErrors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
+					errc <- err
+					return
+				}
+			}
+			errc <- nil
+		}(pod, errors)
+	}
+
+	failedEvictions := 0
+	for _, pod := range pods.Items {
+		err := <-errors
+		if err != nil {
+			m.logger.WithFields(log.Fields{
+				"ns":   pod.Namespace,
+				"pod":  pod.Name,
+				"node": pod.Spec.NodeName,
+			}).Errorf("Failed to evict pod: %v", err)
+			failedEvictions++
+		}
+	}
+
+	if failedEvictions > 0 {
+		return fmt.Errorf("failed to evict %d pods from node '%s'", failedEvictions, node.Name)
+	}
+
 	// Delete all remaining evictable pods disregarding their pod disruption budgets. It's necessary
 	// in case a pod disruption budget must be violated in order to proceed with a cluster update.
+	pods, err = m.getPodsByNode(node.Name)
+	if err != nil {
+		return err
+	}
+
+	errors = make(chan error, len(pods.Items))
 	for _, pod := range pods.Items {
-		// Don't bother with this pod if it's not evictable.
-		if !m.isEvictablePod(pod) {
-			continue
-		}
+		go func(pod v1.Pod, errc chan error) {
+			// Don't bother with this pod if it's not evictable.
+			if !m.isEvictablePod(pod) {
+				errc <- nil
+				return
+			}
 
-		err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
-			GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
-		})
+			err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
+				GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
+			})
+			if err != nil {
+				errc <- err
+				return
+			}
+
+			if err = ctx.Err(); err != nil {
+				errc <- err
+				return
+			}
+
+			logger := m.logger.WithFields(log.Fields{
+				"ns":   pod.Namespace,
+				"pod":  pod.Name,
+				"node": pod.Spec.NodeName,
+			})
+
+			// wait for pod to be terminated and gone from the node.
+			err = waitForPodTermination(m.kube, pod)
+			if err != nil {
+				logger.Warnf("Pod not terminated within grace period: %s", err)
+			}
+
+			logger.Info("Pod deleted")
+			errc <- nil
+		}(pod, errors)
+	}
+
+	failedDeletions := 0
+	for _, pod := range pods.Items {
+		err := <-errors
 		if err != nil {
-			return err
+			m.logger.WithFields(log.Fields{
+				"ns":   pod.Namespace,
+				"pod":  pod.Name,
+				"node": pod.Spec.NodeName,
+			}).Errorf("Failed to delete pod: %v", err)
+			failedDeletions++
 		}
+	}
 
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		logger := m.logger.WithFields(log.Fields{
-			"ns":   pod.Namespace,
-			"pod":  pod.Name,
-			"node": pod.Spec.NodeName,
-		})
-
-		// wait for pod to be terminated and gone from the node.
-		err = waitForPodTermination(m.kube, pod)
-		if err != nil {
-			logger.Warnf("Pod not terminated within grace period: %s", err)
-		}
-
-		logger.Info("Pod deleted")
+	if failedDeletions > 0 {
+		return fmt.Errorf("failed to delete %d pods from node '%s'", failedDeletions, node.Name)
 	}
 
 	return nil
