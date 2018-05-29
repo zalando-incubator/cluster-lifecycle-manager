@@ -16,6 +16,7 @@ type applyContext struct {
 	manifestData          map[string]string
 	baseDir               string
 	computingManifestHash bool
+	readTemplate          func(string) ([]byte, error)
 }
 
 func newApplyContext(baseDir string) *applyContext {
