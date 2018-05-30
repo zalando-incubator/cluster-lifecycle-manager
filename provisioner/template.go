@@ -8,6 +8,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"io/ioutil"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	"math"
 	"path"
 	"path/filepath"
@@ -22,6 +23,8 @@ const (
 	autoscalingBufferExplicitMemoryConfigItem = "autoscaling_buffer_memory"
 	autoscalingBufferCPUScaleConfigItem       = "autoscaling_buffer_cpu_scale"
 	autoscalingBufferMemoryScaleConfigItem    = "autoscaling_buffer_memory_scale"
+	autoscalingBufferCPUReservedConfigItem    = "autoscaling_buffer_cpu_reserved"
+	autoscalingBufferMemoryReservedConfigItem = "autoscaling_buffer_memory_reserved"
 	autoscalingBufferPoolsConfigItem          = "autoscaling_buffer_pools"
 )
 
@@ -64,6 +67,20 @@ func requiredFloatConfigItem(cluster *api.Cluster, configItem string) (float64, 
 	return result, nil
 }
 
+func requiredResourceConfigItem(cluster *api.Cluster, configItem string, scale int32) (int64, error) {
+	strValue, err := requiredConfigItem(cluster, configItem)
+	if err != nil {
+		return 0, err
+	}
+
+	quantity, err := k8sresource.ParseQuantity(strValue)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse %s: %v", configItem, err)
+	}
+
+	return quantity.ScaledValue(k8sresource.Scale(scale)), nil
+}
+
 // matchingPools returns all node pools whose names patch poolNameRegex
 func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool, error) {
 	nameRegex, err := regexp.Compile(poolNameRegex)
@@ -82,8 +99,9 @@ func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool,
 
 // autoscalingBufferSettings returns the CPU and memory resources for the autoscaling buffer pods based on various
 // config items. If autoscaling_buffer_cpu and autoscaling_buffer_memory are set, the values are used directly,
-// otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools and scales
-// it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale
+// otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools, scales
+// it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
+// the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
 func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
 	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
 	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
@@ -104,6 +122,14 @@ func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
 		return nil, err
 	}
 	memoryScale, err := requiredFloatConfigItem(cluster, autoscalingBufferMemoryScaleConfigItem)
+	if err != nil {
+		return nil, err
+	}
+	cpuReserved, err := requiredResourceConfigItem(cluster, autoscalingBufferCPUReservedConfigItem, -3)
+	if err != nil {
+		return nil, err
+	}
+	memoryReserved, err := requiredResourceConfigItem(cluster, autoscalingBufferMemoryReservedConfigItem, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -134,10 +160,20 @@ func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
 	}
 
 	result := &podResources{
-		CPU:    fmt.Sprintf("%.0fm", math.Floor(float64(currentLargestInstance.VCPU)*cpuScale*1000)),
-		Memory: fmt.Sprintf("%.0fMi", math.Floor(float64(currentLargestInstance.Memory)*memoryScale/1024/1024)),
+		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentLargestInstance.VCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
+		Memory: k8sresource.NewQuantity(effectiveQuantity(currentLargestInstance.Memory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
 	}
 	return result, nil
+}
+
+func effectiveQuantity(instanceResource int64, scale float64, reservedResource int64) int64 {
+	scaledResource := int64(float64(instanceResource) * scale)
+	withoutReserved := instanceResource - reservedResource
+	if scaledResource < withoutReserved {
+		return scaledResource
+	} else {
+		return withoutReserved
+	}
 }
 
 // renderTemplate takes a fileName of a template and the model to apply to it.

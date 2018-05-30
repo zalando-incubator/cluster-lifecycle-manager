@@ -13,9 +13,11 @@ import (
 func exampleCluster(pools []*api.NodePool) *api.Cluster {
 	return &api.Cluster{
 		ConfigItems: map[string]string{
-			"autoscaling_buffer_pools":        "worker",
-			"autoscaling_buffer_cpu_scale":    "0.8",
-			"autoscaling_buffer_memory_scale": "0.8",
+			"autoscaling_buffer_pools":           "worker",
+			"autoscaling_buffer_cpu_scale":       "0.75",
+			"autoscaling_buffer_memory_scale":    "0.75",
+			"autoscaling_buffer_cpu_reserved":    "1200m",
+			"autoscaling_buffer_memory_reserved": "3500Mi",
 		},
 		NodePools: pools,
 	}
@@ -136,7 +138,7 @@ func TestAutoscalingBufferExplicitOnlyOne(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAutoscalingBufferPoolBased(t *testing.T) {
+func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 	result, err := render(
 		t,
 		map[string]string{
@@ -153,13 +155,33 @@ func TestAutoscalingBufferPoolBased(t *testing.T) {
 				Name:         "worker-small",
 			},
 			{
+				// 2 vcpu / 8gb
 				InstanceType: "m4.large",
 				Name:         "worker-default",
 			},
 		}))
 
 	require.NoError(t, err)
-	require.EqualValues(t, "1600m 6553Mi", result)
+	require.EqualValues(t, "800m 4692Mi", result)
+}
+
+func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
+	result, err := render(
+		t,
+		map[string]string{
+			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
+		},
+		"foo.yaml",
+		exampleCluster([]*api.NodePool{
+			{
+				// 8 vcpu / 32gb
+				InstanceType: "m4.2xlarge",
+				Name:         "worker-default",
+			},
+		}))
+
+	require.NoError(t, err)
+	require.EqualValues(t, "6 24Gi", result)
 }
 
 func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
