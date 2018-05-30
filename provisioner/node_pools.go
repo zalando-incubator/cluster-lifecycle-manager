@@ -112,7 +112,12 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 	// provision node pools in parallel
 	for _, nodePool := range nodePools {
 		go func(nodePool api.NodePool, errorsc chan error) {
-			err := p.provisionNodePool(&nodePool, values)
+			poolValues := make(map[string]string, len(values))
+			for k, v := range values {
+				poolValues[k] = v
+			}
+
+			err := p.provisionNodePool(&nodePool, poolValues)
 			if err != nil {
 				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
 			}
