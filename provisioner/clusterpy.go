@@ -130,8 +130,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
-func (p *clusterpyProvisioner) Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error {
-	logger := log.WithField("cluster", cluster.Alias)
+func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
 	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
@@ -379,8 +378,7 @@ func nodePoolFeatureEnabled(cluster *api.Cluster) bool {
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
-func (p *clusterpyProvisioner) Decommission(cluster *api.Cluster, channelConfig *channel.Config) error {
-	logger := log.WithField("cluster", cluster.Alias)
+func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
 	awsAdapter, _, _, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err

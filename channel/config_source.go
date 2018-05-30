@@ -1,5 +1,9 @@
 package channel
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 type ConfigVersion string
 
 // ConfigSource is an interface for getting the cluster configuration for a
@@ -7,13 +11,13 @@ type ConfigVersion string
 type ConfigSource interface {
 	// Update synchronizes the local copy of the configuration with the remote one
 	// and returns the available channel versions.
-	Update() (ConfigVersions, error)
+	Update(logger *log.Entry) (ConfigVersions, error)
 
 	// Get returns a Config related to the specified version from the local copy.
-	Get(version ConfigVersion) (*Config, error)
+	Get(logger *log.Entry, version ConfigVersion) (*Config, error)
 
 	// Delete deletes the config.
-	Delete(config *Config) error
+	Delete(logger *log.Entry, config *Config) error
 }
 
 // ConfigVersions is a snapshot of the versions at the time of an update

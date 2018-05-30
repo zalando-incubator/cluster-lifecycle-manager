@@ -68,6 +68,8 @@ func main() {
 		decrypter.AWSKMSSecretPrefix: decrypter.NewAWSKMSDescrypter(sess),
 	})
 
+	rootLogger := log.StandardLogger().WithFields(map[string]interface{}{})
+
 	p := provisioner.NewClusterpyProvisioner(clusterTokenSource, cfg.AssumedRole, awsConfig, &provisioner.Options{
 		DryRun:         cfg.DryRun,
 		ApplyOnly:      cfg.ApplyOnly,
@@ -101,7 +103,7 @@ func main() {
 			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}
 
-		ctrl := controller.New(clusterRegistry, p, configSource, opts)
+		ctrl := controller.New(rootLogger, clusterRegistry, p, configSource, opts)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go handleSigterm(cancel)
@@ -122,7 +124,7 @@ func main() {
 			continue
 		}
 
-		channels, err := configSource.Update()
+		channels, err := configSource.Update(rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -132,7 +134,7 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(version)
+		config, err := configSource.Get(rootLogger, version)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -149,14 +151,14 @@ func main() {
 		switch command {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
-			err = p.Provision(context.Background(), cluster, config)
+			err = p.Provision(context.Background(), rootLogger, cluster, config)
 			if err != nil {
 				log.Fatalf("Fail to provision: %v", err)
 			}
 			log.Infof("Provisioning done for cluster %s", cluster.ID)
 		case decommissionCmd.FullCommand():
 			log.Infof("Decommissioning cluster %s", cluster.ID)
-			err = p.Decommission(cluster, config)
+			err = p.Decommission(rootLogger, cluster, config)
 			if err != nil {
 				log.Fatalf("Fail to decommission: %v", err)
 			}

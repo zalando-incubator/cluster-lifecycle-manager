@@ -14,7 +14,7 @@ import (
 )
 
 // helper function to setup a test repository.
-func createGitRepo(t *testing.T, dir string) {
+func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 	err := os.MkdirAll(dir, 0755)
 	require.NoError(t, err)
 
@@ -30,7 +30,7 @@ func createGitRepo(t *testing.T, dir string) {
 			"GIT_COMMITTER_NAME=go-test",
 		}
 		log.Printf("test")
-		err := command.Run(log.StandardLogger(), cmd)
+		err := command.Run(logger, cmd)
 		require.NoError(t, err)
 	}
 
@@ -54,11 +54,11 @@ func createGitRepo(t *testing.T, dir string) {
 	commit("branch commit")
 }
 
-func checkout(t *testing.T, source ConfigSource, versions ConfigVersions, channel string) string {
+func checkout(t *testing.T, logger *log.Entry, source ConfigSource, versions ConfigVersions, channel string) string {
 	version, err := versions.Version(channel)
 	require.NoError(t, err)
 
-	checkout, err := source.Get(version)
+	checkout, err := source.Get(logger, version)
 	require.NoError(t, err)
 
 	return checkout.Path
@@ -76,25 +76,27 @@ func requireNoFile(t *testing.T, dir string, file string) {
 }
 
 func TestGitGet(t *testing.T) {
+	logger := log.StandardLogger().WithFields(map[string]interface{}{})
+
 	workdir := "workdir_test"
 	tmpRepo := "tmp_test_repo.git"
-	createGitRepo(t, tmpRepo)
+	createGitRepo(t, logger, tmpRepo)
 	defer os.RemoveAll(tmpRepo)
 
 	c, err := NewGit(workdir, tmpRepo, "")
 	require.NoError(t, err)
 	defer os.RemoveAll(workdir)
 
-	versions, err := c.Update()
+	versions, err := c.Update(logger)
 	require.NoError(t, err)
 
 	// check master channel
-	master := checkout(t, c, versions, "master")
+	master := checkout(t, logger, c, versions, "master")
 	requireFile(t, master, "init_file")
 	requireNoFile(t, master, "different_file")
 
 	// check another channel
-	channel2 := checkout(t, c, versions, "channel2")
+	channel2 := checkout(t, logger, c, versions, "channel2")
 	requireFile(t, channel2, "init_file")
 	requireFile(t, channel2, "different_file")
 
@@ -102,7 +104,7 @@ func TestGitGet(t *testing.T) {
 	out, err := exec.Command("git", "-C", tmpRepo, "rev-parse", "master").Output()
 	require.NoError(t, err)
 
-	sha := checkout(t, c, versions, strings.TrimSpace(string(out)))
+	sha := checkout(t, logger, c, versions, strings.TrimSpace(string(out)))
 	requireFile(t, sha, "init_file")
 	requireNoFile(t, sha, "different_file")
 }

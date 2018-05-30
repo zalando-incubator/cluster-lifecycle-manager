@@ -7,6 +7,8 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -27,6 +29,6 @@ type Options struct {
 // clusters.
 type Provisioner interface {
 	Supports(cluster *api.Cluster) bool
-	Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error
-	Decommission(cluster *api.Cluster, channelConfig *channel.Config) error
+	Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error
+	Decommission(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error
 }

@@ -4,28 +4,49 @@ import (
 	"os/exec"
 	"testing"
 
+	"bytes"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSuccessfulRun(t *testing.T) {
-	cmd := exec.Command("go", "version")
-	err := Run(log.StandardLogger(), cmd)
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
+type testLogger struct {
+	buf   *bytes.Buffer
+	entry *log.Entry
+}
+
+func newTestLogger(level log.Level) *testLogger {
+	buf := &bytes.Buffer{}
+
+	logger := log.New()
+	logger.Out = buf
+	logger.Level = level
+
+	return &testLogger{
+		buf:   buf,
+		entry: log.NewEntry(logger),
 	}
 }
 
+func TestSuccessfulRun(t *testing.T) {
+	cmd := exec.Command("go", "version")
+	logger := newTestLogger(log.InfoLevel)
+	err := Run(logger.entry, cmd)
+	require.NoError(t, err)
+	require.Empty(t, logger.buf.String())
+}
+
+func TestSuccessfulRunDebug(t *testing.T) {
+	cmd := exec.Command("go", "version")
+	logger := newTestLogger(log.DebugLevel)
+	err := Run(logger.entry, cmd)
+	require.NoError(t, err)
+	require.NotEmpty(t, logger.buf.String())
+}
+
 func TestFailingRun(t *testing.T) {
-	errorMsg := `exec: "invalid-command": executable file not found in $PATH: `
-
-	cmd := exec.Command("invalid-command")
-
-	err := Run(log.StandardLogger(), cmd)
-	if err == nil {
-		t.Errorf("expected running invalid command to fail")
-	}
-
-	if err.Error() != errorMsg {
-		t.Errorf("expected error '%s', got '%s'", errorMsg, err.Error())
-	}
+	cmd := exec.Command("go", "dsjghsdgkjshgkjsdhfjkshfkjsdf")
+	logger := newTestLogger(log.InfoLevel)
+	err := Run(logger.entry, cmd)
+	require.Error(t, err)
+	require.NotEmpty(t, logger.buf.String())
 }
