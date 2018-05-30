@@ -13,6 +13,8 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -21,6 +23,7 @@ const (
 )
 
 var defaultVersions = map[string]channel.ConfigVersion{"alpha": "<alpha-sha>"}
+var defaultLogger = log.WithFields(map[string]interface{}{})
 
 type mockProvisioner struct{}
 
@@ -28,11 +31,11 @@ func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == mockProvider
 }
 
-func (p *mockProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return nil
 }
 
-func (p *mockProvisioner) Decommission(cluster *api.Cluster, config *channel.Config) error {
+func (p *mockProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return nil
 }
 
@@ -42,11 +45,11 @@ func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
-func (p *mockErrProvisioner) Decommission(cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to decommission")
 }
 
@@ -56,7 +59,7 @@ func (p *mockErrCreateProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrCreateProvisioner) Provision(ctx context.Context, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrCreateProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -100,18 +103,18 @@ func MockChannelSource(configVersions map[string]channel.ConfigVersion, failGet 
 	}
 }
 
-func (r *mockChannelSource) Get(version channel.ConfigVersion) (*channel.Config, error) {
+func (r *mockChannelSource) Get(logger *log.Entry, version channel.ConfigVersion) (*channel.Config, error) {
 	if r.failGet {
 		return nil, fmt.Errorf("failed to checkout version %s", version)
 	}
 	return &channel.Config{}, nil
 }
 
-func (r *mockChannelSource) Update() (channel.ConfigVersions, error) {
+func (r *mockChannelSource) Update(logger *log.Entry) (channel.ConfigVersions, error) {
 	return r.configVersions, nil
 }
 
-func (r *mockChannelSource) Delete(config *channel.Config) error {
+func (r *mockChannelSource) Delete(logger *log.Entry, config *channel.Config) error {
 	return nil
 }
 
@@ -185,7 +188,7 @@ func TestProcessCluster(t *testing.T) {
 			success:       false,
 		},
 	} {
-		controller := New(ti.registry, ti.provisioner, ti.channelSource, ti.options)
+		controller := New(defaultLogger, ti.registry, ti.provisioner, ti.channelSource, ti.options)
 		err := controller.refresh()
 		assert.NoError(t, err)
 
@@ -196,7 +199,7 @@ func TestProcessCluster(t *testing.T) {
 			continue
 		}
 
-		err = controller.doProcessCluster(ctx, next)
+		err = controller.doProcessCluster(defaultLogger, ctx, next)
 		if ti.success {
 			assert.NoError(t, err, ti.testcase)
 		} else {
@@ -208,7 +211,7 @@ func TestProcessCluster(t *testing.T) {
 func TestIgnoreUnsupportedProvider(t *testing.T) {
 	registry := MockRegistry("ready", nil)
 	registry.theCluster.Provider = "<unsupported>"
-	controller := New(registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	err := controller.refresh()
 	require.NoError(t, err)
@@ -219,7 +222,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 
 func TestCoalesceFailures(t *testing.T) {
 	registry := MockRegistry("ready", nil)
-	controller := New(registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	for i := 0; i < 100; i++ {
 		err := controller.refresh()

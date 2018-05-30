@@ -21,15 +21,15 @@ func (p *stdoutProvisioner) Supports(cluster *api.Cluster) bool {
 }
 
 // Provision mocks provisioning a cluster.
-func (p *stdoutProvisioner) Provision(ctx context.Context, cluster *api.Cluster, channelConfig *channel.Config) error {
-	log.Infof("stdout: Provisioning cluster %s.", cluster.ID)
+func (p *stdoutProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
+	logger.Infof("stdout: Provisioning cluster %s.", cluster.ID)
 
 	return nil
 }
 
 // Decommission mocks decommissioning a cluster.
-func (p *stdoutProvisioner) Decommission(cluster *api.Cluster, channelConfig *channel.Config) error {
-	log.Infof("stdout: Decommissioning cluster %s.", cluster.ID)
+func (p *stdoutProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
+	logger.Infof("stdout: Decommissioning cluster %s.", cluster.ID)
 
 	return nil
 }

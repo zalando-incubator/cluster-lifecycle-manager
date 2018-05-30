@@ -41,6 +41,7 @@ type Options struct {
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
 type Controller struct {
+	logger               *log.Entry
 	registry             registry.Registry
 	provisioner          provisioner.Provisioner
 	channelConfigSourcer channel.ConfigSource
@@ -52,8 +53,9 @@ type Controller struct {
 }
 
 // New initializes a new controller.
-func New(registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
+func New(logger *log.Entry, registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
 	return &Controller{
+		logger:               logger,
 		registry:             registry,
 		provisioner:          provisioner,
 		channelConfigSourcer: channelConfigSourcer,
@@ -109,7 +111,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 
 // refresh refreshes the channel configuration and the cluster list
 func (c *Controller) refresh() error {
-	channels, err := c.channelConfigSourcer.Update()
+	channels, err := c.channelConfigSourcer.Update(c.logger)
 	if err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(updateCtx context.Context, clusterInfo *ClusterInfo) error {
+func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Context, clusterInfo *ClusterInfo) error {
 	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
@@ -149,11 +151,11 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, clusterInfo *Cl
 		return clusterInfo.NextError
 	}
 
-	config, err := c.channelConfigSourcer.Get(clusterInfo.NextVersion.ConfigVersion)
+	config, err := c.channelConfigSourcer.Get(logger, clusterInfo.NextVersion.ConfigVersion)
 	if err != nil {
 		return err
 	}
-	defer c.channelConfigSourcer.Delete(config)
+	defer c.channelConfigSourcer.Delete(logger, config)
 
 	// decrypt any encrypted config items.
 	err = c.decryptConfigItems(cluster)
@@ -171,7 +173,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, clusterInfo *Cl
 			}
 		}
 
-		err = c.provisioner.Provision(updateCtx, cluster, config)
+		err = c.provisioner.Provision(updateCtx, logger, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -182,7 +184,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, clusterInfo *Cl
 		cluster.Status.NextVersion = ""
 		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
-		err = c.provisioner.Decommission(cluster, config)
+		err = c.provisioner.Decommission(logger, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -204,11 +206,11 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 	defer c.clusterList.ClusterProcessed(clusterInfo)
 
 	cluster := clusterInfo.Cluster
-	clusterLog := log.WithField("cluster", cluster.Alias).WithField("worker", workerNum)
+	clusterLog := c.logger.WithField("cluster", cluster.Alias).WithField("worker", workerNum)
 
 	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
-	err := c.doProcessCluster(updateCtx, clusterInfo)
+	err := c.doProcessCluster(clusterLog, updateCtx, clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {

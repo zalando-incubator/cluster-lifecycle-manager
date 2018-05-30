@@ -1,31 +1,28 @@
 package command
 
 import (
-	"bytes"
-	"fmt"
-	"io"
 	"os/exec"
 
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
-// writerLeveler is required to abstract the types passed to the Run function
-type writerLeveler interface {
-	WriterLevel(level log.Level) *io.PipeWriter
+func outputLines(raw []byte) []string {
+	return strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
 }
 
 // Run configures stdout and stderr of a command to use the logger interface
 // and adds stderr as context if the command exits with status code > 0.
-func Run(logger writerLeveler, cmd *exec.Cmd) error {
-	var stderr bytes.Buffer
-	mWriter := io.MultiWriter(&stderr, logger.WriterLevel(log.ErrorLevel))
-
-	cmd.Stdout = logger.WriterLevel(log.DebugLevel)
-	cmd.Stderr = mWriter
-
-	err := cmd.Run()
+func Run(logger *log.Entry, cmd *exec.Cmd) error {
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, stderr.String())
+		for _, line := range outputLines(out) {
+			logger.Errorln(line)
+		}
+	} else if logger.Logger.Level >= log.DebugLevel {
+		for _, line := range outputLines(out) {
+			logger.Debugln(line)
+		}
 	}
-	return nil
+	return err
 }

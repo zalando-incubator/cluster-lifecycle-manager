@@ -1,5 +1,9 @@
 package channel
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 // Directory defines a channel source where everything is stored in a directory.
 type Directory struct {
 	location string
@@ -12,20 +16,20 @@ func NewDirectory(location string) ConfigSource {
 	return &Directory{location: location}
 }
 
-func (d *Directory) Update() (ConfigVersions, error) {
+func (d *Directory) Update(logger *log.Entry) (ConfigVersions, error) {
 	result := &directoryVersions{}
 	return result, nil
 }
 
 // Get returns the contents from the directory.
-func (d *Directory) Get(version ConfigVersion) (*Config, error) {
+func (d *Directory) Get(logger *log.Entry, version ConfigVersion) (*Config, error) {
 	return &Config{
 		Path: d.location,
 	}, nil
 }
 
 // Delete is a no-op for the directory channelSource.
-func (d *Directory) Delete(config *Config) error {
+func (d *Directory) Delete(logger *log.Entry, config *Config) error {
 	return nil
 }
 

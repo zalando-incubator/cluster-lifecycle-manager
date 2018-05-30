@@ -82,8 +82,8 @@ func getRepoName(repoURI string) (string, error) {
 }
 
 // Get checks out the specified version from the git repo.
-func (g *Git) Get(version ConfigVersion) (*Config, error) {
-	repoDir, err := g.localClone(string(version))
+func (g *Git) Get(logger *log.Entry, version ConfigVersion) (*Config, error) {
+	repoDir, err := g.localClone(logger, string(version))
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +95,11 @@ func (g *Git) Get(version ConfigVersion) (*Config, error) {
 
 // Delete deletes the underlying git repository checkout specified by the
 // config Path.
-func (g *Git) Delete(config *Config) error {
+func (g *Git) Delete(logger *log.Entry, config *Config) error {
 	return os.RemoveAll(config.Path)
 }
 
-func (g *Git) Update() (ConfigVersions, error) {
+func (g *Git) Update(logger *log.Entry) (ConfigVersions, error) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
@@ -109,13 +109,13 @@ func (g *Git) Update() (ConfigVersions, error) {
 			return nil, err
 		}
 
-		err = g.cmd("clone", "--mirror", g.repositoryURL, g.repoDir)
+		err = g.cmd(logger, "clone", "--mirror", g.repositoryURL, g.repoDir)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = g.cmd("--git-dir", g.repoDir, "remote", "update", "--prune")
+	err = g.cmd(logger, "--git-dir", g.repoDir, "remote", "update", "--prune")
 	if err != nil {
 		return nil, err
 	}
@@ -153,16 +153,16 @@ func (g *Git) availableChannels() (ConfigVersions, error) {
 // makes sure that each caller (possibly running concurrently) get it's
 // own version of the checkout, such that they can run concurrently
 // without data races.
-func (g *Git) localClone(channel string) (string, error) {
+func (g *Git) localClone(logger *log.Entry, channel string) (string, error) {
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d", g.repoName, channel, time.Now().UTC().UnixNano()))
 
 	srcRepoUrl := fmt.Sprintf("file://%s", g.repoDir)
-	err := g.cmd("clone", srcRepoUrl, repoDir)
+	err := g.cmd(logger, "clone", srcRepoUrl, repoDir)
 	if err != nil {
 		return "", err
 	}
 
-	err = g.cmd("-C", repoDir, "checkout", channel)
+	err = g.cmd(logger, "-C", repoDir, "checkout", channel)
 	if err != nil {
 		return "", err
 	}
@@ -171,12 +171,12 @@ func (g *Git) localClone(channel string) (string, error) {
 }
 
 // cmd executes a git command with the correct environment set.
-func (g *Git) cmd(args ...string) error {
+func (g *Git) cmd(logger *log.Entry, args ...string) error {
 	cmd := exec.Command("git", args...)
 	// set GIT_SSH_COMMAND with private-key file when pulling over ssh.
 	if g.sshPrivateKeyFile != "" {
 		cmd.Env = []string{fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o 'StrictHostKeyChecking no'", g.sshPrivateKeyFile)}
 	}
 
-	return command.Run(log.StandardLogger(), cmd)
+	return command.Run(logger, cmd)
 }
