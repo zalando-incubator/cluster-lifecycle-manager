@@ -268,19 +268,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		}
 	}
 
-	// If the node pool feature is enabled and we have at least 2
-	// non-legacy node pools, then scale down any empty legacy node pools.
-	// TODO(tech-depth): remove this block when all legacy node pools has
-	// been decommissioned
-	nonLegacyNodePools := len(getNonLegacyNodePools(cluster))
-	legacyNodePools := len(cluster.NodePools) - nonLegacyNodePools
-	if nodePoolFeatureEnabled(cluster) && nonLegacyNodePools >= 2 && legacyNodePools == 0 {
-		_, _, err := getLegacyNodePools(cluster)
-		if err != nil {
-			return err
-		}
-	}
-
 	// TODO(tech-depth): remove if-guard when feature is enabled by default
 	if nodePoolFeatureEnabled(cluster) {
 		// clean up removed node pools

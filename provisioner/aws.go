@@ -11,9 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"os/exec"
-	"path"
 	"strings"
 	"time"
 
@@ -23,7 +21,6 @@ import (
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -192,91 +189,7 @@ func decodeUserData(encodedUserData string) (string, error) {
 // CreateOrUpdateClusterStack creates or updates a cluster cloudformation
 // stack. This function is idempotent.
 func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stackName, stackDefinitionPath string, cluster *api.Cluster) error {
-	masterPool, workerPool, err := getLegacyNodePools(cluster) //FIXME this only works on one node pool for workers
-	if err != nil {
-		return err
-	}
-
-	stack, err := a.getStackByName(stackName)
-	if err != nil && !isDoesNotExistsErr(err) {
-		return err
-	}
-
-	kubeletSecret, ok := cluster.ConfigItems[workerSharedSecretConfigItemKey]
-	if !ok {
-		return fmt.Errorf("'%s' config item is missing, must be defined", workerSharedSecretConfigItemKey)
-	}
-
-	workerPoolDesired := workerPool.MinSize
-	workerPoolMinSize := workerPool.MinSize
-	workerPoolMaxSize := workerPool.MaxSize
-	workerPoolInstanceType := workerPool.InstanceType
-
-	// we currently don't support scaling for master pools
-	if masterPool.MinSize != masterPool.MaxSize {
-		return fmt.Errorf("master pool must have the same min_size and max_size")
-	}
-
-	masterPoolDesired := masterPool.MinSize
-	masterPoolInstanceType := masterPool.InstanceType
-
-	// if stack already exists use the already generated secret and current
-	// desired worker nodes.
-	if stack != nil {
-		desiredCapacity := int64(0)
-
-		// get desired worker nodes
-		asg, err := a.getNodePoolASG(cluster.ID, workerPool.Name)
-		if err != nil {
-			if err != ErrASGNotFound {
-				return err
-			}
-		} else {
-			desiredCapacity = aws.Int64Value(asg.DesiredCapacity)
-		}
-
-		// reduce the desired size if necessary
-		workerPoolDesired = int64(math.Min(float64(desiredCapacity), float64(workerPool.MaxSize)))
-
-		// TODO(tech-depth): this is only used for migrating from
-		// legacy node pools to real node pool support.
-		if asg != nil && nodePoolFeatureEnabled(cluster) {
-			workerPoolDesired = aws.Int64Value(asg.DesiredCapacity)
-			workerPoolMinSize = aws.Int64Value(asg.MinSize)
-			workerPoolMaxSize = workerPoolDesired
-
-			// get master nodepool size
-			asg, err := a.getNodePoolASG(cluster.ID, masterPool.Name)
-			if err != nil {
-				// this is a legacy node pool. If we don't find
-				// the ASG we don't care about the size, but
-				// continue.
-				if err != ErrASGNotFound {
-					return err
-				}
-			} else {
-				masterPoolDesired = aws.Int64Value(asg.MinSize)
-			}
-		}
-	}
-
-	// TODO(tech-depth): this is only used for migrating from
-	// legacy node pools to real node pool support.
-	if nodePoolFeatureEnabled(cluster) {
-		if workerPoolInstanceType == "" {
-			workerPoolInstanceType = "m5.large"
-		}
-		if masterPoolInstanceType == "" {
-			masterPoolInstanceType = "m5.large"
-		}
-	}
-
 	name, version, err := splitStackName(stackName)
-	if err != nil {
-		return err
-	}
-
-	config, err := userDataConfig(stackName, version, kubeletSecret, cluster)
 	if err != nil {
 		return err
 	}
@@ -284,12 +197,6 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 	// create bucket name with aws account ID to ensure uniqueness across
 	// accounts.
 	s3BucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
-
-	// get userdata from Container Linux Config
-	userDataMaster, userDataWorker, err := a.getUserData(path.Dir(stackDefinitionPath), config, s3BucketName)
-	if err != nil {
-		return err
-	}
 
 	hostedZone, err := getHostedZone(cluster.APIServerURL)
 	if err != nil {
@@ -302,52 +209,22 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		version,
 		"KmsKey=*",
 		fmt.Sprintf("StackName=%s", name),
-		fmt.Sprintf("UserDataMaster=%s", userDataMaster),
-		fmt.Sprintf("UserDataWorker=%s", userDataWorker),
-		fmt.Sprintf("MasterNodePoolName=%s", masterPool.Name),
-		fmt.Sprintf("WorkerNodePoolName=%s", workerPool.Name),
-		fmt.Sprintf("MasterNodes=%d", masterPoolDesired),
-		fmt.Sprintf("WorkerNodes=%d", workerPoolDesired),
-		fmt.Sprintf("MinimumWorkerNodes=%d", workerPoolMinSize),
-		fmt.Sprintf("MaximumWorkerNodes=%d", workerPoolMaxSize),
+		fmt.Sprintf("UserDataMaster=%s", ""),
+		fmt.Sprintf("UserDataWorker=%s", ""),
+		fmt.Sprintf("MasterNodePoolName=%s", ""),
+		fmt.Sprintf("WorkerNodePoolName=%s", ""),
+		fmt.Sprintf("MasterNodes=%d", 0),
+		fmt.Sprintf("WorkerNodes=%d", 0),
+		fmt.Sprintf("MinimumWorkerNodes=%d", 0),
+		fmt.Sprintf("MaximumWorkerNodes=%d", 0),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
-		fmt.Sprintf("MasterInstanceType=%s", masterPoolInstanceType),
-		fmt.Sprintf("InstanceType=%s", workerPoolInstanceType),
+		fmt.Sprintf("MasterInstanceType=%s", "m5.large"),
+		fmt.Sprintf("InstanceType=%s", "m5.large"),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
 	}
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
 		args = append(args, fmt.Sprintf("EtcdS3BackupBucket=%s", bucket))
-	}
-
-	// TODO(tech-depth): only enable this feature for legacy node pools
-	// remove once node pool support is rolled out.
-	if !nodePoolFeatureEnabled(cluster) {
-		switch masterPool.DiscountStrategy {
-		case discountStrategyNone:
-			break
-		default:
-			return fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
-		}
-
-		switch workerPool.DiscountStrategy {
-		case discountStrategyNone:
-			break
-		case discountStrategySpotMaxPrice:
-			instanceInfo, err := awsExt.InstanceInfo(workerPool.InstanceType)
-			if err != nil {
-				return err
-			}
-
-			onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]
-			if !ok {
-				return fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
-			}
-
-			args = append(args, fmt.Sprintf("WorkerSpotPrice=%s", onDemandPrice))
-		default:
-			return fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
-		}
 	}
 
 	cmd := exec.Command("senza", args...)
