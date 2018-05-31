@@ -14,4 +14,4 @@ install:
 script:
   - make build.docker
   - roveralls
-  - goveralls -v -coverprofile=roveralls.coverprofile -service=travis-ci
+  - goveralls -v -coverprofile=roveralls.coverprofile -service=travis-ci -race
