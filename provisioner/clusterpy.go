@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -119,7 +120,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
-	awsAdapter, _, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
+	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -236,6 +237,20 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
 			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
 		default:
+			// update nodes
+			nodePools := cluster.NodePools
+
+			sort.Sort(api.NodePools(nodePools))
+			for _, nodePool := range nodePools {
+				err := updater.Update(ctx, nodePool)
+				if err != nil {
+					return err
+				}
+
+				if err = ctx.Err(); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
