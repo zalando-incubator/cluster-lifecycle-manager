@@ -200,28 +200,25 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	// TODO(tech-depth): remove if-guard when feature is enabled by default
-	if nodePoolFeatureEnabled(cluster) {
-		// in case the subnets are not defined in the config items
-		// discover them from the default VPC.
-		if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-			subnets, err := awsAdapter.GetSubnets()
-			if err != nil {
-				return err
-			}
-			cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
-		}
-
-		// TODO(tech-depth): custom legacy values
-		values := map[string]string{
-			"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
-			"apiserver_count": "1",
-		}
-
-		err = nodePoolProvisioner.Provision(values)
+	// in case the subnets are not defined in the config items
+	// discover them from the default VPC.
+	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+		subnets, err := awsAdapter.GetSubnets()
 		if err != nil {
 			return err
 		}
+		cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
+	}
+
+	// TODO(tech-depth): custom legacy values
+	values := map[string]string{
+		"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
+		"apiserver_count": "1",
+	}
+
+	err = nodePoolProvisioner.Provision(values)
+	if err != nil {
+		return err
 	}
 
 	// wait for API server to be ready
@@ -242,13 +239,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		}
 	}
 
-	// TODO(tech-depth): remove if-guard when feature is enabled by default
-	if nodePoolFeatureEnabled(cluster) {
-		// clean up removed node pools
-		err := nodePoolProvisioner.Reconcile(ctx)
-		if err != nil {
-			return err
-		}
+	// clean up removed node pools
+	err = nodePoolProvisioner.Reconcile(ctx)
+	if err != nil {
+		return err
 	}
 
 	if err = ctx.Err(); err != nil {
@@ -301,15 +295,6 @@ func selectSubnetIDs(subnets []*ec2.Subnet) []string {
 	}
 
 	return subnetIDs
-}
-
-// nodePoolFeatureEnabled is a temporary feature gate check used for migrating
-// legacy node pools to real node pool support.
-// TODO(tech-depth): Remove when feature is enabled by default.
-// TODO(linki): remove me
-func nodePoolFeatureEnabled(cluster *api.Cluster) bool {
-	v, ok := cluster.ConfigItems[nodePoolFeatureEnabledConfigItemKey]
-	return ok && v == "true"
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
