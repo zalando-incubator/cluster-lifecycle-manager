@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha512"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cbroglie/mustache"
 	"github.com/cenkalti/backoff"
 	"github.com/coreos/container-linux-config-transpiler/config"
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
@@ -582,111 +579,6 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 			return err
 		},
 		backoff.WithMaxTries(backoff.NewExponentialBackOff(), 10))
-}
-
-// userDataConfig generates userData config map.
-func userDataConfig(stackName, stackVersion, kubeletSecret string, cluster *api.Cluster) (map[string]string, error) {
-	webhookID, err := parseWebhookID(cluster.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	hostedZone, err := getHostedZone(cluster.APIServerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	config := map[string]string{
-		"ETCD_DISCOVERY_DOMAIN":        fmt.Sprintf("etcd.%s", hostedZone),
-		"ETCD_ENDPOINTS":               fmt.Sprintf("etcd-server.etcd.%s:2379", hostedZone),
-		"NODE_LABELS":                  fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
-		"LOCAL_ID":                     cluster.LocalID,
-		"STACK_VERSION":                stackVersion,
-		"WORKER_SHARED_SECRET":         kubeletSecret,
-		"WEBHOOK_ID":                   webhookID,
-		"API_SERVER":                   cluster.APIServerURL,
-		"API_SERVER_INTERNAL":          strings.Replace(cluster.APIServerURL, "https://", "https://internal-", 1),
-		"APISERVER_COUNT":              "1",
-		"APISERVER_ETCD_PREFIX":        fmt.Sprintf("/registry-%s", stackVersion),
-		"APISERVER_STORAGE_BACKEND":    "etcd2",
-		"APISERVER_STORAGE_MEDIA_TYPE": "application/json",
-	}
-
-	// add config_items to config map.
-	// Default config values can be overwritten by providing a config item
-	// with an identical key (lowercased).
-	for key, item := range cluster.ConfigItems {
-		config[strings.ToUpper(key)] = item
-	}
-
-	return config, nil
-}
-
-// getUserData reads userdata from clc files and uploads the userdata to S3.
-func (a *awsAdapter) getUserData(_ string, _ map[string]string, _ string) (string, string, error) {
-	return "", "", nil
-}
-
-// prepareUserData prepares the user data by rendering the mustache template
-// and uploading the User Data to S3. A EC2 UserData ready base64 string will
-// be returned.
-func (a *awsAdapter) prepareUserData(clcPath string, config map[string]string, bucketName string) (string, error) {
-	// fail if variables are missing
-	mustache.AllowMissingVariables = false
-
-	rendered, err := mustache.RenderFile(clcPath, config)
-	if err != nil {
-		return "", err
-	}
-
-	// convert to ignition
-	ignCfg, err := clcToIgnition([]byte(rendered))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse config %s: %v", clcPath, err)
-	}
-
-	// upload to s3
-	uri, err := a.uploadUserDataToS3(ignCfg, bucketName)
-	if err != nil {
-		return "", err
-	}
-
-	// create ignition config pulling from s3
-	ignCfg = []byte(fmt.Sprintf(ignitionBaseTemplate, uri))
-
-	return base64.StdEncoding.EncodeToString(ignCfg), nil
-}
-
-// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
-// The S3 object will be named by the sha512 hash of the data.
-func (a *awsAdapter) uploadUserDataToS3(userData []byte, bucketName string) (string, error) {
-	// create S3 bucket if it doesn't exist
-	err := a.createS3Bucket(bucketName)
-	if err != nil {
-		return "", err
-	}
-
-	// sha1 hash the userData to use as object name
-	hasher := sha512.New()
-	_, err = hasher.Write(userData)
-	if err != nil {
-		return "", err
-	}
-	sha := hex.EncodeToString(hasher.Sum(nil))
-
-	objectName := fmt.Sprintf("%s.userdata", sha)
-
-	// Upload the stack template to S3
-	_, err = a.s3Uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
-		Body:   bytes.NewReader(userData),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
 }
 
 func clcToIgnition(data []byte) ([]byte, error) {
