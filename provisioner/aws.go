@@ -209,17 +209,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		version,
 		"KmsKey=*",
 		fmt.Sprintf("StackName=%s", name),
-		fmt.Sprintf("UserDataMaster=%s", ""),
-		fmt.Sprintf("UserDataWorker=%s", ""),
-		fmt.Sprintf("MasterNodePoolName=%s", ""),
-		fmt.Sprintf("WorkerNodePoolName=%s", ""),
-		fmt.Sprintf("MasterNodes=%d", 0),
-		fmt.Sprintf("WorkerNodes=%d", 0),
-		fmt.Sprintf("MinimumWorkerNodes=%d", 0),
-		fmt.Sprintf("MaximumWorkerNodes=%d", 0),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
-		fmt.Sprintf("MasterInstanceType=%s", "m5.large"),
-		fmt.Sprintf("InstanceType=%s", "m5.large"),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
 	}
 
