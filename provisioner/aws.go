@@ -334,9 +334,9 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		case discountStrategyNone:
 			break
 		case discountStrategySpotMaxPrice:
-			instanceInfo, ok := awsExt.InstanceInfo()[workerPool.InstanceType]
-			if !ok {
-				return fmt.Errorf("unknown instance type %s", workerPool.InstanceType)
+			instanceInfo, err := awsExt.InstanceInfo(workerPool.InstanceType)
+			if err != nil {
+				return err
 			}
 
 			onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]

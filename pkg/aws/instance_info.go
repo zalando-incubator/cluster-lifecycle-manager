@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"fmt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -14,9 +15,10 @@ const (
 )
 
 type Instance struct {
-	VCPU    int64
-	Memory  int64
-	Pricing map[string]string
+	InstanceType string
+	VCPU         int64
+	Memory       int64
+	Pricing      map[string]string
 }
 
 type pricing struct {
@@ -39,11 +41,16 @@ var loadedInstances struct {
 	instances map[string]Instance
 }
 
-func InstanceInfo() map[string]Instance {
+func InstanceInfo(instanceType string) (Instance, error) {
 	loadedInstances.once.Do(func() {
 		loadedInstances.instances = loadInstanceInfo()
 	})
-	return loadedInstances.instances
+
+	result, ok := loadedInstances.instances[instanceType]
+	if !ok {
+		return Instance{}, fmt.Errorf("unknown instance type: %s", instanceType)
+	}
+	return result, nil
 }
 
 func loadInstanceInfo() map[string]Instance {
@@ -80,9 +87,10 @@ func loadInstanceInfo() map[string]Instance {
 		}
 
 		result[instance.InstanceType] = Instance{
-			VCPU:    vCPU,
-			Memory:  int64(instance.Memory * gigabyte),
-			Pricing: pricing,
+			InstanceType: instance.InstanceType,
+			VCPU:         vCPU,
+			Memory:       int64(instance.Memory * gigabyte),
+			Pricing:      pricing,
 		}
 	}
 
