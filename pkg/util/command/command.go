@@ -1,12 +1,12 @@
 package command
 
 import (
+	"bytes"
+	"io"
 	"os/exec"
 	"strings"
 
-	"bytes"
 	log "github.com/sirupsen/logrus"
-	"io"
 )
 
 func outputLines(output string) []string {
