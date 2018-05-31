@@ -48,5 +48,5 @@ func TestFailingRun(t *testing.T) {
 	logger := newTestLogger(log.InfoLevel)
 	err := Run(logger.entry, cmd)
 	require.Error(t, err)
-	require.NotEmpty(t, logger.buf.String())
+	require.Empty(t, logger.buf.String())
 }

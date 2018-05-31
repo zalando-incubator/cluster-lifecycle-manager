@@ -1,10 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"os/exec"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 func outputLines(raw []byte) []string {
@@ -16,9 +17,7 @@ func outputLines(raw []byte) []string {
 func Run(logger *log.Entry, cmd *exec.Cmd) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		for _, line := range outputLines(out) {
-			logger.Errorln(line)
-		}
+		return fmt.Errorf("%s: %s", err, string(out))
 	} else if logger.Logger.Level >= log.DebugLevel {
 		for _, line := range outputLines(out) {
 			logger.Debugln(line)
