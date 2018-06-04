@@ -815,14 +815,14 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Env = []string{}
 
-		err = command.Run(logger, cmd)
+		out, err := command.Run(logger, cmd)
 		if err != nil {
 			// if kubectl failed because the resource didn't
 			// exists, we don't treat it as an error since the
 			// resource was already deleted.
 			// We can only check this by inspecting the content of
 			// Stderr (which is provided in the err).
-			if strings.Contains(err.Error(), kubectlNotFound) {
+			if strings.Contains(out, kubectlNotFound) {
 				continue
 			}
 			return errors.Wrap(err, "cannot run kubectl command")
@@ -958,7 +958,8 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 				applyManifest := func() error {
 					cmd := newApplyCommand()
 					cmd.Stdin = strings.NewReader(manifest)
-					return command.Run(logger, cmd)
+					_, err := command.Run(logger, cmd)
+					return err
 				}
 				err = backoff.Retry(applyManifest, backoff.WithMaxTries(backoff.NewExponentialBackOff(), maxApplyRetries))
 				if err != nil && !allowFailure {

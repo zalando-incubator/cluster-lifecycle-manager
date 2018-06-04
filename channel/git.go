@@ -120,19 +120,18 @@ func (g *Git) Update(logger *log.Entry) (ConfigVersions, error) {
 		return nil, err
 	}
 
-	return g.availableChannels()
+	return g.availableChannels(logger)
 }
 
-func (g *Git) availableChannels() (ConfigVersions, error) {
+func (g *Git) availableChannels(logger *log.Entry) (ConfigVersions, error) {
 	cmd := exec.Command("git", "--git-dir", g.repoDir, "show-ref", "--heads")
-	cmd.Stderr = nil
-	out, err := cmd.Output()
+	out, err := command.RunSilently(logger, cmd)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make(map[string]ConfigVersion)
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		if line != "" {
 			chunks := strings.Split(line, " ")
 			if len(chunks) != 2 {
@@ -178,5 +177,6 @@ func (g *Git) cmd(logger *log.Entry, args ...string) error {
 		cmd.Env = []string{fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o 'StrictHostKeyChecking no'", g.sshPrivateKeyFile)}
 	}
 
-	return command.Run(logger, cmd)
+	_, err := command.RunSilently(logger, cmd)
+	return err
 }

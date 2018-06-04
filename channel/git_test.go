@@ -30,7 +30,7 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 			"GIT_COMMITTER_NAME=go-test",
 		}
 		log.Printf("test")
-		err := command.Run(logger, cmd)
+		_, err := command.RunSilently(logger, cmd)
 		require.NoError(t, err)
 	}
 
