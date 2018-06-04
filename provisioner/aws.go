@@ -208,6 +208,17 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		fmt.Sprintf("StackName=%s", name),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
+		// TOOD: unused, remove me
+		fmt.Sprintf("UserDataMaster=%s", ""),
+		fmt.Sprintf("UserDataWorker=%s", ""),
+		fmt.Sprintf("MasterNodePoolName=%s", ""),
+		fmt.Sprintf("WorkerNodePoolName=%s", ""),
+		fmt.Sprintf("MasterNodes=%d", 0),
+		fmt.Sprintf("WorkerNodes=%d", 0),
+		fmt.Sprintf("MinimumWorkerNodes=%d", 0),
+		fmt.Sprintf("MaximumWorkerNodes=%d", 0),
+		fmt.Sprintf("MasterInstanceType=%s", "m3.medium"),
+		fmt.Sprintf("InstanceType=%s", "m3.medium"),
 	}
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
