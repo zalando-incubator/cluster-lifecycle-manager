@@ -208,17 +208,6 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		fmt.Sprintf("StackName=%s", name),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
-		// TOOD: unused, remove me
-		fmt.Sprintf("UserDataMaster=%s", ""),
-		fmt.Sprintf("UserDataWorker=%s", ""),
-		fmt.Sprintf("MasterNodePoolName=%s", ""),
-		fmt.Sprintf("WorkerNodePoolName=%s", ""),
-		fmt.Sprintf("MasterNodes=%d", 0),
-		fmt.Sprintf("WorkerNodes=%d", 0),
-		fmt.Sprintf("MinimumWorkerNodes=%d", 0),
-		fmt.Sprintf("MaximumWorkerNodes=%d", 0),
-		fmt.Sprintf("MasterInstanceType=%s", "m3.medium"),
-		fmt.Sprintf("InstanceType=%s", "m3.medium"),
 	}
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
@@ -238,12 +227,53 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 
 	cmd.Env = enVars
 
-	output, err := cmd.Output()
+	var output []byte
+
+	output, err = cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
+			// TODO: remove me once https://github.com/zalando-incubator/kubernetes-on-aws/pull/1091
+			// was rolled out to all clusters.
+			if strings.Contains(string(exitErr.Stderr), "Error: Missing parameter") {
+				args = append(args,
+					fmt.Sprintf("UserDataMaster=%s", ""),
+					fmt.Sprintf("UserDataWorker=%s", ""),
+					fmt.Sprintf("MasterNodePoolName=%s", ""),
+					fmt.Sprintf("WorkerNodePoolName=%s", ""),
+					fmt.Sprintf("MasterNodes=%d", 0),
+					fmt.Sprintf("WorkerNodes=%d", 0),
+					fmt.Sprintf("MinimumWorkerNodes=%d", 0),
+					fmt.Sprintf("MaximumWorkerNodes=%d", 0),
+					fmt.Sprintf("MasterInstanceType=%s", "m3.medium"),
+					fmt.Sprintf("InstanceType=%s", "m3.medium"),
+				)
+
+				cmd := exec.Command("senza", args...)
+
+				if a.dryRun {
+					cmd.Args = append(cmd.Args, "--dry-run")
+				}
+
+				enVars, err := a.getEnvVars()
+				if err != nil {
+					return err
+				}
+
+				cmd.Env = enVars
+
+				output, err = cmd.Output()
+				if err != nil {
+					if exitErr, ok := err.(*exec.ExitError); ok {
+						return fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
+					}
+					return err
+				}
+			} else {
+				return fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
+			}
+		} else {
+			return err
 		}
-		return err
 	}
 
 	err = a.applyClusterStack(stackName, output, cluster, s3BucketName)
