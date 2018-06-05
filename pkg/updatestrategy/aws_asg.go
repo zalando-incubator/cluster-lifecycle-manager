@@ -374,10 +374,6 @@ func (n *ASGNodePoolsBackend) getNodePoolASGs(nodePool *api.NodePool) ([]*autosc
 		return nil, err
 	}
 
-	if len(asgs) == 0 {
-		return nil, fmt.Errorf("failed to find any ASGs for node pool '%s'", nodePool.Name)
-	}
-
 	return asgs, nil
 }
 
