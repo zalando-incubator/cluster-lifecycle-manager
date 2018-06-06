@@ -240,7 +240,7 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 
 		// TODO(tech-depth): this is only used for migrating from
 		// legacy node pools to real node pool support.
-		if nodePoolFeatureEnabled(cluster) {
+		if asg != nil && nodePoolFeatureEnabled(cluster) {
 			workerPoolDesired = aws.Int64Value(asg.DesiredCapacity)
 			workerPoolMinSize = aws.Int64Value(asg.MinSize)
 			workerPoolMaxSize = workerPoolDesired
@@ -756,21 +756,8 @@ func userDataConfig(stackName, stackVersion, kubeletSecret string, cluster *api.
 }
 
 // getUserData reads userdata from clc files and uploads the userdata to S3.
-func (a *awsAdapter) getUserData(basePath string, config map[string]string, bucketName string) (string, string, error) {
-	userDataMasterPath := path.Join(basePath, "master.clc.yaml")
-	userDataWorkerPath := path.Join(basePath, "worker.clc.yaml")
-
-	master, err := a.prepareUserData(userDataMasterPath, config, bucketName)
-	if err != nil {
-		return "", "", err
-	}
-
-	worker, err := a.prepareUserData(userDataWorkerPath, config, bucketName)
-	if err != nil {
-		return "", "", err
-	}
-
-	return master, worker, nil
+func (a *awsAdapter) getUserData(_ string, _ map[string]string, _ string) (string, string, error) {
+	return "", "", nil
 }
 
 // prepareUserData prepares the user data by rendering the mustache template

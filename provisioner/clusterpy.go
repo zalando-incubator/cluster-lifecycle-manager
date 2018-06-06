@@ -275,25 +275,9 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	nonLegacyNodePools := len(getNonLegacyNodePools(cluster))
 	legacyNodePools := len(cluster.NodePools) - nonLegacyNodePools
 	if nodePoolFeatureEnabled(cluster) && nonLegacyNodePools >= 2 && legacyNodePools == 0 {
-		masterPool, workerPool, err := getLegacyNodePools(cluster)
+		_, _, err := getLegacyNodePools(cluster)
 		if err != nil {
 			return err
-		}
-
-		if masterPool.MaxSize == 0 && masterPool.MinSize == 0 {
-			// gracefully downscale node pool
-			err := nodePoolManager.ScalePool(ctx, masterPool, 0)
-			if err != nil {
-				return err
-			}
-		}
-
-		if workerPool.MaxSize == 0 && workerPool.MinSize == 0 {
-			// gracefully downscale node pool
-			err := nodePoolManager.ScalePool(ctx, workerPool, 0)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
