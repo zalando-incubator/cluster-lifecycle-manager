@@ -54,16 +54,16 @@ type stackParams struct {
 	Cluster  *api.Cluster
 	NodePool *api.NodePool
 	UserData string
-	Values   map[string]string
+	Values   map[string]interface{}
 }
 
 type userDataParams struct {
 	Cluster  *api.Cluster
 	NodePool *api.NodePool
-	Values   map[string]string
+	Values   map[string]interface{}
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]string) (string, error) {
+func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
 	nodePoolProfilesPath := path.Join(p.cfgBaseDir, nodePool.Profile)
 	fi, err := os.Stat(nodePoolProfilesPath)
 	if err != nil {
@@ -98,7 +98,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 }
 
 // Provision provisions node pools of the cluster.
-func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
+func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error {
 	// create S3 bucket if it doesn't exist
 	// the bucket is used for storing the ignition userdata for the node
 	// pools.
@@ -118,7 +118,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 			return err
 		}
 
-		poolValues, ok := poolValuesCopy.(map[string]string)
+		poolValues, ok := poolValuesCopy.(map[string]interface{})
 		if !ok {
 			return fmt.Errorf("unable to copy values for node pool %s", nodePool.Name)
 		}
@@ -148,7 +148,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 }
 
 // provisionNodePool provisions a single node pool.
-func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]string) error {
+func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
 	values["spot_price"] = ""
 
 	switch nodePool.DiscountStrategy {
