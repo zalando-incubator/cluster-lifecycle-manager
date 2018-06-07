@@ -371,9 +371,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/mitchellh/copystructure"
+  packages = ["."]
+  revision = "d23ffcb85de31694d6ccaa23ccb4a03e55c1303f"
+
+[[projects]]
+  branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mitchellh/reflectwalk"
+  packages = ["."]
+  revision = "63d60e9d0dbc60cf9164e6510889b0db6683d98c"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -709,6 +721,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c26b3be879e25941ef3b99b8767f2ebd0111d6b0b8e5816882de6e0cd83af4ce"
+  inputs-digest = "b368e5f63c9743d7488b0d90948be0f4bc285d248f706119702ffdee9b96db0a"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -8,16 +8,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/mitchellh/copystructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	"os"
-	"path"
-	"strings"
 )
 
 const (
@@ -111,12 +113,17 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 
 	// provision node pools in parallel
 	for _, nodePool := range nodePools {
-		go func(nodePool api.NodePool, errorsc chan error) {
-			poolValues := make(map[string]string, len(values))
-			for k, v := range values {
-				poolValues[k] = v
-			}
+		poolValuesCopy, err := copystructure.Copy(values)
+		if err != nil {
+			return err
+		}
 
+		poolValues, ok := poolValuesCopy.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unable to copy values for node pool %s", nodePool.Name)
+		}
+
+		go func(nodePool api.NodePool, errorsc chan error) {
 			err := p.provisionNodePool(&nodePool, poolValues)
 			if err != nil {
 				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
