@@ -1,13 +1,14 @@
 package provisioner
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 func exampleCluster(pools []*api.NodePool) *api.Cluster {
@@ -257,4 +258,25 @@ func TestAutoscalingBufferPoolBasedInvalidSettings(t *testing.T) {
 
 		assert.Error(t, err, "configItems: %s", configItems)
 	}
+}
+
+func TestASGSize(t *testing.T) {
+	result, err := render(
+		t,
+		map[string]string{"dir/foo.yaml": "{{ asgSize 9 3 }}"},
+		"dir/foo.yaml",
+		"abc123")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "3", result)
+}
+
+func TestASGSizeError(t *testing.T) {
+	_, err := render(
+		t,
+		map[string]string{"dir/foo.yaml": "{{ asgSize 8 3 }}"},
+		"dir/foo.yaml",
+		"abc123")
+
+	require.Error(t, err)
 }
