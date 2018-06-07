@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"golang.org/x/sync/errgroup"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -283,9 +284,10 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		return err
 	}
 
-	errors := make(chan error, len(pods.Items))
+	var evictionGroup errgroup.Group
 	for _, pod := range pods.Items {
-		go func(pod v1.Pod, errc chan error) {
+		pod := pod
+		evictionGroup.Go(func() error {
 			evictPod := func() error {
 				// we check at the start because there's a continue in the loop body
 				err := ctx.Err()
@@ -321,29 +323,21 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			err := backoff.Retry(evictPod, backoffCfg)
 			if err != nil {
 				if !apiErrors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
-					errc <- err
-					return
+					m.logger.WithFields(log.Fields{
+						"ns":   pod.Namespace,
+						"pod":  pod.Name,
+						"node": pod.Spec.NodeName,
+					}).Errorf("Failed to evict pod: %v", err)
+					return err
 				}
 			}
-			errc <- nil
-		}(pod, errors)
+			return nil
+		})
 	}
 
-	failedEvictions := 0
-	for _, pod := range pods.Items {
-		err := <-errors
-		if err != nil {
-			m.logger.WithFields(log.Fields{
-				"ns":   pod.Namespace,
-				"pod":  pod.Name,
-				"node": pod.Spec.NodeName,
-			}).Errorf("Failed to evict pod: %v", err)
-			failedEvictions++
-		}
-	}
-
-	if failedEvictions > 0 {
-		return fmt.Errorf("failed to evict %d pods from node '%s'", failedEvictions, node.Name)
+	err = evictionGroup.Wait()
+	if err != nil {
+		return err
 	}
 
 	// Delete all remaining evictable pods disregarding their pod disruption budgets. It's necessary
@@ -353,26 +347,14 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		return err
 	}
 
-	errors = make(chan error, len(pods.Items))
+	var deleteGroup errgroup.Group
 	for _, pod := range pods.Items {
-		go func(pod v1.Pod, errc chan error) {
+		pod := pod
+
+		deleteGroup.Go(func() error {
 			// Don't bother with this pod if it's not evictable.
 			if !m.isEvictablePod(pod) {
-				errc <- nil
-				return
-			}
-
-			err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
-				GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
-			})
-			if err != nil {
-				errc <- err
-				return
-			}
-
-			if err = ctx.Err(); err != nil {
-				errc <- err
-				return
+				return nil
 			}
 
 			logger := m.logger.WithFields(log.Fields{
@@ -381,6 +363,18 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 				"node": pod.Spec.NodeName,
 			})
 
+			err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
+				GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
+			})
+			if err != nil {
+				logger.Errorf("Failed to delete pod: %v", err)
+				return err
+			}
+
+			if err = ctx.Err(); err != nil {
+				return err
+			}
+
 			// wait for pod to be terminated and gone from the node.
 			err = waitForPodTermination(m.kube, pod)
 			if err != nil {
@@ -388,28 +382,11 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			}
 
 			logger.Info("Pod deleted")
-			errc <- nil
-		}(pod, errors)
+			return nil
+		})
 	}
 
-	failedDeletions := 0
-	for _, pod := range pods.Items {
-		err := <-errors
-		if err != nil {
-			m.logger.WithFields(log.Fields{
-				"ns":   pod.Namespace,
-				"pod":  pod.Name,
-				"node": pod.Spec.NodeName,
-			}).Errorf("Failed to delete pod: %v", err)
-			failedDeletions++
-		}
-	}
-
-	if failedDeletions > 0 {
-		return fmt.Errorf("failed to delete %d pods from node '%s'", failedDeletions, node.Name)
-	}
-
-	return nil
+	return deleteGroup.Wait()
 }
 
 // isMultiplePDBsErr returns true if the error is caused by multiple PDBs
