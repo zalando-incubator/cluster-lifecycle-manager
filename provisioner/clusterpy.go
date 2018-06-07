@@ -212,7 +212,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// TODO(tech-depth): custom legacy values
-	values := map[string]string{
+	values := map[string]interface{}{
 		"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
 		"apiserver_count": "1",
 	}

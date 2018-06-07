@@ -8,16 +8,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/mitchellh/copystructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	"os"
-	"path"
-	"strings"
 )
 
 const (
@@ -52,16 +54,16 @@ type stackParams struct {
 	Cluster  *api.Cluster
 	NodePool *api.NodePool
 	UserData string
-	Values   map[string]string
+	Values   map[string]interface{}
 }
 
 type userDataParams struct {
 	Cluster  *api.Cluster
 	NodePool *api.NodePool
-	Values   map[string]string
+	Values   map[string]interface{}
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]string) (string, error) {
+func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
 	nodePoolProfilesPath := path.Join(p.cfgBaseDir, nodePool.Profile)
 	fi, err := os.Stat(nodePoolProfilesPath)
 	if err != nil {
@@ -96,7 +98,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 }
 
 // Provision provisions node pools of the cluster.
-func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
+func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error {
 	// create S3 bucket if it doesn't exist
 	// the bucket is used for storing the ignition userdata for the node
 	// pools.
@@ -111,8 +113,18 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 
 	// provision node pools in parallel
 	for _, nodePool := range nodePools {
+		poolValuesCopy, err := copystructure.Copy(values)
+		if err != nil {
+			return err
+		}
+
+		poolValues, ok := poolValuesCopy.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to copy values for node pool %s", nodePool.Name)
+		}
+
 		go func(nodePool api.NodePool, errorsc chan error) {
-			err := p.provisionNodePool(&nodePool, values)
+			err := p.provisionNodePool(&nodePool, poolValues)
 			if err != nil {
 				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
 			}
@@ -136,7 +148,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]string) error {
 }
 
 // provisionNodePool provisions a single node pool.
-func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]string) error {
+func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
 	values["spot_price"] = ""
 
 	switch nodePool.DiscountStrategy {
