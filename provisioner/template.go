@@ -260,7 +260,7 @@ func base64Encode(value string) string {
 // node pool size and the amount of ASGs in the pool. Current implementation just divides
 // and returns an error if the pool size is not an exact multiple, but maybe it's not the
 // best one.
-func asgSize(poolSize, asgPerPool int) (int, error) {
+func asgSize(poolSize, asgPerPool int64) (int64, error) {
 	if poolSize%asgPerPool != 0 {
 		return 0, fmt.Errorf("pool size must be an exact multiple of %d", asgPerPool)
 	}
@@ -274,8 +274,8 @@ func azId(azName string) string {
 }
 
 // azCount returns the count of availability zones in the subnet map
-func azCount(subnets map[string]string) int {
-	var result int
+func azCount(subnets map[string]string) int64 {
+	var result int64
 	for k, _ := range subnets {
 		if k != subnetAllAZName {
 			result++
