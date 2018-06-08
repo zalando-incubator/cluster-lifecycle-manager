@@ -149,38 +149,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	stackDefinitionPath := path.Join(channelConfig.Path, "cluster", "senza-definition.yaml")
 
-	// check if stack exists
-	stack, err := awsAdapter.getStackByName(cluster.LocalID)
-	if err != nil && !isDoesNotExistsErr(err) {
-		return err
-	}
-
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-
-	if stack != nil {
-		// suspend scaling for all autoscaling worker groups
-		for _, pool := range cluster.NodePools {
-			asg, err := awsAdapter.getNodePoolASG(cluster.ID, pool.Name)
-			if err != nil {
-				if err == ErrASGNotFound {
-					continue
-				}
-				return err
-			}
-			err = awsAdapter.suspendScaling(*asg.AutoScalingGroupName)
-			if err != nil {
-				return err
-			}
-			defer awsAdapter.resumeScaling(*asg.AutoScalingGroupName)
-
-			if err = ctx.Err(); err != nil {
-				return err
-			}
-		}
-	}
-
 	err = awsAdapter.CreateOrUpdateClusterStack(ctx, cluster.LocalID, stackDefinitionPath, cluster)
 	if err != nil {
 		return err
