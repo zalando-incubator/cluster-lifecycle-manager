@@ -36,24 +36,23 @@ import (
 )
 
 const (
-	providerID                          = "zalando-aws"
-	manifestsPath                       = "cluster/manifests"
-	deletionsFile                       = "deletions.yaml"
-	defaultsFile                        = "cluster/config-defaults.yaml"
-	defaultNamespace                    = "default"
-	kubectlNotFound                     = "(NotFound)"
-	tagNameKubernetesClusterPrefix      = "kubernetes.io/cluster/"
-	subnetELBRoleTagName                = "kubernetes.io/role/elb"
-	resourceLifecycleShared             = "shared"
-	resourceLifecycleOwned              = "owned"
-	nodePoolFeatureEnabledConfigItemKey = "node_pool_feature_enabled"
-	subnetsConfigItemKey                = "subnets"
-	subnetAllAZName                     = "*"
-	maxApplyRetries                     = 10
-	configKeyUpdateStrategy             = "update_strategy"
-	configKeyNodeMaxEvictTimeout        = "node_max_evict_timeout"
-	updateStrategyRolling               = "rolling"
-	defaultMaxRetryTime                 = 5 * time.Minute
+	providerID                     = "zalando-aws"
+	manifestsPath                  = "cluster/manifests"
+	deletionsFile                  = "deletions.yaml"
+	defaultsFile                   = "cluster/config-defaults.yaml"
+	defaultNamespace               = "default"
+	kubectlNotFound                = "(NotFound)"
+	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
+	subnetELBRoleTagName           = "kubernetes.io/role/elb"
+	resourceLifecycleShared        = "shared"
+	resourceLifecycleOwned         = "owned"
+	subnetsConfigItemKey           = "subnets"
+	subnetAllAZName                = "*"
+	maxApplyRetries                = 10
+	configKeyUpdateStrategy        = "update_strategy"
+	configKeyNodeMaxEvictTimeout   = "node_max_evict_timeout"
+	updateStrategyRolling          = "rolling"
+	defaultMaxRetryTime            = 5 * time.Minute
 )
 
 type clusterpyProvisioner struct {

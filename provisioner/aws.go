@@ -32,18 +32,17 @@ import (
 )
 
 const (
-	waitTime                        = 15 * time.Second
-	stackMaxSize                    = 51200
-	cloudformationValidationErr     = "ValidationError"
-	cloudformationNoUpdateMsg       = "No updates are to be performed."
-	clmCFBucketPattern              = "cluster-lifecycle-manager-%s-%s"
-	lifecycleStatusReady            = "ready"
-	etcdInstanceTypeKey             = "etcd_instance_type"
-	etcdS3BackupBucketKey           = "etcd_s3_backup_bucket"
-	workerSharedSecretConfigItemKey = "worker_shared_secret"
-	discountStrategyNone            = "none"
-	discountStrategySpotMaxPrice    = "spot_max_price"
-	ignitionBaseTemplate            = `{
+	waitTime                     = 15 * time.Second
+	stackMaxSize                 = 51200
+	cloudformationValidationErr  = "ValidationError"
+	cloudformationNoUpdateMsg    = "No updates are to be performed."
+	clmCFBucketPattern           = "cluster-lifecycle-manager-%s-%s"
+	lifecycleStatusReady         = "ready"
+	etcdInstanceTypeKey          = "etcd_instance_type"
+	etcdS3BackupBucketKey        = "etcd_s3_backup_bucket"
+	discountStrategyNone         = "none"
+	discountStrategySpotMaxPrice = "spot_max_price"
+	ignitionBaseTemplate         = `{
   "ignition": {
     "version": "2.1.0",
     "config": {
@@ -64,8 +63,6 @@ var (
 	errUpdateRollbackFailed   = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackFailed)
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
-	// ErrASGNotFound is the error returned when an asg is not found.
-	ErrASGNotFound = errors.New("ASG not found")
 )
 
 // cloudFormationAPI is a minimal interface containing only the methods we use from the AWS SDK for cloudformation

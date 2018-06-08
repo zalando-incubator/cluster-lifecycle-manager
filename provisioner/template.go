@@ -276,7 +276,7 @@ func azId(azName string) string {
 // azCount returns the count of availability zones in the subnet map
 func azCount(subnets map[string]string) int64 {
 	var result int64
-	for k, _ := range subnets {
+	for k := range subnets {
 		if k != subnetAllAZName {
 			result++
 		}
