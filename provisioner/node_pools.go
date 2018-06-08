@@ -197,7 +197,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 		},
 		{
 			Key:   aws.String(nodePoolProfileTagKey),
-			Value: aws.String(nodePool.Name),
+			Value: aws.String(nodePool.Profile),
 		},
 	}
 

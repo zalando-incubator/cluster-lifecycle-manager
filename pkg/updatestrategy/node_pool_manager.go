@@ -499,7 +499,7 @@ func (m *KubernetesNodePoolManager) isEvictablePod(pod v1.Pod) bool {
 	}
 
 	if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
-		logger.Debug("Terminated pod (%s) not evictable", pod.Status.Phase)
+		logger.Debugf("Terminated pod (%s) not evictable", pod.Status.Phase)
 		return false
 	}
 
