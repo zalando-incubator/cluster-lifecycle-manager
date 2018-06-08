@@ -186,7 +186,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
-		"azId":                      azId,
+		"azID":                      azID,
 		"azCount":                   azCount,
 	}
 
@@ -267,8 +267,8 @@ func asgSize(poolSize, asgPerPool int64) (int64, error) {
 	return poolSize / asgPerPool, nil
 }
 
-// azId returns the last part of the availability zone name (1c for eu-central-1c)
-func azId(azName string) string {
+// azID returns the last part of the availability zone name (1c for eu-central-1c)
+func azID(azName string) string {
 	slugs := strings.Split(azName, "-")
 	return slugs[len(slugs)-1]
 }

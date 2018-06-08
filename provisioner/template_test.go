@@ -267,10 +267,10 @@ func TestASGSizeError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAZId(t *testing.T) {
+func TestAZID(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ azId "eu-central-1a" }}`,
+		`{{ azID "eu-central-1a" }}`,
 		"")
 
 	require.NoError(t, err)
