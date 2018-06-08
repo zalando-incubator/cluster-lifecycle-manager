@@ -43,6 +43,14 @@ func render(t *testing.T, templates map[string]string, templateName string, data
 	return renderTemplate(context, path.Join(basedir, templateName), data)
 }
 
+func renderSingle(t *testing.T, template string, data interface{}) (string, error) {
+	return render(
+		t,
+		map[string]string{"dir/foo.yaml": template},
+		"dir/foo.yaml",
+		data)
+}
+
 func TestTemplating(t *testing.T) {
 	result, err := render(
 		t,
@@ -279,4 +287,51 @@ func TestASGSizeError(t *testing.T) {
 		"abc123")
 
 	require.Error(t, err)
+}
+
+func TestAZId(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azId "eu-central-1a" }}`,
+		"")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "1a", result)
+}
+
+func TestAZCountSimple(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{
+			"*":             "subnet-foo,subnet-bar,subnet-baz",
+			"eu-central-1a": "subnet-foo",
+			"eu-central-1b": "subnet-bar",
+			"eu-central-1c": "subnet-baz",
+		})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "3", result)
+}
+
+func TestAZCountStarOnly(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{
+			"*": "",
+		})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "0", result)
+}
+
+func TestAZCountNoSubnets(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "0", result)
 }

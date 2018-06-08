@@ -186,6 +186,8 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
+		"azId":                      azId,
+		"azCount":                   azCount,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -263,4 +265,21 @@ func asgSize(poolSize, asgPerPool int) (int, error) {
 		return 0, fmt.Errorf("pool size must be an exact multiple of %d", asgPerPool)
 	}
 	return poolSize / asgPerPool, nil
+}
+
+// azId returns the last part of the availability zone name (1c for eu-central-1c)
+func azId(azName string) string {
+	slugs := strings.Split(azName, "-")
+	return slugs[len(slugs)-1]
+}
+
+// azCount returns the count of availability zones in the subnet map
+func azCount(subnets map[string]string) int {
+	var result int
+	for k, _ := range subnets {
+		if k != subnetAllAZName {
+			result++
+		}
+	}
+	return result
 }
