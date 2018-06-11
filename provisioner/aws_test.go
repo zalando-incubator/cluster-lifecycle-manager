@@ -229,17 +229,6 @@ func TestCreateS3Client(t *testing.T) {
 	}
 }
 
-func TestDescribeCorrectASG(t *testing.T) {
-	a := newAWSAdapterWithStubs("", "GroupName")
-	group, err := a.describeASG("GroupName")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if *group.AutoScalingGroupName != "GroupName" {
-		t.Fatalf("expected %s, got %s", "GroupName", *group.AutoScalingGroupName)
-	}
-}
-
 func TestAsgHasTags(t *testing.T) {
 	expected := []*autoscaling.TagDescription{{Key: aws.String("key-1"), Value: aws.String("value-1")},
 		{Key: aws.String("key-2"), Value: aws.String("value-2")}}

@@ -5,10 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"io/ioutil"
-	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	"math"
 	"path"
 	"path/filepath"
@@ -16,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -184,6 +185,9 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"base64":                    base64Encode,
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
+		"asgSize":                   asgSize,
+		"azID":                      azID,
+		"azCount":                   azCount,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -250,4 +254,32 @@ func getAWSAccountID(ia string) string {
 // base64Encode base64 encodes a string.
 func base64Encode(value string) string {
 	return base64.StdEncoding.EncodeToString([]byte(value))
+}
+
+// asgSize computes effective size of an ASG (either min or max) from the corresponding
+// node pool size and the amount of ASGs in the pool. Current implementation just divides
+// and returns an error if the pool size is not an exact multiple, but maybe it's not the
+// best one.
+func asgSize(poolSize, asgPerPool int64) (int64, error) {
+	if poolSize%asgPerPool != 0 {
+		return 0, fmt.Errorf("pool size must be an exact multiple of %d", asgPerPool)
+	}
+	return poolSize / asgPerPool, nil
+}
+
+// azID returns the last part of the availability zone name (1c for eu-central-1c)
+func azID(azName string) string {
+	slugs := strings.Split(azName, "-")
+	return slugs[len(slugs)-1]
+}
+
+// azCount returns the count of availability zones in the subnet map
+func azCount(subnets map[string]string) int64 {
+	var result int64
+	for k := range subnets {
+		if k != subnetAllAZName {
+			result++
+		}
+	}
+	return result
 }

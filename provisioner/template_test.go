@@ -1,13 +1,14 @@
 package provisioner
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 func exampleCluster(pools []*api.NodePool) *api.Cluster {
@@ -42,11 +43,18 @@ func render(t *testing.T, templates map[string]string, templateName string, data
 	return renderTemplate(context, path.Join(basedir, templateName), data)
 }
 
-func TestTemplating(t *testing.T) {
-	result, err := render(
+func renderSingle(t *testing.T, template string, data interface{}) (string, error) {
+	return render(
 		t,
-		map[string]string{"dir/foo.yaml": "foo {{ . }}"},
+		map[string]string{"dir/foo.yaml": template},
 		"dir/foo.yaml",
+		data)
+}
+
+func TestTemplating(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		"foo {{ . }}",
 		"1")
 
 	require.NoError(t, err)
@@ -54,10 +62,9 @@ func TestTemplating(t *testing.T) {
 }
 
 func TestBase64(t *testing.T) {
-	result, err := render(
+	result, err := renderSingle(
 		t,
-		map[string]string{"dir/foo.yaml": "{{ . | base64 }}"},
-		"dir/foo.yaml",
+		"{{ . | base64 }}",
 		"abc123")
 
 	require.NoError(t, err)
@@ -85,7 +92,7 @@ func TestManifestHashMissingFile(t *testing.T) {
 			"dir/foo.yaml": `{{ manifestHash "missing.yaml" }}`,
 		},
 		"dir/foo.yaml",
-		"abc123")
+		"")
 
 	require.Error(t, err)
 }
@@ -98,18 +105,15 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 			"dir/foo.yaml":    `{{ manifestHash "config.yaml" }}`,
 		},
 		"dir/foo.yaml",
-		"abc123")
+		"")
 
 	require.Error(t, err)
 }
 
 func renderAutoscaling(t *testing.T, cluster *api.Cluster) (string, error) {
-	return render(
+	return renderSingle(
 		t,
-		map[string]string{
-			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		},
-		"foo.yaml",
+		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		cluster)
 }
 
@@ -139,12 +143,9 @@ func TestAutoscalingBufferExplicitOnlyOne(t *testing.T) {
 }
 
 func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
-	result, err := render(
+	result, err := renderSingle(
 		t,
-		map[string]string{
-			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		},
-		"foo.yaml",
+		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				InstanceType: "m4.xlarge",
@@ -166,12 +167,9 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 }
 
 func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
-	result, err := render(
+	result, err := renderSingle(
 		t,
-		map[string]string{
-			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		},
-		"foo.yaml",
+		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				// 8 vcpu / 32gb
@@ -185,12 +183,9 @@ func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
 }
 
 func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
-	_, err := render(
+	_, err := renderSingle(
 		t,
-		map[string]string{
-			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		},
-		"foo.yaml",
+		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				InstanceType: "m4.xlarge",
@@ -206,12 +201,9 @@ func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
 }
 
 func TestAutoscalingBufferPoolBasedMismatchingType(t *testing.T) {
-	_, err := render(
+	_, err := renderSingle(
 		t,
-		map[string]string{
-			"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		},
-		"foo.yaml",
+		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				InstanceType: "r4.large",
@@ -247,14 +239,77 @@ func TestAutoscalingBufferPoolBasedInvalidSettings(t *testing.T) {
 		})
 		cluster.ConfigItems = configItems
 
-		_, err := render(
+		_, err := renderSingle(
 			t,
-			map[string]string{
-				"foo.yaml": `{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-			},
-			"foo.yaml",
+			`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 			cluster)
 
 		assert.Error(t, err, "configItems: %s", configItems)
 	}
+}
+
+func TestASGSize(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		"{{ asgSize 9 3 }}",
+		"")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "3", result)
+}
+
+func TestASGSizeError(t *testing.T) {
+	_, err := renderSingle(
+		t,
+		"{{ asgSize 8 3 }}",
+		"")
+
+	require.Error(t, err)
+}
+
+func TestAZID(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azID "eu-central-1a" }}`,
+		"")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "1a", result)
+}
+
+func TestAZCountSimple(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{
+			"*":             "subnet-foo,subnet-bar,subnet-baz",
+			"eu-central-1a": "subnet-foo",
+			"eu-central-1b": "subnet-bar",
+			"eu-central-1c": "subnet-baz",
+		})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "3", result)
+}
+
+func TestAZCountStarOnly(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{
+			"*": "",
+		})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "0", result)
+}
+
+func TestAZCountNoSubnets(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ azCount . }}`,
+		map[string]string{})
+
+	require.NoError(t, err)
+	require.EqualValues(t, "0", result)
 }

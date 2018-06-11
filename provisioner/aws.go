@@ -32,18 +32,17 @@ import (
 )
 
 const (
-	waitTime                        = 15 * time.Second
-	stackMaxSize                    = 51200
-	cloudformationValidationErr     = "ValidationError"
-	cloudformationNoUpdateMsg       = "No updates are to be performed."
-	clmCFBucketPattern              = "cluster-lifecycle-manager-%s-%s"
-	lifecycleStatusReady            = "ready"
-	etcdInstanceTypeKey             = "etcd_instance_type"
-	etcdS3BackupBucketKey           = "etcd_s3_backup_bucket"
-	workerSharedSecretConfigItemKey = "worker_shared_secret"
-	discountStrategyNone            = "none"
-	discountStrategySpotMaxPrice    = "spot_max_price"
-	ignitionBaseTemplate            = `{
+	waitTime                     = 15 * time.Second
+	stackMaxSize                 = 51200
+	cloudformationValidationErr  = "ValidationError"
+	cloudformationNoUpdateMsg    = "No updates are to be performed."
+	clmCFBucketPattern           = "cluster-lifecycle-manager-%s-%s"
+	lifecycleStatusReady         = "ready"
+	etcdInstanceTypeKey          = "etcd_instance_type"
+	etcdS3BackupBucketKey        = "etcd_s3_backup_bucket"
+	discountStrategyNone         = "none"
+	discountStrategySpotMaxPrice = "spot_max_price"
+	ignitionBaseTemplate         = `{
   "ignition": {
     "version": "2.1.0",
     "config": {
@@ -64,8 +63,6 @@ var (
 	errUpdateRollbackFailed   = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackFailed)
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
-	// ErrASGNotFound is the error returned when an asg is not found.
-	ErrASGNotFound = errors.New("ASG not found")
 )
 
 // cloudFormationAPI is a minimal interface containing only the methods we use from the AWS SDK for cloudformation
@@ -613,104 +610,6 @@ func (a *awsAdapter) getEnvVars() ([]string, error) {
 		"LANG=en_US.UTF-8",
 		"PATH=/usr/local/bin:/usr/bin:/bin",
 	}, nil
-}
-
-// getNodePoolASG returns the ASG mapping to the specified node pool.
-// TODO: this function should be more generic. i.e. not assume clusterID
-// but just a generic tag filter.
-func (a *awsAdapter) getNodePoolASG(clusterID, nodePool string) (*autoscaling.Group, error) {
-	// TODO: handle nextToken?
-	params := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{},
-	}
-	resp, err := a.autoscalingClient.DescribeAutoScalingGroups(params)
-	if err != nil {
-		return nil, err
-	}
-
-	asgs := make([]*autoscaling.Group, 0)
-
-	expectedTags := []*autoscaling.TagDescription{
-		{
-			Key:   aws.String(tagNameKubernetesClusterPrefix + clusterID),
-			Value: aws.String(resourceLifecycleOwned),
-		},
-		// TODO: legacy node pool tag?
-		{
-			Key:   aws.String("NodePool"),
-			Value: aws.String(nodePool),
-		},
-	}
-
-	for _, asg := range resp.AutoScalingGroups {
-		if asgHasTags(expectedTags, asg.Tags) {
-			asgs = append(asgs, asg)
-			continue
-		}
-	}
-
-	if len(asgs) == 0 {
-		return nil, ErrASGNotFound
-	}
-
-	if len(asgs) != 1 {
-		return nil, fmt.Errorf("expected 1 ASG, got %d", len(asgs))
-	}
-
-	asg := asgs[0]
-
-	return asg, nil
-}
-
-// describeASG gets a single ASG by name.
-func (a *awsAdapter) describeASG(asgName string) (*autoscaling.Group, error) {
-	params := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{
-			aws.String(asgName),
-		},
-	}
-	resp, err := a.autoscalingClient.DescribeAutoScalingGroups(params)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.AutoScalingGroups) != 1 {
-		return nil, fmt.Errorf("expected 1 asg, found %d", len(resp.AutoScalingGroups))
-	}
-
-	return resp.AutoScalingGroups[0], nil
-}
-
-// suspendScaling suspends the scaling processes of an ASG.
-func (a *awsAdapter) suspendScaling(asgName string) error {
-	a.logger.Debug("Suspending scaling for ", asgName)
-	params := &autoscaling.ScalingProcessQuery{
-		AutoScalingGroupName: aws.String(asgName),
-		ScalingProcesses: []*string{
-			aws.String("AZRebalance"),
-			aws.String("AlarmNotification"),
-			aws.String("ScheduledActions"),
-		},
-	}
-
-	_, err := a.autoscalingClient.SuspendProcesses(params)
-	return err
-}
-
-// resumeScaling resumes the scaling processes of an ASG.
-func (a *awsAdapter) resumeScaling(asgName string) error {
-	a.logger.Debug("Resuming scaling for ", asgName)
-	params := &autoscaling.ScalingProcessQuery{
-		AutoScalingGroupName: aws.String(asgName),
-		ScalingProcesses: []*string{
-			aws.String("AZRebalance"),
-			aws.String("AlarmNotification"),
-			aws.String("ScheduledActions"),
-		},
-	}
-
-	_, err := a.autoscalingClient.ResumeProcesses(params)
-	return err
 }
 
 // asgHasTags returns true if the asg tags matches the expected tags.

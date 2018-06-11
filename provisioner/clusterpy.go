@@ -36,23 +36,23 @@ import (
 )
 
 const (
-	providerID                          = "zalando-aws"
-	manifestsPath                       = "cluster/manifests"
-	deletionsFile                       = "deletions.yaml"
-	defaultsFile                        = "cluster/config-defaults.yaml"
-	defaultNamespace                    = "default"
-	kubectlNotFound                     = "(NotFound)"
-	tagNameKubernetesClusterPrefix      = "kubernetes.io/cluster/"
-	subnetELBRoleTagName                = "kubernetes.io/role/elb"
-	resourceLifecycleShared             = "shared"
-	resourceLifecycleOwned              = "owned"
-	nodePoolFeatureEnabledConfigItemKey = "node_pool_feature_enabled"
-	subnetsConfigItemKey                = "subnets"
-	maxApplyRetries                     = 10
-	configKeyUpdateStrategy             = "update_strategy"
-	configKeyNodeMaxEvictTimeout        = "node_max_evict_timeout"
-	updateStrategyRolling               = "rolling"
-	defaultMaxRetryTime                 = 5 * time.Minute
+	providerID                     = "zalando-aws"
+	manifestsPath                  = "cluster/manifests"
+	deletionsFile                  = "deletions.yaml"
+	defaultsFile                   = "cluster/config-defaults.yaml"
+	defaultNamespace               = "default"
+	kubectlNotFound                = "(NotFound)"
+	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
+	subnetELBRoleTagName           = "kubernetes.io/role/elb"
+	resourceLifecycleShared        = "shared"
+	resourceLifecycleOwned         = "owned"
+	subnetsConfigItemKey           = "subnets"
+	subnetAllAZName                = "*"
+	maxApplyRetries                = 10
+	configKeyUpdateStrategy        = "update_strategy"
+	configKeyNodeMaxEvictTimeout   = "node_max_evict_timeout"
+	updateStrategyRolling          = "rolling"
+	defaultMaxRetryTime            = 5 * time.Minute
 )
 
 type clusterpyProvisioner struct {
@@ -148,38 +148,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	stackDefinitionPath := path.Join(channelConfig.Path, "cluster", "senza-definition.yaml")
 
-	// check if stack exists
-	stack, err := awsAdapter.getStackByName(cluster.LocalID)
-	if err != nil && !isDoesNotExistsErr(err) {
-		return err
-	}
-
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-
-	if stack != nil {
-		// suspend scaling for all autoscaling worker groups
-		for _, pool := range cluster.NodePools {
-			asg, err := awsAdapter.getNodePoolASG(cluster.ID, pool.Name)
-			if err != nil {
-				if err == ErrASGNotFound {
-					continue
-				}
-				return err
-			}
-			err = awsAdapter.suspendScaling(*asg.AutoScalingGroupName)
-			if err != nil {
-				return err
-			}
-			defer awsAdapter.resumeScaling(*asg.AutoScalingGroupName)
-
-			if err = ctx.Err(); err != nil {
-				return err
-			}
-		}
-	}
-
 	err = awsAdapter.CreateOrUpdateClusterStack(ctx, cluster.LocalID, stackDefinitionPath, cluster)
 	if err != nil {
 		return err
@@ -201,20 +169,45 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	// in case the subnets are not defined in the config items
-	// discover them from the default VPC.
-	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-		subnets, err := awsAdapter.GetSubnets()
+	subnets, err := awsAdapter.GetSubnets()
+	if err != nil {
+		return err
+	}
+
+	// if subnets are defined in the config items, filter the subnet list
+	if subnetIds, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
+		subnets, err = filterSubnets(subnets, strings.Split(subnetIds, ","))
 		if err != nil {
 			return err
 		}
-		cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
 	}
 
-	// TODO(tech-depth): custom legacy values
+	// find the best subnet for each AZ
+	subnetsPerZone := selectSubnetIDs(subnets)
+
+	// build a subnet list for the virtual '*' AZ
+	for az, subnet := range subnetsPerZone {
+		if az == subnetAllAZName {
+			continue
+		}
+		if existing, ok := subnetsPerZone[subnetAllAZName]; ok {
+			subnetsPerZone[subnetAllAZName] = existing + "," + subnet
+		} else {
+			subnetsPerZone[subnetAllAZName] = subnet
+		}
+	}
+
+	// TODO legacy, remove once we switch to Values in all clusters
+	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+		cluster.ConfigItems[subnetsConfigItemKey] = subnetsPerZone[subnetAllAZName]
+	}
+
 	values := map[string]interface{}{
-		"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
+		// TODO(tech-debt): custom legacy value
+		"node_labels": fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
+		// TODO(tech-debt): custom legacy value
 		"apiserver_count": "1",
+		"subnets":         subnetsPerZone,
 	}
 
 	err = nodePoolProvisioner.Provision(values)
@@ -267,13 +260,36 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
 }
 
-// selectSubnetIDs finds the best suiting subnets based on tags and AZ.
+func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet, error) {
+	desiredSubnets := make(map[string]struct{})
+	for _, id := range subnetIds {
+		desiredSubnets[id] = struct{}{}
+	}
+
+	var result []*ec2.Subnet
+	for _, subnet := range allSubnets {
+		subnet := aws.StringValue(subnet.SubnetId)
+		_, ok := desiredSubnets[subnet]
+		if ok {
+			result = append(result)
+			delete(desiredSubnets, subnet)
+		}
+	}
+
+	if len(desiredSubnets) > 0 {
+		return nil, fmt.Errorf("invalid or unknown subnets: %s", desiredSubnets)
+	}
+
+	return result, nil
+}
+
+// selectSubnetIDs finds the best suiting subnets based on tags for each AZ.
 //
 // It follows almost the same logic for finding subnets as the
 // kube-controller-manager when finding subnets for ELBs used for services of
 // type LoadBalancer.
 // https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
-func selectSubnetIDs(subnets []*ec2.Subnet) []string {
+func selectSubnetIDs(subnets []*ec2.Subnet) map[string]string {
 	subnetsByAZ := make(map[string]*ec2.Subnet)
 	for _, subnet := range subnets {
 		az := aws.StringValue(subnet.AvailabilityZone)
@@ -304,12 +320,12 @@ func selectSubnetIDs(subnets []*ec2.Subnet) []string {
 		}
 	}
 
-	subnetIDs := make([]string, 0, len(subnetsByAZ))
-	for _, subnet := range subnetsByAZ {
-		subnetIDs = append(subnetIDs, aws.StringValue(subnet.SubnetId))
+	result := make(map[string]string, len(subnetsByAZ))
+	for az, subnet := range subnetsByAZ {
+		result[az] = aws.StringValue(subnet.SubnetId)
 	}
 
-	return subnetIDs
+	return result
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
