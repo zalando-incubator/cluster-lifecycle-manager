@@ -543,39 +543,67 @@ paths:
           schema:
             $ref: '#/definitions/Error'
 
-  '/healthz':
-    get:
-      summary: Health endpoint
-      description: Get health of the application.
+  '/kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}':
+    put:
+      summary: Add/update config item
+      description: Add/update a configuration item unique to the node pool.
       tags:
-        - Health
-      operationId: getHealth
-      security: []
+        - NodePoolConfigItems
+      operationId: addOrUpdateNodePoolConfigItem
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/node_pool_name'
+        - $ref: '#/parameters/config_key'
+        - name: value
+          required: true
+          in: body
+          description: Config value.
+          schema:
+            '$ref': '#/definitions/ConfigValue'
       responses:
         200:
-          description: Application is healthy
+          description: The config items add/update request is accepted.
           schema:
-            $ref: '#/definitions/Health'
-
-        503:
-          description: Application is unhealthy
-
-  '/.well-known/schema-discovery':
-    get:
-      summary: Ignore schema discovery endpoint
-      description: Ignore schema discovery endpoint.
+            '$ref': '#/definitions/ConfigValue'
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      summary: Delete config item
+      description: Deletes config item.
       tags:
-        - SchemaDiscovery
-      operationId: getSchema
-      security: []
+        - NodePoolConfigItems
+      operationId: deleteNodePoolConfigItem
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/node_pool_name'
+        - $ref: '#/parameters/config_key'
       responses:
-        200:
-          description: Application has no schema discovery
+        204:
+          description: Config item deleted.
+        400:
+          description: Invalid request
           schema:
-            $ref: '#/definitions/Health'
-
-        503:
-          description: Application has no schema discovery
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        404:
+          description: Config item not found
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
 
 
 parameters:
@@ -956,18 +984,25 @@ definitions:
         description: Name of the node pool
       profile:
         type: string
-        example: worker/default
-        description: Profile used for the node pool. Possible values are "worker/default", "worker/database", "worker/gpu", "master". The "master" profile identifies the pool containing the cluster master
+        example: worker-default
+        description: |
+          Profile used for the node pool. Possible values are "worker-default",
+          "worker-database", "worker-gpu", "master". The "master" profile
+          identifies the pool containing the cluster master
       instance_type:
         type: string
-        example: m4.medium
-        description: Type of the instance to use for the nodes in the pool. All the nodes in the pool share the same instance types
+        example: m5.large
+        description: |
+          Type of the instance to use for the nodes in the pool. All the nodes
+          in the pool share the same instance types
       discount_strategy:
         type: string
         example: none
         description: |
-          A discount strategy indicates the type of discount to be associated with the node pool. This might affect the availability of the nodes in the pools in case of preemptible or spot instances.
-          Possible values depend on the provider, the only common one is "none".
+          A discount strategy indicates the type of discount to be associated
+          with the node pool. This might affect the availability of the nodes in
+          the pools in case of preemptible or spot instances.  Possible values
+          depend on the provider, the only common one is "none".
       min_size:
         type: integer
         example: 3
@@ -976,6 +1011,15 @@ definitions:
         type: integer
         example: 20
         description: Maximum size of the node pool
+      config_items:
+        type: object
+        additionalProperties:
+          type: string
+        example:
+          local_storage: "yes"
+        description: |
+          Configuration items unique to the node pool. E.g. custom volume
+          configuration.
     required:
       - name
       - profile
@@ -983,12 +1027,6 @@ definitions:
       - discount_strategy
       - min_size
       - max_size
-
-  Health:
-    type: object
-    properties:
-      health:
-        type: boolean
 
   Error:
     type: object

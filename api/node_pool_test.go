@@ -24,7 +24,10 @@ func TestSortNodePools(t *testing.T) {
 					Profile: "worker-default",
 					Name:    "two",
 					MinSize: 3,
-					MaxSize: 20,
+					MaxSize: 21,
+					ConfigItems: map[string]string{
+						"taints": "my-taint=:NoSchedule",
+					},
 				},
 			}),
 			first: "one",

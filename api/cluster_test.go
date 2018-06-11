@@ -72,18 +72,22 @@ func sampleCluster() *Cluster {
 			{
 				Name:             "master-default",
 				Profile:          "master-default",
-				InstanceType:     "m3.medium",
+				InstanceType:     "m4.large",
 				DiscountStrategy: "none",
 				MinSize:          2,
 				MaxSize:          2,
+				ConfigItems:      map[string]string{},
 			},
 			{
 				Name:             "worker-default",
 				Profile:          "worker-default",
-				InstanceType:     "r4.large",
+				InstanceType:     "m5.large",
 				DiscountStrategy: "none",
 				MinSize:          3,
-				MaxSize:          20,
+				MaxSize:          21,
+				ConfigItems: map[string]string{
+					"taints": "my-taint=:NoSchedule",
+				},
 			},
 		},
 	}

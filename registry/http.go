@@ -183,6 +183,7 @@ func convertFromNodePoolModel(nodePool *models.NodePool) *api.NodePool {
 		Profile:          *nodePool.Profile,
 		MinSize:          *nodePool.MinSize,
 		MaxSize:          *nodePool.MaxSize,
+		ConfigItems:      nodePool.ConfigItems,
 	}
 }
 

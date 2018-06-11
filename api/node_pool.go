@@ -4,12 +4,13 @@ import "strings"
 
 // NodePool describes a node pool in a kubernetes cluster.
 type NodePool struct {
-	DiscountStrategy string `json:"discount_strategy" yaml:"discount_strategy"`
-	InstanceType     string `json:"instance_type"     yaml:"instance_type"`
-	Name             string `json:"name"              yaml:"name"`
-	Profile          string `json:"profile"           yaml:"profile"`
-	MinSize          int64  `json:"min_size"          yaml:"min_size"`
-	MaxSize          int64  `json:"max_size"          yaml:"max_size"`
+	DiscountStrategy string            `json:"discount_strategy" yaml:"discount_strategy"`
+	InstanceType     string            `json:"instance_type"     yaml:"instance_type"`
+	Name             string            `json:"name"              yaml:"name"`
+	Profile          string            `json:"profile"           yaml:"profile"`
+	MinSize          int64             `json:"min_size"          yaml:"min_size"`
+	MaxSize          int64             `json:"max_size"          yaml:"max_size"`
+	ConfigItems      map[string]string `json:"config_items"      yaml:"config_items"`
 }
 
 // NodePools is a slice of *NodePool which implements the sort interface to
