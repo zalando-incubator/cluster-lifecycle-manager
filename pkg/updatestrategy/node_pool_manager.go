@@ -404,6 +404,19 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 		"node": pod.Spec.NodeName,
 	})
 
+	updated, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if updated.Spec.NodeName != pod.Spec.NodeName {
+		// Already evicted
+		return nil
+	}
+
 	eviction := &policy.Eviction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
@@ -414,7 +427,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 		},
 	}
 
-	err := client.CoreV1().Pods(pod.Namespace).Evict(eviction)
+	err = client.CoreV1().Pods(pod.Namespace).Evict(eviction)
 	if err != nil {
 		return err
 	}
