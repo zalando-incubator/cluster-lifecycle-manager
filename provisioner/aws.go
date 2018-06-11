@@ -4,26 +4,20 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha512"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"os/exec"
-	"path"
 	"strings"
 	"time"
 
-	"github.com/cbroglie/mustache"
 	"github.com/cenkalti/backoff"
 	"github.com/coreos/container-linux-config-transpiler/config"
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -192,91 +186,7 @@ func decodeUserData(encodedUserData string) (string, error) {
 // CreateOrUpdateClusterStack creates or updates a cluster cloudformation
 // stack. This function is idempotent.
 func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stackName, stackDefinitionPath string, cluster *api.Cluster) error {
-	masterPool, workerPool, err := getLegacyNodePools(cluster) //FIXME this only works on one node pool for workers
-	if err != nil {
-		return err
-	}
-
-	stack, err := a.getStackByName(stackName)
-	if err != nil && !isDoesNotExistsErr(err) {
-		return err
-	}
-
-	kubeletSecret, ok := cluster.ConfigItems[workerSharedSecretConfigItemKey]
-	if !ok {
-		return fmt.Errorf("'%s' config item is missing, must be defined", workerSharedSecretConfigItemKey)
-	}
-
-	workerPoolDesired := workerPool.MinSize
-	workerPoolMinSize := workerPool.MinSize
-	workerPoolMaxSize := workerPool.MaxSize
-	workerPoolInstanceType := workerPool.InstanceType
-
-	// we currently don't support scaling for master pools
-	if masterPool.MinSize != masterPool.MaxSize {
-		return fmt.Errorf("master pool must have the same min_size and max_size")
-	}
-
-	masterPoolDesired := masterPool.MinSize
-	masterPoolInstanceType := masterPool.InstanceType
-
-	// if stack already exists use the already generated secret and current
-	// desired worker nodes.
-	if stack != nil {
-		desiredCapacity := int64(0)
-
-		// get desired worker nodes
-		asg, err := a.getNodePoolASG(cluster.ID, workerPool.Name)
-		if err != nil {
-			if err != ErrASGNotFound {
-				return err
-			}
-		} else {
-			desiredCapacity = aws.Int64Value(asg.DesiredCapacity)
-		}
-
-		// reduce the desired size if necessary
-		workerPoolDesired = int64(math.Min(float64(desiredCapacity), float64(workerPool.MaxSize)))
-
-		// TODO(tech-depth): this is only used for migrating from
-		// legacy node pools to real node pool support.
-		if asg != nil && nodePoolFeatureEnabled(cluster) {
-			workerPoolDesired = aws.Int64Value(asg.DesiredCapacity)
-			workerPoolMinSize = aws.Int64Value(asg.MinSize)
-			workerPoolMaxSize = workerPoolDesired
-
-			// get master nodepool size
-			asg, err := a.getNodePoolASG(cluster.ID, masterPool.Name)
-			if err != nil {
-				// this is a legacy node pool. If we don't find
-				// the ASG we don't care about the size, but
-				// continue.
-				if err != ErrASGNotFound {
-					return err
-				}
-			} else {
-				masterPoolDesired = aws.Int64Value(asg.MinSize)
-			}
-		}
-	}
-
-	// TODO(tech-depth): this is only used for migrating from
-	// legacy node pools to real node pool support.
-	if nodePoolFeatureEnabled(cluster) {
-		if workerPoolInstanceType == "" {
-			workerPoolInstanceType = "m5.large"
-		}
-		if masterPoolInstanceType == "" {
-			masterPoolInstanceType = "m5.large"
-		}
-	}
-
 	name, version, err := splitStackName(stackName)
-	if err != nil {
-		return err
-	}
-
-	config, err := userDataConfig(stackName, version, kubeletSecret, cluster)
 	if err != nil {
 		return err
 	}
@@ -284,12 +194,6 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 	// create bucket name with aws account ID to ensure uniqueness across
 	// accounts.
 	s3BucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
-
-	// get userdata from Container Linux Config
-	userDataMaster, userDataWorker, err := a.getUserData(path.Dir(stackDefinitionPath), config, s3BucketName)
-	if err != nil {
-		return err
-	}
 
 	hostedZone, err := getHostedZone(cluster.APIServerURL)
 	if err != nil {
@@ -302,52 +206,12 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		version,
 		"KmsKey=*",
 		fmt.Sprintf("StackName=%s", name),
-		fmt.Sprintf("UserDataMaster=%s", userDataMaster),
-		fmt.Sprintf("UserDataWorker=%s", userDataWorker),
-		fmt.Sprintf("MasterNodePoolName=%s", masterPool.Name),
-		fmt.Sprintf("WorkerNodePoolName=%s", workerPool.Name),
-		fmt.Sprintf("MasterNodes=%d", masterPoolDesired),
-		fmt.Sprintf("WorkerNodes=%d", workerPoolDesired),
-		fmt.Sprintf("MinimumWorkerNodes=%d", workerPoolMinSize),
-		fmt.Sprintf("MaximumWorkerNodes=%d", workerPoolMaxSize),
 		fmt.Sprintf("HostedZone=%s", hostedZone),
-		fmt.Sprintf("MasterInstanceType=%s", masterPoolInstanceType),
-		fmt.Sprintf("InstanceType=%s", workerPoolInstanceType),
 		fmt.Sprintf("ClusterID=%s", cluster.ID),
 	}
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
 		args = append(args, fmt.Sprintf("EtcdS3BackupBucket=%s", bucket))
-	}
-
-	// TODO(tech-depth): only enable this feature for legacy node pools
-	// remove once node pool support is rolled out.
-	if !nodePoolFeatureEnabled(cluster) {
-		switch masterPool.DiscountStrategy {
-		case discountStrategyNone:
-			break
-		default:
-			return fmt.Errorf("unsupported master pool discount_strategy %s", workerPool.DiscountStrategy)
-		}
-
-		switch workerPool.DiscountStrategy {
-		case discountStrategyNone:
-			break
-		case discountStrategySpotMaxPrice:
-			instanceInfo, err := awsExt.InstanceInfo(workerPool.InstanceType)
-			if err != nil {
-				return err
-			}
-
-			onDemandPrice, ok := instanceInfo.Pricing[cluster.Region]
-			if !ok {
-				return fmt.Errorf("no price data for region %s, instance type %s", cluster.Region, workerPool.InstanceType)
-			}
-
-			args = append(args, fmt.Sprintf("WorkerSpotPrice=%s", onDemandPrice))
-		default:
-			return fmt.Errorf("unsupported worker pool discount_strategy %s", workerPool.DiscountStrategy)
-		}
 	}
 
 	cmd := exec.Command("senza", args...)
@@ -715,111 +579,6 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 			return err
 		},
 		backoff.WithMaxTries(backoff.NewExponentialBackOff(), 10))
-}
-
-// userDataConfig generates userData config map.
-func userDataConfig(stackName, stackVersion, kubeletSecret string, cluster *api.Cluster) (map[string]string, error) {
-	webhookID, err := parseWebhookID(cluster.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	hostedZone, err := getHostedZone(cluster.APIServerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	config := map[string]string{
-		"ETCD_DISCOVERY_DOMAIN":        fmt.Sprintf("etcd.%s", hostedZone),
-		"ETCD_ENDPOINTS":               fmt.Sprintf("etcd-server.etcd.%s:2379", hostedZone),
-		"NODE_LABELS":                  fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
-		"LOCAL_ID":                     cluster.LocalID,
-		"STACK_VERSION":                stackVersion,
-		"WORKER_SHARED_SECRET":         kubeletSecret,
-		"WEBHOOK_ID":                   webhookID,
-		"API_SERVER":                   cluster.APIServerURL,
-		"API_SERVER_INTERNAL":          strings.Replace(cluster.APIServerURL, "https://", "https://internal-", 1),
-		"APISERVER_COUNT":              "1",
-		"APISERVER_ETCD_PREFIX":        fmt.Sprintf("/registry-%s", stackVersion),
-		"APISERVER_STORAGE_BACKEND":    "etcd2",
-		"APISERVER_STORAGE_MEDIA_TYPE": "application/json",
-	}
-
-	// add config_items to config map.
-	// Default config values can be overwritten by providing a config item
-	// with an identical key (lowercased).
-	for key, item := range cluster.ConfigItems {
-		config[strings.ToUpper(key)] = item
-	}
-
-	return config, nil
-}
-
-// getUserData reads userdata from clc files and uploads the userdata to S3.
-func (a *awsAdapter) getUserData(_ string, _ map[string]string, _ string) (string, string, error) {
-	return "", "", nil
-}
-
-// prepareUserData prepares the user data by rendering the mustache template
-// and uploading the User Data to S3. A EC2 UserData ready base64 string will
-// be returned.
-func (a *awsAdapter) prepareUserData(clcPath string, config map[string]string, bucketName string) (string, error) {
-	// fail if variables are missing
-	mustache.AllowMissingVariables = false
-
-	rendered, err := mustache.RenderFile(clcPath, config)
-	if err != nil {
-		return "", err
-	}
-
-	// convert to ignition
-	ignCfg, err := clcToIgnition([]byte(rendered))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse config %s: %v", clcPath, err)
-	}
-
-	// upload to s3
-	uri, err := a.uploadUserDataToS3(ignCfg, bucketName)
-	if err != nil {
-		return "", err
-	}
-
-	// create ignition config pulling from s3
-	ignCfg = []byte(fmt.Sprintf(ignitionBaseTemplate, uri))
-
-	return base64.StdEncoding.EncodeToString(ignCfg), nil
-}
-
-// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
-// The S3 object will be named by the sha512 hash of the data.
-func (a *awsAdapter) uploadUserDataToS3(userData []byte, bucketName string) (string, error) {
-	// create S3 bucket if it doesn't exist
-	err := a.createS3Bucket(bucketName)
-	if err != nil {
-		return "", err
-	}
-
-	// sha1 hash the userData to use as object name
-	hasher := sha512.New()
-	_, err = hasher.Write(userData)
-	if err != nil {
-		return "", err
-	}
-	sha := hex.EncodeToString(hasher.Sum(nil))
-
-	objectName := fmt.Sprintf("%s.userdata", sha)
-
-	// Upload the stack template to S3
-	_, err = a.s3Uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
-		Body:   bytes.NewReader(userData),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
 }
 
 func clcToIgnition(data []byte) ([]byte, error) {

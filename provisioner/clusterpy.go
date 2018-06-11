@@ -201,28 +201,25 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	// TODO(tech-depth): remove if-guard when feature is enabled by default
-	if nodePoolFeatureEnabled(cluster) {
-		// in case the subnets are not defined in the config items
-		// discover them from the default VPC.
-		if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-			subnets, err := awsAdapter.GetSubnets()
-			if err != nil {
-				return err
-			}
-			cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
-		}
-
-		// TODO(tech-depth): custom legacy values
-		values := map[string]interface{}{
-			"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
-			"apiserver_count": "1",
-		}
-
-		err = nodePoolProvisioner.Provision(values)
+	// in case the subnets are not defined in the config items
+	// discover them from the default VPC.
+	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+		subnets, err := awsAdapter.GetSubnets()
 		if err != nil {
 			return err
 		}
+		cluster.ConfigItems[subnetsConfigItemKey] = strings.Join(selectSubnetIDs(subnets), ",")
+	}
+
+	// TODO(tech-depth): custom legacy values
+	values := map[string]interface{}{
+		"node_labels":     fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
+		"apiserver_count": "1",
+	}
+
+	err = nodePoolProvisioner.Provision(values)
+	if err != nil {
+		return err
 	}
 
 	// wait for API server to be ready
@@ -243,17 +240,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			// update nodes
 			nodePools := cluster.NodePools
 
-			// TODO(tech-depth): remove special case when node pool feature
-			// is GA.
-			if !nodePoolFeatureEnabled(cluster) {
-				master, worker, err := getLegacyNodePools(cluster)
-				if err != nil {
-					return err
-				}
-
-				nodePools = []*api.NodePool{master, worker}
-			}
-
 			sort.Sort(api.NodePools(nodePools))
 			for _, nodePool := range nodePools {
 				err := updater.Update(ctx, nodePool)
@@ -268,26 +254,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		}
 	}
 
-	// If the node pool feature is enabled and we have at least 2
-	// non-legacy node pools, then scale down any empty legacy node pools.
-	// TODO(tech-depth): remove this block when all legacy node pools has
-	// been decommissioned
-	nonLegacyNodePools := len(getNonLegacyNodePools(cluster))
-	legacyNodePools := len(cluster.NodePools) - nonLegacyNodePools
-	if nodePoolFeatureEnabled(cluster) && nonLegacyNodePools >= 2 && legacyNodePools == 0 {
-		_, _, err := getLegacyNodePools(cluster)
-		if err != nil {
-			return err
-		}
-	}
-
-	// TODO(tech-depth): remove if-guard when feature is enabled by default
-	if nodePoolFeatureEnabled(cluster) {
-		// clean up removed node pools
-		err := nodePoolProvisioner.Reconcile(ctx)
-		if err != nil {
-			return err
-		}
+	// clean up removed node pools
+	err = nodePoolProvisioner.Reconcile(ctx)
+	if err != nil {
+		return err
 	}
 
 	if err = ctx.Err(); err != nil {
@@ -340,14 +310,6 @@ func selectSubnetIDs(subnets []*ec2.Subnet) []string {
 	}
 
 	return subnetIDs
-}
-
-// nodePoolFeatureEnabled is a temporary feature gate check used for migrating
-// legacy node pools to real node pool support.
-// TODO(tech-depth): Remove when feature is enabled by default.
-func nodePoolFeatureEnabled(cluster *api.Cluster) bool {
-	v, ok := cluster.ConfigItems[nodePoolFeatureEnabledConfigItemKey]
-	return ok && v == "true"
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
@@ -688,54 +650,6 @@ func getNonLegacyNodePools(cluster *api.Cluster) []*api.NodePool {
 		nodePools = append(nodePools, np)
 	}
 	return nodePools
-}
-
-// getLegacyNodePools returns the master and worker node pool for a cluster.
-// TODO(tech-depth): Remove when new node pool feature is enabled by default.
-func getLegacyNodePools(cluster *api.Cluster) (*api.NodePool, *api.NodePool, error) {
-	masterPools := make([]*api.NodePool, 0)
-	workerPools := make([]*api.NodePool, 0)
-
-	for _, np := range cluster.NodePools {
-		if np.Name == "master-default" {
-			masterPools = append(masterPools, np)
-		}
-		if np.Name == "worker-default" {
-			workerPools = append(workerPools, np)
-		}
-	}
-
-	if nodePoolFeatureEnabled(cluster) {
-		if len(masterPools) == 0 {
-			np := &api.NodePool{
-				Name:    "master-default",
-				Profile: "master-default",
-				MinSize: 0,
-				MaxSize: 0,
-			}
-			masterPools = append(masterPools, np)
-		}
-
-		if len(workerPools) == 0 {
-			np := &api.NodePool{
-				Name:    "worker-default",
-				Profile: "worker-default",
-				MinSize: 0,
-				MaxSize: 0,
-			}
-			workerPools = append(workerPools, np)
-		}
-	}
-
-	if len(masterPools) != 1 {
-		return nil, nil, fmt.Errorf("clusterpy: Unsupported number of master node pools for cluster '%s'. Should be 1 but is %d", cluster.ID, len(masterPools))
-	}
-
-	if len(workerPools) != 1 {
-		return nil, nil, fmt.Errorf("clusterpy: Unsupported number of worker node pools for cluster '%s'. Should be 1 but is %d", cluster.ID, len(workerPools))
-	}
-
-	return masterPools[0], workerPools[0], nil
 }
 
 type labels map[string]string

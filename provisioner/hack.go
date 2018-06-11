@@ -6,36 +6,6 @@ import (
 	"strings"
 )
 
-// parseWebhookID parses the webhookID from a clusterID.
-// This is a hack for the special case of clusterID with localID
-// 'kube-aws-test'.
-func parseWebhookID(clusterID string) (string, error) {
-	account, region, localID, err := parseClusterID(clusterID)
-	if err != nil {
-		return "", err
-	}
-
-	name, _, err := splitStackName(localID)
-	if err != nil {
-		return "", err
-	}
-
-	if name == "kube-aws-test" {
-		return fmt.Sprintf("%s:%s:%s", account, region, name), nil
-	}
-
-	return clusterID, nil
-}
-
-// parseClusterID parses a clusterID into account, region and localID.
-func parseClusterID(clusterID string) (string, string, string, error) {
-	split := strings.Split(clusterID, ":")
-	if len(split) != 4 {
-		return "", "", "", fmt.Errorf("invalid clusterID %s", clusterID)
-	}
-	return split[0] + ":" + split[1], split[2], split[3], nil
-}
-
 // splitStackName takes a stackName and returns the corresponding Senza stack
 // and version values.
 func splitStackName(stackName string) (string, string, error) {
