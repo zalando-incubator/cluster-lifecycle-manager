@@ -119,6 +119,23 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 		if err != nil {
 			return nil, err
 		}
+		// config items are sorted by key to produce a predictable string for
+		// hashing.
+		keys := make([]string, 0, len(nodePool.ConfigItems))
+		for key := range nodePool.ConfigItems {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			_, err = state.WriteString(key)
+			if err != nil {
+				return nil, err
+			}
+			_, err = state.WriteString(nodePool.ConfigItems[key])
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// sha1 hash the cluster content
