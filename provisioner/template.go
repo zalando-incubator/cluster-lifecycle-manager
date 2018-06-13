@@ -188,6 +188,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"asgSize":                   asgSize,
 		"azID":                      azID,
 		"azCount":                   azCount,
+		"split":                     split,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -282,4 +283,9 @@ func azCount(subnets map[string]string) int64 {
 		}
 	}
 	return result
+}
+
+// split is a template function that takes a string and a separator and returns the splitted parts.
+func split(s string, d string) []string {
+	return strings.Split(s, d)
 }
