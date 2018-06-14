@@ -412,6 +412,11 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod)
 		return err
 	}
 
+	if updated.Status.Phase == v1.PodSucceeded || updated.Status.Phase == v1.PodFailed {
+		// Completed, just ignore
+		return nil
+	}
+
 	if updated.Spec.NodeName != pod.Spec.NodeName {
 		// Already evicted
 		return nil
@@ -508,11 +513,6 @@ func (m *KubernetesNodePoolManager) isEvictablePod(pod v1.Pod) bool {
 
 	if _, ok := pod.Annotations[mirrorPodAnnotation]; ok {
 		logger.Debug("Mirror Pod not evictable")
-		return false
-	}
-
-	if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
-		logger.Debugf("Terminated pod (%s) not evictable", pod.Status.Phase)
 		return false
 	}
 
