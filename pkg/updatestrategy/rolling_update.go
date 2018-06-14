@@ -300,12 +300,17 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 			return nil, err
 		}
 
+		// in case there are less than surge desired nodes we don't
+		// want to increase the pool size with surge, but instead with
+		// at most desired.
+		tmpSurge := int(math.Min(float64(nodePool.Desired), float64(surge)))
+
 		// separate old and new nodes
 		_, newNodes := r.splitOldNewNodes(nodePool)
-		if len(newNodes) >= surge {
+		if len(newNodes) >= tmpSurge {
 			break
 		}
-		newDesired := nodePool.Desired + surge - len(newNodes)
+		newDesired := nodePool.Desired + tmpSurge - len(newNodes)
 		err = r.nodePoolManager.ScalePool(ctx, nodePoolDesc, newDesired)
 		if err != nil {
 			return nil, err
