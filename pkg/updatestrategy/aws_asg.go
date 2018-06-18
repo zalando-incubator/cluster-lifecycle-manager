@@ -17,7 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/cenkalti/backoff"
-	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -336,12 +335,11 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 
 		switch state {
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
-			log.Info("shutting down")
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
 			return nil
 		default:
-			return nil
+			return fmt.Errorf("unexpected instance state '%s'", state)
 		}
 	}
 
