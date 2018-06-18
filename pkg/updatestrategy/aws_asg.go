@@ -1,6 +1,7 @@
 package updatestrategy
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/cenkalti/backoff"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -236,10 +238,11 @@ func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string
 	return err
 }
 
-// Terminate terminates a node from the ASG and optionally decrements the
+// Terminate terminates an instance from the ASG and optionally decrements the
 // DesiredCapacity. By default the desired capacity will not be decremented.
 // In case the new desired capacity is less then the current min size of the
 // ASG, it will also decrease the ASG minSize.
+// This function will not return until the instance has been terminated in AWS.
 func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
 	instanceId := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
 
@@ -316,26 +319,40 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 	}
 
 	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
-	if err != nil {
-		// could be because the instance is already being terminated, check for that
+
+	// wait for the instance to be terminated/stopped
+	instanceStatus := func() error {
 		status, serr := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
 			IncludeAllInstances: aws.Bool(true),
 			InstanceIds:         []*string{aws.String(instanceId)},
 		})
+		if serr != nil {
+			return backoff.Permanent(serr)
+		}
 
-		if serr != nil || len(status.InstanceStatuses) == 0 {
-			return err
+		// if we didn't find any instance status consider the instance gone
+		if len(status.InstanceStatuses) == 0 {
+			return nil
 		}
 
 		switch aws.StringValue(status.InstanceStatuses[0].InstanceState.Name) {
-		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping, ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
+		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
+			return errors.New("instance shutting down")
+		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
 			return nil
 		default:
-			return err
+			// if the terminate instance error wasn't because the
+			// instance was already terminating, consider the error
+			// permanent.
+			if err != nil {
+				return backoff.Permanent(err)
+			}
 		}
+		return nil
 	}
 
-	return nil
+	backoffCfg := backoff.NewExponentialBackOff()
+	return backoff.Retry(instanceStatus, backoffCfg)
 }
 
 // instanceIDFromProviderID extracts the EC2 instanceID from a Kubernetes

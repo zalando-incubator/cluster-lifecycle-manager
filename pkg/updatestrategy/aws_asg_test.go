@@ -440,6 +440,16 @@ func TestTerminate(t *testing.T) {
 					},
 				},
 			},
+			descStatus: &ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []*ec2.InstanceStatus{
+					{
+						InstanceState: &ec2.InstanceState{
+							Code: aws.Int64(48), // terminated
+							Name: aws.String("terminated"),
+						},
+					},
+				},
+			},
 		},
 	}
 	err := backend.Terminate(&Node{}, true)
@@ -460,8 +470,8 @@ func TestTerminate(t *testing.T) {
 			InstanceStatuses: []*ec2.InstanceStatus{
 				{
 					InstanceState: &ec2.InstanceState{
-						Code: aws.Int64(32),
-						Name: aws.String("shutting-down"),
+						Code: aws.Int64(48), // terminated
+						Name: aws.String("terminated"),
 					},
 				},
 			},

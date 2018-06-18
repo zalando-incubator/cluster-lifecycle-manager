@@ -204,14 +204,7 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 		return err
 	}
 
-	err = m.backend.Terminate(node, decrementDesired)
-	if err != nil {
-		return err
-	}
-
-	// remove the node resource from Kubernetes. This ensures that the same
-	// empty node is not drained multiple times.
-	return m.kube.CoreV1().Nodes().Delete(node.Name, nil)
+	return m.backend.Terminate(node, decrementDesired)
 }
 
 // ScalePool scales a nodePool to the specified number of replicas.
