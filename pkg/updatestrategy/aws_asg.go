@@ -1,6 +1,7 @@
 package updatestrategy
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/cenkalti/backoff"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -236,10 +238,11 @@ func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string
 	return err
 }
 
-// Terminate terminates a node from the ASG and optionally decrements the
+// Terminate terminates an instance from the ASG and optionally decrements the
 // DesiredCapacity. By default the desired capacity will not be decremented.
 // In case the new desired capacity is less then the current min size of the
 // ASG, it will also decrease the ASG minSize.
+// This function will not return until the instance has been terminated in AWS.
 func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
 	instanceId := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
 
@@ -317,25 +320,51 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 
 	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
 	if err != nil {
-		// could be because the instance is already being terminated, check for that
-		status, serr := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
-			IncludeAllInstances: aws.Bool(true),
-			InstanceIds:         []*string{aws.String(instanceId)},
-		})
-
-		if serr != nil || len(status.InstanceStatuses) == 0 {
-			return err
-		}
-
-		switch aws.StringValue(status.InstanceStatuses[0].InstanceState.Name) {
-		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping, ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
-			return nil
-		default:
-			return err
+		_, serr := n.instanceState(instanceId)
+		if serr != nil {
+			return fmt.Errorf("failed to terminate instance '%s': %v, %v", instanceId, err, serr)
 		}
 	}
 
-	return nil
+	// wait for the instance to be terminated/stopped
+	instanceState := func() error {
+		state, err := n.instanceState(instanceId)
+		if err != nil {
+			return backoff.Permanent(err)
+		}
+
+		switch state {
+		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
+			return errors.New("instance shutting down")
+		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
+			return nil
+		default:
+			return fmt.Errorf("unexpected instance state '%s'", state)
+		}
+	}
+
+	backoffCfg := backoff.NewExponentialBackOff()
+	return backoff.Retry(instanceState, backoffCfg)
+}
+
+// instanceState returns the current state of the instance e.g. 'terminated'.
+// If no state is found it's assumed to be 'terminated'.
+func (n *ASGNodePoolsBackend) instanceState(instanceId string) (string, error) {
+	status, err := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
+		IncludeAllInstances: aws.Bool(true),
+		InstanceIds:         []*string{aws.String(instanceId)},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// if we didn't find any instance status consider the instance
+	// terminated
+	if len(status.InstanceStatuses) == 0 {
+		return ec2.InstanceStateNameTerminated, nil
+	}
+
+	return aws.StringValue(status.InstanceStatuses[0].InstanceState.Name), nil
 }
 
 // instanceIDFromProviderID extracts the EC2 instanceID from a Kubernetes
