@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/cenkalti/backoff"
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -319,40 +320,53 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 	}
 
 	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
+	if err != nil {
+		_, serr := n.instanceState(instanceId)
+		if serr != nil {
+			return fmt.Errorf("failed to terminate instance '%s': %v, %v", instanceId, err, serr)
+		}
+	}
 
 	// wait for the instance to be terminated/stopped
-	instanceStatus := func() error {
-		status, serr := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
-			IncludeAllInstances: aws.Bool(true),
-			InstanceIds:         []*string{aws.String(instanceId)},
-		})
-		if serr != nil {
-			return backoff.Permanent(serr)
+	instanceState := func() error {
+		state, err := n.instanceState(instanceId)
+		if err != nil {
+			return backoff.Permanent(err)
 		}
 
-		// if we didn't find any instance status consider the instance gone
-		if len(status.InstanceStatuses) == 0 {
-			return nil
-		}
-
-		switch aws.StringValue(status.InstanceStatuses[0].InstanceState.Name) {
+		switch state {
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
+			log.Info("shutting down")
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
 			return nil
 		default:
-			// if the terminate instance error wasn't because the
-			// instance was already terminating, consider the error
-			// permanent.
-			if err != nil {
-				return backoff.Permanent(err)
-			}
+			return nil
 		}
-		return nil
 	}
 
 	backoffCfg := backoff.NewExponentialBackOff()
-	return backoff.Retry(instanceStatus, backoffCfg)
+	return backoff.Retry(instanceState, backoffCfg)
+}
+
+// instanceState returns the current state of the instance e.g. 'terminated'.
+// If no state is found it's assumed to be 'terminated'.
+func (n *ASGNodePoolsBackend) instanceState(instanceId string) (string, error) {
+	status, err := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
+		IncludeAllInstances: aws.Bool(true),
+		InstanceIds:         []*string{aws.String(instanceId)},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// if we didn't find any instance status consider the instance
+	// terminated
+	if len(status.InstanceStatuses) == 0 {
+		return ec2.InstanceStateNameTerminated, nil
+	}
+
+	return aws.StringValue(status.InstanceStatuses[0].InstanceState.Name), nil
 }
 
 // instanceIDFromProviderID extracts the EC2 instanceID from a Kubernetes
