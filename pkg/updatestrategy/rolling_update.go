@@ -8,17 +8,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/client-go/pkg/api/v1"
-)
-
-const (
-	lifecycleStatusLabel               = "lifecycle-status"
-	lifecycleStatusReady               = "ready"
-	lifecycleStatusDraining            = "draining"
-	lifecycleStatusDecommissionPending = "decommission-pending"
-
-	decommissionPendingTaintKey   = "decommission-pending"
-	decommissionPendingTaintValue = "rolling-upgrade"
 )
 
 var (
@@ -43,30 +32,10 @@ func NewRollingUpdateStrategy(logger *log.Entry, nodePoolManager NodePoolManager
 	}
 }
 
-// labelNodes label nodes with the correct lifecycle status label.
-func (r *RollingUpdateStrategy) labelNodes(nodePool *NodePool) error {
-	for _, node := range nodePool.Nodes {
-		lifecycleStatus := lifecycleStatusReady
-		if node.Generation != nodePool.Generation {
-			lifecycleStatus = lifecycleStatusDecommissionPending
-			if node.Labels[lifecycleStatusLabel] == lifecycleStatusDraining {
-				lifecycleStatus = lifecycleStatusDraining
-			}
-		}
-
-		// ensure node has the right lifecycle status label
-		err := r.nodePoolManager.LabelNode(node, lifecycleStatusLabel, lifecycleStatus)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *RollingUpdateStrategy) taintOldNodes(nodePool *NodePool) error {
+func (r *RollingUpdateStrategy) markOldNodes(nodePool *NodePool) error {
 	for _, node := range nodePool.Nodes {
 		if node.Generation != nodePool.Generation {
-			err := r.nodePoolManager.TaintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, v1.TaintEffectPreferNoSchedule)
+			err := r.nodePoolManager.MarkNodeForDecommission(node)
 			if err != nil {
 				return err
 			}
@@ -156,18 +125,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 			return err
 		}
 
-		// label nodes with correct lifecycle-status
-		err = r.labelNodes(nodePool)
-		if err != nil {
-			return err
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		// taint old nodes to prevent scheduling
-		err = r.taintOldNodes(nodePool)
+		err = r.markOldNodes(nodePool)
 		if err != nil {
 			return err
 		}

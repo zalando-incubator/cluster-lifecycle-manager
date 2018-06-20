@@ -8,7 +8,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
@@ -48,11 +47,7 @@ func (m *mockNodePoolManager) GetPool(nodePool *api.NodePool) (*NodePool, error)
 	return m.nodePool, nil
 }
 
-func (m *mockNodePoolManager) LabelNode(node *Node, labelKey, labelValue string) error {
-	return nil
-}
-
-func (m *mockNodePoolManager) TaintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
+func (m *mockNodePoolManager) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 

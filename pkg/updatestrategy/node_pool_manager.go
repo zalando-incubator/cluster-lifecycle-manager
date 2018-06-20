@@ -28,14 +28,20 @@ const (
 	// Same headroom as the cluster-autoscaler:
 	// https://github.com/kubernetes/autoscaler/blob/cluster-autoscaler-1.2.2/cluster-autoscaler/core/scale_down.go#L77
 	podEvictionHeadroom = 30 * time.Second
+
+	lifecycleStatusLabel               = "lifecycle-status"
+	lifecycleStatusDraining            = "draining"
+	lifecycleStatusDecommissionPending = "decommission-pending"
+
+	decommissionPendingTaintKey   = "decommission-pending"
+	decommissionPendingTaintValue = "rolling-upgrade"
 )
 
 // NodePoolManager defines an interface for managing node pools when performing
 // update operations.
 type NodePoolManager interface {
 	GetPool(nodePool *api.NodePool) (*NodePool, error)
-	LabelNode(node *Node, labelKey, labelValue string) error
-	TaintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error
+	MarkNodeForDecommission(node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	CordonNode(node *Node) error
@@ -119,9 +125,24 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 	return nodePool, nil
 }
 
+func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
+	err := m.taintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, v1.TaintEffectPreferNoSchedule)
+	if err != nil {
+		return err
+	}
+
+	if node.Labels[lifecycleStatusLabel] != lifecycleStatusDraining {
+		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // LabelNode labels a Kubernetes node object in case the label is not already
 // defined.
-func (m *KubernetesNodePoolManager) LabelNode(node *Node, labelKey, labelValue string) error {
+func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue string) error {
 	if value, ok := node.Labels[labelKey]; !ok || value != labelValue {
 		label := []byte(fmt.Sprintf(`{"metadata": {"labels": {"%s": "%s"}}}`, labelKey, labelValue))
 		_, err := m.kube.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, label)
@@ -156,7 +177,7 @@ func updateTaint(node *v1.Node, taintKey, taintValue string, effect v1.TaintEffe
 }
 
 // TaintNode sets a taint on a Kubernetes node object with a specified value and effect.
-func (m *KubernetesNodePoolManager) TaintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
+func (m *KubernetesNodePoolManager) taintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
 	// fast check: verify if the taint is already set
 	for _, taint := range node.Taints {
 		if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
@@ -204,6 +225,8 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 		return err
 	}
 
+	m.logger.WithField("node", node.Name).Info("Terminating node")
+
 	return m.backend.Terminate(node, decrementDesired)
 }
 
@@ -229,11 +252,23 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 			return err
 		}
 
-		if pool.Current < replicas {
-			return m.backend.Scale(nodePool, replicas)
+		if pool.Current > replicas && replicas != 0 {
+			return fmt.Errorf("refusing to scale down: current %d, desired %d nodes", pool.Current, replicas)
 		}
 
-		if pool.Current > replicas {
+		// mark nodes to be removed
+		if replicas == 0 {
+			for _, node := range pool.Nodes {
+				err := m.MarkNodeForDecommission(node)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if pool.Current < replicas {
+			return m.backend.Scale(nodePool, replicas)
+		} else if pool.Current > replicas {
 			// pick a random node to terminate
 			if len(pool.Nodes) < 1 {
 				return errors.New("expected at least 1 node in the node pool, found 0")
@@ -267,8 +302,8 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error {
 	m.logger.WithField("node", node.Name).Info("Draining node")
 
-	// mark node as draining
-	if err := m.LabelNode(node, lifecycleStatusLabel, lifecycleStatusDraining); err != nil {
+	err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDraining)
+	if err != nil {
 		return err
 	}
 
