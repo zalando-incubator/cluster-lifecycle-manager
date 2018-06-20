@@ -125,7 +125,7 @@ func TestLabelNodes(t *testing.T) {
 		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
 	}
 
-	err := mgr.LabelNode(&Node{Name: node.Name}, "foo", "bar")
+	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
 }
 
@@ -141,7 +141,7 @@ func TestTaintNode(t *testing.T) {
 	}
 
 	// we can add a new taint
-	err := mgr.TaintNode(&Node{Name: node.Name}, "foo", "bar", v1.TaintEffectNoSchedule)
+	err := mgr.taintNode(&Node{Name: node.Name}, "foo", "bar", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
 	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
@@ -155,7 +155,7 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// we can add another taint
-	err = mgr.TaintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "quux", v1.TaintEffectNoExecute)
+	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "quux", v1.TaintEffectNoExecute)
 	assert.NoError(t, err)
 
 	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
@@ -170,7 +170,7 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// we can replace an existing taint
-	err = mgr.TaintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
+	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
 	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
@@ -185,7 +185,7 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// no-op updates should work
-	err = mgr.TaintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
+	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
 	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
