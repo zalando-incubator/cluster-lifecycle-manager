@@ -1,7 +1,7 @@
 FROM registry.opensource.zalan.do/stups/alpine:latest
 LABEL maintainer="Team Teapot @ Zalando SE <team-teapot@zalando.de>"
 
-ARG K8S_VERSION=v1.9.5
+ARG K8S_VERSION=v1.10.5
 
 # install cluster.py dependencies
 # including kubectl

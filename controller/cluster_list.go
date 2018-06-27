@@ -123,7 +123,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 		}
 
 		if !clusterList.accountFilter.Allowed(cluster.InfrastructureAccount) {
-			log.Debug("Skipping %s cluster, infrastructure account does not match provided filter.", cluster.ID)
+			log.Debugf("Skipping %s cluster, infrastructure account does not match provided filter.", cluster.ID)
 			continue
 		}
 
