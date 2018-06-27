@@ -344,7 +344,7 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		},
 		backoff.WithMaxTries(backoff.NewConstantBackOff(10*time.Second), 5))
 	if err != nil {
-		logger.Error("Unable to downscale the deployments, proceeding anyway: %s", err)
+		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
 
 	// we don't support cancelling decommission operations yet
