@@ -142,10 +142,19 @@ func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error 
 		return nil
 	}
 
-	// add nodes to smallest asgs
+	// add nodes to smallest non-empty asgs
 	if diff > 0 {
 		sort.Slice(asgs, func(i, j int) bool {
-			return aws.Int64Value(asgs[i].DesiredCapacity) < aws.Int64Value(asgs[j].DesiredCapacity)
+			iCap := aws.Int64Value(asgs[i].DesiredCapacity)
+			jCap := aws.Int64Value(asgs[j].DesiredCapacity)
+
+			if iCap == 0 {
+				return false
+			}
+			if jCap == 0 {
+				return true
+			}
+			return iCap < jCap
 		})
 
 	LoopIncrement:
