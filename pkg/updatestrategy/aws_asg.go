@@ -463,6 +463,8 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 
 	if asg.LaunchTemplate != nil && aws.StringValue(asg.LaunchTemplate.LaunchTemplateName) != "" {
 		version := aws.StringValue(asg.LaunchTemplate.Version)
+
+		// don't allow dynamic versions like $Default/$Latest
 		if version == "" || strings.HasPrefix(version, "$") {
 			return nil, fmt.Errorf("unsupported launch template version for ASG %s: %s", aws.StringValue(asg.AutoScalingGroupName), version)
 		}
