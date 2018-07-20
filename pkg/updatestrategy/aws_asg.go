@@ -33,9 +33,20 @@ const (
 )
 
 const (
-	outdatedNodeGeneration int = iota
+	outdatedNodeGeneration = iota
 	currentNodeGeneration
 )
+
+type asgLaunchParameters struct {
+	launchTemplateName    string
+	launchTemplateVersion string
+
+	launchConfigurationInstanceType string
+	launchConfigurationAMI          string
+	launchConfigurationSpotPrice    string
+	launchConfigurationUserData     string
+	instanceAMIs                    map[string]string
+}
 
 // ASGNodePoolsBackend defines a node pool backed by an AWS Auto Scaling Group.
 type ASGNodePoolsBackend struct {
@@ -448,50 +459,86 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 		return nil, nil
 	}
 
-	launchConfig, err := n.getLaunchConfiguration(asg)
-	if err != nil {
-		return nil, err
+	launchParams := &asgLaunchParameters{}
+
+	if asg.LaunchTemplate != nil && aws.StringValue(asg.LaunchTemplate.LaunchTemplateName) != "" {
+		version := aws.StringValue(asg.LaunchTemplate.Version)
+		if version == "" || strings.HasPrefix(version, "$") {
+			return nil, fmt.Errorf("unsupported launch template version for ASG %s: %s", aws.StringValue(asg.AutoScalingGroupName), version)
+		}
+		launchParams.launchTemplateName = aws.StringValue(asg.LaunchTemplate.LaunchTemplateName)
+		launchParams.launchTemplateVersion = version
+	} else {
+		launchConfig, err := n.getLaunchConfiguration(asg)
+		if err != nil {
+			return nil, err
+		}
+
+		launchParams.launchConfigurationInstanceType = aws.StringValue(launchConfig.InstanceType)
+		launchParams.launchConfigurationAMI = aws.StringValue(launchConfig.ImageId)
+		launchParams.launchConfigurationSpotPrice = aws.StringValue(launchConfig.SpotPrice)
+		launchParams.launchConfigurationUserData = aws.StringValue(launchConfig.UserData)
+		launchParams.instanceAMIs = make(map[string]string)
+
+		instanceIds := make([]*string, 0, len(asg.Instances))
+		for _, instance := range asg.Instances {
+			instanceIds = append(instanceIds, instance.InstanceId)
+		}
+
+		params := &ec2.DescribeInstancesInput{
+			InstanceIds: instanceIds,
+		}
+
+		err = n.ec2Client.DescribeInstancesPages(params, func(resp *ec2.DescribeInstancesOutput, lastPage bool) bool {
+			for _, reservation := range resp.Reservations {
+				for _, instance := range reservation.Instances {
+					launchParams.instanceAMIs[aws.StringValue(instance.InstanceId)] = aws.StringValue(instance.ImageId)
+				}
+			}
+			return true
+		})
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	oldInstances := make(map[string]bool)
 
-	instancesAMIs := make(map[string]string)
-
-	instanceIds := make([]*string, 0, len(asg.Instances))
 	for _, instance := range asg.Instances {
-		instanceIds = append(instanceIds, instance.InstanceId)
-	}
-
-	params := &ec2.DescribeInstancesInput{
-		InstanceIds: instanceIds,
-	}
-
-	err = n.ec2Client.DescribeInstancesPages(params, func(resp *ec2.DescribeInstancesOutput, lastPage bool) bool {
-		for _, reservation := range resp.Reservations {
-			for _, instance := range reservation.Instances {
-				instancesAMIs[aws.StringValue(instance.InstanceId)] = aws.StringValue(instance.ImageId)
-			}
+		old, err := n.instancePendingUpgrade(launchParams, instance)
+		if err != nil {
+			return nil, err
 		}
-		return true
-	})
-	if err != nil {
-		return nil, err
+
+		if old {
+			oldInstances[aws.StringValue(instance.InstanceId)] = true
+		}
 	}
 
-	for _, instance := range asg.Instances {
+	return oldInstances, nil
+}
+
+func (n *ASGNodePoolsBackend) instancePendingUpgrade(launchParams *asgLaunchParameters, instance *autoscaling.Instance) (bool, error) {
+	if launchParams.launchTemplateName != "" {
+		old := instance.LaunchTemplate == nil ||
+			aws.StringValue(instance.LaunchTemplate.LaunchTemplateName) != launchParams.launchTemplateName ||
+			aws.StringValue(instance.LaunchTemplate.Version) != launchParams.launchTemplateVersion
+		return old, nil
+	} else {
 		params := &ec2.DescribeInstanceAttributeInput{
 			Attribute:  aws.String(userDataAttribute),
 			InstanceId: instance.InstanceId,
 		}
 		userDataResp, err := n.ec2Client.DescribeInstanceAttribute(params)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 
 		params.Attribute = aws.String(instanceTypeAttribute)
 		instanceTypeResp, err := n.ec2Client.DescribeInstanceAttribute(params)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 
 		var instanceSpotPrice *string
@@ -504,50 +551,47 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 			},
 		})
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		if len(spotPriceResp.SpotInstanceRequests) != 0 {
 			instanceSpotPrice = spotPriceResp.SpotInstanceRequests[0].SpotPrice
 		}
 
-		spotPricesMatch, err := compareSpotPrices(launchConfig.SpotPrice, instanceSpotPrice)
+		spotPricesMatch, err := compareSpotPrices(launchParams.launchConfigurationSpotPrice, instanceSpotPrice)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 
 		// an instance is considered old when userdata, instance type
 		// or AMI does not match what is in the Launch Configuration
 		// for the ASG.
-		if aws.StringValue(userDataResp.UserData.Value) != aws.StringValue(launchConfig.UserData) ||
-			aws.StringValue(instanceTypeResp.InstanceType.Value) != aws.StringValue(launchConfig.InstanceType) ||
-			instancesAMIs[aws.StringValue(instance.InstanceId)] != aws.StringValue(launchConfig.ImageId) ||
-			!spotPricesMatch {
-			oldInstances[aws.StringValue(instance.InstanceId)] = true
-		}
+		old := aws.StringValue(userDataResp.UserData.Value) != launchParams.launchConfigurationUserData ||
+			aws.StringValue(instanceTypeResp.InstanceType.Value) != launchParams.launchConfigurationInstanceType ||
+			launchParams.instanceAMIs[aws.StringValue(instance.InstanceId)] != launchParams.launchConfigurationAMI ||
+			!spotPricesMatch
+		return old, nil
 	}
-
-	return oldInstances, nil
 }
 
-func parseSpotPrice(spotPrice *string) (float64, error) {
-	if aws.StringValue(spotPrice) == "" {
+func parseSpotPrice(spotPrice string) (float64, error) {
+	if spotPrice == "" {
 		return 0, nil
 	}
 
-	return strconv.ParseFloat(aws.StringValue(spotPrice), 64)
+	return strconv.ParseFloat(spotPrice, 64)
 }
 
 // compareSpotPrices returns true if spot prices are identical (either both are absent or both are present and equal
 // in value. it's needed because AWS munges the spot price in some places, e.g. price on the launch configuration turns
 // from 0.12 into 0.1200000 when read back from the API, but the same doesn't apply to the DescribeSpotInstanceRequests
 // API
-func compareSpotPrices(oldSpotPrice *string, newSpotPrice *string) (bool, error) {
+func compareSpotPrices(oldSpotPrice string, newSpotPrice *string) (bool, error) {
 	parsedOld, err := parseSpotPrice(oldSpotPrice)
 	if err != nil {
 		return false, err
 	}
 
-	parsedNew, err := parseSpotPrice(newSpotPrice)
+	parsedNew, err := parseSpotPrice(aws.StringValue(newSpotPrice))
 	if err != nil {
 		return false, err
 	}
