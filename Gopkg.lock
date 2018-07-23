@@ -70,6 +70,8 @@
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
+    "service/acm",
+    "service/acm/acmiface",
     "service/autoscaling",
     "service/autoscaling/autoscalingiface",
     "service/cloudformation",
@@ -86,12 +88,6 @@
   ]
   revision = "63f395001dd8f8d48ef82aad68256167e4051652"
   version = "v1.13.33"
-
-[[projects]]
-  name = "github.com/cbroglie/mustache"
-  packages = ["."]
-  revision = "2eb171290cbdc792c57bcd10f5a030b53500b28f"
-  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/cenkalti/backoff"
@@ -474,6 +470,12 @@
   revision = "9a301d65acbb728fcc3ace14f45f511a4cfeea9c"
 
 [[projects]]
+  name = "github.com/zalando-incubator/kube-ingress-aws-controller"
+  packages = ["certs"]
+  revision = "466aab63f48ecfcc907b21ee77dbfb6d3a681fe0"
+  version = "v0.7.3"
+
+[[projects]]
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -727,6 +729,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "603cd54d04e29fd66be8a4bba915bd97bbda36b99ec548bd9814dd68cdba28a0"
+  inputs-digest = "0ad6e7e807f9d9742aa24c302c92f8443a1cccf40f18e8ab507c3cd7797e704e"
   solver-name = "gps-cdcl"
   solver-version = 1

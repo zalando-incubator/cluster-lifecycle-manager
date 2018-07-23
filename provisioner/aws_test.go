@@ -259,18 +259,14 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	s3Bucket := "s3-bucket"
 
 	// test creating stack with small stack template
-	err := awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"}`), cluster, s3Bucket)
+	err := awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
-
-	// test invalid stack template data
-	err = awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"`), cluster, s3Bucket)
-	assert.Error(t, err)
 
 	templateValue := make([]string, stackMaxSize+1)
 	for i := range templateValue {
 		templateValue[i] = "x"
 	}
-	hugeTemplate := []byte(fmt.Sprintf("{\"stack\": \"%s\"}", strings.Join(templateValue, "")))
+	hugeTemplate := fmt.Sprintf("{\"stack\": \"%s\"}", strings.Join(templateValue, ""))
 
 	// test create when template is too big and must be uploaded to s3
 	awsAdapter.s3Uploader = &s3UploaderAPIStub{}
@@ -291,7 +287,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 			errors.New("base error"),
 		),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"}`), cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	// test create failing
@@ -299,7 +295,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 		createErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"}`), cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
 
 	// test updating when stack is already up to date
@@ -316,7 +312,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 			errors.New("base error"),
 		),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"}`), cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	// test update failing
@@ -329,6 +325,6 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		),
 		updateErr: errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", []byte(`{"stack": "template"}`), cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
 }

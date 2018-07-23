@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -14,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2"
@@ -39,6 +41,7 @@ const (
 	providerID                     = "zalando-aws"
 	manifestsPath                  = "cluster/manifests"
 	deletionsFile                  = "deletions.yaml"
+	clusterStackFileName           = "cluster.yaml"
 	defaultsFile                   = "cluster/config-defaults.yaml"
 	defaultNamespace               = "default"
 	kubectlNotFound                = "(NotFound)"
@@ -47,6 +50,8 @@ const (
 	resourceLifecycleShared        = "shared"
 	resourceLifecycleOwned         = "owned"
 	subnetsConfigItemKey           = "subnets"
+	vpcIDConfigItemKey             = "vpc_id"
+	vpcIPv4CIDRBlockConfigItemKey  = "vpc_ipv4_cidr"
 	subnetAllAZName                = "*"
 	maxApplyRetries                = 10
 	configKeyUpdateStrategy        = "update_strategy"
@@ -137,7 +142,28 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	err = p.tagSubnets(awsAdapter, cluster)
+	// get VPC information
+	var vpc *ec2.Vpc
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok { // if vpcID is not defined, autodiscover it
+		vpc, err = awsAdapter.GetDefaultVPC()
+		if err != nil {
+			return err
+		}
+		vpcID = aws.StringValue(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	} else {
+		vpc, err = awsAdapter.GetVPC(vpcID)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
+	err = p.tagSubnets(awsAdapter, vpcID, cluster)
 	if err != nil {
 		return err
 	}
@@ -146,31 +172,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	stackDefinitionPath := path.Join(channelConfig.Path, "cluster", "senza-definition.yaml")
-
-	err = awsAdapter.CreateOrUpdateClusterStack(ctx, cluster.LocalID, stackDefinitionPath, cluster)
+	subnets, err := awsAdapter.GetSubnets(vpcID)
 	if err != nil {
 		return err
 	}
 
 	if err = ctx.Err(); err != nil {
-		return err
-	}
-
-	cfgBaseDir := path.Join(channelConfig.Path, "cluster", "node-pools")
-
-	// provision node pools
-	nodePoolProvisioner := &AWSNodePoolProvisioner{
-		awsAdapter:      awsAdapter,
-		nodePoolManager: nodePoolManager,
-		bucketName:      fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region),
-		cfgBaseDir:      cfgBaseDir,
-		Cluster:         cluster,
-		logger:          logger,
-	}
-
-	subnets, err := awsAdapter.GetSubnets()
-	if err != nil {
 		return err
 	}
 
@@ -202,12 +209,80 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		cluster.ConfigItems[subnetsConfigItemKey] = subnetsPerZone[subnetAllAZName]
 	}
 
+	apiURL, err := url.Parse(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+
+	// TODO: should this be done like this or via a config item?
+	hostedZone, err := getHostedZone(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+
+	certificates, err := awsAdapter.GetCertificates()
+	if err != nil {
+		return err
+	}
+
+	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
+	if err != nil {
+		return err
+	}
+
 	values := map[string]interface{}{
 		// TODO(tech-debt): custom legacy value
 		"node_labels": fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
 		// TODO(tech-debt): custom legacy value
-		"apiserver_count": "1",
-		"subnets":         subnetsPerZone,
+		"apiserver_count":           "1",
+		"subnets":                   subnetsPerZone,
+		"hosted_zone":               hostedZone,
+		"load_balancer_certificate": loadBalancerCert.ID(),
+		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
+	}
+
+	cfgBasePath := path.Join(channelConfig.Path, "cluster")
+	stackDefinitionPath := path.Join(cfgBasePath, "senza-definition.yaml")
+
+	// create bucket name with aws account ID to ensure uniqueness across
+	// accounts.
+	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
+
+	// TODO(tech-depth): remove this once all clusters are switched away
+	// from senza.
+	// if the senza-definition.yaml exists we create a stack based on that,
+	// otherwise we create it from the cluster.yaml
+	_, err = os.Stat(stackDefinitionPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
+		err = createOrUpdateClusterStack(awsAdapter, ctx, cfgBasePath, cluster, values, bucketName)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = awsAdapter.CreateOrUpdateClusterStackSenza(ctx, cluster.LocalID, stackDefinitionPath, cluster)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
+	cfgNodePoolBaseDir := path.Join(cfgBasePath, "node-pools")
+
+	// provision node pools
+	nodePoolProvisioner := &AWSNodePoolProvisioner{
+		awsAdapter:      awsAdapter,
+		nodePoolManager: nodePoolManager,
+		bucketName:      bucketName,
+		cfgBaseDir:      cfgNodePoolBaseDir,
+		Cluster:         cluster,
+		logger:          logger,
 	}
 
 	err = nodePoolProvisioner.Provision(values)
@@ -258,6 +333,37 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
+}
+
+type clusterStackParams struct {
+	Cluster *api.Cluster
+	Values  map[string]interface{}
+}
+
+func createOrUpdateClusterStack(awsAdapter *awsAdapter, ctx context.Context, baseDir string, cluster *api.Cluster, values map[string]interface{}, bucketName string) error {
+	params := &clusterStackParams{
+		Cluster: cluster,
+		Values:  values,
+	}
+
+	stackFilePath := path.Join(baseDir, clusterStackFileName)
+	output, err := renderTemplate(newTemplateContext(baseDir), stackFilePath, params)
+	if err != nil {
+		return err
+	}
+
+	err = awsAdapter.applyClusterStack(cluster.LocalID, output, cluster, bucketName)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
+	defer cancel()
+	err = awsAdapter.waitForStack(ctx, waitTime, cluster.LocalID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet, error) {
@@ -351,7 +457,6 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 	ctx := context.Background()
 
 	// delete all cluster infrastructure stacks
-	// TODO: delete stacks in parallel
 	err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
 	if err != nil {
 		return err
@@ -363,7 +468,12 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
-	err = p.untagSubnets(awsAdapter, cluster)
+	vpc, err := awsAdapter.GetDefaultVPC()
+	if err != nil {
+		return err
+	}
+
+	err = p.untagSubnets(awsAdapter, aws.StringValue(vpc.VpcId), cluster)
 	if err != nil {
 		return err
 	}
@@ -512,8 +622,8 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 // tagSubnets tags all subnets in the default VPC with the kubernetes cluster
 // id tag.
-func (p *clusterpyProvisioner) tagSubnets(awsAdapter *awsAdapter, cluster *api.Cluster) error {
-	subnets, err := awsAdapter.GetSubnets()
+func (p *clusterpyProvisioner) tagSubnets(awsAdapter *awsAdapter, vpcID string, cluster *api.Cluster) error {
+	subnets, err := awsAdapter.GetSubnets(vpcID)
 	if err != nil {
 		return err
 	}
@@ -540,8 +650,8 @@ func (p *clusterpyProvisioner) tagSubnets(awsAdapter *awsAdapter, cluster *api.C
 
 // untagSubnets removes the kubernetes cluster id tag from all subnets in the
 // default vpc.
-func (p *clusterpyProvisioner) untagSubnets(awsAdapter *awsAdapter, cluster *api.Cluster) error {
-	subnets, err := awsAdapter.GetSubnets()
+func (p *clusterpyProvisioner) untagSubnets(awsAdapter *awsAdapter, vpcID string, cluster *api.Cluster) error {
+	subnets, err := awsAdapter.GetSubnets(vpcID)
 	if err != nil {
 		return err
 	}

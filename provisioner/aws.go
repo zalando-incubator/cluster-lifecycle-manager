@@ -18,11 +18,14 @@ import (
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -118,6 +121,7 @@ type awsAdapter struct {
 	autoscalingClient    autoscalingAPI
 	iamClient            iamAPI
 	ec2Client            ec2API
+	acmClient            acmiface.ACMAPI
 	region               string
 	apiServer            string
 	tokenSrc             oauth2.TokenSource
@@ -135,6 +139,7 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		s3Uploader:           s3manager.NewUploader(sess),
 		autoscalingClient:    autoscaling.New(sess),
 		ec2Client:            ec2.New(sess),
+		acmClient:            acm.New(sess),
 		region:               region,
 		apiServer:            apiServer,
 		tokenSrc:             tokenSrc,
@@ -180,9 +185,9 @@ func decodeUserData(encodedUserData string) (string, error) {
 	return string(data), nil
 }
 
-// CreateOrUpdateClusterStack creates or updates a cluster cloudformation
+// CreateOrUpdateClusterStackSenza creates or updates a cluster cloudformation
 // stack. This function is idempotent.
-func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stackName, stackDefinitionPath string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateClusterStackSenza(parentCtx context.Context, stackName, stackDefinitionPath string, cluster *api.Cluster) error {
 	name, version, err := splitStackName(stackName)
 	if err != nil {
 		return err
@@ -232,7 +237,14 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 		return err
 	}
 
-	err = a.applyClusterStack(stackName, output, cluster, s3BucketName)
+	var stackBuffer bytes.Buffer
+	// save as many bytes as possible
+	err = json.Compact(&stackBuffer, output)
+	if err != nil {
+		return err
+	}
+
+	err = a.applyClusterStack(stackName, stackBuffer.String(), cluster, s3BucketName)
 	if err != nil {
 		return err
 	}
@@ -251,16 +263,9 @@ func (a *awsAdapter) CreateOrUpdateClusterStack(parentCtx context.Context, stack
 // stackTemplate.
 // If the stackTemplate exceeds the max size, it will automatically upload it
 // to S3 before creating or updating the stack.
-func (a *awsAdapter) applyClusterStack(stackName string, stackTemplate []byte, cluster *api.Cluster, s3BucketName string) error {
-	var stackBuffer bytes.Buffer
-	// save as many bytes as possible
-	err := json.Compact(&stackBuffer, stackTemplate)
-	if err != nil {
-		return err
-	}
-
+func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string) error {
 	var templateURL string
-	if stackBuffer.Len() > stackMaxSize {
+	if len(stackTemplate) > stackMaxSize {
 		// create S3 bucket if it doesn't exist
 		err := a.createS3Bucket(s3BucketName)
 		if err != nil {
@@ -271,7 +276,7 @@ func (a *awsAdapter) applyClusterStack(stackName string, stackTemplate []byte, c
 		result, err := a.s3Uploader.Upload(&s3manager.UploadInput{
 			Bucket: aws.String(s3BucketName),
 			Key:    aws.String(fmt.Sprintf("%s.template", cluster.ID)),
-			Body:   &stackBuffer,
+			Body:   strings.NewReader(stackTemplate),
 		})
 		if err != nil {
 			return err
@@ -279,7 +284,7 @@ func (a *awsAdapter) applyClusterStack(stackName string, stackTemplate []byte, c
 		templateURL = result.Location
 	}
 
-	return a.applyStack(stackName, stackBuffer.String(), templateURL, nil, true)
+	return a.applyStack(stackName, stackTemplate, templateURL, nil, true)
 }
 
 // applyStack applies a cloudformation stack.
@@ -656,8 +661,50 @@ func (a *awsAdapter) DeleteVolume(id string) error {
 	return err
 }
 
-// GetSubnets gets all subnets of the default VPC in the target account.
-func (a *awsAdapter) GetSubnets() ([]*ec2.Subnet, error) {
+// GetCertificates gets all available 'ISSUED' certificates from ACM.
+func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
+	params := &acm.ListCertificatesInput{
+		CertificateStatuses: []*string{
+			aws.String(acm.CertificateStatusIssued),
+		},
+	}
+	acmSummaries := make([]*acm.CertificateSummary, 0)
+	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, lastPage bool) bool {
+		for _, cert := range page.CertificateSummaryList {
+			acmSummaries = append(acmSummaries, cert)
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*certs.CertificateSummary, 0)
+	for _, o := range acmSummaries {
+		summary, err := a.getCertificateSummaryFromACM(o.CertificateArn)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, summary)
+	}
+	return result, nil
+}
+
+func (a *awsAdapter) getCertificateSummaryFromACM(arn *string) (*certs.CertificateSummary, error) {
+	params := &acm.DescribeCertificateInput{CertificateArn: arn}
+	resp, err := a.acmClient.DescribeCertificate(params)
+	if err != nil {
+		return nil, err
+	}
+	return certs.NewCertificate(
+		aws.StringValue(resp.Certificate.CertificateArn),
+		append(aws.StringValueSlice(resp.Certificate.SubjectAlternativeNames), aws.StringValue(resp.Certificate.DomainName)),
+		aws.TimeValue(resp.Certificate.NotBefore),
+		aws.TimeValue(resp.Certificate.NotAfter)), nil
+}
+
+// GetDefaultVPC gets the default VPC.
+func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
 	// find default VPC
 	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{})
 	if err != nil {
@@ -676,11 +723,33 @@ func (a *awsAdapter) GetSubnets() ([]*ec2.Subnet, error) {
 		return nil, fmt.Errorf("default VPC not found in account")
 	}
 
+	return defaultVpc, nil
+}
+
+// GetVPC gets VPC details for vpc specified by vpcID.
+func (a *awsAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
+	// find default VPC
+	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: []*string{aws.String(vpcID)},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vpcResp.Vpcs) != 1 {
+		return nil, fmt.Errorf("found %d VPC for VPCID %s, expected 1", len(vpcResp.Vpcs), vpcID)
+	}
+
+	return vpcResp.Vpcs[0], nil
+}
+
+// GetSubnets gets all subnets of the default VPC in the target account.
+func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 	subnetParams := &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
-				Values: []*string{defaultVpc.VpcId},
+				Values: []*string{aws.String(vpcID)},
 			},
 		},
 	}
