@@ -256,7 +256,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context) error {
 	return nil
 }
 
-// prepareUserData prepares the user data by rendering the mustache template
+// prepareUserData prepares the user data by rendering the golang template
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
 func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config interface{}) (string, error) {
