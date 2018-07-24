@@ -149,6 +149,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 
 // provisionNodePool provisions a single node pool.
 func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
+	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceType, "t2")
 	values["spot_price"] = ""
 
 	switch nodePool.DiscountStrategy {
