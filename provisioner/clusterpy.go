@@ -468,9 +468,21 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
-	vpc, err := awsAdapter.GetDefaultVPC()
-	if err != nil {
-		return err
+	// get VPC information
+	var vpc *ec2.Vpc
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok { // if vpcID is not defined, autodiscover it
+		vpc, err = awsAdapter.GetDefaultVPC()
+		if err != nil {
+			return err
+		}
+		vpcID = aws.StringValue(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	} else {
+		vpc, err = awsAdapter.GetVPC(vpcID)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = p.untagSubnets(awsAdapter, aws.StringValue(vpc.VpcId), cluster)
