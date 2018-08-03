@@ -493,7 +493,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stackName string) er
 }
 
 // CreateOrUpdateEtcdStack creates or updates an etcd stack.
-func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinitionPath string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName, stackDefinitionPath, networkCIDR, vpcID string, cluster *api.Cluster) error {
 	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
@@ -511,6 +511,8 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		"etcd",
 		fmt.Sprintf("HostedZone=%s", hostedZone),
 		fmt.Sprintf("EtcdS3Backup=%s", bucketName),
+		fmt.Sprintf("NetworkCIDR=%s", networkCIDR),
+		fmt.Sprintf("VpcID=%s", vpcID),
 	}
 
 	if instanceType, ok := cluster.ConfigItems[etcdInstanceTypeKey]; ok {

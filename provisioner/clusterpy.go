@@ -130,18 +130,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	// create etcd stack if needed.
-	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
-
-	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinitionPath, cluster)
-	if err != nil {
-		return err
-	}
-
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-
 	// get VPC information
 	var vpc *ec2.Vpc
 	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
@@ -239,6 +227,18 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
+	}
+
+	// create etcd stack if needed.
+	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
+
+	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinitionPath, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
+	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
 	}
 
 	cfgBasePath := path.Join(channelConfig.Path, "cluster")
@@ -468,9 +468,21 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
-	vpc, err := awsAdapter.GetDefaultVPC()
-	if err != nil {
-		return err
+	// get VPC information
+	var vpc *ec2.Vpc
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok { // if vpcID is not defined, autodiscover it
+		vpc, err = awsAdapter.GetDefaultVPC()
+		if err != nil {
+			return err
+		}
+		vpcID = aws.StringValue(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	} else {
+		vpc, err = awsAdapter.GetVPC(vpcID)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = p.untagSubnets(awsAdapter, aws.StringValue(vpc.VpcId), cluster)
