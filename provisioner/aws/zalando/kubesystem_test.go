@@ -1,4 +1,4 @@
-package provisioner
+package zalando
 
 import (
 	"crypto/sha256"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner/template"
 )
 
 const hashedTmpl = `foo: {{ .LocalID }}`
@@ -77,9 +78,9 @@ func TestApplyTemplate(t *testing.T) {
 	region := "eu-central"
 	localID := "kube-aws-test-rdifazio55"
 	cluster := &api.Cluster{Region: region, LocalID: localID}
-	context := newTemplateContext(cdir, cluster, nil, nil, "", nil)
+	context := template.NewTemplateContext(cdir, cluster, nil, nil, "", nil)
 
-	_, err = renderTemplate(context, "test_template")
+	_, err = template.RenderTemplate(context, "test_template")
 	if err == nil {
 		t.Errorf("should fail, mate hosted zone configitems are not passed!")
 	}
@@ -87,7 +88,7 @@ func TestApplyTemplate(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"mate_hosted_zone": "hosted-zone",
 	}
-	s, err := renderTemplate(context, "test_template")
+	s, err := template.RenderTemplate(context, "test_template")
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
@@ -143,9 +144,9 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"my_value": value,
 	}
-	context := newTemplateContext(cdir, cluster, nil, nil, "", nil)
+	context := template.NewTemplateContext(cdir, cluster, nil, nil, "", nil)
 
-	s, err := renderTemplate(context, "test_template")
+	s, err := template.RenderTemplate(context, "test_template")
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
@@ -207,7 +208,7 @@ func TestParseDeletions(t *testing.T) {
 		},
 	}
 
-	context := newTemplateContext(".", exampleCluster, nil, nil, "", nil)
+	context := template.NewTemplateContext(".", exampleCluster, nil, nil, "", nil)
 
 	deletions, err := parseDeletions(context, deletionsFile)
 	require.NoError(t, err)

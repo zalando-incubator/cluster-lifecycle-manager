@@ -8,7 +8,7 @@ import (
 
 var (
 	info = &AZInfo{
-		subnets: map[string]string{
+		Subnets: map[string]string{
 			"eu-central-1a": "subnet-1a",
 			"eu-central-1b": "subnet-1b",
 			"eu-central-1c": "subnet-1c",

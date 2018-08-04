@@ -1,4 +1,4 @@
-package provisioner
+package zalando
 
 import (
 	"fmt"

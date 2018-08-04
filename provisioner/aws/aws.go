@@ -1,13 +1,10 @@
-package provisioner
+package aws
 
 import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -28,41 +25,25 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/cenkalti/backoff"
-	"github.com/coreos/container-linux-config-transpiler/config"
-	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"golang.org/x/oauth2"
 )
 
 const (
 	waitTime                    = 15 * time.Second
+	maxWaitTimeout              = 15 * time.Minute
 	stackMaxSize                = 51200
 	cloudformationValidationErr = "ValidationError"
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
-	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
-	lifecycleStatusReady        = "ready"
-	etcdInstanceTypeKey         = "etcd_instance_type"
-	etcdInstanceCountKey        = "etcd_instance_count"
-	etcdKMSKeyAlias             = "alias/etcd-cluster"
-	etcdScalyrAccountKey        = "etcd_scalyr_key"
-	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
-	ignitionBaseTemplate        = `{
-  "ignition": {
-    "version": "2.1.0",
-    "config": {
-      "replace": {
-        "source": "%s"
-      }
-    }
-  }
-}`
+	CLMCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
+	ResourceLifecycleShared     = "shared"
+	ResourceLifecycleOwned      = "owned"
+	KubernetesClusterTagPrefix  = "kubernetes.io/cluster/"
 )
 
 var (
-	maxWaitTimeout            = 15 * time.Minute
 	errCreateFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusCreateFailed)
 	errRollbackComplete       = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusRollbackComplete)
 	errUpdateRollbackComplete = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackComplete)
@@ -93,72 +74,65 @@ type s3UploaderAPI interface {
 	Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
 }
 
-type awsAdapter struct {
-	session              *session.Session
-	cloudformationClient cloudformationiface.CloudFormationAPI
+type AWSAdapter struct {
+	Session              *session.Session
+	CloudformationClient cloudformationiface.CloudFormationAPI
 	s3Client             s3API
-	s3Uploader           s3UploaderAPI
+	S3Uploader           s3UploaderAPI
 	autoscalingClient    autoscalingAPI
 	iamClient            iamAPI
-	ec2Client            ec2iface.EC2API
+	EC2Client            ec2iface.EC2API
 	acmClient            acmiface.ACMAPI
 	region               string
-	apiServer            string
-	tokenSrc             oauth2.TokenSource
-	dryRun               bool
 	logger               *log.Entry
-	kmsClient            kmsiface.KMSAPI
+	KMSClient            kmsiface.KMSAPI
 }
 
-// newAWSAdapter initializes a new awsAdapter.
-func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, tokenSrc oauth2.TokenSource, dryRun bool) (*awsAdapter, error) {
-	return &awsAdapter{
-		session:              sess,
-		cloudformationClient: cloudformation.New(sess),
+// NewAWSAdapter initializes a new AWSAdapter.
+func NewAWSAdapter(logger *log.Entry, region string, sess *session.Session) (*AWSAdapter, error) {
+	return &AWSAdapter{
+		Session:              sess,
+		CloudformationClient: cloudformation.New(sess),
 		iamClient:            iam.New(sess),
 		s3Client:             s3.New(sess),
-		s3Uploader:           s3manager.NewUploader(sess),
+		S3Uploader:           s3manager.NewUploader(sess),
 		autoscalingClient:    autoscaling.New(sess),
-		ec2Client:            ec2.New(sess),
+		EC2Client:            ec2.New(sess),
 		acmClient:            acm.New(sess),
 		region:               region,
-		apiServer:            apiServer,
-		tokenSrc:             tokenSrc,
-		dryRun:               dryRun,
 		logger:               logger,
-		kmsClient:            kms.New(sess),
+		KMSClient:            kms.New(sess),
 	}, nil
 }
 
-func (a *awsAdapter) VerifyAccount(accountId string) error {
-	stsService := sts.New(a.session)
+func (a *AWSAdapter) VerifyAccount(accountID string) error {
+	stsService := sts.New(a.Session)
 	response, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		return err
 	}
 	effectiveAccount := aws.StringValue(response.Account)
-	expectedAccount := getAWSAccountID(accountId)
-	if effectiveAccount != expectedAccount {
-		return fmt.Errorf("invalid AWS account, expected %s, found %s", expectedAccount, effectiveAccount)
+	if effectiveAccount != accountID {
+		return fmt.Errorf("invalid AWS account, expected %s, found %s", accountID, effectiveAccount)
 	}
 	return nil
 }
 
-// applyClusterStack creates or updates a stack specified by stackName and
+// ApplyClusterStack creates or updates a stack specified by stackName and
 // stackTemplate.
 // If the stackTemplate exceeds the max size, it will automatically upload it
 // to S3 before creating or updating the stack.
-func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string) error {
+func (a *AWSAdapter) ApplyClusterStack(stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string, tags []*cloudformation.Tag) error {
 	var templateURL string
 	if len(stackTemplate) > stackMaxSize {
 		// create S3 bucket if it doesn't exist
-		err := a.createS3Bucket(s3BucketName)
+		err := a.CreateS3Bucket(s3BucketName)
 		if err != nil {
 			return err
 		}
 
 		// Upload the stack template to S3
-		result, err := a.s3Uploader.Upload(&s3manager.UploadInput{
+		result, err := a.S3Uploader.Upload(&s3manager.UploadInput{
 			Bucket: aws.String(s3BucketName),
 			Key:    aws.String(fmt.Sprintf("%s.template", cluster.ID)),
 			Body:   strings.NewReader(stackTemplate),
@@ -169,22 +143,11 @@ func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster 
 		templateURL = result.Location
 	}
 
-	tags := []*cloudformation.Tag{
-		{
-			Key:   aws.String(tagNameKubernetesClusterPrefix + cluster.ID),
-			Value: aws.String(resourceLifecycleOwned),
-		},
-		{
-			Key:   aws.String(mainStackTagKey),
-			Value: aws.String(stackTagValueTrue),
-		},
-	}
-
-	return a.applyStack(stackName, stackTemplate, templateURL, tags, true)
+	return a.ApplyStack(stackName, stackTemplate, templateURL, tags, true)
 }
 
-// applyStack applies a cloudformation stack.
-func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags []*cloudformation.Tag, updateStack bool) error {
+// ApplyStack applies a cloudformation stack.
+func (a *AWSAdapter) ApplyStack(stackName string, stackTemplate string, stackTemplateURL string, tags []*cloudformation.Tag, updateStack bool) error {
 	createParams := &cloudformation.CreateStackInput{
 		StackName:                   aws.String(stackName),
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
@@ -199,7 +162,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 		createParams.TemplateBody = aws.String(stackTemplate)
 	}
 
-	_, err := a.cloudformationClient.CreateStack(createParams)
+	_, err := a.CloudformationClient.CreateStack(createParams)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -213,7 +176,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 					EnableTerminationProtection: aws.Bool(true),
 				}
 
-				_, err := a.cloudformationClient.UpdateTerminationProtection(terminationParams)
+				_, err := a.CloudformationClient.UpdateTerminationProtection(terminationParams)
 				if err != nil {
 					return err
 				}
@@ -232,7 +195,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 						updateParams.TemplateBody = aws.String(stackTemplate)
 					}
 
-					_, err = a.cloudformationClient.UpdateStack(updateParams)
+					_, err = a.CloudformationClient.UpdateStack(updateParams)
 					if err != nil {
 						if aerr, ok := err.(awserr.Error); ok {
 							// if no update was needed
@@ -253,11 +216,11 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 	return nil
 }
 
-func (a *awsAdapter) getStackByName(stackName string) (*cloudformation.Stack, error) {
+func (a *AWSAdapter) GetStackByName(stackName string) (*cloudformation.Stack, error) {
 	params := &cloudformation.DescribeStacksInput{
 		StackName: aws.String(stackName),
 	}
-	resp, err := a.cloudformationClient.DescribeStacks(params)
+	resp, err := a.CloudformationClient.DescribeStacks(params)
 	if err != nil {
 		return nil, err
 	}
@@ -268,9 +231,10 @@ func (a *awsAdapter) getStackByName(stackName string) (*cloudformation.Stack, er
 	return resp.Stacks[0], nil
 }
 
-func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, stackName string) error {
+// WaitForStack waits for a CloudFormation stack to be ready.
+func (a *AWSAdapter) WaitForStack(ctx context.Context, waitTime time.Duration, stackName string) error {
 	for {
-		stack, err := a.getStackByName(stackName)
+		stack, err := a.GetStackByName(stackName)
 		if err != nil {
 			return err
 		}
@@ -312,11 +276,11 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 }
 
 // ListStacks lists stacks filtered by tags.
-func (a *awsAdapter) ListStacks(includeTags, excludeTags map[string]string) ([]*cloudformation.Stack, error) {
+func (a *AWSAdapter) ListStacks(includeTags, excludeTags map[string]string) ([]*cloudformation.Stack, error) {
 	params := &cloudformation.DescribeStacksInput{}
 
 	stacks := make([]*cloudformation.Stack, 0)
-	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool {
+	err := a.CloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool {
 		for _, stack := range resp.Stacks {
 			if cloudformationHasTags(includeTags, stack.Tags) && cloudformationDoesNotHaveTags(excludeTags, stack.Tags) {
 				stacks = append(stacks, stack)
@@ -380,7 +344,7 @@ func isStackDeleting(stack *cloudformation.Stack) bool {
 }
 
 // DeleteStack deletes a cloudformation stack.
-func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformation.Stack) error {
+func (a *AWSAdapter) DeleteStack(parentCtx context.Context, stack *cloudformation.Stack) error {
 	stackName := aws.StringValue(stack.StackName)
 	a.logger.Infof("Deleting stack '%s'", stackName)
 
@@ -391,7 +355,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 			EnableTerminationProtection: aws.Bool(false),
 		}
 
-		_, err := a.cloudformationClient.UpdateTerminationProtection(terminationParams)
+		_, err := a.CloudformationClient.UpdateTerminationProtection(terminationParams)
 		if err != nil {
 			if isDoesNotExistsErr(err) {
 				return nil
@@ -403,7 +367,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 			StackName: aws.String(stackName),
 		}
 
-		_, err = a.cloudformationClient.DeleteStack(deleteParams)
+		_, err = a.CloudformationClient.DeleteStack(deleteParams)
 		if err != nil {
 			if isDoesNotExistsErr(err) {
 				return nil
@@ -414,7 +378,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 
 	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
 	defer cancel()
-	err := a.waitForStack(ctx, waitTime, stackName)
+	err := a.WaitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
 			return nil
@@ -424,98 +388,9 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 	return nil
 }
 
-// CreateOrUpdateEtcdStack creates or updates an etcd stack.
-func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName, stackDefinitionPath, networkCIDR, vpcID string, cluster *api.Cluster) error {
-	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
-
-	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
-		bucketName = bucket
-	}
-
-	hostedZone, err := getHostedZone(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-
-	// check if stack exists
-	// this is a hack to avoid calling senza to generate the etcd stack
-	// which is only applied if the stack doesn't already exist
-	describeParams := &cloudformation.DescribeStacksInput{
-		StackName: aws.String(stackName),
-	}
-
-	resp, err := a.cloudformationClient.DescribeStacks(describeParams)
-	// Ignore the error because the error indicates that the stack is missing
-	if err == nil && len(resp.Stacks) == 1 {
-		return nil
-	}
-
-	kmsKeyARN, err := a.resolveKeyID(etcdKMSKeyAlias)
-	if err != nil {
-		return err
-	}
-
-	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrAccountKey])
-	if err != nil {
-		return err
-	}
-
-	args := []string{
-		"print",
-		stackDefinitionPath,
-		"etcd",
-		fmt.Sprintf("HostedZone=%s", hostedZone),
-		fmt.Sprintf("EtcdS3Backup=%s", bucketName),
-		fmt.Sprintf("NetworkCIDR=%s", networkCIDR),
-		fmt.Sprintf("VpcID=%s", vpcID),
-		fmt.Sprintf("InstanceType=%s", cluster.ConfigItems[etcdInstanceTypeKey]),
-		fmt.Sprintf("InstanceCount=%s", cluster.ConfigItems[etcdInstanceCountKey]),
-		fmt.Sprintf("KMSKey=%s", kmsKeyARN),
-		fmt.Sprintf("ScalyrAccountKey=%s", encryptedScalyrKey),
-	}
-
-	cmd := exec.Command(
-		"senza",
-		args...,
-	)
-
-	if a.dryRun {
-		cmd.Args = append(cmd.Args, "--dry-run")
-	}
-
-	enVars, err := a.getEnvVars()
-	if err != nil {
-		return err
-	}
-
-	cmd.Env = enVars
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("%v: %s", err, string(exitErr.Stderr))
-		}
-		return err
-	}
-
-	err = a.applyStack(stackName, string(output), "", nil, false)
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
-	defer cancel()
-	err = a.waitForStack(ctx, waitTime, stackName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// resolveKeyID resolved a local key ID (e.g. alias/etcd-cluster) into the ARN
-func (a *awsAdapter) resolveKeyID(keyID string) (string, error) {
-	output, err := a.kmsClient.DescribeKey(&kms.DescribeKeyInput{
+// ResolveKMSKeyID resolved a local key ID (e.g. alias/etcd-cluster) into the ARN
+func (a *AWSAdapter) ResolveKMSKeyID(keyID string) (string, error) {
+	output, err := a.KMSClient.DescribeKey(&kms.DescribeKeyInput{
 		KeyId: aws.String(keyID),
 	})
 	if err != nil {
@@ -525,9 +400,9 @@ func (a *awsAdapter) resolveKeyID(keyID string) (string, error) {
 	return aws.StringValue(output.KeyMetadata.Arn), nil
 }
 
-// kmsEncryptForTaupage encrypts a string using a Taupage-compatible format (aws:kms:…)
-func (a *awsAdapter) kmsEncryptForTaupage(keyID string, value string) (string, error) {
-	output, err := a.kmsClient.Encrypt(&kms.EncryptInput{
+// KMSEncryptForTaupage encrypts a string using a Taupage-compatible format (aws:kms:…)
+func (a *AWSAdapter) KMSEncryptForTaupage(keyID string, value string) (string, error) {
+	output, err := a.KMSClient.Encrypt(&kms.EncryptInput{
 		KeyId:     aws.String(keyID),
 		Plaintext: []byte(value),
 	})
@@ -538,7 +413,7 @@ func (a *awsAdapter) kmsEncryptForTaupage(keyID string, value string) (string, e
 }
 
 // createS3Bucket creates an s3 bucket if it doesn't exist.
-func (a *awsAdapter) createS3Bucket(bucket string) error {
+func (a *AWSAdapter) CreateS3Bucket(bucket string) error {
 	params := &s3.CreateBucketInput{
 		Bucket: aws.String(bucket),
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{
@@ -564,25 +439,11 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 }
 
-func clcToIgnition(data []byte) ([]byte, error) {
-	cfg, ast, report := config.Parse(data)
-	if len(report.Entries) > 0 {
-		return nil, errors.New(report.String())
-	}
-
-	ignCfg, report := config.Convert(cfg, platform.EC2, ast)
-	if len(report.Entries) > 0 {
-		return nil, fmt.Errorf("failed to convert to ignition: %s", report.String())
-	}
-
-	return json.Marshal(&ignCfg)
-}
-
-// getEnvVars gets AWS credentials from the session and returns the
+// GetEnvVars gets AWS credentials from the session and returns the
 // corresponding environment variables.
-// only used for senza (TODO:think about not storing session in the awsAdapter)
-func (a *awsAdapter) getEnvVars() ([]string, error) {
-	creds, err := a.session.Config.Credentials.Get()
+// only used for senza (TODO:think about not storing session in the AWSAdapter)
+func (a *AWSAdapter) GetEnvVars() ([]string, error) {
+	creds, err := a.Session.Config.Credentials.Get()
 	if err != nil {
 		return nil, err
 	}
@@ -591,14 +452,14 @@ func (a *awsAdapter) getEnvVars() ([]string, error) {
 		"AWS_ACCESS_KEY_ID=" + creds.AccessKeyID,
 		"AWS_SECRET_ACCESS_KEY=" + creds.SecretAccessKey,
 		"AWS_SESSION_TOKEN=" + creds.SessionToken,
-		"AWS_DEFAULT_REGION=" + *a.session.Config.Region,
+		"AWS_DEFAULT_REGION=" + *a.Session.Config.Region,
 		"LC_ALL=en_US.UTF-8",
 		"LANG=en_US.UTF-8",
 		"PATH=/usr/local/bin:/usr/bin:/bin",
 	}, nil
 }
 
-func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
+func (a *AWSAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
 	var filters []*ec2.Filter
 
 	for tagKey, tagValue := range tags {
@@ -608,22 +469,22 @@ func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
 		})
 	}
 
-	result, err := a.ec2Client.DescribeVolumes(&ec2.DescribeVolumesInput{Filters: filters})
+	result, err := a.EC2Client.DescribeVolumes(&ec2.DescribeVolumesInput{Filters: filters})
 	if err != nil {
 		return nil, err
 	}
 	return result.Volumes, nil
 }
 
-func (a *awsAdapter) DeleteVolume(id string) error {
-	_, err := a.ec2Client.DeleteVolume(&ec2.DeleteVolumeInput{
+func (a *AWSAdapter) DeleteVolume(id string) error {
+	_, err := a.EC2Client.DeleteVolume(&ec2.DeleteVolumeInput{
 		VolumeId: aws.String(id),
 	})
 	return err
 }
 
 // GetCertificates gets all available 'ISSUED' certificates from ACM.
-func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
+func (a *AWSAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 	params := &acm.ListCertificatesInput{
 		CertificateStatuses: []*string{
 			aws.String(acm.CertificateStatusIssued),
@@ -649,7 +510,7 @@ func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 	return result, nil
 }
 
-func (a *awsAdapter) getCertificateSummaryFromACM(arn *string) (*certs.CertificateSummary, error) {
+func (a *AWSAdapter) getCertificateSummaryFromACM(arn *string) (*certs.CertificateSummary, error) {
 	params := &acm.GetCertificateInput{CertificateArn: arn}
 	resp, err := a.acmClient.GetCertificate(params)
 	if err != nil {
@@ -673,9 +534,9 @@ func (a *awsAdapter) getCertificateSummaryFromACM(arn *string) (*certs.Certifica
 }
 
 // GetDefaultVPC gets the default VPC.
-func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
+func (a *AWSAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
 	// find default VPC
-	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{})
+	vpcResp, err := a.EC2Client.DescribeVpcs(&ec2.DescribeVpcsInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -696,9 +557,9 @@ func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
 }
 
 // GetVPC gets VPC details for vpc specified by vpcID.
-func (a *awsAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
+func (a *AWSAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
 	// find default VPC
-	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{
+	vpcResp, err := a.EC2Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		VpcIds: []*string{aws.String(vpcID)},
 	})
 	if err != nil {
@@ -713,7 +574,7 @@ func (a *awsAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
 }
 
 // GetSubnets gets all subnets of the default VPC in the target account.
-func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
+func (a *AWSAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 	subnetParams := &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
@@ -723,7 +584,7 @@ func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 		},
 	}
 
-	subnetResp, err := a.ec2Client.DescribeSubnets(subnetParams)
+	subnetResp, err := a.EC2Client.DescribeSubnets(subnetParams)
 	if err != nil {
 		return nil, err
 	}
@@ -732,25 +593,92 @@ func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 }
 
 // CreateTags adds or updates tags of a resource.
-func (a *awsAdapter) CreateTags(resource string, tags []*ec2.Tag) error {
+func (a *AWSAdapter) CreateTags(resource string, tags []*ec2.Tag) error {
 	params := &ec2.CreateTagsInput{
 		Resources: []*string{aws.String(resource)},
 		Tags:      tags,
 	}
 
-	_, err := a.ec2Client.CreateTags(params)
+	_, err := a.EC2Client.CreateTags(params)
 	return err
 }
 
 // DeleteTags deletes tags from a resource.
-func (a *awsAdapter) DeleteTags(resource string, tags []*ec2.Tag) error {
+func (a *AWSAdapter) DeleteTags(resource string, tags []*ec2.Tag) error {
 	params := &ec2.DeleteTagsInput{
 		Resources: []*string{aws.String(resource)},
 		Tags:      tags,
 	}
 
-	_, err := a.ec2Client.DeleteTags(params)
+	_, err := a.EC2Client.DeleteTags(params)
 	return err
+}
+
+// TagSubnets tags all subnets in the specified VPC with the kubernetes cluster
+// id tag.
+func (a *AWSAdapter) TagSubnets(vpcID string, cluster *api.Cluster) error {
+	subnets, err := a.GetSubnets(vpcID)
+	if err != nil {
+		return err
+	}
+
+	tag := &ec2.Tag{
+		Key:   aws.String(KubernetesClusterTagPrefix + cluster.ID),
+		Value: aws.String(ResourceLifecycleShared),
+	}
+
+	for _, subnet := range subnets {
+		if !hasTag(subnet.Tags, tag) {
+			err = a.CreateTags(
+				aws.StringValue(subnet.SubnetId),
+				[]*ec2.Tag{tag},
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// UntagSubnets removes the kubernetes cluster id tag from all subnets in the
+// specified VPC.
+func (a *AWSAdapter) UntagSubnets(vpcID string, cluster *api.Cluster) error {
+	subnets, err := a.GetSubnets(vpcID)
+	if err != nil {
+		return err
+	}
+
+	tag := &ec2.Tag{
+		Key:   aws.String(KubernetesClusterTagPrefix + cluster.ID),
+		Value: aws.String(ResourceLifecycleShared),
+	}
+
+	for _, subnet := range subnets {
+		if hasTag(subnet.Tags, tag) {
+			err = a.DeleteTags(
+				aws.StringValue(subnet.SubnetId),
+				[]*ec2.Tag{tag},
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// hasTag returns true if tag is found in list of tags.
+func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
+	for _, t := range tags {
+		if aws.StringValue(t.Key) == aws.StringValue(tag.Key) &&
+			aws.StringValue(t.Value) == aws.StringValue(tag.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 func isDoesNotExistsErr(err error) bool {
@@ -763,22 +691,13 @@ func isDoesNotExistsErr(err error) bool {
 	return false
 }
 
-// isWrongStackStatusErr returns true if the error is of type awserr.Error and
+// IsWrongStackStatusErr returns true if the error is of type awserr.Error and
 // describes a failure because of wrong Cloudformation stack status.
-func isWrongStackStatusErr(err error) bool {
+func IsWrongStackStatusErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
 		if awsErr.Code() == "ValidationError" && strings.Contains(awsErr.Message(), "cannot be deleted while in status") {
 			return true
 		}
 	}
 	return false
-}
-
-// tagsToMap converts a list of ec2 tags to a map.
-func tagsToMap(tags []*ec2.Tag) map[string]string {
-	tagMap := make(map[string]string, len(tags))
-	for _, tag := range tags {
-		tagMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
-	}
-	return tagMap
 }

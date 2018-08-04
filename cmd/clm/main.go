@@ -17,6 +17,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner/aws/zalando"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 	"golang.org/x/oauth2"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -71,12 +72,14 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
-	p := provisioner.NewClusterpyProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
-		DryRun:         cfg.DryRun,
-		ApplyOnly:      cfg.ApplyOnly,
-		UpdateStrategy: cfg.UpdateStrategy,
-		RemoveVolumes:  cfg.RemoveVolumes,
-	})
+	provisioners := map[string]provisioner.Provisioner{
+		zalando.ProviderID: zalando.NewClusterpyProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
+			DryRun:         cfg.DryRun,
+			ApplyOnly:      cfg.ApplyOnly,
+			UpdateStrategy: cfg.UpdateStrategy,
+			RemoveVolumes:  cfg.RemoveVolumes,
+		}),
+	}
 
 	var configSource channel.ConfigSource
 
@@ -105,7 +108,14 @@ func main() {
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
 		}
 
-		ctrl := controller.New(rootLogger, execManager, clusterRegistry, p, configSource, opts)
+		ctrl := controller.New(
+			rootLogger,
+			execManager,
+			clusterRegistry,
+			provisioners,
+			configSource,
+			opts,
+		)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go handleSigterm(cancel)
@@ -148,17 +158,22 @@ func main() {
 			cluster.ConfigItems[key] = decryptedValue
 		}
 
+		provisioner, ok := provisioners[cluster.Provider]
+		if !ok {
+			log.Fatalf("No provisioner available for cluster provider '%s' (%s)", cluster.Provider, cluster.Alias)
+		}
+
 		switch cmd {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
-			err = p.Provision(context.Background(), rootLogger, cluster, config)
+			err = provisioner.Provision(context.Background(), rootLogger, cluster, config)
 			if err != nil {
 				log.Fatalf("Fail to provision: %v", err)
 			}
 			log.Infof("Provisioning done for cluster %s", cluster.ID)
 		case decommissionCmd.FullCommand():
 			log.Infof("Decommissioning cluster %s", cluster.ID)
-			err = p.Decommission(rootLogger, cluster)
+			err = provisioner.Decommission(rootLogger, cluster)
 			if err != nil {
 				log.Fatalf("Fail to decommission: %v", err)
 			}

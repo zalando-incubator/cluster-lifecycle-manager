@@ -27,10 +27,6 @@ var defaultLogger = log.WithFields(map[string]interface{}{})
 
 type mockProvisioner struct{}
 
-func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == mockProvider
-}
-
 func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return nil
 }
@@ -40,10 +36,6 @@ func (p *mockProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) 
 }
 
 type mockErrProvisioner mockProvisioner
-
-func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
-	return true
-}
 
 func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
 	return fmt.Errorf("failed to provision")
@@ -126,7 +118,7 @@ func TestProcessCluster(t *testing.T) {
 	for _, ti := range []struct {
 		testcase      string
 		registry      registry.Registry
-		provisioner   provisioner.Provisioner
+		provisioners  map[string]provisioner.Provisioner
 		channelSource channel.ConfigSource
 		options       *Options
 		success       bool
@@ -134,7 +126,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status requested",
 			registry:      MockRegistry(statusRequested, nil),
-			provisioner:   &mockProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       true,
@@ -142,7 +134,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status ready",
 			registry:      MockRegistry(statusReady, nil),
-			provisioner:   &mockProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       true,
@@ -150,7 +142,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status decommission-requested",
 			registry:      MockRegistry(statusDecommissionRequested, nil),
-			provisioner:   &mockProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       true,
@@ -158,7 +150,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status requested, provisioner.Create fails",
 			registry:      MockRegistry(statusRequested, &api.ClusterStatus{CurrentVersion: nextVersion}),
-			provisioner:   &mockErrCreateProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockErrCreateProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       false,
@@ -166,7 +158,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status ready, version up to date fails",
 			registry:      MockRegistry(statusReady, &api.ClusterStatus{CurrentVersion: nextVersion}),
-			provisioner:   &mockProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       true,
@@ -174,7 +166,7 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status ready, provisioner.Version failing",
 			registry:      MockRegistry(statusReady, nil),
-			provisioner:   &mockErrProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockErrProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, false),
 			options:       defaultOptions,
 			success:       false,
@@ -182,13 +174,13 @@ func TestProcessCluster(t *testing.T) {
 		{
 			testcase:      "lifecycle status ready, channelSource.Get() fails",
 			registry:      MockRegistry(statusReady, nil),
-			provisioner:   &mockErrProvisioner{},
+			provisioners:  map[string]provisioner.Provisioner{mockProvider: &mockErrProvisioner{}},
 			channelSource: MockChannelSource(defaultVersions, true),
 			options:       defaultOptions,
 			success:       false,
 		},
 	} {
-		controller := New(defaultLogger, command.NewExecManager(1), ti.registry, ti.provisioner, ti.channelSource, ti.options)
+		controller := New(defaultLogger, command.NewExecManager(1), ti.registry, ti.provisioners, ti.channelSource, ti.options)
 		err := controller.refresh()
 		assert.NoError(t, err)
 
@@ -211,7 +203,7 @@ func TestProcessCluster(t *testing.T) {
 func TestIgnoreUnsupportedProvider(t *testing.T) {
 	registry := MockRegistry("ready", nil)
 	registry.theCluster.Provider = "<unsupported>"
-	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, command.NewExecManager(1), registry, map[string]provisioner.Provisioner{mockProvider: &mockProvisioner{}}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	err := controller.refresh()
 	require.NoError(t, err)
@@ -222,7 +214,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 
 func TestCoalesceFailures(t *testing.T) {
 	registry := MockRegistry("ready", nil)
-	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, command.NewExecManager(1), registry, map[string]provisioner.Provisioner{mockProvider: &mockErrProvisioner{}}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	for i := 0; i < 100; i++ {
 		err := controller.refresh()

@@ -1,4 +1,4 @@
-package provisioner
+package template
 
 import (
 	"bytes"
@@ -24,10 +24,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	awsProvisioner "github.com/zalando-incubator/cluster-lifecycle-manager/provisioner/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
+	SubnetAllAZName                           = "*"
 	autoscalingBufferExplicitCPUConfigItem    = "autoscaling_buffer_cpu"
 	autoscalingBufferExplicitMemoryConfigItem = "autoscaling_buffer_memory"
 	autoscalingBufferCPUScaleConfigItem       = "autoscaling_buffer_cpu_scale"
@@ -41,16 +43,16 @@ const (
 	describeImageFilterNameOwner              = "owner-id"
 )
 
-type templateContext struct {
+type TemplateContext struct {
 	manifestData          map[string]string
 	baseDir               string
-	cluster               *api.Cluster
+	Cluster               *api.Cluster
 	nodePool              *api.NodePool
 	values                map[string]interface{}
-	userData              string
+	UserData              string
 	computingManifestHash bool
-	s3GeneratedFilesPath  string
-	awsAdapter            *awsAdapter
+	S3GeneratedFilesPath  string
+	awsAdapter            *awsProvisioner.AWSAdapter
 }
 
 type templateData struct {
@@ -89,26 +91,26 @@ type podResources struct {
 	Memory string
 }
 
-func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string, adapter *awsAdapter) *templateContext {
-	return &templateContext{
+func NewTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string, adapter *awsProvisioner.AWSAdapter) *TemplateContext {
+	return &TemplateContext{
 		baseDir:      baseDir,
 		manifestData: make(map[string]string),
-		cluster:      cluster,
+		Cluster:      cluster,
 		nodePool:     nodePool,
 		values:       values,
-		userData:     userData,
+		UserData:     userData,
 		awsAdapter:   adapter,
 	}
 }
 
-func (ctx *templateContext) Copy(pool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
-	return &templateContext{
+func (ctx *TemplateContext) Copy(pool *api.NodePool, values map[string]interface{}, userData string) *TemplateContext {
+	return &TemplateContext{
 		baseDir:               ctx.baseDir,
 		manifestData:          make(map[string]string),
-		cluster:               ctx.cluster,
+		Cluster:               ctx.Cluster,
 		nodePool:              pool,
 		values:                values,
-		userData:              userData,
+		UserData:              userData,
 		computingManifestHash: false,
 	}
 }
@@ -255,13 +257,14 @@ func effectiveQuantity(instanceResource int64, scale float64, reservedResource i
 	return withoutReserved
 }
 
-// renderTemplate takes a fileName of a template in the context and the model to apply to it.
-// returns the transformed template or an error if not successful
-func renderTemplate(context *templateContext, filePath string) (string, error) {
+// renderTemplate takes a fileName of a template in the context and the model
+// to apply to it.  returns the transformed template or an error if not
+// successful
+func RenderTemplate(context *TemplateContext, filePath string) (string, error) {
 	funcMap := template.FuncMap{
-		"getAWSAccountID":           getAWSAccountID,
-		"base64":                    base64Encode,
-		"base64Decode":              base64Decode,
+		"getAWSAccountID":           GetAWSAccountID,
+		"base64":                    Base64Encode,
+		"base64Decode":              Base64Decode,
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
@@ -292,24 +295,24 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 	}
 	var out bytes.Buffer
 	err = t.Execute(&out, &templateData{
-		Alias:                 context.cluster.Alias,
-		APIServerURL:          context.cluster.APIServerURL,
-		Channel:               context.cluster.Channel,
-		ConfigItems:           context.cluster.ConfigItems,
-		CriticalityLevel:      context.cluster.CriticalityLevel,
-		Environment:           context.cluster.Environment,
-		ID:                    context.cluster.ID,
-		InfrastructureAccount: context.cluster.InfrastructureAccount,
-		LifecycleStatus:       context.cluster.LifecycleStatus,
-		LocalID:               context.cluster.LocalID,
-		NodePools:             context.cluster.NodePools,
-		Region:                context.cluster.Region,
-		Owner:                 context.cluster.Owner,
-		Cluster:               context.cluster,
+		Alias:                 context.Cluster.Alias,
+		APIServerURL:          context.Cluster.APIServerURL,
+		Channel:               context.Cluster.Channel,
+		ConfigItems:           context.Cluster.ConfigItems,
+		CriticalityLevel:      context.Cluster.CriticalityLevel,
+		Environment:           context.Cluster.Environment,
+		ID:                    context.Cluster.ID,
+		InfrastructureAccount: context.Cluster.InfrastructureAccount,
+		LifecycleStatus:       context.Cluster.LifecycleStatus,
+		LocalID:               context.Cluster.LocalID,
+		NodePools:             context.Cluster.NodePools,
+		Region:                context.Cluster.Region,
+		Owner:                 context.Cluster.Owner,
+		Cluster:               context.Cluster,
 		Values:                context.values,
 		NodePool:              context.nodePool,
-		UserData:              context.userData,
-		S3GeneratedFilesPath:  context.s3GeneratedFilesPath,
+		UserData:              context.UserData,
+		S3GeneratedFilesPath:  context.S3GeneratedFilesPath,
 	})
 	if err != nil {
 		return "", err
@@ -324,7 +327,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 // manifestHash is a function for the templates that will return a hash of an interpolated sibling template
 // file. returns an error if computing manifestHash calls manifestHash again, if interpolation of that template
 // returns an error, or if the path is outside of the manifests folder.
-func manifestHash(context *templateContext, file string, template string) (string, error) {
+func manifestHash(context *TemplateContext, file string, template string) (string, error) {
 	if context.computingManifestHash {
 		return "", fmt.Errorf("manifestHash is not reentrant")
 	}
@@ -344,7 +347,7 @@ func manifestHash(context *templateContext, file string, template string) (strin
 
 	templateData, ok := context.manifestData[templateFile]
 	if !ok {
-		applied, err := renderTemplate(context, templateFile)
+		applied, err := RenderTemplate(context, templateFile)
 		if err != nil {
 			return "", err
 		}
@@ -354,11 +357,11 @@ func manifestHash(context *templateContext, file string, template string) (strin
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(templateData))), nil
 }
 
-// getAWSAccountID is an utility function for the gotemplate that will remove
+// GetAWSAccountID is an utility function for the gotemplate that will remove
 // the prefix "aws" from the infrastructure ID.
 // TODO: get the real AWS account ID from the `external_id` field of the
 // infrastructure account in the cluster registry.
-func getAWSAccountID(ia string) string {
+func GetAWSAccountID(ia string) string {
 	return strings.Split(ia, ":")[1]
 }
 
@@ -370,13 +373,13 @@ func mountUnitName(path string) (string, error) {
 	return strings.Replace(path[1:], "/", "-", -1), nil
 }
 
-// base64Encode base64 encodes a string.
-func base64Encode(value string) string {
+// Base64Encode base64 encodes a string.
+func Base64Encode(value string) string {
 	return base64.StdEncoding.EncodeToString([]byte(value))
 }
 
-// base64Encode base64 decodes a string.
-func base64Decode(value string) (string, error) {
+// Base64Decode base64 decodes a string.
+func Base64Decode(value string) (string, error) {
 	res, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return "", err
@@ -405,7 +408,7 @@ func azID(azName string) string {
 func azCount(subnets map[string]string) int {
 	var result int
 	for k := range subnets {
-		if k != subnetAllAZName {
+		if k != SubnetAllAZName {
 			result++
 		}
 	}
@@ -564,8 +567,9 @@ func stupsNATSubnets(vpcCidr string) ([]string, error) {
 	return result, nil
 }
 
-func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
-	if adapter == nil || adapter.ec2Client == nil {
+func amiID(adapter *awsProvisioner.AWSAdapter, imageName, imageOwner string) (string, error) {
+	// TODO: don't expose internal EC2Client
+	if adapter == nil || adapter.EC2Client == nil {
 		return "", fmt.Errorf("the ec2 client is not available")
 	}
 
@@ -573,7 +577,7 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 		{Name: awsUtil.String(describeImageFilterNameName), Values: awsUtil.StringSlice([]string{imageName})},
 		{Name: awsUtil.String(describeImageFilterNameOwner), Values: awsUtil.StringSlice([]string{imageOwner})},
 	}}
-	output, err := adapter.ec2Client.DescribeImages(&input)
+	output, err := adapter.EC2Client.DescribeImages(&input)
 	if err != nil {
 		return "", fmt.Errorf("failed to describe image with name %s and owner %s: %v", imageName, imageOwner, err)
 	}

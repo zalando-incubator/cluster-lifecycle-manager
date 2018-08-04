@@ -1,4 +1,4 @@
-package provisioner
+package aws
 
 import (
 	"context"
@@ -16,15 +16,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type s3APIStub struct{}
@@ -146,16 +146,14 @@ func (s *s3UploaderAPIStub) Upload(input *s3manager.UploadInput, options ...func
 	return &s3manager.UploadOutput{Location: "url"}, s.err
 }
 
-func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
+func newAWSAdapterWithStubs(status string, groupName string) *AWSAdapter {
 	logger := log.WithField("cluster", "foobar")
 
-	return &awsAdapter{
-		session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
-		cloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(status)},
+	return &AWSAdapter{
+		Session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
+		CloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(status)},
 		s3Client:             &s3APIStub{},
 		autoscalingClient:    &autoscalingAPIStub{groupName: groupName},
-		apiServer:            "",
-		dryRun:               false,
 		logger:               logger,
 	}
 }
@@ -171,7 +169,7 @@ func testWaitForStackWithComplete(t *testing.T) {
 	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.WaitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,7 +180,7 @@ func testWaitForStackWithTimeout(t *testing.T) {
 	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	onDescribeStackChan := make(chan struct{})
 	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress), onDescribeStackChan: onDescribeStackChan}
-	awsMock.cloudformationClient = stub
+	awsMock.CloudformationClient = stub
 
 	ctx, cancel := context.WithCancel(context.Background())
 	counter := 0
@@ -195,7 +193,7 @@ func testWaitForStackWithTimeout(t *testing.T) {
 			}
 		}
 	}()
-	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.WaitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err != errTimeoutExceeded {
 		t.Errorf("should return timeout exceeded, got: %v", err)
 	}
@@ -211,7 +209,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress),
 		statusReason:        aws.String("The following resource(s) failed to update: [AutoScalingGroup1b, AutoScalingGroup1c]."),
 		onDescribeStackChan: onDescribeStackChan}
-	awsMock.cloudformationClient = stub
+	awsMock.CloudformationClient = stub
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -227,7 +225,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 		}
 	}()
 
-	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	err := awsMock.WaitForStack(ctx, 100*time.Millisecond, "foobar")
 	if err == nil || !strings.Contains(err.Error(), errRollbackComplete.Error()) {
 		t.Errorf("should return rollback complete, got: %v", err)
 	}
@@ -238,7 +236,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 
 func TestGetStackByName(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
-	s, err := a.getStackByName("foobar")
+	s, err := a.GetStackByName("foobar")
 	if err != nil {
 		t.FailNow()
 	}
@@ -249,7 +247,7 @@ func TestGetStackByName(t *testing.T) {
 
 func TestCreateS3Client(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
-	err := a.createS3Bucket("")
+	err := a.CreateS3Bucket("")
 	if err != nil {
 		t.Fatalf("fail: %v", err)
 	}
@@ -265,7 +263,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	s3Bucket := "s3-bucket"
 
 	// test creating stack with small stack template
-	err := awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err := awsAdapter.ApplyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket, nil)
 	assert.NoError(t, err)
 
 	templateValue := make([]string, stackMaxSize+1)
@@ -275,17 +273,17 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	hugeTemplate := fmt.Sprintf("{\"stack\": \"%s\"}", strings.Join(templateValue, ""))
 
 	// test create when template is too big and must be uploaded to s3
-	awsAdapter.s3Uploader = &s3UploaderAPIStub{}
-	err = awsAdapter.applyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket)
+	awsAdapter.S3Uploader = &s3UploaderAPIStub{}
+	err = awsAdapter.ApplyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket, nil)
 	assert.NoError(t, err)
 
 	// test create bucket failing when s3 upload fails
-	awsAdapter.s3Uploader = &s3UploaderAPIStub{errors.New("error")}
-	err = awsAdapter.applyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket)
+	awsAdapter.S3Uploader = &s3UploaderAPIStub{errors.New("error")}
+	err = awsAdapter.ApplyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket, nil)
 	assert.Error(t, err)
 
 	// test updating existing stack
-	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
+	awsAdapter.CloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
 		createErr: awserr.New(
 			cloudformation.ErrCodeAlreadyExistsException,
@@ -293,19 +291,19 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 			errors.New("base error"),
 		),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.ApplyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket, nil)
 	assert.NoError(t, err)
 
 	// test create failing
-	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
+	awsAdapter.CloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
 		createErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.ApplyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket, nil)
 	assert.Error(t, err)
 
 	// test updating when stack is already up to date
-	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
+	awsAdapter.CloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
 		createErr: awserr.New(
 			cloudformation.ErrCodeAlreadyExistsException,
@@ -318,11 +316,11 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 			errors.New("base error"),
 		),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.ApplyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket, nil)
 	assert.NoError(t, err)
 
 	// test update failing
-	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
+	awsAdapter.CloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
 		createErr: awserr.New(
 			cloudformation.ErrCodeAlreadyExistsException,
@@ -331,7 +329,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		),
 		updateErr: errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.ApplyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket, nil)
 	assert.Error(t, err)
 }
 
@@ -419,8 +417,8 @@ func TestListStacks(tt *testing.T) {
 		},
 	} {
 		tt.Run(tc.msg, func(t *testing.T) {
-			adapter := awsAdapter{
-				cloudformationClient: tc.cloudformation,
+			adapter := AWSAdapter{
+				CloudformationClient: tc.cloudformation,
 			}
 			stacks, _ := adapter.ListStacks(tc.includeTags, tc.excludeTags)
 			assert.Equal(t, tc.expectedStacks, stacks)
@@ -484,8 +482,8 @@ func TestKMSEncryptForTaupage(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			adapter := awsAdapter{
-				kmsClient: mockKMSAPI{
+			adapter := AWSAdapter{
+				KMSClient: mockKMSAPI{
 					expectedKeyID: "key-id",
 					expectedValue: []byte("test"),
 					encryptResult: []byte("foobar"),
@@ -493,7 +491,7 @@ func TestKMSEncryptForTaupage(t *testing.T) {
 				},
 			}
 
-			result, err := adapter.kmsEncryptForTaupage("key-id", "test")
+			result, err := adapter.KMSEncryptForTaupage("key-id", "test")
 
 			if tc.fail {
 				require.Error(t, err)
@@ -520,8 +518,8 @@ func TestKMSKeyARN(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			adapter := awsAdapter{
-				kmsClient: mockKMSAPI{
+			adapter := AWSAdapter{
+				KMSClient: mockKMSAPI{
 					expectedKeyID: "key-id",
 					expectedValue: []byte("test"),
 					keyARN:        "arn:aws:key/1234",
@@ -529,7 +527,7 @@ func TestKMSKeyARN(t *testing.T) {
 				},
 			}
 
-			result, err := adapter.resolveKeyID("key-id")
+			result, err := adapter.ResolveKMSKeyID("key-id")
 
 			if tc.fail {
 				require.Error(t, err)
@@ -537,6 +535,57 @@ func TestKMSKeyARN(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, "arn:aws:key/1234", result)
 			}
+		})
+	}
+}
+
+func TestHasTag(t *testing.T) {
+	for _, tc := range []struct {
+		msg      string
+		tags     []*ec2.Tag
+		tag      *ec2.Tag
+		expected bool
+	}{
+		{
+			msg: "test finding tag in list successfully",
+			tags: []*ec2.Tag{
+				{
+					Key:   aws.String("key"),
+					Value: aws.String("val"),
+				},
+			},
+			tag: &ec2.Tag{
+				Key:   aws.String("key"),
+				Value: aws.String("val"),
+			},
+			expected: true,
+		},
+		{
+			msg: "test both key and value must match",
+			tags: []*ec2.Tag{
+				{
+					Key:   aws.String("key"),
+					Value: aws.String("val"),
+				},
+			},
+			tag: &ec2.Tag{
+				Key:   aws.String("key"),
+				Value: aws.String(""),
+			},
+			expected: false,
+		},
+		{
+			msg:  "test finding no tag in empty list",
+			tags: []*ec2.Tag{},
+			tag: &ec2.Tag{
+				Key:   aws.String("key"),
+				Value: aws.String(""),
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.msg, func(t *testing.T) {
+			assert.Equal(t, hasTag(tc.tags, tc.tag), tc.expected)
 		})
 	}
 }

@@ -42,7 +42,7 @@ type Controller struct {
 	logger               *log.Entry
 	execManager          *command.ExecManager
 	registry             registry.Registry
-	provisioner          provisioner.Provisioner
+	provisioners         map[string]provisioner.Provisioner
 	channelConfigSourcer channel.ConfigSource
 	interval             time.Duration
 	dryRun               bool
@@ -51,12 +51,12 @@ type Controller struct {
 }
 
 // New initializes a new controller.
-func New(logger *log.Entry, execManager *command.ExecManager, registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
+func New(logger *log.Entry, execManager *command.ExecManager, registry registry.Registry, provisioners map[string]provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
 	return &Controller{
 		logger:               logger,
 		execManager:          execManager,
 		registry:             registry,
-		provisioner:          provisioner,
+		provisioners:         provisioners,
 		channelConfigSourcer: channelConfigSourcer,
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
@@ -124,12 +124,12 @@ func (c *Controller) refresh() error {
 	return nil
 }
 
-// dropUnsupported removes clusters not supported by the current provisioner
+// dropUnsupported removes clusters not supported by a provisioner.
 func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 	result := make([]*api.Cluster, 0, len(clusters))
 	for _, cluster := range clusters {
-		if !c.provisioner.Supports(cluster) {
-			log.Debugf("Unsupported cluster: %s", cluster.ID)
+		if _, ok := c.provisioners[cluster.Provider]; !ok {
+			log.Debugf("Unsupported provider '%s' for cluster: %s", cluster.Provider, cluster.ID)
 			continue
 		}
 		result = append(result, cluster)
@@ -161,6 +161,11 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		}
 	}()
 
+	provisioner, ok := c.provisioners[cluster.Provider]
+	if !ok {
+		return fmt.Errorf("no provisioner available for cluster provider '%s' (%s)", cluster.Provider, cluster.Alias)
+	}
+
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
 		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
@@ -171,7 +176,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 			}
 		}
 
-		err = c.provisioner.Provision(updateCtx, logger, cluster, config)
+		err = provisioner.Provision(updateCtx, logger, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -182,7 +187,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		cluster.Status.NextVersion = ""
 		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
-		err = c.provisioner.Decommission(logger, cluster)
+		err = provisioner.Decommission(logger, cluster)
 		if err != nil {
 			return err
 		}
@@ -213,11 +218,6 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 	// log the error and resolve the special error cases
 	if err != nil {
 		clusterLog.Errorf("Failed to process cluster: %s", err)
-
-		// treat "provider not supported" as no error
-		if err == provisioner.ErrProviderNotSupported {
-			err = nil
-		}
 	} else {
 		clusterLog.Infof("Finished processing cluster")
 	}

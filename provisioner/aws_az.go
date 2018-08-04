@@ -4,9 +4,13 @@ import (
 	"sort"
 )
 
+const (
+	SubnetAllAZName = "*"
+)
+
 // AZInfo tracks information about available AZs based on explicit restrictions or available subnets
 type AZInfo struct {
-	subnets map[string]string
+	Subnets map[string]string
 }
 
 // RestrictAZs returns a new AZInfo that is restricted to provided AZs
@@ -14,12 +18,12 @@ func (info *AZInfo) RestrictAZs(availableAZs []string) *AZInfo {
 	result := make(map[string]string)
 
 	for _, az := range availableAZs {
-		if subnet, ok := info.subnets[az]; ok {
+		if subnet, ok := info.Subnets[az]; ok {
 			result[az] = subnet
 		}
 	}
 
-	return &AZInfo{subnets: result}
+	return &AZInfo{Subnets: result}
 }
 
 // Subnets returns a map of AZ->subnet that also contains an entry for the virtual '*' AZ
@@ -27,13 +31,13 @@ func (info *AZInfo) RestrictAZs(availableAZs []string) *AZInfo {
 func (info *AZInfo) SubnetsByAZ() map[string]string {
 	result := make(map[string]string)
 	for _, az := range info.AvailabilityZones() {
-		subnet := info.subnets[az]
+		subnet := info.Subnets[az]
 		result[az] = subnet
 
-		if existing, ok := result[subnetAllAZName]; ok {
-			result[subnetAllAZName] = existing + "," + subnet
+		if existing, ok := result[SubnetAllAZName]; ok {
+			result[SubnetAllAZName] = existing + "," + subnet
 		} else {
-			result[subnetAllAZName] = subnet
+			result[SubnetAllAZName] = subnet
 		}
 	}
 	return result
@@ -42,7 +46,7 @@ func (info *AZInfo) SubnetsByAZ() map[string]string {
 // AvailabilityZones returns a list of available AZs
 func (info *AZInfo) AvailabilityZones() []string {
 	var result []string
-	for az := range info.subnets {
+	for az := range info.Subnets {
 		result = append(result, az)
 	}
 	sort.Strings(result)

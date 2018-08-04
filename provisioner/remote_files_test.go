@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"testing"
@@ -32,7 +33,7 @@ func (testKMSClient) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, error
 }
 
 func makeTestInput(path, data string, permissions int64, encrypted bool) string {
-	encodedData := base64Encode(data)
+	encodedData := base64.StdEncoding.EncodeToString([]byte(data))
 	return fmt.Sprintf(fileTemplate, path, encodedData, permissions, encrypted)
 }
 func TestMakeArchive(t *testing.T) {

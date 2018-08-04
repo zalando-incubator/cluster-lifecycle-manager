@@ -1,4 +1,4 @@
-package provisioner
+package template
 
 import (
 	"fmt"
@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	awsProvisioner "github.com/zalando-incubator/cluster-lifecycle-manager/provisioner/aws"
 )
 
 func exampleCluster(pools []*api.NodePool) *api.Cluster {
@@ -29,7 +30,7 @@ func exampleCluster(pools []*api.NodePool) *api.Cluster {
 	}
 }
 
-func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
+func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsProvisioner.AWSAdapter) (string, error) {
 	basedir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(t.Name(), "/", "_"))
 	require.NoError(t, err, "unable to create temp dir")
 
@@ -44,8 +45,8 @@ func render(t *testing.T, templates map[string]string, templateName string, data
 		require.NoError(t, err, "error while writing %s", fullPath)
 	}
 
-	context := newTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "", adapter)
-	return renderTemplate(context, path.Join(basedir, templateName))
+	context := NewTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "", adapter)
+	return RenderTemplate(context, path.Join(basedir, templateName))
 }
 
 func renderSingle(t *testing.T, template string, data interface{}) (string, error) {
@@ -563,7 +564,7 @@ func TestAmiID(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			adapter := awsAdapter{ec2Client: mockEC2Client{t: t, kubernetesImage: tc.imageName, ownerID: tc.ownerID, output: tc.output}}
+			adapter := awsProvisioner.AWSAdapter{EC2Client: mockEC2Client{t: t, kubernetesImage: tc.imageName, ownerID: tc.ownerID, output: tc.output}}
 			result, err := render(
 				t,
 				map[string]string{
@@ -698,4 +699,12 @@ func TestParseInt64(t *testing.T) {
 func TestParseInt64Error(t *testing.T) {
 	_, err := renderSingle(t, `{{ parseInt64 "foobar" }}`, nil)
 	require.Error(t, err)
+}
+
+func TestGetInfrastructureID(t *testing.T) {
+	expected := "12345678910"
+	awsAccountID := GetAWSAccountID(fmt.Sprintf("aws:%s", expected))
+	if awsAccountID != expected {
+		t.Errorf("expected: %s, got: %s", expected, awsAccountID)
+	}
 }

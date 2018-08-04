@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner/template"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,7 +28,7 @@ func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte
 		var compressionInput []byte
 		var finalPath string
 
-		decoded, err := base64Decode(remoteFile.Data)
+		decoded, err := template.Base64Decode(remoteFile.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode data for file: %s", remoteFile.Path)
 		}
