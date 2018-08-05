@@ -242,31 +242,14 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	cfgBasePath := path.Join(channelConfig.Path, "cluster")
-	stackDefinitionPath := path.Join(cfgBasePath, "senza-definition.yaml")
 
 	// create bucket name with aws account ID to ensure uniqueness across
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	// TODO(tech-depth): remove this once all clusters are switched away
-	// from senza.
-	// if the senza-definition.yaml exists we create a stack based on that,
-	// otherwise we create it from the cluster.yaml
-	_, err = os.Stat(stackDefinitionPath)
+	err = createOrUpdateClusterStack(awsAdapter, ctx, cfgBasePath, cluster, values, bucketName)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		err = createOrUpdateClusterStack(awsAdapter, ctx, cfgBasePath, cluster, values, bucketName)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = awsAdapter.CreateOrUpdateClusterStackSenza(ctx, cluster.LocalID, stackDefinitionPath, cluster)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	if err = ctx.Err(); err != nil {
