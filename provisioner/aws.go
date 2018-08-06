@@ -42,6 +42,7 @@ const (
 	clmCFBucketPattern           = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady         = "ready"
 	etcdInstanceTypeKey          = "etcd_instance_type"
+	etcdInstanceCountKey         = "etcd_instance_count"
 	etcdS3BackupBucketKey        = "etcd_s3_backup_bucket"
 	discountStrategyNone         = "none"
 	discountStrategySpotMaxPrice = "spot_max_price"
@@ -443,6 +444,10 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 
 	if instanceType, ok := cluster.ConfigItems[etcdInstanceTypeKey]; ok {
 		args = append(args, fmt.Sprintf("InstanceType=%s", instanceType))
+	}
+
+	if instanceCount, ok := cluster.ConfigItems[etcdInstanceCountKey]; ok {
+		args = append(args, fmt.Sprintf("InstanceCount=%s", instanceCount))
 	}
 
 	cmd := exec.Command(
