@@ -153,9 +153,9 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	values["spot_price"] = ""
 
 	switch nodePool.DiscountStrategy {
-	case discountStrategyNone:
+	case api.DiscountStrategyNone:
 		break
-	case discountStrategySpotMaxPrice:
+	case api.DiscountStrategySpot:
 		instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
 		if err != nil {
 			return err

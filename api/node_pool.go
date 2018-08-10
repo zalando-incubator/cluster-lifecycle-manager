@@ -2,6 +2,11 @@ package api
 
 import "strings"
 
+const (
+	DiscountStrategyNone = "none"
+	DiscountStrategySpot = "spot_max_price"
+)
+
 // NodePool describes a node pool in a kubernetes cluster.
 type NodePool struct {
 	DiscountStrategy string            `json:"discount_strategy" yaml:"discount_strategy"`
