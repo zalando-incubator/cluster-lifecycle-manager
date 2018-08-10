@@ -258,6 +258,11 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 			return nil, err
 		}
 
+		// We don't need surge nodes in Spot
+		if nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot {
+			return nodePool, nil
+		}
+
 		// in case there are less than surge desired nodes we don't
 		// want to increase the pool size with surge, but instead with
 		// at most desired.
