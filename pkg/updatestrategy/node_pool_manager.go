@@ -575,6 +575,11 @@ func WaitForDesiredNodes(ctx context.Context, logger *log.Entry, n NodePoolManag
 			break
 		}
 
+		// Don't wait for Spot nodes, just proceed with whatever we want to do
+		if nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot {
+			break
+		}
+
 		logger.WithFields(log.Fields{"node-pool": nodePoolDesc.Name}).
 			Infof("Waiting for ready and desired number of nodes to match: %d/%d", readyNodes, nodePool.Desired)
 

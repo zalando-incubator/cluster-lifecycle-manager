@@ -35,18 +35,16 @@ import (
 )
 
 const (
-	waitTime                     = 15 * time.Second
-	stackMaxSize                 = 51200
-	cloudformationValidationErr  = "ValidationError"
-	cloudformationNoUpdateMsg    = "No updates are to be performed."
-	clmCFBucketPattern           = "cluster-lifecycle-manager-%s-%s"
-	lifecycleStatusReady         = "ready"
-	etcdInstanceTypeKey          = "etcd_instance_type"
-	etcdInstanceCountKey         = "etcd_instance_count"
-	etcdS3BackupBucketKey        = "etcd_s3_backup_bucket"
-	discountStrategyNone         = "none"
-	discountStrategySpotMaxPrice = "spot_max_price"
-	ignitionBaseTemplate         = `{
+	waitTime                    = 15 * time.Second
+	stackMaxSize                = 51200
+	cloudformationValidationErr = "ValidationError"
+	cloudformationNoUpdateMsg   = "No updates are to be performed."
+	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
+	lifecycleStatusReady        = "ready"
+	etcdInstanceTypeKey         = "etcd_instance_type"
+	etcdInstanceCountKey        = "etcd_instance_count"
+	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
+	ignitionBaseTemplate        = `{
   "ignition": {
     "version": "2.1.0",
     "config": {
