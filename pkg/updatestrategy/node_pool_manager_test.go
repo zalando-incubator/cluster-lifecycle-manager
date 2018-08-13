@@ -127,6 +127,43 @@ func TestLabelNodes(t *testing.T) {
 
 	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
+
+	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
+
+	err = mgr.labelNode(&Node{Name: node.Name}, "foo", "baz")
+	assert.NoError(t, err)
+
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "baz"})
+}
+
+func TestAnnotateNodes(t *testing.T) {
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	}
+
+	mgr := &KubernetesNodePoolManager{
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+	}
+
+	err := mgr.annotateNode(&Node{Name: node.Name}, "foo", "bar")
+	assert.NoError(t, err)
+
+	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated.Annotations, map[string]string{"foo": "bar"})
+
+	err = mgr.annotateNode(&Node{Name: node.Name}, "foo", "baz")
+	assert.NoError(t, err)
+
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated2.Annotations, map[string]string{"foo": "baz"})
 }
 
 func TestTaintNode(t *testing.T) {

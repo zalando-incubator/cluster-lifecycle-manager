@@ -99,6 +99,7 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 				Generation:      npNode.Generation,
 				Ready:           npNode.Ready,
 				Name:            node.Name,
+				Annotations:     node.Annotations,
 				Labels:          node.Labels,
 				Taints:          node.Spec.Taints,
 				Cordoned:        node.Spec.Unschedulable,
@@ -140,17 +141,75 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
-// LabelNode labels a Kubernetes node object in case the label is not already
+func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Node) bool, patch func(*v1.Node) bool) error {
+	// fast check: verify if already up-to-date
+	if !needsUpdate(node) {
+		return nil
+	}
+
+	taintNode := func() error {
+		// re-fetch the node since we're going to do an update
+		updatedNode, err := m.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+		if err != nil {
+			return backoff.Permanent(err)
+		}
+
+		if patch(updatedNode) {
+			_, err := m.kube.CoreV1().Nodes().Update(updatedNode)
+			if err != nil {
+				// automatically retry if there was a conflicting update.
+				serr, ok := err.(*apiErrors.StatusError)
+				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
+					return err
+				}
+
+				return backoff.Permanent(err)
+			}
+		}
+
+		return nil
+	}
+
+	backoffCfg := backoff.WithMaxTries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
+	return backoff.Retry(taintNode, backoffCfg)
+}
+
+// aabelNode annotates a Kubernetes node object in case the annotation is not already
+// defined.
+func (m *KubernetesNodePoolManager) annotateNode(node *Node, annotationKey, annotationValue string) error {
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Annotations[annotationKey]
+			return !ok || value != annotationValue
+		},
+		func(node *v1.Node) bool {
+			if node.Annotations == nil {
+				node.Annotations = make(map[string]string)
+			}
+			value, ok := node.Annotations[annotationKey]
+			node.Annotations[annotationKey] = annotationValue
+			return !ok || value != annotationValue
+		})
+}
+
+// labelNode labels a Kubernetes node object in case the label is not already
 // defined.
 func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue string) error {
-	if value, ok := node.Labels[labelKey]; !ok || value != labelValue {
-		label := []byte(fmt.Sprintf(`{"metadata": {"labels": {"%s": "%s"}}}`, labelKey, labelValue))
-		_, err := m.kube.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, label)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Labels[labelKey]
+			return !ok || value != labelValue
+		},
+		func(node *v1.Node) bool {
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
+			value, ok := node.Labels[labelKey]
+			node.Labels[labelKey] = labelValue
+			return !ok || value != labelValue
+		})
 }
 
 // updateTaint adds a taint with the provided key, value and effect if it isn't present or
@@ -178,38 +237,19 @@ func updateTaint(node *v1.Node, taintKey, taintValue string, effect v1.TaintEffe
 
 // TaintNode sets a taint on a Kubernetes node object with a specified value and effect.
 func (m *KubernetesNodePoolManager) taintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
-	// fast check: verify if the taint is already set
-	for _, taint := range node.Taints {
-		if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
-			return nil
-		}
-	}
-
-	taintNode := func() error {
-		// re-fetch the node since we're going to do an update
-		updatedNode, err := m.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
-		if err != nil {
-			return backoff.Permanent(err)
-		}
-
-		if updateTaint(updatedNode, taintKey, taintValue, effect) {
-			_, err := m.kube.CoreV1().Nodes().Update(updatedNode)
-			if err != nil {
-				// automatically retry if there was a conflicting update.
-				serr, ok := err.(*apiErrors.StatusError)
-				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
-					return err
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			for _, taint := range node.Taints {
+				if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
+					return false
 				}
-
-				return backoff.Permanent(err)
 			}
-		}
-
-		return nil
-	}
-
-	backoffCfg := backoff.WithMaxTries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
-	return backoff.Retry(taintNode, backoffCfg)
+			return true
+		},
+		func(node *v1.Node) bool {
+			return updateTaint(node, taintKey, taintValue, effect)
+		})
 }
 
 // TerminateNode terminates a node and optionally decrement the desired size of
