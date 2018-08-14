@@ -55,7 +55,6 @@ const (
 	subnetAllAZName                = "*"
 	maxApplyRetries                = 10
 	configKeyUpdateStrategy        = "update_strategy"
-	configKeyNodeMaxEvictTimeout   = "node_max_evict_timeout"
 	updateStrategyRolling          = "rolling"
 	defaultMaxRetryTime            = 5 * time.Minute
 )
@@ -581,17 +580,20 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		updateStrategy = p.updateStrategy.Strategy
 	}
 
-	// allow clusters to override their max evict timeout
-	// use global max evict timeout if cluster doesn't define one.
-	maxEvictTimeout := p.updateStrategy.MaxEvictTimeout
-
-	maxEvictTimeoutStr, ok := cluster.ConfigItems[configKeyNodeMaxEvictTimeout]
-	if ok {
-		maxEvictTimeout, err = time.ParseDuration(maxEvictTimeoutStr)
-		if err != nil {
-			return nil, nil, nil, err
-		}
+	drainConfig := &updatestrategy.DrainConfig{
+		ForceEvictionGracePeriod:       p.updateStrategy.ForceEvictionGracePeriod,
+		MinPodLifetime:                 p.updateStrategy.MinPodLifetime,
+		MinHealthyPDBSiblingLifetime:   p.updateStrategy.MinHealthyPDBSiblingLifetime,
+		MinUnhealthyPDBSiblingLifetime: p.updateStrategy.MinUnhealthyPDBSiblingLifetime,
+		ForceEvictionInterval:          p.updateStrategy.ForceEvictionInterval,
 	}
+
+	// allow clusters to override their drain settings
+	handleDurationItem(cluster.ConfigItems, "drain_grace_period", func(v time.Duration) { drainConfig.ForceEvictionGracePeriod = v })
+	handleDurationItem(cluster.ConfigItems, "drain_min_pod_lifetime", func(v time.Duration) { drainConfig.MinPodLifetime = v })
+	handleDurationItem(cluster.ConfigItems, "drain_min_healthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinHealthyPDBSiblingLifetime = v })
+	handleDurationItem(cluster.ConfigItems, "drain_min_unhealthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinUnhealthyPDBSiblingLifetime = v })
+	handleDurationItem(cluster.ConfigItems, "drain_force_evict_interval", func(v time.Duration) { drainConfig.ForceEvictionInterval = v })
 
 	var updater updatestrategy.UpdateStrategy
 	var poolManager updatestrategy.NodePoolManager
@@ -605,7 +607,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		// setup updater
 		poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, sess)
 
-		poolManager = updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, maxEvictTimeout)
+		poolManager = updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig)
 
 		updater = updatestrategy.NewRollingUpdateStrategy(logger, poolManager, 3)
 	default:
@@ -613,6 +615,18 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	}
 
 	return adapter, updater, poolManager, nil
+}
+
+func handleDurationItem(configItems map[string]string, key string, set func(duration time.Duration)) error {
+	value, ok := configItems[key]
+	if ok {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return fmt.Errorf("invalid value for %s: %v", key, err)
+		}
+		set(parsed)
+	}
+	return nil
 }
 
 // tagSubnets tags all subnets in the default VPC with the kubernetes cluster

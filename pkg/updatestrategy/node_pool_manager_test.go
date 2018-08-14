@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 
@@ -95,7 +94,7 @@ func TestGetPool(t *testing.T) {
 		logger,
 		setupMockKubernetes(t, []*v1.Node{node}, nil),
 		backend,
-		0,
+		&DrainConfig{},
 	)
 
 	// test getting nodes successfully
@@ -426,10 +425,10 @@ func TestTerminateNode(t *testing.T) {
 		},
 	}
 	mgr := &KubernetesNodePoolManager{
-		logger:          logger,
-		kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-		backend:         backend,
-		maxEvictTimeout: 1 * time.Nanosecond,
+		logger:      logger,
+		kube:        setupMockKubernetes(t, []*v1.Node{node}, pods),
+		backend:     backend,
+		drainConfig: &DrainConfig{},
 	}
 
 	err := mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
@@ -539,10 +538,10 @@ func TestTerminateNodeCancelled(t *testing.T) {
 	// immediate cancellation
 	{
 		mgr := &KubernetesNodePoolManager{
-			logger:          logger,
-			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-			backend:         backend,
-			maxEvictTimeout: 1 * time.Nanosecond,
+			logger:      logger,
+			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods),
+			backend:     backend,
+			drainConfig: &DrainConfig{},
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -556,10 +555,10 @@ func TestTerminateNodeCancelled(t *testing.T) {
 	// cancel after first pod
 	{
 		mgr := &KubernetesNodePoolManager{
-			logger:          logger,
-			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-			backend:         backend,
-			maxEvictTimeout: 1 * time.Nanosecond,
+			logger:      logger,
+			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods),
+			backend:     backend,
+			drainConfig: &DrainConfig{},
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
