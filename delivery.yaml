@@ -1,36 +1,31 @@
 version: "2017-09-20"
 pipeline:
 - id: build
+  overlay: machinery/go-overlay
   type: script
   env:
     GOPATH: /go
-    PATH: /go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
   working_dir: /go/src/github.com/zalando-incubator/cluster-lifecycle-manager
   commands:
-  - desc: install go
-    cmd: |
-      add-apt-repository -y ppa:longsleep/golang-backports
-      apt-get update
-      apt-get install -y golang-go
   - desc: install deps
     cmd: |
-      mkdir -p $GOPATH/bin
-      curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      dep ensure -vendor-only
-  - desc: build
+      dep ensure -v -vendor-only
+  - desc: test
     cmd: |
       make test
-      make build.linux
-
+  - desc: build
+    cmd: |
+      make build.docker
+  - desc: push
+    cmd: |
       if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
-          IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
-          VERSION=$(git describe --tags --always --dirty)
+        IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
+        VERSION=$(git describe --tags --always --dirty)
       else
-          IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager-test
-          VERSION=$CDP_BUILD_VERSION
+        IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager-test
+        VERSION=$CDP_BUILD_VERSION
       fi
-
-      VERSION=$VERSION IMAGE=$IMAGE make build.push
+      IMAGE=$IMAGE VERSION=$VERSION make build.push
 
 notifications:
   hipchat:
