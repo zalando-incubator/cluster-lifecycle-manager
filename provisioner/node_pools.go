@@ -107,8 +107,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 		return err
 	}
 
-	// TODO(tech-depth): remove non-legacy node pool filter
-	nodePools := getNonLegacyNodePools(p.Cluster)
+	nodePools := p.Cluster.NodePools
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel

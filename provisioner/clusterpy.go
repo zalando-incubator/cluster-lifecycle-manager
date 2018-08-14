@@ -761,18 +761,6 @@ func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
 	return false
 }
 
-// TODO(tech-depth): Remove when new node poole feature is enabled by default.
-func getNonLegacyNodePools(cluster *api.Cluster) []*api.NodePool {
-	nodePools := make([]*api.NodePool, 0, len(cluster.NodePools))
-	for _, np := range cluster.NodePools {
-		if np.Name == "master-default" || np.Name == "worker-default" {
-			continue
-		}
-		nodePools = append(nodePools, np)
-	}
-	return nodePools
-}
-
 type labels map[string]string
 
 // String returns a string representation of the labels map.
