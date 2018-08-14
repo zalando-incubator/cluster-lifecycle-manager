@@ -1,16 +1,15 @@
 language: go
 
 go:
-  - "1.11.x"
+  - "1.12.x"
+
+env:
+- GO111MODULE=on
 
 before_install:
-  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - go get github.com/mattn/goveralls
   - go get github.com/lawrencewoodman/roveralls
   - go get honnef.co/go/tools/cmd/staticcheck
-
-install:
-  - dep ensure -vendor-only
 
 script:
   - make build.docker

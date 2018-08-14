@@ -47,18 +47,15 @@ scale.
 
 ## How to build it
 
-In order to build you first need to get the dependencies which are managed by
-[dep](https://github.com/golang/dep). Follow the
-[installation instructions](https://github.com/golang/dep#installation) to install it and then run
-the following:
+This project uses [Go modules](https://github.com/golang/go/wiki/Modules) as
+introduced in Go 1.11 therefore you need Go >=1.11 installed in order to build.
+If using Go 1.11 you also need to [activate Module
+support](https://github.com/golang/go/wiki/Modules#installing-and-activating-module-support).
+
+Assuming Go has been setup with module support it can be built simply by running:
 
 ```sh
-$ dep ensure -vendor-only # install all dependencies
-```
-
-After dependencies are installed the CLM can be built simply by running:
-
-```sh
+export GO111MODULE=on # needed if the project is checked out in your $GOPATH.
 $ make
 ```
 
