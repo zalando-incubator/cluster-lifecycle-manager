@@ -113,10 +113,16 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 
 	// limit surge to max size of the node pool
 	surge := int(math.Min(float64(nodePoolDesc.MaxSize), float64(r.surge)))
+	spotPool := nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot
 
 	for {
 		// wait/scale to ensure that we have at least 'surge' new nodes in the node pool
-		nodePool, err := r.scaleOutAndWaitForNodesToBeReady(ctx, nodePoolDesc, surge)
+		// for spot pools, don't scale out
+		scaleOutSurge := surge
+		if spotPool {
+			scaleOutSurge = 0
+		}
+		nodePool, err := r.scaleOutAndWaitForNodesToBeReady(ctx, nodePoolDesc, scaleOutSurge)
 		if err != nil {
 			return err
 		}
@@ -163,6 +169,11 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 
 		// compute nodes to cordon and unmatched nodes
 		toCordon, unmatchedNodes := r.computeNodesList(nodePool, surge)
+		// we don't care about unmatched nodes with spot
+		if spotPool {
+			toCordon = append(toCordon, unmatchedNodes...)
+			unmatchedNodes = []*Node{}
+		}
 
 		// cordon the selected nodes
 		err = r.cordonNodes(toCordon)
@@ -256,11 +267,6 @@ func (r *RollingUpdateStrategy) scaleOutAndWaitForNodesToBeReady(ctx context.Con
 		nodePool, err = WaitForDesiredNodes(ctx, r.logger, r.nodePoolManager, nodePoolDesc)
 		if err != nil {
 			return nil, err
-		}
-
-		// We don't need surge nodes in Spot
-		if nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot {
-			return nodePool, nil
 		}
 
 		// in case there are less than surge desired nodes we don't
