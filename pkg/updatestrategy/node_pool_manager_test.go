@@ -4,27 +4,33 @@ import (
 	"context"
 	"testing"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
+	policy "k8s.io/client-go/pkg/apis/policy/v1beta1"
 )
 
-func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod) kubernetes.Interface {
+func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) kubernetes.Interface {
 	client := fake.NewSimpleClientset()
 
 	for _, node := range nodes {
 		_, err := client.CoreV1().Nodes().Create(node)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	for _, pod := range pods {
 		_, err := client.CoreV1().Pods(pod.Namespace).Create(pod)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+	}
+
+	for _, pdb := range pdbs {
+		_, err := client.Policy().PodDisruptionBudgets(pdb.GetNamespace()).Create(pdb)
+		require.NoError(t, err)
 	}
 
 	return client
@@ -88,7 +94,7 @@ func TestGetPool(t *testing.T) {
 	}
 	mgr := NewKubernetesNodePoolManager(
 		logger,
-		setupMockKubernetes(t, []*v1.Node{node}, nil),
+		setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 		backend,
 		&DrainConfig{},
 	)
@@ -102,7 +108,7 @@ func TestGetPool(t *testing.T) {
 	node.ObjectMeta.Labels = map[string]string{
 		lifecycleStatusLabel: lifecycleStatusDraining,
 	}
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, nil)
+	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, nil, nil)
 	nodePool, err = mgr.GetPool(&api.NodePool{Name: "test"})
 	assert.NoError(t, err)
 	assert.Len(t, nodePool.Nodes, 1)
@@ -117,7 +123,7 @@ func TestLabelNodes(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
@@ -143,7 +149,7 @@ func TestAnnotateNodes(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	err := mgr.annotateNode(&Node{Name: node.Name}, "foo", "bar")
@@ -169,7 +175,7 @@ func TestTaintNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	// we can add a new taint
@@ -240,7 +246,7 @@ func TestCordonNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	err := mgr.CordonNode(&Node{Name: node.Name})
@@ -349,7 +355,7 @@ func TestScalePool(tt *testing.T) {
 		tt.Run(tc.msg, func(t *testing.T) {
 			mgr := &KubernetesNodePoolManager{
 				backend: tc.backend,
-				kube:    setupMockKubernetes(t, tc.nodes, nil),
+				kube:    setupMockKubernetes(t, tc.nodes, nil, nil),
 				logger:  log.WithField("test", true),
 			}
 			assert.NoError(t, mgr.ScalePool(context.Background(), &api.NodePool{Name: "test"}, tc.replicas))

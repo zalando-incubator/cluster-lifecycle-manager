@@ -175,7 +175,7 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 		// PDB violation, check if we can force terminate the pod
 		m.pdbViolated(pod)
 
-		forceTerminate, err := m.forceTerminationAllowed(pod, drainStart, lastForcedTermination)
+		forceTerminate, err := m.forceTerminationAllowed(pod, time.Now(), drainStart, lastForcedTermination)
 		if forceTerminate {
 			err = deletePod(m.kube, m.podLogger(pod), pod)
 			if err != nil {
@@ -188,23 +188,21 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 	return false, nil
 }
 
-func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, drainStart, lastForcedTermination time.Time) (bool, error) {
-	now := time.Now()
-
+func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, drainStart, lastForcedTermination time.Time) (bool, error) {
 	// too early to start force terminating
-	if drainStart.Add(m.drainConfig.ForceEvictionGracePeriod).After(now) {
+	if now.Before(drainStart.Add(m.drainConfig.ForceEvictionGracePeriod)) {
 		m.podLogger(pod).Debugf("Won't force terminate (node in grace period)")
 		return false, nil
 	}
 
 	// we've recently force killed a pod
-	if lastForcedTermination.Add(m.drainConfig.ForceEvictionInterval).After(now) {
+	if now.Before(lastForcedTermination.Add(m.drainConfig.ForceEvictionInterval)) {
 		m.podLogger(pod).Debugf("Won't force terminate (recently force terminated a pod)")
 		return false, nil
 	}
 
 	// pod too young
-	if pod.GetCreationTimestamp().Add(m.drainConfig.MinPodLifetime).After(now) {
+	if now.Before(pod.GetCreationTimestamp().Add(m.drainConfig.MinPodLifetime)) {
 		m.podLogger(pod).Debugf("Won't force terminate (pod too young)")
 		return false, nil
 	}
@@ -227,7 +225,7 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, drainSta
 		if podReady(siblingPod) {
 			waitTime = m.drainConfig.MinHealthyPDBSiblingLifetime
 		}
-		if siblingPod.GetCreationTimestamp().Add(waitTime).After(now) {
+		if now.Before(siblingPod.GetCreationTimestamp().Add(waitTime)) {
 			siblingsOldEnough = false
 			break
 		}

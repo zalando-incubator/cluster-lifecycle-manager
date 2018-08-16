@@ -10,10 +10,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	policy "k8s.io/client-go/pkg/apis/policy/v1beta1"
+)
+
+const (
+	testNodeName = "test-node"
 )
 
 func removePod(client kubernetes.Interface, pod v1.Pod) error {
@@ -31,7 +37,6 @@ func evictPodFailPDB(client kubernetes.Interface, logger *log.Entry, pod v1.Pod)
 }
 
 func TestTerminateNode(t *testing.T) {
-	nodeName := "test"
 	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 		return removePod(client, pod)
 	}
@@ -43,7 +48,7 @@ func TestTerminateNode(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 		{
@@ -55,7 +60,7 @@ func TestTerminateNode(t *testing.T) {
 				},
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 		{
@@ -69,14 +74,14 @@ func TestTerminateNode(t *testing.T) {
 				},
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 	}
 
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
+			Name: testNodeName,
 		},
 	}
 
@@ -95,7 +100,7 @@ func TestTerminateNode(t *testing.T) {
 	}
 	mgr := &KubernetesNodePoolManager{
 		logger:  logger,
-		kube:    setupMockKubernetes(t, []*v1.Node{node}, pods),
+		kube:    setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
 		backend: backend,
 		drainConfig: &DrainConfig{
 			PollInterval: time.Second,
@@ -108,13 +113,13 @@ func TestTerminateNode(t *testing.T) {
 	// test when evictPod returns 429
 	evictPod = evictPodFailPDB
 
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods)
+	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods, nil)
 	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 }
 
 func TestTerminateNodeCancelled(t *testing.T) {
-	nodeName := "test"
+	testNodeName := "test"
 
 	pods := []*v1.Pod{
 		{
@@ -123,7 +128,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 		{
@@ -135,7 +140,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 				},
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 		{
@@ -149,7 +154,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 				},
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 		{
@@ -158,14 +163,14 @@ func TestTerminateNodeCancelled(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: v1.PodSpec{
-				NodeName: nodeName,
+				NodeName: testNodeName,
 			},
 		},
 	}
 
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
+			Name: testNodeName,
 		},
 	}
 
@@ -189,7 +194,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		mgr := &KubernetesNodePoolManager{
 			logger:      logger,
-			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods),
+			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
 			backend:     backend,
 			drainConfig: &DrainConfig{},
 		}
@@ -228,7 +233,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		mgr := &KubernetesNodePoolManager{
 			logger:      logger,
-			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods),
+			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
 			backend:     backend,
 			drainConfig: &DrainConfig{},
 		}
@@ -257,7 +262,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		mgr := &KubernetesNodePoolManager{
 			logger:  logger,
-			kube:    setupMockKubernetes(t, []*v1.Node{node}, pods),
+			kube:    setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
 			backend: backend,
 			drainConfig: &DrainConfig{
 				ForceEvictionInterval: time.Minute,
@@ -277,4 +282,147 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		assert.EqualValues(t, int32(1), deleteCountFinal)
 		assert.EqualValues(t, err, context.Canceled)
 	}
+}
+
+var testDrainConfig = &DrainConfig{
+	ForceEvictionGracePeriod:       10 * time.Second,
+	MinPodLifetime:                 20 * time.Second,
+	MinHealthyPDBSiblingLifetime:   30 * time.Second,
+	MinUnhealthyPDBSiblingLifetime: 40 * time.Second,
+	ForceEvictionInterval:          5 * time.Second,
+}
+
+func forceTerminationAllowed(t *testing.T, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget, now, drainStart, lastForcedTermination time.Time) (bool, error) {
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testNodeName,
+		},
+	}
+
+	backend := &mockProviderNodePoolsBackend{
+		nodePool: &NodePool{
+			Min:        1,
+			Max:        1,
+			Current:    1,
+			Desired:    1,
+			Generation: 1,
+			Nodes: []*Node{
+				{ProviderID: "provider-id"},
+			},
+		},
+	}
+
+	mgr := &KubernetesNodePoolManager{
+		logger:      log.WithField("test", true),
+		kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, pdbs),
+		backend:     backend,
+		drainConfig: testDrainConfig,
+	}
+
+	return mgr.forceTerminationAllowed(*pods[0], now, drainStart, lastForcedTermination)
+}
+
+var zeroTime = time.Unix(0, 0)
+
+func pod(name string, creationTimestamp time.Time, healthy bool) *v1.Pod {
+	status := v1.ConditionFalse
+	if healthy {
+		status = v1.ConditionTrue
+	}
+
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
+			Namespace:         "default",
+			CreationTimestamp: metav1.Time{Time: creationTimestamp},
+			Labels:            map[string]string{"app": "foo"},
+		},
+		Spec: v1.PodSpec{
+			NodeName: testNodeName,
+		},
+		Status: v1.PodStatus{
+			Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: status}},
+		},
+	}
+}
+
+func TestForceTerminationGracePeriod(t *testing.T) {
+	pods := []*v1.Pod{pod("foo-0", zeroTime, true)}
+
+	now := time.Now()
+	result, err := forceTerminationAllowed(t, pods, nil, now, now, zeroTime)
+	require.NoError(t, err)
+	require.False(t, result)
+
+	result2, err := forceTerminationAllowed(t, pods, nil, now, now.Add(-testDrainConfig.ForceEvictionGracePeriod), zeroTime)
+	require.NoError(t, err)
+	require.True(t, result2)
+}
+
+func TestForceTerminationForceEvictionInterval(t *testing.T) {
+	pods := []*v1.Pod{pod("foo-0", zeroTime, true)}
+
+	now := time.Now()
+	result, err := forceTerminationAllowed(t, pods, nil, now, zeroTime, now)
+	require.NoError(t, err)
+	require.False(t, result)
+
+	result2, err := forceTerminationAllowed(t, pods, nil, now, zeroTime, now.Add(-testDrainConfig.ForceEvictionInterval))
+	require.NoError(t, err)
+	require.True(t, result2)
+}
+
+func TestForceTerminationPodTooYoung(t *testing.T) {
+	now := time.Now()
+	result, err := forceTerminationAllowed(t, []*v1.Pod{pod("foo-0", now, true)}, nil, now, zeroTime, zeroTime)
+	require.NoError(t, err)
+	require.False(t, result)
+
+	result2, err := forceTerminationAllowed(t, []*v1.Pod{pod("foo-0", now.Add(-testDrainConfig.MinPodLifetime), true)}, nil, now, zeroTime, zeroTime)
+	require.NoError(t, err)
+	require.True(t, result2)
+}
+
+func TestPDBSiblings(t *testing.T) {
+	pdbs := []*policy.PodDisruptionBudget{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+			},
+			Spec: policy.PodDisruptionBudgetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "foo"},
+				},
+			},
+		},
+	}
+
+	now := time.Now()
+
+	result, err := forceTerminationAllowed(
+		t,
+		[]*v1.Pod{
+			pod("foo-0", zeroTime, true),
+			pod("foo-1", now, true),
+			pod("foo-2", now, false),
+			pod("foo-3", zeroTime, true),
+			pod("foo-4", zeroTime, false),
+		},
+		pdbs, now, zeroTime, zeroTime)
+	require.NoError(t, err)
+	require.False(t, result)
+
+	result2, err := forceTerminationAllowed(
+		t,
+		[]*v1.Pod{
+			pod("foo-0", zeroTime, true),
+			pod("foo-1", now.Add(-testDrainConfig.MinHealthyPDBSiblingLifetime), true),
+			pod("foo-2", now.Add(-testDrainConfig.MinUnhealthyPDBSiblingLifetime), false),
+			pod("foo-3", zeroTime, true),
+			pod("foo-4", zeroTime, false),
+		},
+		pdbs, now, zeroTime, zeroTime)
+	require.NoError(t, err)
+	require.True(t, result2)
 }
