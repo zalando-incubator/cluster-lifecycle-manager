@@ -1,10 +1,8 @@
 version: "2017-09-20"
 pipeline:
 - id: build
-  overlay: machinery/go-overlay
+  overlay: ci/golang
   type: script
-  env:
-    GOPATH: /go
   working_dir: /go/src/github.com/zalando-incubator/cluster-lifecycle-manager
   commands:
   - desc: install deps
