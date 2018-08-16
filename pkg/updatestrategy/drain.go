@@ -100,7 +100,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			break
 		}
 
-		forceEvicted, err := m.evictSomething(ctx, pods, drainStart, lastForcedTermination)
+		forceEvicted, err := m.evictOrForceTerminatePod(ctx, pods, drainStart, lastForcedTermination)
 		if err != nil {
 			return err
 		}
@@ -156,7 +156,7 @@ func (m *KubernetesNodePoolManager) pdbViolated(pod v1.Pod) {
 	m.podLogger(pod).Info("Pod Disruption Budget violated")
 }
 
-func (m *KubernetesNodePoolManager) evictSomething(ctx context.Context, pods []v1.Pod, drainStart, lastForcedTermination time.Time) (bool, error) {
+func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context, pods []v1.Pod, drainStart, lastForcedTermination time.Time) (bool, error) {
 	for _, pod := range pods {
 		err := ctx.Err()
 		if err != nil {
@@ -193,16 +193,19 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, drainSta
 
 	// too early to start force terminating
 	if drainStart.Add(m.drainConfig.ForceEvictionGracePeriod).After(now) {
+		m.podLogger(pod).Debugf("Won't force terminate (node in grace period)")
 		return false, nil
 	}
 
 	// we've recently force killed a pod
 	if lastForcedTermination.Add(m.drainConfig.ForceEvictionInterval).After(now) {
+		m.podLogger(pod).Debugf("Won't force terminate (recently force terminated a pod)")
 		return false, nil
 	}
 
 	// pod too young
 	if pod.GetCreationTimestamp().Add(m.drainConfig.MinPodLifetime).After(now) {
+		m.podLogger(pod).Debugf("Won't force terminate (pod too young)")
 		return false, nil
 	}
 
@@ -230,6 +233,11 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, drainSta
 		}
 	}
 	if !siblingsOldEnough {
+		var siblingNames []string
+		for _, siblingPod := range siblingPods {
+			siblingNames = append(siblingNames, siblingPod.GetName())
+		}
+		m.podLogger(pod).Debugf("Won't force terminate (siblings %s too young)", strings.Join(siblingNames, ", "))
 		return false, nil
 	}
 
