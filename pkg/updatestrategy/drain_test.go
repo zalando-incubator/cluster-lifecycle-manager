@@ -383,7 +383,7 @@ func TestForceTerminationPodTooYoung(t *testing.T) {
 	require.True(t, result2)
 }
 
-func TestPDBSiblings(t *testing.T) {
+func TestForceTerminationPDBSiblings(t *testing.T) {
 	pdbs := []*policy.PodDisruptionBudget{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -425,4 +425,79 @@ func TestPDBSiblings(t *testing.T) {
 		pdbs, now, zeroTime, zeroTime)
 	require.NoError(t, err)
 	require.True(t, result2)
+}
+
+func podNames(pods []v1.Pod) []string {
+	var result []string
+	for _, pod := range pods {
+		result = append(result, pod.GetName())
+	}
+	return result
+}
+
+func TestFindPDBSiblings(t *testing.T) {
+	testPod := func(name string, labels map[string]string) v1.Pod {
+		return v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+				Labels:    labels,
+			},
+			Spec: v1.PodSpec{
+				NodeName: testNodeName,
+			},
+		}
+	}
+	testPDB := func(name string, labels map[string]string) policy.PodDisruptionBudget {
+		return policy.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+			},
+			Spec: policy.PodDisruptionBudgetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: labels,
+				},
+			},
+		}
+	}
+
+	foo0 := testPod("foo-0", map[string]string{"app": "foo", "env": "production"})
+	foo1 := testPod("foo-1", map[string]string{"app": "foo"})
+	foo2 := testPod("foo-2", map[string]string{"app": "foo"})
+	bar0 := testPod("bar-0", map[string]string{"app": "bar"})
+	bar1 := testPod("bar-1", map[string]string{"app": "bar"})
+	bar2 := testPod("bar-2", map[string]string{"app": "bar"})
+	baz0 := testPod("baz-0", map[string]string{"app": "baz", "env": "production"})
+	quux0 := testPod("quux-0", map[string]string{"app": "quux"})
+
+	allPods := []v1.Pod{foo0, foo1, foo2, bar0, bar1, bar2, baz0, quux0}
+
+	fooPdb := testPDB("foo", map[string]string{"app": "foo"})
+	barPdb := testPDB("bar", map[string]string{"app": "bar"})
+	prodPdb := testPDB("prod", map[string]string{"env": "production"})
+	quuxPdb := testPDB("quux", map[string]string{"app": "quux"})
+	brokenPdb := policy.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "broken",
+			Namespace: "default",
+		},
+		Spec: policy.PodDisruptionBudgetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{{
+					Key:      "foo",
+					Values:   []string{"bar"},
+					Operator: "invalid",
+				}},
+			},
+		},
+	}
+
+	allPdbs := []policy.PodDisruptionBudget{fooPdb, barPdb, prodPdb, quuxPdb, brokenPdb}
+
+	logger := log.WithField("test", true)
+
+	require.EqualValues(t, []string{"foo-1", "foo-2", "baz-0"}, podNames(findSiblingPods(logger, foo0, allPods, allPdbs)))
+	require.EqualValues(t, []string{"bar-1", "bar-2"}, podNames(findSiblingPods(logger, bar0, allPods, allPdbs)))
+	require.Empty(t, podNames(findSiblingPods(logger, quux0, allPods, allPdbs)))
 }

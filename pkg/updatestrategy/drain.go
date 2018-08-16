@@ -216,7 +216,7 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, dra
 	if err != nil {
 		return false, err
 	}
-	siblingPods := findSiblingPods(m.logger, pod, allPods, allPdbs)
+	siblingPods := findSiblingPods(m.logger, pod, allPods.Items, allPdbs.Items)
 
 	// check if PDB siblings are old enough
 	siblingsOldEnough := true
@@ -251,12 +251,12 @@ func podReady(pod v1.Pod) bool {
 	return false
 }
 
-func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods *v1.PodList, allPdbs *policy.PodDisruptionBudgetList) []v1.Pod {
+func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods []v1.Pod, allPdbs []policy.PodDisruptionBudget) []v1.Pod {
 	var siblingSelectors []labels.Selector
-	for _, pdb := range allPdbs.Items {
+	for _, pdb := range allPdbs {
 		selector, err := metav1.LabelSelectorAsSelector(pdb.Spec.Selector)
 		if err != nil {
-			logger.Debugf("pdb %s/%s has an invalid selector, skipping", pod.GetNamespace(), pdb.GetName())
+			logger.Debugf("pdb %s/%s has an invalid selector: %v", pod.GetNamespace(), pdb.GetName(), err)
 			continue
 		}
 		if selector.Matches(labels.Set(pod.Labels)) {
@@ -265,7 +265,7 @@ func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods *v1.PodList, allPdbs
 	}
 
 	var result []v1.Pod
-	for _, candidate := range allPods.Items {
+	for _, candidate := range allPods {
 		if candidate.GetName() == pod.GetName() {
 			continue
 		}
