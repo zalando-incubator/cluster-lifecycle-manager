@@ -59,6 +59,9 @@ type DrainConfig struct {
 
 	// Wait at least <ForceEvictionInterval> between force evictions to allow controllers to catch up
 	ForceEvictionInterval time.Duration
+
+	// Wait for <PollInterval> between force eviction attempts
+	PollInterval time.Duration
 }
 
 // KubernetesNodePoolManager defines a node pool manager which uses the

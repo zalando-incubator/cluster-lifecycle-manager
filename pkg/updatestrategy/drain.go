@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
-
 	"sync/atomic"
+	"time"
 
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
@@ -58,6 +57,11 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 
 	// fast eviction (in parallel) as long as we can evict something without violating PDBs
 	for {
+		err = ctx.Err()
+		if err != nil {
+			return err
+		}
+
 		pods, err := m.evictablePods(node.Name)
 		if err != nil {
 			return err
@@ -77,10 +81,16 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		if !evicted {
 			break
 		}
+		time.Sleep(m.drainConfig.PollInterval)
 	}
 
 	// slow eviction, one by one
 	for {
+		err = ctx.Err()
+		if err != nil {
+			return err
+		}
+
 		pods, err := m.evictablePods(node.Name)
 		if err != nil {
 			return err
@@ -103,12 +113,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			}
 		}
 
-		err = ctx.Err()
-		if err != nil {
-			return err
-		}
-
-		time.Sleep(10 * time.Second)
+		time.Sleep(m.drainConfig.PollInterval)
 	}
 
 	return nil
@@ -172,7 +177,7 @@ func (m *KubernetesNodePoolManager) evictSomething(ctx context.Context, pods []v
 
 		forceTerminate, err := m.forceTerminationAllowed(pod, drainStart, lastForcedTermination)
 		if forceTerminate {
-			err = m.deletePod(pod)
+			err = deletePod(m.kube, m.podLogger(pod), pod)
 			if err != nil {
 				return false, err
 			}
@@ -231,27 +236,6 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, drainSta
 	return true, nil
 }
 
-func (m *KubernetesNodePoolManager) deletePod(pod v1.Pod) error {
-	logger := m.podLogger(pod)
-
-	err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
-		GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
-	})
-	if err != nil {
-		logger.Errorf("Failed to delete pod: %v", err)
-		return err
-	}
-
-	// wait for pod to be terminated and gone from the node.
-	err = waitForPodTermination(m.kube, pod)
-	if err != nil {
-		logger.Warnf("Pod not terminated within grace period: %s", err)
-	}
-
-	logger.Info("Pod deleted")
-	return nil
-}
-
 func podReady(pod v1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == v1.PodReady {
@@ -293,6 +277,26 @@ func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods *v1.PodList, allPdbs
 
 func isPDBViolation(err error) bool {
 	return apiErrors.IsTooManyRequests(err) || strings.Contains(err.Error(), multiplePDBsErrMsg)
+}
+
+var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+	err := client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
+		GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete pod: %v", err)
+		return err
+	}
+
+	// wait for pod to be terminated and gone from the node.
+	err = waitForPodTermination(client, pod)
+	if err != nil {
+		logger.Warnf("Pod not terminated within grace period: %s", err)
+	}
+
+	logger.Info("Pod deleted")
+	return nil
+
 }
 
 // evictPod tries to evict a pod from a node.

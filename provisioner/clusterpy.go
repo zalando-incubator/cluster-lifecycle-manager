@@ -586,6 +586,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		MinHealthyPDBSiblingLifetime:   p.updateStrategy.MinHealthyPDBSiblingLifetime,
 		MinUnhealthyPDBSiblingLifetime: p.updateStrategy.MinUnhealthyPDBSiblingLifetime,
 		ForceEvictionInterval:          p.updateStrategy.ForceEvictionInterval,
+		PollInterval:                   p.updateStrategy.PollInterval,
 	}
 
 	// allow clusters to override their drain settings
@@ -594,6 +595,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	handleDurationItem(cluster.ConfigItems, "drain_min_healthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinHealthyPDBSiblingLifetime = v })
 	handleDurationItem(cluster.ConfigItems, "drain_min_unhealthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinUnhealthyPDBSiblingLifetime = v })
 	handleDurationItem(cluster.ConfigItems, "drain_force_evict_interval", func(v time.Duration) { drainConfig.ForceEvictionInterval = v })
+	handleDurationItem(cluster.ConfigItems, "drain_poll_interval", func(v time.Duration) { drainConfig.PollInterval = v })
 
 	var updater updatestrategy.UpdateStrategy
 	var poolManager updatestrategy.NodePoolManager
