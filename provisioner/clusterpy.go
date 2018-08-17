@@ -620,8 +620,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 }
 
 func handleDurationItem(configItems map[string]string, key string, set func(duration time.Duration)) error {
-	value, ok := configItems[key]
-	if ok {
+	if value, ok := configItems[key]; ok {
 		parsed, err := time.ParseDuration(value)
 		if err != nil {
 			return fmt.Errorf("invalid value for %s: %v", key, err)

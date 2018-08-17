@@ -68,7 +68,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		}
 
 		if len(pods) == 0 {
-			break
+			return nil
 		}
 
 		evicted, err := m.evictParallel(ctx, pods)
@@ -97,7 +97,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 		}
 
 		if len(pods) == 0 {
-			break
+			return nil
 		}
 
 		forceEvicted, err := m.evictOrForceTerminatePod(ctx, pods, drainStart, lastForcedTermination)
@@ -129,7 +129,7 @@ func (m *KubernetesNodePoolManager) evictParallel(ctx context.Context, pods []v1
 			err := evictPod(m.kube, m.logger, pod)
 			if err != nil {
 				if isPDBViolation(err) {
-					m.pdbViolated(pod)
+					m.logPdbViolated(pod)
 					return nil
 				}
 				return err
@@ -152,7 +152,7 @@ func (m *KubernetesNodePoolManager) podLogger(pod v1.Pod) *log.Entry {
 	})
 }
 
-func (m *KubernetesNodePoolManager) pdbViolated(pod v1.Pod) {
+func (m *KubernetesNodePoolManager) logPdbViolated(pod v1.Pod) {
 	m.podLogger(pod).Info("Pod Disruption Budget violated")
 }
 
@@ -172,8 +172,8 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 			return false, err
 		}
 
-		// PDB violation, check if we can force terminate the pod
-		m.pdbViolated(pod)
+		// PDB violation, log and check if we can force terminate the pod
+		m.logPdbViolated(pod)
 
 		forceTerminate, err := m.forceTerminationAllowed(pod, time.Now(), drainStart, lastForcedTermination)
 		if forceTerminate {
@@ -212,7 +212,7 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, dra
 	if err != nil {
 		return false, err
 	}
-	allPdbs, err := m.getPDBsbyNamespace(pod.GetNamespace())
+	allPdbs, err := m.getPDBsByNamespace(pod.GetNamespace())
 	if err != nil {
 		return false, err
 	}
@@ -421,7 +421,7 @@ func (m *KubernetesNodePoolManager) getPodsByNamespace(namespace string) (*v1.Po
 	return m.kube.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 }
 
-func (m *KubernetesNodePoolManager) getPDBsbyNamespace(namespace string) (*policy.PodDisruptionBudgetList, error) {
+func (m *KubernetesNodePoolManager) getPDBsByNamespace(namespace string) (*policy.PodDisruptionBudgetList, error) {
 	return m.kube.PolicyV1beta1().PodDisruptionBudgets(namespace).List(metav1.ListOptions{})
 }
 

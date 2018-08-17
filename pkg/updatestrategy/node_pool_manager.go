@@ -172,8 +172,7 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 		}
 
 		if patch(updatedNode) {
-			_, err := m.kube.CoreV1().Nodes().Update(updatedNode)
-			if err != nil {
+			if _, err := m.kube.CoreV1().Nodes().Update(updatedNode); err != nil {
 				// automatically retry if there was a conflicting update.
 				serr, ok := err.(*apiErrors.StatusError)
 				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
