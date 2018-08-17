@@ -31,7 +31,7 @@ func timestampAnnotation(logger *log.Entry, node *Node, annotation string, fallb
 
 	value, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
-		logger.Warnf("invalid value for %s: %v", annotation, err)
+		logger.Warnf("invalid value for %s (will use %s): %v", annotation, fallback, err)
 		return fallback
 	}
 
@@ -191,19 +191,19 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, drainStart, lastForcedTermination time.Time) (bool, error) {
 	// too early to start force terminating
 	if now.Before(drainStart.Add(m.drainConfig.ForceEvictionGracePeriod)) {
-		m.podLogger(pod).Debugf("Won't force terminate (node in grace period)")
+		m.podLogger(pod).Debug("Won't force terminate (node in grace period)")
 		return false, nil
 	}
 
 	// we've recently force killed a pod
 	if now.Before(lastForcedTermination.Add(m.drainConfig.ForceEvictionInterval)) {
-		m.podLogger(pod).Debugf("Won't force terminate (recently force terminated a pod)")
+		m.podLogger(pod).Debug("Won't force terminate (recently force terminated a pod)")
 		return false, nil
 	}
 
 	// pod too young
 	if now.Before(pod.GetCreationTimestamp().Add(m.drainConfig.MinPodLifetime)) {
-		m.podLogger(pod).Debugf("Won't force terminate (pod too young)")
+		m.podLogger(pod).Debug("Won't force terminate (pod too young)")
 		return false, nil
 	}
 

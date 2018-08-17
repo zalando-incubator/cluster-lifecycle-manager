@@ -346,41 +346,63 @@ func pod(name string, creationTimestamp time.Time, healthy bool) *v1.Pod {
 	}
 }
 
-func TestForceTerminationGracePeriod(t *testing.T) {
-	pods := []*v1.Pod{pod("foo-0", zeroTime, true)}
-
+func TestForceTerminationBasic(t *testing.T) {
 	now := time.Now()
-	result, err := forceTerminationAllowed(t, pods, nil, now, now, zeroTime)
-	require.NoError(t, err)
-	require.False(t, result)
-
-	result2, err := forceTerminationAllowed(t, pods, nil, now, now.Add(-testDrainConfig.ForceEvictionGracePeriod), zeroTime)
-	require.NoError(t, err)
-	require.True(t, result2)
-}
-
-func TestForceTerminationForceEvictionInterval(t *testing.T) {
-	pods := []*v1.Pod{pod("foo-0", zeroTime, true)}
-
-	now := time.Now()
-	result, err := forceTerminationAllowed(t, pods, nil, now, zeroTime, now)
-	require.NoError(t, err)
-	require.False(t, result)
-
-	result2, err := forceTerminationAllowed(t, pods, nil, now, zeroTime, now.Add(-testDrainConfig.ForceEvictionInterval))
-	require.NoError(t, err)
-	require.True(t, result2)
-}
-
-func TestForceTerminationPodTooYoung(t *testing.T) {
-	now := time.Now()
-	result, err := forceTerminationAllowed(t, []*v1.Pod{pod("foo-0", now, true)}, nil, now, zeroTime, zeroTime)
-	require.NoError(t, err)
-	require.False(t, result)
-
-	result2, err := forceTerminationAllowed(t, []*v1.Pod{pod("foo-0", now.Add(-testDrainConfig.MinPodLifetime), true)}, nil, now, zeroTime, zeroTime)
-	require.NoError(t, err)
-	require.True(t, result2)
+	for _, testcase := range []struct {
+		msg                   string
+		podCreation           time.Time
+		drainStart            time.Time
+		lastForcedTermination time.Time
+		expected              bool
+	}{
+		{
+			msg:                   "grace period (not terminated)",
+			podCreation:           zeroTime,
+			drainStart:            now,
+			lastForcedTermination: zeroTime,
+			expected:              false,
+		},
+		{
+			msg:                   "grace period (terminated)",
+			podCreation:           zeroTime,
+			drainStart:            now.Add(-testDrainConfig.ForceEvictionGracePeriod),
+			lastForcedTermination: zeroTime,
+			expected:              true,
+		},
+		{
+			msg:                   "force eviction interval (not terminated)",
+			podCreation:           zeroTime,
+			drainStart:            zeroTime,
+			lastForcedTermination: now,
+			expected:              false,
+		},
+		{
+			msg:                   "force eviction interval (terminated)",
+			podCreation:           zeroTime,
+			drainStart:            zeroTime,
+			lastForcedTermination: now.Add(-testDrainConfig.ForceEvictionInterval),
+			expected:              true,
+		},
+		{
+			msg:                   "pod too young (not terminated)",
+			podCreation:           now,
+			drainStart:            zeroTime,
+			lastForcedTermination: zeroTime,
+			expected:              false,
+		},
+		{
+			msg:                   "pod too young (terminated)",
+			podCreation:           now.Add(-testDrainConfig.MinPodLifetime),
+			drainStart:            zeroTime,
+			lastForcedTermination: zeroTime,
+			expected:              true,
+		},
+	} {
+		pods := []*v1.Pod{pod("foo-0", testcase.podCreation, true)}
+		result, err := forceTerminationAllowed(t, pods, nil, now, testcase.drainStart, testcase.lastForcedTermination)
+		assert.NoError(t, err, testcase.msg)
+		assert.EqualValues(t, testcase.expected, result, testcase.msg)
+	}
 }
 
 func TestForceTerminationPDBSiblings(t *testing.T) {

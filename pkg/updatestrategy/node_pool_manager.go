@@ -44,6 +44,7 @@ type NodePoolManager interface {
 	CordonNode(node *Node) error
 }
 
+// DrainConfig contains the various settings for the smart node draining algorithm
 type DrainConfig struct {
 	// Start forcefully evicting pods <ForceEvictionGracePeriod> after node drain started
 	ForceEvictionGracePeriod time.Duration
@@ -190,7 +191,7 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 	return backoff.Retry(taintNode, backoffCfg)
 }
 
-// aabelNode annotates a Kubernetes node object in case the annotation is not already
+// annotateNode annotates a Kubernetes node object in case the annotation is not already
 // defined.
 func (m *KubernetesNodePoolManager) annotateNode(node *Node, annotationKey, annotationValue string) error {
 	return m.updateNode(
