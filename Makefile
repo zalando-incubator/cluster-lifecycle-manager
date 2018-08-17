@@ -37,7 +37,7 @@ check:
 
 $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
-	curl -s --fail https://www.ec2instances.info/instances.json -o $@
+	curl -L -s --fail https://www.ec2instances.info/instances.json -o $@
 
 $(GO_BINDATA):
 	mkdir -p build
