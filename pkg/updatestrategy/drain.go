@@ -439,6 +439,11 @@ func (m *KubernetesNodePoolManager) isEvictablePod(pod v1.Pod) bool {
 		return false
 	}
 
+	if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
+		logger.Debug("Pod terminated")
+		return false
+	}
+
 	for _, owner := range pod.GetOwnerReferences() {
 		if owner.Kind == "DaemonSet" {
 			logger.Debug("DaemonSet Pod not evictable")
