@@ -431,7 +431,7 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		func() error {
 			return p.downscaleDeployments(logger, cluster, "kube-system")
 		},
-		backoff.WithMaxTries(backoff.NewConstantBackOff(10*time.Second), 5))
+		backoff.WithMaxRetries(backoff.NewConstantBackOff(10*time.Second), 5))
 	if err != nil {
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
@@ -968,7 +968,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 					_, err := command.Run(logger, cmd)
 					return err
 				}
-				err = backoff.Retry(applyManifest, backoff.WithMaxTries(backoff.NewExponentialBackOff(), maxApplyRetries))
+				err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
 				if err != nil && !allowFailure {
 					return errors.Wrapf(err, "run kubectl failed")
 				}
