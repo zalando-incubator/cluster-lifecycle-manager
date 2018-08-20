@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 // UpdateStrategy defines an interface for performing cluster node updates.

@@ -511,7 +511,7 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 			}
 			return err
 		},
-		backoff.WithMaxTries(backoff.NewExponentialBackOff(), 10))
+		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 }
 
 func clcToIgnition(data []byte) ([]byte, error) {
