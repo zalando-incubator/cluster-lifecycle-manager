@@ -290,6 +290,9 @@ var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod)
 		GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
 	})
 	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			return nil
+		}
 		logger.Errorf("Failed to delete pod: %v", err)
 		return err
 	}
@@ -344,6 +347,9 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 
 	err = client.CoreV1().Pods(pod.Namespace).Evict(eviction)
 	if err != nil {
+		if apiErrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	localLogger.Info("Evicting pod")
