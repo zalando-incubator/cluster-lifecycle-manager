@@ -14,6 +14,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
+
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"gopkg.in/yaml.v2"
@@ -61,21 +63,23 @@ const (
 )
 
 type clusterpyProvisioner struct {
-	awsConfig      *aws.Config
-	assumedRole    string
-	dryRun         bool
-	tokenSource    oauth2.TokenSource
-	applyOnly      bool
-	updateStrategy config.UpdateStrategy
-	removeVolumes  bool
+	awsConfig       *aws.Config
+	secretDecrypter decrypter.Decrypter
+	assumedRole     string
+	dryRun          bool
+	tokenSource     oauth2.TokenSource
+	applyOnly       bool
+	updateStrategy  config.UpdateStrategy
+	removeVolumes   bool
 }
 
 // NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
-func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
+func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
 	provisioner := &clusterpyProvisioner{
-		awsConfig:   awsConfig,
-		assumedRole: assumedRole,
-		tokenSource: tokenSource,
+		awsConfig:       awsConfig,
+		secretDecrypter: secretDecrypter,
+		assumedRole:     assumedRole,
+		tokenSource:     tokenSource,
 	}
 
 	if options != nil {
@@ -119,6 +123,20 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 		}
 	}
 
+	return nil
+}
+
+// decryptConfigItems tries to decrypt encrypted config items in the cluster
+// config and modifies the passed cluster config so encrypted items has been
+// decrypted.
+func (p *clusterpyProvisioner) decryptConfigItems(cluster *api.Cluster) error {
+	for key, item := range cluster.ConfigItems {
+		plaintext, err := p.secretDecrypter.Decrypt(item)
+		if err != nil {
+			return err
+		}
+		cluster.ConfigItems[key] = plaintext
+	}
 	return nil
 }
 
@@ -572,6 +590,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	err = p.updateDefaults(cluster, channelConfig)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
+	}
+
+	err = p.decryptConfigItems(cluster)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
 	}
 
 	// allow clusters to override their update strategy.
