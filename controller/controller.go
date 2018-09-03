@@ -10,7 +10,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -34,7 +33,6 @@ type Options struct {
 	Interval          time.Duration
 	AccountFilter     config.IncludeExcludeFilter
 	DryRun            bool
-	SecretDecrypter   decrypter.SecretDecrypter
 	ConcurrentUpdates uint
 	EnvironmentOrder  []string
 }
@@ -45,7 +43,6 @@ type Controller struct {
 	registry             registry.Registry
 	provisioner          provisioner.Provisioner
 	channelConfigSourcer channel.ConfigSource
-	secretDecrypter      decrypter.SecretDecrypter
 	interval             time.Duration
 	dryRun               bool
 	clusterList          *ClusterList
@@ -59,7 +56,6 @@ func New(logger *log.Entry, registry registry.Registry, provisioner provisioner.
 		registry:             registry,
 		provisioner:          provisioner,
 		channelConfigSourcer: channelConfigSourcer,
-		secretDecrypter:      options.SecretDecrypter,
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
 		clusterList:          NewClusterList(options.AccountFilter, options.EnvironmentOrder),
@@ -157,12 +153,6 @@ func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Conte
 	}
 	defer c.channelConfigSourcer.Delete(logger, config)
 
-	// decrypt any encrypted config items.
-	err = c.decryptConfigItems(cluster)
-	if err != nil {
-		return err
-	}
-
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
 		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
@@ -250,19 +240,4 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 			clusterLog.Errorf("Unable to update cluster state: %s", err)
 		}
 	}
-}
-
-// decryptConfigItems tries to decrypt encrypted config items in the cluster
-// config and modifies the passed cluster config so encrypted items has been
-// decrypted.
-func (c *Controller) decryptConfigItems(cluster *api.Cluster) error {
-	for key, item := range cluster.ConfigItems {
-		plaintext, err := c.secretDecrypter.Decrypt(item)
-		if err != nil {
-			return err
-		}
-		cluster.ConfigItems[key] = plaintext
-	}
-
-	return nil
 }

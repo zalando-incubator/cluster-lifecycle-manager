@@ -70,7 +70,7 @@ func main() {
 
 	rootLogger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	p := provisioner.NewClusterpyProvisioner(clusterTokenSource, cfg.AssumedRole, awsConfig, &provisioner.Options{
+	p := provisioner.NewClusterpyProvisioner(clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
 		DryRun:         cfg.DryRun,
 		ApplyOnly:      cfg.ApplyOnly,
 		UpdateStrategy: cfg.UpdateStrategy,
@@ -98,7 +98,6 @@ func main() {
 			AccountFilter:     cfg.AccountFilter,
 			Interval:          cfg.Interval,
 			DryRun:            cfg.DryRun,
-			SecretDecrypter:   secretDecrypter,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
 			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}

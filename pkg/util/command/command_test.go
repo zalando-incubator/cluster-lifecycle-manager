@@ -48,46 +48,46 @@ func newTestLogger(level log.Level) *testLogger {
 }
 
 func TestRunSilentlySuccessful(t *testing.T) {
-	cmd := exec.Command("go", "version")
+	cmd := exec.Command("echo", "foo")
 	logger := newTestLogger(log.InfoLevel)
 	out, err := RunSilently(logger.entry, cmd)
 	require.NoError(t, err)
-	require.Contains(t, out, "go version")
+	require.Contains(t, out, "foo")
 	require.Empty(t, logger.writer.String())
 }
 
 func TestRunSilentlyDebug(t *testing.T) {
-	cmd := exec.Command("go", "version")
+	cmd := exec.Command("echo", "foo")
 	logger := newTestLogger(log.DebugLevel)
 	out, err := RunSilently(logger.entry, cmd)
 	require.NoError(t, err)
-	require.Contains(t, out, "go version")
+	require.Contains(t, out, "foo")
 	require.NotEmpty(t, logger.writer.String())
 }
 
 func TestRunSilentlyFailing(t *testing.T) {
-	cmd := exec.Command("go", "dsjghsdgkjshgkjsdhfjkshfkjsdf")
+	cmd := exec.Command("sh", "-c", "echo foo && false")
 	logger := newTestLogger(log.InfoLevel)
 	out, err := RunSilently(logger.entry, cmd)
 	require.Error(t, err)
-	require.Contains(t, out, "unknown subcommand")
+	require.Contains(t, out, "foo")
 	require.NotEmpty(t, logger.writer.String())
 }
 
 func TestRunSuccessful(t *testing.T) {
-	cmd := exec.Command("go", "dsjghsdgkjshgkjsdhfjkshfkjsdf")
+	cmd := exec.Command("sh", "-c", "echo foo && false")
 	logger := newTestLogger(log.InfoLevel)
 	out, err := Run(logger.entry, cmd)
 	require.Error(t, err)
-	require.Contains(t, out, "unknown subcommand")
+	require.Contains(t, out, "foo")
 	require.NotEmpty(t, logger.writer.String())
 }
 
 func TestRunFailing(t *testing.T) {
-	cmd := exec.Command("go", "version")
+	cmd := exec.Command("echo", "foo")
 	logger := newTestLogger(log.InfoLevel)
 	out, err := Run(logger.entry, cmd)
 	require.NoError(t, err)
-	require.Contains(t, out, "go version")
+	require.Contains(t, out, "foo")
 	require.NotEmpty(t, logger.writer.String())
 }
