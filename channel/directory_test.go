@@ -15,7 +15,7 @@ func TestDirectoryChannel(t *testing.T) {
 	d := NewDirectory(location)
 	channels, err := d.Update(logger)
 	require.NoError(t, err)
-	require.NotEmpty(t, channels)
+	require.Empty(t, channels)
 
 	cc, err := d.Get(logger, "channel")
 	require.NoError(t, err)

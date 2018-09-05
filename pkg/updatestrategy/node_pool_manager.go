@@ -9,11 +9,11 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 const (
@@ -187,7 +187,7 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 		return nil
 	}
 
-	backoffCfg := backoff.WithMaxTries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
+	backoffCfg := backoff.WithMaxRetries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
 	return backoff.Retry(taintNode, backoffCfg)
 }
 

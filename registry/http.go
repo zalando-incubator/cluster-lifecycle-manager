@@ -206,7 +206,7 @@ func convertFromClusterStatusModel(status *models.ClusterStatus) *api.ClusterSta
 
 // converts a ClusterStatusProblemsItems0 model generated from the
 // cluster-registry swagger spec into an *api.Problem struct.
-func convertFromProblemModel(problem *models.ClusterStatusProblemsItems) *api.Problem {
+func convertFromProblemModel(problem *models.ClusterStatusProblemsItems0) *api.Problem {
 	return &api.Problem{
 		Detail:   problem.Detail,
 		Instance: problem.Instance,
@@ -219,7 +219,7 @@ func convertFromProblemModel(problem *models.ClusterStatusProblemsItems) *api.Pr
 // converts a *api.ClusterStatus struct to the corresponding model generated
 // from the cluster-registry swagger spec.
 func convertToClusterStatusModel(status *api.ClusterStatus) *models.ClusterStatus {
-	problems := make([]*models.ClusterStatusProblemsItems, 0, len(status.Problems))
+	problems := make([]*models.ClusterStatusProblemsItems0, 0, len(status.Problems))
 
 	for _, problem := range status.Problems {
 		problems = append(problems, convertToProblemModel(problem))
@@ -235,8 +235,8 @@ func convertToClusterStatusModel(status *api.ClusterStatus) *models.ClusterStatu
 
 // converts a *api.Problem struct to the corresponding model generated from the
 // cluster-registry swagger spec.
-func convertToProblemModel(problem *api.Problem) *models.ClusterStatusProblemsItems {
-	return &models.ClusterStatusProblemsItems{
+func convertToProblemModel(problem *api.Problem) *models.ClusterStatusProblemsItems0 {
+	return &models.ClusterStatusProblemsItems0{
 		Detail:   problem.Detail,
 		Instance: problem.Instance,
 		Status:   problem.Status,
