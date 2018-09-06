@@ -47,6 +47,7 @@ func (n *NodePool) ReadyNodes() []*Node {
 // node pool backend along with the corresponding Kubernetes node object.
 type Node struct {
 	Name            string
+	Annotations     map[string]string
 	Labels          map[string]string
 	Taints          []v1.Taint
 	Cordoned        bool

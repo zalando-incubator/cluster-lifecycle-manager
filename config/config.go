@@ -6,21 +6,27 @@ import (
 	"path"
 	"time"
 
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
-	defaultInterval              = "10m"
-	defaultListener              = ":9090"
-	defaultCredentialsDir        = "/meta/credentials"
-	defaultRegistryTokenName     = "cluster-registry-rw"
-	defaultClusterTokenName      = "cluster-rw"
-	defaultRegistry              = "file://clusters.yaml"
-	defaultConcurrentUpdates     = "1"
-	defaultAwsMaxRetries         = "50"
-	defaultAwsMaxRetryInterval   = "10s"
-	defaultUpdateMaxEvictTimeout = "10m"
-	defaultUpdateStrategy        = "rolling"
+	defaultInterval                         = "10m"
+	defaultListener                         = ":9090"
+	defaultCredentialsDir                   = "/meta/credentials"
+	defaultRegistryTokenName                = "cluster-registry-rw"
+	defaultClusterTokenName                 = "cluster-rw"
+	defaultRegistry                         = "file://clusters.yaml"
+	defaultConcurrentUpdates                = "1"
+	defaultAwsMaxRetries                    = "50"
+	defaultAwsMaxRetryInterval              = "10s"
+	defaultDrainGracePeriod                 = "6h"
+	defaultDrainMinPodLifetime              = "72h"
+	defaultDrainMinHealthySiblingLifetime   = "1h"
+	defaultDrainMinUnhealthySiblingLifetime = "6h"
+	defaultDrainForceEvictInterval          = "5m"
+	defaultDrainPollInterval                = "30s"
+	defaultUpdateStrategy                   = "rolling"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
@@ -57,8 +63,8 @@ type LifecycleManagerConfig struct {
 // timeout. The default strategy can be overwritten with a config item per
 // cluster.
 type UpdateStrategy struct {
-	Strategy        string
-	MaxEvictTimeout time.Duration
+	updatestrategy.DrainConfig
+	Strategy string
 }
 
 // New returns the app wide configuration file
@@ -98,9 +104,14 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("apply-only", "Enable apply only mode which will only apply CloudFormation stacks and manifests, but not do any rolling of nodes.").BoolVar(&cfg.ApplyOnly)
 	kingpin.Flag("aws-max-retries", "Maximum number of retries for AWS SDK requests.").Default(defaultAwsMaxRetries).IntVar(&cfg.AwsMaxRetries)
 	kingpin.Flag("aws-max-retry-interval", "Maximum interval between retries for AWS SDK requests.").Default(defaultAwsMaxRetryInterval).DurationVar(&cfg.AwsMaxRetryInterval)
-	kingpin.Flag("update-max-evict-timeout", "Maximum timeout for evicting pods during update.").Default(defaultUpdateMaxEvictTimeout).DurationVar(&cfg.UpdateStrategy.MaxEvictTimeout)
+	kingpin.Flag("drain-grace-period", "Interval between drain start and the first forced termination.").Default(defaultDrainGracePeriod).DurationVar(&cfg.UpdateStrategy.ForceEvictionGracePeriod)
+	kingpin.Flag("drain-min-pod-lifetime", " Minimum lifetime of a pod that allows forced termination when draining.").Default(defaultDrainMinPodLifetime).DurationVar(&cfg.UpdateStrategy.MinPodLifetime)
+	kingpin.Flag("drain-min-healthy-sibling-lifetime", "Minimum lifetime of healthy pods in the same PDB as the one considered for forced termination.").Default(defaultDrainMinHealthySiblingLifetime).DurationVar(&cfg.UpdateStrategy.MinHealthyPDBSiblingLifetime)
+	kingpin.Flag("drain-min-unhealthy-sibling-lifetime", "Minimum lifetime of unhealthy pods in the same PDB as the one considered for forced termination.").Default(defaultDrainMinUnhealthySiblingLifetime).DurationVar(&cfg.UpdateStrategy.MinUnhealthyPDBSiblingLifetime)
+	kingpin.Flag("drain-force-evict-interval", "Interval between forced terminations of pods on the same node.").Default(defaultDrainForceEvictInterval).DurationVar(&cfg.UpdateStrategy.ForceEvictionInterval)
+	kingpin.Flag("drain-poll-interval", "Interval between drain attempts.").Default(defaultDrainPollInterval).DurationVar(&cfg.UpdateStrategy.PollInterval)
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling")
-	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning").BoolVar(&cfg.RemoveVolumes)
-	kingpin.Flag("environment-order", "Roll out channel updates to the environments in a specific order").StringsVar(&cfg.EnvironmentOrder)
+	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
+	kingpin.Flag("environment-order", "Roll out channel updates to the environments in a specific order.").StringsVar(&cfg.EnvironmentOrder)
 	return kingpin.Parse()
 }

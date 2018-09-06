@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
-	policy "k8s.io/api/policy/v1beta1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,25 +44,46 @@ type NodePoolManager interface {
 	CordonNode(node *Node) error
 }
 
+// DrainConfig contains the various settings for the smart node draining algorithm
+type DrainConfig struct {
+	// Start forcefully evicting pods <ForceEvictionGracePeriod> after node drain started
+	ForceEvictionGracePeriod time.Duration
+
+	// Only force evict pods that are at least <MinPodLifetime> old
+	MinPodLifetime time.Duration
+
+	// Wait until all healthy pods in the same PDB are at least <MinHealthyPDBSiblingCreationTime> old
+	MinHealthyPDBSiblingLifetime time.Duration
+
+	// Wait until all unhealthy pods in the same PDB are at least <MinUnhealthyPDBSiblingCreationTime> old
+	MinUnhealthyPDBSiblingLifetime time.Duration
+
+	// Wait at least <ForceEvictionInterval> between force evictions to allow controllers to catch up
+	ForceEvictionInterval time.Duration
+
+	// Wait for <PollInterval> between force eviction attempts
+	PollInterval time.Duration
+}
+
 // KubernetesNodePoolManager defines a node pool manager which uses the
 // Kubernetes API along with a node pool provider backend to manage node pools.
 type KubernetesNodePoolManager struct {
-	kube            kubernetes.Interface
-	backend         ProviderNodePoolsBackend
-	logger          *log.Entry
-	maxEvictTimeout time.Duration
+	kube        kubernetes.Interface
+	backend     ProviderNodePoolsBackend
+	logger      *log.Entry
+	drainConfig *DrainConfig
 }
 
 // NewKubernetesNodePoolManager initializes a new Kubernetes NodePool manager
 // which can manage single node pools based on the nodes registered in the
 // Kubernetes API and the related NodePoolBackend for those nodes e.g.
 // ASGNodePool.
-func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Interface, poolBackend ProviderNodePoolsBackend, maxEvictTimeout time.Duration) *KubernetesNodePoolManager {
+func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Interface, poolBackend ProviderNodePoolsBackend, drainConfig *DrainConfig) *KubernetesNodePoolManager {
 	return &KubernetesNodePoolManager{
-		kube:            kubeClient,
-		backend:         poolBackend,
-		logger:          logger,
-		maxEvictTimeout: maxEvictTimeout,
+		kube:        kubeClient,
+		backend:     poolBackend,
+		logger:      logger,
+		drainConfig: drainConfig,
 	}
 }
 
@@ -99,6 +117,7 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 				Generation:      npNode.Generation,
 				Ready:           npNode.Ready,
 				Name:            node.Name,
+				Annotations:     node.Annotations,
 				Labels:          node.Labels,
 				Taints:          node.Spec.Taints,
 				Cordoned:        node.Spec.Unschedulable,
@@ -140,17 +159,74 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
-// LabelNode labels a Kubernetes node object in case the label is not already
+func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Node) bool, patch func(*v1.Node) bool) error {
+	// fast check: verify if already up-to-date
+	if !needsUpdate(node) {
+		return nil
+	}
+
+	taintNode := func() error {
+		// re-fetch the node since we're going to do an update
+		updatedNode, err := m.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+		if err != nil {
+			return backoff.Permanent(err)
+		}
+
+		if patch(updatedNode) {
+			if _, err := m.kube.CoreV1().Nodes().Update(updatedNode); err != nil {
+				// automatically retry if there was a conflicting update.
+				serr, ok := err.(*apiErrors.StatusError)
+				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
+					return err
+				}
+
+				return backoff.Permanent(err)
+			}
+		}
+
+		return nil
+	}
+
+	backoffCfg := backoff.WithMaxRetries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
+	return backoff.Retry(taintNode, backoffCfg)
+}
+
+// annotateNode annotates a Kubernetes node object in case the annotation is not already
+// defined.
+func (m *KubernetesNodePoolManager) annotateNode(node *Node, annotationKey, annotationValue string) error {
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Annotations[annotationKey]
+			return !ok || value != annotationValue
+		},
+		func(node *v1.Node) bool {
+			if node.Annotations == nil {
+				node.Annotations = make(map[string]string)
+			}
+			value, ok := node.Annotations[annotationKey]
+			node.Annotations[annotationKey] = annotationValue
+			return !ok || value != annotationValue
+		})
+}
+
+// labelNode labels a Kubernetes node object in case the label is not already
 // defined.
 func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue string) error {
-	if value, ok := node.Labels[labelKey]; !ok || value != labelValue {
-		label := []byte(fmt.Sprintf(`{"metadata": {"labels": {"%s": "%s"}}}`, labelKey, labelValue))
-		_, err := m.kube.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, label)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Labels[labelKey]
+			return !ok || value != labelValue
+		},
+		func(node *v1.Node) bool {
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
+			value, ok := node.Labels[labelKey]
+			node.Labels[labelKey] = labelValue
+			return !ok || value != labelValue
+		})
 }
 
 // updateTaint adds a taint with the provided key, value and effect if it isn't present or
@@ -178,38 +254,19 @@ func updateTaint(node *v1.Node, taintKey, taintValue string, effect v1.TaintEffe
 
 // TaintNode sets a taint on a Kubernetes node object with a specified value and effect.
 func (m *KubernetesNodePoolManager) taintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
-	// fast check: verify if the taint is already set
-	for _, taint := range node.Taints {
-		if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
-			return nil
-		}
-	}
-
-	taintNode := func() error {
-		// re-fetch the node since we're going to do an update
-		updatedNode, err := m.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
-		if err != nil {
-			return backoff.Permanent(err)
-		}
-
-		if updateTaint(updatedNode, taintKey, taintValue, effect) {
-			_, err := m.kube.CoreV1().Nodes().Update(updatedNode)
-			if err != nil {
-				// automatically retry if there was a conflicting update.
-				serr, ok := err.(*apiErrors.StatusError)
-				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
-					return err
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			for _, taint := range node.Taints {
+				if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
+					return false
 				}
-
-				return backoff.Permanent(err)
 			}
-		}
-
-		return nil
-	}
-
-	backoffCfg := backoff.WithMaxRetries(backoff.NewConstantBackOff(1*time.Second), maxConflictRetries)
-	return backoff.Retry(taintNode, backoffCfg)
+			return true
+		},
+		func(node *v1.Node) bool {
+			return updateTaint(node, taintKey, taintValue, effect)
+		})
 }
 
 // TerminateNode terminates a node and optionally decrement the desired size of
@@ -297,261 +354,11 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 	}
 }
 
-// drain tries to evict all of the pods on a node.
-// pods are evicted in parallel.
-func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error {
-	m.logger.WithField("node", node.Name).Info("Draining node")
-
-	err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDraining)
-	if err != nil {
-		return err
-	}
-
-	pods, err := m.getPodsByNode(node.Name)
-	if err != nil {
-		return err
-	}
-
-	var evictionGroup errgroup.Group
-	for _, pod := range pods.Items {
-		pod := pod
-		evictionGroup.Go(func() error {
-			evictPod := func() error {
-				// we check at the start because there's a continue in the loop body
-				err := ctx.Err()
-				if err != nil {
-					return backoff.Permanent(err)
-				}
-
-				// Don't bother with this pod if it's not evictable.
-				if !m.isEvictablePod(pod) {
-					return nil
-				}
-
-				err = evictPod(m.kube, m.logger, &pod)
-				if err != nil {
-					if apiErrors.IsTooManyRequests(err) || isMultiplePDBsErr(err) {
-						m.logger.WithFields(log.Fields{
-							"ns":   pod.Namespace,
-							"pod":  pod.Name,
-							"node": pod.Spec.NodeName,
-						}).Info("Pod Disruption Budget violated")
-					}
-					return err
-				}
-				return nil
-			}
-
-			// We try to evict all pods of a node by calling evict on all of them once. If we encounter an
-			// error we will backoff and try again for as long as `maxEvictTimeout`. If after `maxEvictTimeout`
-			// we still receive an error related to pod disruption budget violations we will continue and
-			// forcefully shutdown the pod in the next step.
-			backoffCfg := backoff.NewExponentialBackOff()
-			backoffCfg.MaxElapsedTime = m.maxEvictTimeout
-			err := backoff.Retry(evictPod, backoffCfg)
-			if err != nil {
-				if !apiErrors.IsTooManyRequests(err) && !isMultiplePDBsErr(err) {
-					m.logger.WithFields(log.Fields{
-						"ns":   pod.Namespace,
-						"pod":  pod.Name,
-						"node": pod.Spec.NodeName,
-					}).Errorf("Failed to evict pod: %v", err)
-					return err
-				}
-			}
-			return nil
-		})
-	}
-
-	err = evictionGroup.Wait()
-	if err != nil {
-		return err
-	}
-
-	// Delete all remaining evictable pods disregarding their pod disruption budgets. It's necessary
-	// in case a pod disruption budget must be violated in order to proceed with a cluster update.
-	pods, err = m.getPodsByNode(node.Name)
-	if err != nil {
-		return err
-	}
-
-	var deleteGroup errgroup.Group
-	for _, pod := range pods.Items {
-		pod := pod
-
-		deleteGroup.Go(func() error {
-			// Don't bother with this pod if it's not evictable.
-			if !m.isEvictablePod(pod) {
-				return nil
-			}
-
-			logger := m.logger.WithFields(log.Fields{
-				"ns":   pod.Namespace,
-				"pod":  pod.Name,
-				"node": pod.Spec.NodeName,
-			})
-
-			err := m.kube.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
-				GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
-			})
-			if err != nil {
-				logger.Errorf("Failed to delete pod: %v", err)
-				return err
-			}
-
-			if err = ctx.Err(); err != nil {
-				return err
-			}
-
-			// wait for pod to be terminated and gone from the node.
-			err = waitForPodTermination(m.kube, pod)
-			if err != nil {
-				logger.Warnf("Pod not terminated within grace period: %s", err)
-			}
-
-			logger.Info("Pod deleted")
-			return nil
-		})
-	}
-
-	return deleteGroup.Wait()
-}
-
-// isMultiplePDBsErr returns true if the error is caused by multiple PDBs
-// defined for a single pod.
-func isMultiplePDBsErr(err error) bool {
-	return strings.Contains(err.Error(), multiplePDBsErrMsg)
-}
-
-// evictPod tries to evict a pod from a node.
-// Note: this is defined as a variable so it can be easily mocked in tests.
-var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
-	localLogger := logger.WithFields(log.Fields{
-		"ns":   pod.Namespace,
-		"pod":  pod.Name,
-		"node": pod.Spec.NodeName,
-	})
-
-	updated, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-	if err != nil {
-		if apiErrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-
-	if updated.Status.Phase == v1.PodSucceeded || updated.Status.Phase == v1.PodFailed {
-		// Completed, just ignore
-		return nil
-	}
-
-	if updated.Spec.NodeName != pod.Spec.NodeName {
-		// Already evicted
-		return nil
-	}
-
-	eviction := &policy.Eviction{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-		},
-		DeleteOptions: &metav1.DeleteOptions{
-			GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
-		},
-	}
-
-	err = client.CoreV1().Pods(pod.Namespace).Evict(eviction)
-	if err != nil {
-		return err
-	}
-	localLogger.Info("Evicting pod")
-
-	// wait for the pod to be actually evicted and gone from the node.
-	// It has TerminationGracePeriodSeconds time to clean up.
-	start := time.Now().UTC()
-	err = waitForPodTermination(client, *pod)
-	if err != nil {
-		localLogger.Warnf("Pod not terminated within grace period: %s", err)
-	}
-
-	localLogger.Infof("Pod evicted. (Observed termination period: %s)", time.Now().UTC().Sub(start))
-	return nil
-}
-
-// waitForPodTermination waits for a pod to be terminated by looking up the pod
-// in the API server.
-// It waits for up to TerminationGracePeriodSeconds as specified on the pod +
-// an additional eviction head room.
-// This is to fully respect the termination expectations as described in:
-// https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
-func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
-	if pod.Spec.TerminationGracePeriodSeconds == nil {
-		// if no grace period is defined, we don't wait.
-		return nil
-	}
-
-	waitForTermination := func() error {
-		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-		if err != nil {
-			if apiErrors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-
-		// statefulset pods have the same name after restart, check the uid as well
-		if newpod.GetObjectMeta().GetUID() == pod.GetObjectMeta().GetUID() {
-			return fmt.Errorf("pod not terminated")
-		}
-
-		return nil
-	}
-
-	gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)*time.Second + podEvictionHeadroom
-
-	backoffCfg := backoff.NewExponentialBackOff()
-	backoffCfg.MaxElapsedTime = gracePeriod
-	return backoff.Retry(waitForTermination, backoffCfg)
-}
-
 // CordonNode marks a node unschedulable.
 func (m *KubernetesNodePoolManager) CordonNode(node *Node) error {
 	unschedulable := []byte(`{"spec": {"unschedulable": true}}`)
 	_, err := m.kube.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, unschedulable)
 	return err
-}
-
-// getPodsByNode returns all pods currently scheduled to a node, regardless of their status.
-func (m *KubernetesNodePoolManager) getPodsByNode(nodeName string) (*v1.PodList, error) {
-	opts := metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
-	}
-
-	return m.kube.CoreV1().Pods(v1.NamespaceAll).List(opts)
-}
-
-// isEvictablePod detects whether it makes sense to evict a pod.
-// Non-evictable pods are pods managed by DaemonSets and mirror pods.
-func (m *KubernetesNodePoolManager) isEvictablePod(pod v1.Pod) bool {
-	logger := m.logger.WithFields(log.Fields{
-		"ns":   pod.Namespace,
-		"pod":  pod.Name,
-		"node": pod.Spec.NodeName,
-	})
-
-	if _, ok := pod.Annotations[mirrorPodAnnotation]; ok {
-		logger.Debug("Mirror Pod not evictable")
-		return false
-	}
-
-	for _, owner := range pod.GetOwnerReferences() {
-		if owner.Kind == "DaemonSet" {
-			logger.Debug("DaemonSet Pod not evictable")
-			return false
-		}
-	}
-
-	return true
 }
 
 // WaitForDesiredNodes waits for the current number of nodes to match the

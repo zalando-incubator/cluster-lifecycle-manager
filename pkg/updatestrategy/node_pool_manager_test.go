@@ -2,34 +2,35 @@ package updatestrategy
 
 import (
 	"context"
-	"net/http"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
-
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	policy "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod) kubernetes.Interface {
+func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) kubernetes.Interface {
 	client := fake.NewSimpleClientset()
 
 	for _, node := range nodes {
 		_, err := client.CoreV1().Nodes().Create(node)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	for _, pod := range pods {
 		_, err := client.CoreV1().Pods(pod.Namespace).Create(pod)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+	}
+
+	for _, pdb := range pdbs {
+		_, err := client.Policy().PodDisruptionBudgets(pdb.GetNamespace()).Create(pdb)
+		require.NoError(t, err)
 	}
 
 	return client
@@ -93,9 +94,9 @@ func TestGetPool(t *testing.T) {
 	}
 	mgr := NewKubernetesNodePoolManager(
 		logger,
-		setupMockKubernetes(t, []*v1.Node{node}, nil),
+		setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 		backend,
-		0,
+		&DrainConfig{},
 	)
 
 	// test getting nodes successfully
@@ -107,7 +108,7 @@ func TestGetPool(t *testing.T) {
 	node.ObjectMeta.Labels = map[string]string{
 		lifecycleStatusLabel: lifecycleStatusDraining,
 	}
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, nil)
+	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, nil, nil)
 	nodePool, err = mgr.GetPool(&api.NodePool{Name: "test"})
 	assert.NoError(t, err)
 	assert.Len(t, nodePool.Nodes, 1)
@@ -122,11 +123,48 @@ func TestLabelNodes(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
+
+	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
+
+	err = mgr.labelNode(&Node{Name: node.Name}, "foo", "baz")
+	assert.NoError(t, err)
+
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "baz"})
+}
+
+func TestAnnotateNodes(t *testing.T) {
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	}
+
+	mgr := &KubernetesNodePoolManager{
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+	}
+
+	err := mgr.annotateNode(&Node{Name: node.Name}, "foo", "bar")
+	assert.NoError(t, err)
+
+	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated.Annotations, map[string]string{"foo": "bar"})
+
+	err = mgr.annotateNode(&Node{Name: node.Name}, "foo", "baz")
+	assert.NoError(t, err)
+
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated2.Annotations, map[string]string{"foo": "baz"})
 }
 
 func TestTaintNode(t *testing.T) {
@@ -137,7 +175,7 @@ func TestTaintNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	// we can add a new taint
@@ -208,7 +246,7 @@ func TestCordonNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil),
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 	}
 
 	err := mgr.CordonNode(&Node{Name: node.Name})
@@ -216,7 +254,7 @@ func TestCordonNode(t *testing.T) {
 }
 
 func TestScalePool(tt *testing.T) {
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
+	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 		return nil
 	}
 
@@ -317,228 +355,10 @@ func TestScalePool(tt *testing.T) {
 		tt.Run(tc.msg, func(t *testing.T) {
 			mgr := &KubernetesNodePoolManager{
 				backend: tc.backend,
-				kube:    setupMockKubernetes(t, tc.nodes, nil),
+				kube:    setupMockKubernetes(t, tc.nodes, nil, nil),
 				logger:  log.WithField("test", true),
 			}
 			assert.NoError(t, mgr.ScalePool(context.Background(), &api.NodePool{Name: "test"}, tc.replicas))
 		})
-	}
-}
-
-func TestTerminateNode(t *testing.T) {
-	nodeName := "test"
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
-		return nil
-	}
-
-	pods := []*v1.Pod{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "a",
-				Namespace: "default",
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "b",
-				Namespace: "default",
-				Annotations: map[string]string{
-					mirrorPodAnnotation: "",
-				},
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "c",
-				Namespace: "default",
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						Kind: "DaemonSet",
-					},
-				},
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-	}
-
-	node := &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
-		},
-	}
-
-	logger := log.WithField("test", true)
-	backend := &mockProviderNodePoolsBackend{
-		nodePool: &NodePool{
-			Min:        1,
-			Max:        1,
-			Current:    1,
-			Desired:    1,
-			Generation: 1,
-			Nodes: []*Node{
-				{ProviderID: "provider-id"},
-			},
-		},
-	}
-	mgr := &KubernetesNodePoolManager{
-		logger:          logger,
-		kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-		backend:         backend,
-		maxEvictTimeout: 1 * time.Nanosecond,
-	}
-
-	err := mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
-	assert.NoError(t, err)
-
-	// test when evictPod returns 429
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
-		return &errors.StatusError{
-			ErrStatus: metav1.Status{
-				Code: http.StatusTooManyRequests,
-			},
-		}
-	}
-
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods)
-	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
-	assert.NoError(t, err)
-}
-
-func TestTerminateNodeCancelled(t *testing.T) {
-	nodeName := "test"
-
-	var evictCount int32
-	blockEviction := sync.WaitGroup{}
-	blockHelper := sync.WaitGroup{}
-	blockEviction.Add(1)
-	// add two to the wg counter because we have two pods that will be
-	// evicted in parallel.
-	blockHelper.Add(2)
-
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod *v1.Pod) error {
-		// unblock so we can be cancelled
-		blockHelper.Done()
-		// wait until we're unblocked
-		blockEviction.Wait()
-		atomic.AddInt32(&evictCount, 1)
-		return nil
-	}
-
-	pods := []*v1.Pod{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "a",
-				Namespace: "default",
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "b",
-				Namespace: "default",
-				Annotations: map[string]string{
-					mirrorPodAnnotation: "",
-				},
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "c",
-				Namespace: "default",
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						Kind: "DaemonSet",
-					},
-				},
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "d",
-				Namespace: "default",
-			},
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		},
-	}
-
-	node := &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
-		},
-	}
-
-	logger := log.WithField("test", true)
-	backend := &mockProviderNodePoolsBackend{
-		nodePool: &NodePool{
-			Min:        1,
-			Max:        1,
-			Current:    1,
-			Desired:    1,
-			Generation: 1,
-			Nodes: []*Node{
-				{ProviderID: "provider-id"},
-			},
-		},
-	}
-
-	// immediate cancellation
-	{
-		mgr := &KubernetesNodePoolManager{
-			logger:          logger,
-			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-			backend:         backend,
-			maxEvictTimeout: 1 * time.Nanosecond,
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
-		evictCountFinal := atomic.LoadInt32(&evictCount)
-		assert.Zero(t, evictCountFinal)
-		assert.Error(t, err)
-	}
-
-	// cancel after first pod
-	{
-		mgr := &KubernetesNodePoolManager{
-			logger:          logger,
-			kube:            setupMockKubernetes(t, []*v1.Node{node}, pods),
-			backend:         backend,
-			maxEvictTimeout: 1 * time.Nanosecond,
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		go func() {
-			// wait until evict() unblocks us
-			blockHelper.Wait()
-			cancel()
-			// unblock evict()
-			blockEviction.Done()
-		}()
-
-		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
-
-		evictCountFinal := atomic.LoadInt32(&evictCount)
-		assert.Equal(t, int32(2), evictCountFinal)
-		assert.Error(t, err)
 	}
 }
