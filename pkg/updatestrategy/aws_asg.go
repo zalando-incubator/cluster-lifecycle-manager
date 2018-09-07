@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -17,7 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/cenkalti/backoff"
-	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -339,23 +339,18 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 		ShouldDecrementDesiredCapacity: aws.Bool(decrementDesired),
 	}
 
-	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
-	if err != nil {
-		log.Errorf("Faild to terminate instance '%s': %v", instanceId, err)
-		_, serr := n.instanceState(instanceId)
-		if serr != nil {
-			return fmt.Errorf("failed to terminate instance '%s': %v, %v", instanceId, err, serr)
-		}
-	}
-
-	// wait for the instance to be terminated/stopped
-	instanceState := func() error {
+	terminateAsgInstance := func() error {
 		state, err := n.instanceState(instanceId)
 		if err != nil {
 			return backoff.Permanent(err)
 		}
-
 		switch state {
+		case ec2.InstanceStateNameRunning:
+			_, err = n.asgClient.TerminateInstanceInAutoScalingGroup(params)
+			if err != nil {
+				return backoff.Permanent(err)
+			}
+			return errors.New("signalled instance to shutdown")
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
@@ -364,9 +359,10 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 			return fmt.Errorf("unexpected instance state '%s'", state)
 		}
 	}
-
+	// wait for the instance to be terminated/stopped
 	backoffCfg := backoff.NewExponentialBackOff()
-	return backoff.Retry(instanceState, backoffCfg)
+	backoffCfg.MaxElapsedTime = time.Duration(15) * time.Minute
+	return backoff.Retry(terminateAsgInstance, backoffCfg)
 }
 
 // instanceState returns the current state of the instance e.g. 'terminated'.
