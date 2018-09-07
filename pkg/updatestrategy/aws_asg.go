@@ -3,6 +3,7 @@ package updatestrategy
 import (
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"math"
 	"sort"
 	"strconv"
@@ -345,12 +346,26 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 			return backoff.Permanent(err)
 		}
 		switch state {
+		// if instance is running terminate it
 		case ec2.InstanceStateNameRunning:
 			_, err = n.asgClient.TerminateInstanceInAutoScalingGroup(params)
 			if err != nil {
-				return backoff.Permanent(err)
+				if aerr, ok := err.(awserr.Error); ok {
+					switch aerr.Code() {
+					// if an operation is in progress then retry later.
+					case autoscaling.ErrCodeScalingActivityInProgressFault, autoscaling.ErrCodeResourceContentionFault:
+						return errors.New("waiting for AWS to complete operations")
+					// otherwise fail
+					default:
+						return backoff.Permanent(err)
+					}
+				} else {
+					// at this point the call to the API failed. try later
+					return err
+				}
+			} else {
+				return errors.New("signalled instance to shutdown")
 			}
-			return errors.New("signalled instance to shutdown")
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
