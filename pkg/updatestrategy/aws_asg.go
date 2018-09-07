@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/cenkalti/backoff"
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
@@ -340,6 +341,7 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 
 	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
 	if err != nil {
+		log.Errorf("Faild to terminate instance '%s': %v", instanceId, err)
 		_, serr := n.instanceState(instanceId)
 		if serr != nil {
 			return fmt.Errorf("failed to terminate instance '%s': %v, %v", instanceId, err, serr)
