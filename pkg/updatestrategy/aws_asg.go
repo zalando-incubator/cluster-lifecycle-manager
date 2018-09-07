@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
@@ -17,20 +19,20 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/cenkalti/backoff"
-	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 const (
-	clusterIDTagPrefix          = "kubernetes.io/cluster/"
-	resourceLifecycleOwned      = "owned"
-	kubeAutoScalerEnabledTagKey = "k8s.io/cluster-autoscaler/enabled"
-	nodePoolTag                 = "NodePool"
-	userDataAttribute           = "userData"
-	instanceTypeAttribute       = "instanceType"
-	instanceIdFilter            = "instance-id"
-	instanceHealthStatusHealthy = "Healthy"
-	ec2AutoscalingGroupTagKey   = "aws:autoscaling:groupName"
+	clusterIDTagPrefix               = "kubernetes.io/cluster/"
+	resourceLifecycleOwned           = "owned"
+	kubeAutoScalerEnabledTagKey      = "k8s.io/cluster-autoscaler/enabled"
+	nodePoolTag                      = "NodePool"
+	userDataAttribute                = "userData"
+	instanceTypeAttribute            = "instanceType"
+	instanceIdFilter                 = "instance-id"
+	instanceHealthStatusHealthy      = "Healthy"
+	ec2AutoscalingGroupTagKey        = "aws:autoscaling:groupName"
+	instanceTerminationRetryDuration = time.Duration(15) * time.Minute
 )
 
 const (
@@ -339,23 +341,30 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 		ShouldDecrementDesiredCapacity: aws.Bool(decrementDesired),
 	}
 
-	_, err := n.asgClient.TerminateInstanceInAutoScalingGroup(params)
-	if err != nil {
-		log.Errorf("Faild to terminate instance '%s': %v", instanceId, err)
-		_, serr := n.instanceState(instanceId)
-		if serr != nil {
-			return fmt.Errorf("failed to terminate instance '%s': %v, %v", instanceId, err, serr)
-		}
-	}
-
-	// wait for the instance to be terminated/stopped
-	instanceState := func() error {
+	terminateAsgInstance := func() error {
 		state, err := n.instanceState(instanceId)
 		if err != nil {
 			return backoff.Permanent(err)
 		}
-
 		switch state {
+		// if instance is running terminate it
+		case ec2.InstanceStateNameRunning:
+			_, err = n.asgClient.TerminateInstanceInAutoScalingGroup(params)
+			if err != nil {
+				if aerr, ok := err.(awserr.Error); ok {
+					switch aerr.Code() {
+					// if an operation is in progress then retry later.
+					case autoscaling.ErrCodeScalingActivityInProgressFault, autoscaling.ErrCodeResourceContentionFault:
+						return errors.New("waiting for AWS to complete operations")
+						// otherwise fail
+					default:
+						return backoff.Permanent(err)
+					}
+				}
+				// call to API failed. probably transient error.
+				return err
+			}
+			return errors.New("signalled instance to shutdown")
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
@@ -364,9 +373,10 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 			return fmt.Errorf("unexpected instance state '%s'", state)
 		}
 	}
-
+	// wait for the instance to be terminated/stopped
 	backoffCfg := backoff.NewExponentialBackOff()
-	return backoff.Retry(instanceState, backoffCfg)
+	backoffCfg.MaxElapsedTime = instanceTerminationRetryDuration
+	return backoff.Retry(terminateAsgInstance, backoffCfg)
 }
 
 // instanceState returns the current state of the instance e.g. 'terminated'.
