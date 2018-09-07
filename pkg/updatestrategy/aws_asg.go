@@ -3,7 +3,6 @@ package updatestrategy
 import (
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"math"
 	"sort"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
@@ -23,15 +23,16 @@ import (
 )
 
 const (
-	clusterIDTagPrefix          = "kubernetes.io/cluster/"
-	resourceLifecycleOwned      = "owned"
-	kubeAutoScalerEnabledTagKey = "k8s.io/cluster-autoscaler/enabled"
-	nodePoolTag                 = "NodePool"
-	userDataAttribute           = "userData"
-	instanceTypeAttribute       = "instanceType"
-	instanceIdFilter            = "instance-id"
-	instanceHealthStatusHealthy = "Healthy"
-	ec2AutoscalingGroupTagKey   = "aws:autoscaling:groupName"
+	clusterIDTagPrefix               = "kubernetes.io/cluster/"
+	resourceLifecycleOwned           = "owned"
+	kubeAutoScalerEnabledTagKey      = "k8s.io/cluster-autoscaler/enabled"
+	nodePoolTag                      = "NodePool"
+	userDataAttribute                = "userData"
+	instanceTypeAttribute            = "instanceType"
+	instanceIdFilter                 = "instance-id"
+	instanceHealthStatusHealthy      = "Healthy"
+	ec2AutoscalingGroupTagKey        = "aws:autoscaling:groupName"
+	instanceTerminationRetryDuration = time.Duration(15) * time.Minute
 )
 
 const (
@@ -355,17 +356,15 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 					// if an operation is in progress then retry later.
 					case autoscaling.ErrCodeScalingActivityInProgressFault, autoscaling.ErrCodeResourceContentionFault:
 						return errors.New("waiting for AWS to complete operations")
-					// otherwise fail
+						// otherwise fail
 					default:
 						return backoff.Permanent(err)
 					}
-				} else {
-					// at this point the call to the API failed. try later
-					return err
 				}
-			} else {
-				return errors.New("signalled instance to shutdown")
+				// call to API failed. probably transient error.
+				return err
 			}
+			return errors.New("signalled instance to shutdown")
 		case ec2.InstanceStateNameShuttingDown, ec2.InstanceStateNameStopping:
 			return errors.New("instance shutting down")
 		case ec2.InstanceStateNameTerminated, ec2.InstanceStateNameStopped:
@@ -376,7 +375,7 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 	}
 	// wait for the instance to be terminated/stopped
 	backoffCfg := backoff.NewExponentialBackOff()
-	backoffCfg.MaxElapsedTime = time.Duration(15) * time.Minute
+	backoffCfg.MaxElapsedTime = instanceTerminationRetryDuration
 	return backoff.Retry(terminateAsgInstance, backoffCfg)
 }
 
