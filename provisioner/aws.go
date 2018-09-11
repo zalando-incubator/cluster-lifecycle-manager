@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -12,14 +13,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/cenkalti/backoff"
-	"github.com/coreos/container-linux-config-transpiler/config"
-	"github.com/coreos/container-linux-config-transpiler/config/platform"
-	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"golang.org/x/oauth2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -32,6 +25,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/cenkalti/backoff"
+	"github.com/coreos/container-linux-config-transpiler/config"
+	"github.com/coreos/container-linux-config-transpiler/config/platform"
+	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
+	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -219,7 +220,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
 		Capabilities:                []*string{aws.String(cloudformation.CapabilityCapabilityNamedIam)},
 		EnableTerminationProtection: aws.Bool(true),
-		Tags: tags,
+		Tags:                        tags,
 	}
 
 	if stackTemplateURL != "" {
@@ -622,16 +623,26 @@ func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 }
 
 func (a *awsAdapter) getCertificateSummaryFromACM(arn *string) (*certs.CertificateSummary, error) {
-	params := &acm.DescribeCertificateInput{CertificateArn: arn}
-	resp, err := a.acmClient.DescribeCertificate(params)
+	params := &acm.GetCertificateInput{CertificateArn: arn}
+	resp, err := a.acmClient.GetCertificate(params)
 	if err != nil {
 		return nil, err
 	}
-	return certs.NewCertificate(
-		aws.StringValue(resp.Certificate.CertificateArn),
-		append(aws.StringValueSlice(resp.Certificate.SubjectAlternativeNames), aws.StringValue(resp.Certificate.DomainName)),
-		aws.TimeValue(resp.Certificate.NotBefore),
-		aws.TimeValue(resp.Certificate.NotAfter)), nil
+
+	cert, err := awsutil.ParseCertificate(aws.StringValue(resp.Certificate))
+	if err != nil {
+		return nil, err
+	}
+
+	var chain []*x509.Certificate
+	if resp.CertificateChain != nil {
+		chain, err = awsutil.ParseCertificates(aws.StringValue(resp.CertificateChain))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return certs.NewCertificate(aws.StringValue(arn), cert, chain), nil
 }
 
 // GetDefaultVPC gets the default VPC.
