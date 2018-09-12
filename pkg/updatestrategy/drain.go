@@ -107,7 +107,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 
 		if forceEvicted {
 			lastForcedTermination = time.Now()
-			err := m.annotateNode(node, drainStartAnnotation, lastForcedTermination.Format(time.RFC3339))
+			err := m.annotateNode(node, lastForcedDrainAnnotation, lastForcedTermination.Format(time.RFC3339))
 			if err != nil {
 				return err
 			}
