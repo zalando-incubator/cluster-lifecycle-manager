@@ -487,13 +487,33 @@ func TestFindPDBSiblings(t *testing.T) {
 	foo0 := testPod("foo-0", map[string]string{"app": "foo", "env": "production"})
 	foo1 := testPod("foo-1", map[string]string{"app": "foo"})
 	foo2 := testPod("foo-2", map[string]string{"app": "foo"})
+	foo2.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: "extensions/v1beta1",
+		Kind:       "ReplicaSet",
+		Name:       "foo-12345",
+		UID:        "5678-9012",
+	}}
+
+	// terminated pod
+	foo3 := testPod("foo-3", map[string]string{"app": "foo"})
+	foo3.Status.Phase = v1.PodSucceeded
+
+	// cronjob pod
+	foo4 := testPod("foo-4", map[string]string{"app": "foo"})
+	foo4.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: "batch/v1",
+		Kind:       "Job",
+		Name:       "foo-12345",
+		UID:        "1234-5678",
+	}}
+
 	bar0 := testPod("bar-0", map[string]string{"app": "bar"})
 	bar1 := testPod("bar-1", map[string]string{"app": "bar"})
 	bar2 := testPod("bar-2", map[string]string{"app": "bar"})
 	baz0 := testPod("baz-0", map[string]string{"app": "baz", "env": "production"})
 	quux0 := testPod("quux-0", map[string]string{"app": "quux"})
 
-	allPods := []v1.Pod{foo0, foo1, foo2, bar0, bar1, bar2, baz0, quux0}
+	allPods := []v1.Pod{foo0, foo1, foo2, foo3, foo4, bar0, bar1, bar2, baz0, quux0}
 
 	fooPdb := testPDB("foo", map[string]string{"app": "foo"})
 	barPdb := testPDB("bar", map[string]string{"app": "bar"})
