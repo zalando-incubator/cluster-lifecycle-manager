@@ -269,6 +269,9 @@ func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods []v1.Pod, allPdbs []
 		if candidate.GetName() == pod.GetName() {
 			continue
 		}
+		if ignoredSiblingPod(&candidate) {
+			continue
+		}
 
 		for _, selector := range siblingSelectors {
 			if selector.Matches(labels.Set(candidate.Labels)) {
@@ -279,6 +282,23 @@ func findSiblingPods(logger *log.Entry, pod v1.Pod, allPods []v1.Pod, allPdbs []
 	}
 
 	return result
+}
+
+// ignoredSiblingPod returns true if a sibling pod should be ignored (e.g. because it's a cronjob pod)
+func ignoredSiblingPod(pod *v1.Pod) bool {
+	// terminated pod, ignore
+	if podTerminated(pod) {
+		return true
+	}
+
+	for _, owner := range pod.GetObjectMeta().GetOwnerReferences() {
+		// job/cronjob pod, ignore
+		if owner.Kind == "Job" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func isPDBViolation(err error) bool {
@@ -308,6 +328,10 @@ var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod)
 
 }
 
+func podTerminated(pod *v1.Pod) bool {
+	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed
+}
+
 // evictPod tries to evict a pod from a node.
 // Note: this is defined as a variable so it can be easily mocked in tests.
 var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
@@ -325,7 +349,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 		return err
 	}
 
-	if updated.Status.Phase == v1.PodSucceeded || updated.Status.Phase == v1.PodFailed {
+	if podTerminated(updated) {
 		// Completed, just ignore
 		return nil
 	}
