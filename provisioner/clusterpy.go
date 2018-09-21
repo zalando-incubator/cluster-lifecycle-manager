@@ -247,6 +247,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// render the manifests to find out if they're valid
+	manifestsPath := path.Join(channelConfig.Path, manifestsPath)
 	manifests, err := p.renderManifests(cluster, manifestsPath)
 	if err != nil {
 		return err
@@ -338,7 +339,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath), manifests)
+	return p.apply(logger, cluster, manifestsPath, manifests)
 }
 
 type clusterStackParams struct {
