@@ -922,7 +922,7 @@ func parseDeletions(manifestsPath string) (*deletions, error) {
 func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, error) {
 	components, err := ioutil.ReadDir(manifestsPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot read directory")
+		return nil, errors.Wrapf(err, "cannot read directory: %s", manifestsPath)
 	}
 
 	var result []string
@@ -948,7 +948,7 @@ func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPa
 			file := path.Join(componentFolder, f.Name())
 			manifest, err := renderTemplate(applyContext, file, cluster)
 			if err != nil {
-				return nil, fmt.Errorf("error applying template %s/%s: %v", c.Name(), f.Name(), err)
+				return nil, fmt.Errorf("error rendering template %s/%s: %v", c.Name(), f.Name(), err)
 			}
 
 			// If there's no content we skip the file.
