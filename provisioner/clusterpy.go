@@ -246,6 +246,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
 	}
 
+	// render the manifests to find out if they're valid
+	manifests, err := p.renderManifests(cluster, manifestsPath)
+	if err != nil {
+		return err
+	}
+
 	// create etcd stack if needed.
 	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
 
@@ -332,7 +338,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
+	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath), manifests)
 }
 
 type clusterStackParams struct {
@@ -958,8 +964,8 @@ func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPa
 	return result, nil
 }
 
-// apply calls kubectl apply for all the manifests in manifestsPath.
-func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, manifestsPath string) error {
+// apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
+func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, manifestsPath string, renderedManifests []string) error {
 	logger.Debugf("Checking for deletions.yaml")
 	deletions, err := parseDeletions(manifestsPath)
 	if err != nil {
@@ -984,12 +990,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 		return errors.Wrapf(err, "no valid token")
 	}
 
-	manifests, err := p.renderManifests(cluster, manifestsPath)
-	if err != nil {
-		return err
-	}
-
-	for _, m := range manifests {
+	for _, m := range renderedManifests {
 		args := []string{
 			"kubectl",
 			"apply",
