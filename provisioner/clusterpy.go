@@ -246,6 +246,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
 	}
 
+	// render the manifests to find out if they're valid
+	manifests, err := p.renderManifests(cluster, manifestsPath)
+	if err != nil {
+		return err
+	}
+
 	// create etcd stack if needed.
 	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
 
@@ -332,7 +338,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath))
+	return p.apply(logger, cluster, path.Join(channelConfig.Path, manifestsPath), manifests)
 }
 
 type clusterStackParams struct {
@@ -913,8 +919,53 @@ func parseDeletions(manifestsPath string) (*deletions, error) {
 	return &deletions, nil
 }
 
-// apply calls kubectl apply for all the manifests in manifestsPath.
-func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, manifestsPath string) error {
+func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, error) {
+	components, err := ioutil.ReadDir(manifestsPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot read directory: %s", manifestsPath)
+	}
+
+	var result []string
+	applyContext := newTemplateContext(manifestsPath)
+
+	for _, c := range components {
+		// skip deletions.yaml if found
+		if c.Name() == deletionsFile {
+			continue
+		}
+
+		// we only apply yaml files
+		if !c.IsDir() {
+			continue
+		}
+		componentFolder := path.Join(manifestsPath, c.Name())
+		files, err := ioutil.ReadDir(componentFolder)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot read directory %s", c.Name())
+		}
+
+		for _, f := range files {
+			file := path.Join(componentFolder, f.Name())
+			manifest, err := renderTemplate(applyContext, file, cluster)
+			if err != nil {
+				return nil, fmt.Errorf("error rendering template %s/%s: %v", c.Name(), f.Name(), err)
+			}
+
+			// If there's no content we skip the file.
+			if stripWhitespace(manifest) == "" {
+				log.Debugf("Skipping empty file: %s", file)
+				continue
+			}
+
+			result = append(result, manifest)
+		}
+	}
+
+	return result, nil
+}
+
+// apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
+func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, manifestsPath string, renderedManifests []string) error {
 	logger.Debugf("Checking for deletions.yaml")
 	deletions, err := parseDeletions(manifestsPath)
 	if err != nil {
@@ -931,12 +982,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 
 	//validating input
 	if !strings.HasPrefix(cluster.InfrastructureAccount, "aws:") {
-		return fmt.Errorf("Wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
-	}
-
-	components, err := ioutil.ReadDir(manifestsPath)
-	if err != nil {
-		return errors.Wrapf(err, "cannot read directory")
+		return fmt.Errorf("wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
 	}
 
 	token, err := p.tokenSource.Token()
@@ -944,72 +990,35 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 		return errors.Wrapf(err, "no valid token")
 	}
 
-	applyContext := newTemplateContext(manifestsPath)
-
-	for _, c := range components {
-		// skip deletions.yaml if found
-		if c.Name() == deletionsFile {
-			continue
+	for _, m := range renderedManifests {
+		args := []string{
+			"kubectl",
+			"apply",
+			fmt.Sprintf("--server=%s", cluster.APIServerURL),
+			fmt.Sprintf("--token=%s", token.AccessToken),
+			"-f",
+			"-",
 		}
 
-		// we only apply yaml files
-		if !c.IsDir() {
-			continue
-		}
-		componentFolder := path.Join(manifestsPath, c.Name())
-		files, err := ioutil.ReadDir(componentFolder)
-		if err != nil {
-			return errors.Wrapf(err, "cannot read directory")
+		newApplyCommand := func() *exec.Cmd {
+			cmd := exec.Command(args[0], args[1:]...)
+			// prevent kubectl to find the in-cluster config
+			cmd.Env = []string{}
+			return cmd
 		}
 
-		for _, f := range files {
-			// Workaround for CRD issue in Kubernetes <v1.8.4
-			// https://github.bus.zalan.do/teapot/issues/issues/772
-			// TODO: Remove after v1.8.4 is rolled out to all
-			// clusters.
-			allowFailure := f.Name() == "credentials.yaml"
-
-			file := path.Join(componentFolder, f.Name())
-			manifest, err := renderTemplate(applyContext, file, cluster)
+		if p.dryRun {
+			logger.Debug(newApplyCommand())
+		} else {
+			applyManifest := func() error {
+				cmd := newApplyCommand()
+				cmd.Stdin = strings.NewReader(m)
+				_, err := command.Run(logger, cmd)
+				return err
+			}
+			err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
 			if err != nil {
-				logger.Errorf("Error applying template %v", err)
-			}
-
-			// If there's no content we skip the file.
-			if stripWhitespace(manifest) == "" {
-				log.Debugf("Skipping empty file: %s", file)
-				continue
-			}
-
-			args := []string{
-				"kubectl",
-				"apply",
-				fmt.Sprintf("--server=%s", cluster.APIServerURL),
-				fmt.Sprintf("--token=%s", token.AccessToken),
-				"-f",
-				"-",
-			}
-
-			newApplyCommand := func() *exec.Cmd {
-				cmd := exec.Command(args[0], args[1:]...)
-				// prevent kubectl to find the in-cluster config
-				cmd.Env = []string{}
-				return cmd
-			}
-
-			if p.dryRun {
-				logger.Debug(newApplyCommand())
-			} else {
-				applyManifest := func() error {
-					cmd := newApplyCommand()
-					cmd.Stdin = strings.NewReader(manifest)
-					_, err := command.Run(logger, cmd)
-					return err
-				}
-				err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
-				if err != nil && !allowFailure {
-					return errors.Wrapf(err, "run kubectl failed")
-				}
+				return errors.Wrapf(err, "run kubectl failed")
 			}
 		}
 	}
