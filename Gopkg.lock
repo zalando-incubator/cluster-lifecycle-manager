@@ -181,6 +181,14 @@
   version = "v0.27.0"
 
 [[projects]]
+  digest = "1:2d33249721c26dc14d8a24931a08d59130e79dfb6d3f89ca1be8d6b206d6fb46"
+  name = "github.com/coreos/pkg"
+  packages = ["k8s-tlsutil"]
+  pruneopts = "UT"
+  revision = "97fdf19511ea361ae1c100dd393cc47f8dcfa1e1"
+  version = "v4"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -1142,6 +1150,7 @@
     "github.com/cenkalti/backoff",
     "github.com/coreos/container-linux-config-transpiler/config",
     "github.com/coreos/container-linux-config-transpiler/config/platform",
+    "github.com/coreos/pkg/k8s-tlsutil",
     "github.com/dgrijalva/jwt-go",
     "github.com/go-openapi/errors",
     "github.com/go-openapi/runtime",

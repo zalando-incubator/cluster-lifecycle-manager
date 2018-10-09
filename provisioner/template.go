@@ -2,17 +2,26 @@ package provisioner
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
+	"math/big"
+	"net"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -39,6 +48,11 @@ type templateContext struct {
 type podResources struct {
 	CPU    string
 	Memory string
+}
+
+type GeneratedCertificate struct {
+	KeyPEM         string
+	CertificatePEM string
 }
 
 func newTemplateContext(baseDir string) *templateContext {
@@ -189,6 +203,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"azID":                      azID,
 		"azCount":                   azCount,
 		"split":                     split,
+		"generateCertificate":       generateCertificate,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -288,4 +303,124 @@ func azCount(subnets map[string]string) int64 {
 // split is a template function that takes a string and a separator and returns the splitted parts.
 func split(s string, d string) []string {
 	return strings.Split(s, d)
+}
+
+func pemEncode(dataType string, derData []byte) (string, error) {
+	result := pem.EncodeToMemory(&pem.Block{
+		Type:  dataType,
+		Bytes: derData,
+	})
+	if result == nil {
+		return "", fmt.Errorf("unable to encode %s", dataType)
+	}
+
+	return string(result), nil
+}
+
+func parsePEMKey(key string) (*rsa.PrivateKey, error) {
+	keyData, _ := pem.Decode([]byte(key))
+	if keyData == nil {
+		return nil, errors.New("caKeyPEM: no PEM data found")
+	}
+	parsed, err := x509.ParsePKCS1PrivateKey(keyData.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse private key: %v", err)
+	}
+	return parsed, nil
+}
+
+func parsePEMCertificate(certificate string) (*x509.Certificate, error) {
+	certData, _ := pem.Decode([]byte(certificate))
+	if certData == nil {
+		return nil, errors.New("caCertPEM: no PEM data found")
+	}
+	parsed, err := x509.ParseCertificate(certData.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse certificate: %v", err)
+	}
+	return parsed, nil
+}
+
+// generateCertificate is a template function that generates a private key and a corresponding certificate signed by the provided CA.
+// certType can be one of client, server or client-and-server. altNamesAndIPs are automatically mapped into IPAddresses if they can
+// be parsed as an IP address or into DNSNames otherwise.
+func generateCertificate(caKeyPEM, caCertPEM string, certType string, validityDays int, cn string, altNamesAndIPs ...string) (*GeneratedCertificate, error) {
+	caKey, err := parsePEMKey(caKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	caCert, err := parsePEMCertificate(caCertPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	certKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate private key: %v", err)
+	}
+
+	var extKeyUsage []x509.ExtKeyUsage
+	switch certType {
+	case "client":
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	case "server":
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	case "client-and-server":
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
+	default:
+		return nil, fmt.Errorf("invalid certType %s: must be client|server|client-and-server", certType)
+	}
+
+	var dnsNames []string
+	var netIPs []net.IP
+
+	for _, nameOrIP := range altNamesAndIPs {
+		maybeIP := net.ParseIP(nameOrIP)
+		if maybeIP != nil {
+			netIPs = append(netIPs, maybeIP)
+		} else {
+			dnsNames = append(dnsNames, nameOrIP)
+		}
+	}
+
+	certData := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   cn,
+			Organization: []string{"CLM"},
+		},
+		DNSNames:     dnsNames,
+		IPAddresses:  netIPs,
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		NotBefore:    caCert.NotBefore,
+		NotAfter:     time.Now().AddDate(0, 0, validityDays),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  extKeyUsage,
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, &certData, caCert, certKey.Public(), caKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate certificate: %v", err)
+	}
+
+	parsed, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse generated certificate: %v", err)
+	}
+
+	encodedKey, err := pemEncode("RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(certKey))
+	if err != nil {
+		return nil, err
+	}
+
+	encodedCertificate, err := pemEncode("CERTIFICATE", parsed.Raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &GeneratedCertificate{
+		KeyPEM:         string(encodedKey),
+		CertificatePEM: string(encodedCertificate),
+	}
+	return result, nil
 }
