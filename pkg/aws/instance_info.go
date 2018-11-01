@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -15,10 +16,11 @@ const (
 )
 
 type Instance struct {
-	InstanceType string
-	VCPU         int64
-	Memory       int64
-	Pricing      map[string]string
+	InstanceType        string
+	VCPU                int64
+	Memory              int64
+	NVMEInstanceStorage bool
+	Pricing             map[string]string
 }
 
 type pricing struct {
@@ -30,10 +32,15 @@ type osPricing struct {
 }
 
 type instanceInfo struct {
-	InstanceType string               `json:"instance_type"`
-	VCPU         interface{}          `json:"vCPU"`
-	Memory       float64              `json:"memory"`
-	Pricing      map[string]osPricing `json:"pricing"`
+	InstanceType string      `json:"instance_type"`
+	VCPU         interface{} `json:"vCPU"`
+	Memory       float64     `json:"memory"`
+	Storage      struct {
+		Devices             int  `json:"devices"`
+		NVMESSD             bool `json:"nvme_ssd"`
+		NeedsInitialization bool `json:"storage_needs_initialization"`
+	} `json:"storage"`
+	Pricing map[string]osPricing `json:"pricing"`
 }
 
 var loadedInstances struct {
@@ -86,11 +93,14 @@ func loadInstanceInfo() map[string]Instance {
 			pricing[az] = azPricing.Linux.OnDemand
 		}
 
+		nvmeInstanceStorage := instance.Storage.Devices > 0 && instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization
+
 		result[instance.InstanceType] = Instance{
-			InstanceType: instance.InstanceType,
-			VCPU:         vCPU,
-			Memory:       int64(instance.Memory * gigabyte),
-			Pricing:      pricing,
+			InstanceType:        instance.InstanceType,
+			VCPU:                vCPU,
+			Memory:              int64(instance.Memory * gigabyte),
+			NVMEInstanceStorage: nvmeInstanceStorage,
+			Pricing:             pricing,
 		}
 	}
 
