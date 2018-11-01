@@ -189,6 +189,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"azID":                      azID,
 		"azCount":                   azCount,
 		"split":                     split,
+		"mountUnitName":             mountUnitName,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -250,6 +251,14 @@ func manifestHash(context *templateContext, file string, template string, data i
 // infrastructure account in the cluster registry.
 func getAWSAccountID(ia string) string {
 	return strings.Split(ia, ":")[1]
+}
+
+// mountUnitName escapes / characters in a mount path to be used a systemd unit name
+func mountUnitName(path string) (string, error) {
+	if !strings.HasPrefix(path, "/") {
+		return "", fmt.Errorf("not an absolute path: %s", path)
+	}
+	return strings.Replace(path[1:], "/", "-", -1), nil
 }
 
 // base64Encode base64 encodes a string.

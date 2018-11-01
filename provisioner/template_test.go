@@ -313,3 +313,22 @@ func TestAZCountNoSubnets(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "0", result)
 }
+
+func TestMountUnitName(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ mountUnitName "/foo/bar" }}`,
+		"")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "foo-bar", result)
+}
+
+func TestMountUnitNameRelativePath(t *testing.T) {
+	_, err := renderSingle(
+		t,
+		`{{ mountUnitName "foo/bar" }}`,
+		"")
+
+	require.Error(t, err)
+}
