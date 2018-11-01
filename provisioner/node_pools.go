@@ -151,15 +151,16 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceType, "t2")
 	values["spot_price"] = ""
 
+	instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
+	if err != nil {
+		return err
+	}
+	values["instance_info"] = instanceInfo
+
 	switch nodePool.DiscountStrategy {
 	case api.DiscountStrategyNone:
 		break
 	case api.DiscountStrategySpot:
-		instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
-		if err != nil {
-			return err
-		}
-
 		onDemandPrice, ok := instanceInfo.Pricing[p.Cluster.Region]
 		if !ok {
 			return fmt.Errorf("no price data for region %s, instance type %s", p.Cluster.Region, nodePool.InstanceType)
