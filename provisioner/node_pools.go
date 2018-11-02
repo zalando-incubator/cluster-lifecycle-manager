@@ -163,7 +163,8 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	case api.DiscountStrategySpot:
 		onDemandPrice, ok := instanceInfo.Pricing[p.Cluster.Region]
 		if !ok {
-			return fmt.Errorf("no price data for region %s, instance type %s", p.Cluster.Region, nodePool.InstanceType)
+			p.logger.Warnf("No price data for region %s, instance type %s", p.Cluster.Region, nodePool.InstanceType)
+			onDemandPrice = "100.0"
 		}
 
 		values["spot_price"] = onDemandPrice
