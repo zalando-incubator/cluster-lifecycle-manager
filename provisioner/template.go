@@ -190,6 +190,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"azCount":                   azCount,
 		"split":                     split,
 		"mountUnitName":             mountUnitName,
+		"accountID":                 accountID,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -297,4 +298,13 @@ func azCount(subnets map[string]string) int64 {
 // split is a template function that takes a string and a separator and returns the splitted parts.
 func split(s string, d string) []string {
 	return strings.Split(s, d)
+}
+
+// accountID returns just the ID part of an account
+func accountID(account string) (string, error) {
+	items := strings.Split(account, ":")
+	if len(items) != 2 {
+		return "", fmt.Errorf("invalid account (expected type:id): %s", account)
+	}
+	return items[1], nil
 }
