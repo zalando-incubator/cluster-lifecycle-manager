@@ -332,3 +332,20 @@ func TestMountUnitNameRelativePath(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+func TestAccountID(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ accountID "aws:12345" }}`,
+		"")
+	require.NoError(t, err)
+	require.EqualValues(t, "12345", result)
+}
+
+func TestAccountIDFailsOnInvalid(t *testing.T) {
+	_, err := renderSingle(
+		t,
+		`{{ accountID "aws12345" }}`,
+		"")
+	require.Error(t, err)
+}
