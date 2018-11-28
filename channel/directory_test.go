@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -13,11 +14,11 @@ func TestDirectoryChannel(t *testing.T) {
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
 	d := NewDirectory(location)
-	channels, err := d.Update(logger)
+	channels, err := d.Update(context.Background(), logger)
 	require.NoError(t, err)
 	require.Empty(t, channels)
 
-	cc, err := d.Get(logger, "channel")
+	cc, err := d.Get(context.Background(), logger, "channel")
 	require.NoError(t, err)
 
 	if cc.Path != location {

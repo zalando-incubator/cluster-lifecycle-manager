@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -11,10 +13,10 @@ type ConfigVersion string
 type ConfigSource interface {
 	// Update synchronizes the local copy of the configuration with the remote one
 	// and returns the available channel versions.
-	Update(logger *log.Entry) (ConfigVersions, error)
+	Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error)
 
 	// Get returns a Config related to the specified version from the local copy.
-	Get(logger *log.Entry, version ConfigVersion) (*Config, error)
+	Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (*Config, error)
 
 	// Delete deletes the config.
 	Delete(logger *log.Entry, config *Config) error

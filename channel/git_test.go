@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -21,6 +22,8 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 	err = exec.Command("git", "-C", dir, "init").Run()
 	require.NoError(t, err)
 
+	execManager := command.NewExecManager(1)
+
 	commit := func(message string) {
 		cmd := exec.Command("git", "-C", dir, "commit", "-am", message)
 		cmd.Env = []string{
@@ -30,7 +33,7 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 			"GIT_COMMITTER_NAME=go-test",
 		}
 		log.Printf("test")
-		_, err := command.RunSilently(logger, cmd)
+		_, err := execManager.RunSilently(context.Background(), logger, cmd)
 		require.NoError(t, err)
 	}
 
@@ -58,7 +61,7 @@ func checkout(t *testing.T, logger *log.Entry, source ConfigSource, versions Con
 	version, err := versions.Version(channel)
 	require.NoError(t, err)
 
-	checkout, err := source.Get(logger, version)
+	checkout, err := source.Get(context.Background(), logger, version)
 	require.NoError(t, err)
 
 	return checkout.Path
@@ -83,11 +86,11 @@ func TestGitGet(t *testing.T) {
 	createGitRepo(t, logger, tmpRepo)
 	defer os.RemoveAll(tmpRepo)
 
-	c, err := NewGit(workdir, tmpRepo, "")
+	c, err := NewGit(command.NewExecManager(1), workdir, tmpRepo, "")
 	require.NoError(t, err)
 	defer os.RemoveAll(workdir)
 
-	versions, err := c.Update(logger)
+	versions, err := c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
 	// check master channel

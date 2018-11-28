@@ -6,15 +6,15 @@ import (
 	"math"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -103,14 +103,14 @@ func MockChannelSource(configVersions map[string]channel.ConfigVersion, failGet 
 	}
 }
 
-func (r *mockChannelSource) Get(logger *log.Entry, version channel.ConfigVersion) (*channel.Config, error) {
+func (r *mockChannelSource) Get(ctx context.Context, logger *log.Entry, version channel.ConfigVersion) (*channel.Config, error) {
 	if r.failGet {
 		return nil, fmt.Errorf("failed to checkout version %s", version)
 	}
 	return &channel.Config{}, nil
 }
 
-func (r *mockChannelSource) Update(logger *log.Entry) (channel.ConfigVersions, error) {
+func (r *mockChannelSource) Update(ctx context.Context, logger *log.Entry) (channel.ConfigVersions, error) {
 	return r.configVersions, nil
 }
 
@@ -188,7 +188,7 @@ func TestProcessCluster(t *testing.T) {
 			success:       false,
 		},
 	} {
-		controller := New(defaultLogger, ti.registry, ti.provisioner, ti.channelSource, ti.options)
+		controller := New(defaultLogger, command.NewExecManager(1), ti.registry, ti.provisioner, ti.channelSource, ti.options)
 		err := controller.refresh()
 		assert.NoError(t, err)
 
@@ -211,7 +211,7 @@ func TestProcessCluster(t *testing.T) {
 func TestIgnoreUnsupportedProvider(t *testing.T) {
 	registry := MockRegistry("ready", nil)
 	registry.theCluster.Provider = "<unsupported>"
-	controller := New(defaultLogger, registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	err := controller.refresh()
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 
 func TestCoalesceFailures(t *testing.T) {
 	registry := MockRegistry("ready", nil)
-	controller := New(defaultLogger, registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
+	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockErrProvisioner{}, MockChannelSource(defaultVersions, false), defaultOptions)
 
 	for i := 0; i < 100; i++ {
 		err := controller.refresh()
