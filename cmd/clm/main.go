@@ -10,17 +10,17 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"golang.org/x/oauth2"
-	"gopkg.in/alecthomas/kingpin.v2"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/controller"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/credentials-loader/platformiam"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
+	"golang.org/x/oauth2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -33,7 +33,7 @@ var (
 func main() {
 	cfg := config.New(version)
 
-	command := cfg.ParseFlags()
+	cmd := cfg.ParseFlags()
 
 	if err := cfg.ValidateFlags(); err != nil {
 		log.Fatalf("Incorrectly configured flag: %v", err)
@@ -70,7 +70,9 @@ func main() {
 
 	rootLogger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	p := provisioner.NewClusterpyProvisioner(clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
+	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
+
+	p := provisioner.NewClusterpyProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
 		DryRun:         cfg.DryRun,
 		ApplyOnly:      cfg.ApplyOnly,
 		UpdateStrategy: cfg.UpdateStrategy,
@@ -83,13 +85,13 @@ func main() {
 		configSource = channel.NewDirectory(cfg.Directory)
 	} else {
 		var err error
-		configSource, err = channel.NewGit(cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
+		configSource, err = channel.NewGit(execManager, cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
 		if err != nil {
 			log.Fatalf("Failed to setup git channel config source: %v", err)
 		}
 	}
 
-	if command == controllerCmd.FullCommand() {
+	if cmd == controllerCmd.FullCommand() {
 		log.Info("Running control loop")
 
 		go serveHealthCheck(cfg.Listen)
@@ -102,7 +104,7 @@ func main() {
 			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}
 
-		ctrl := controller.New(rootLogger, clusterRegistry, p, configSource, opts)
+		ctrl := controller.New(rootLogger, execManager, clusterRegistry, p, configSource, opts)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go handleSigterm(cancel)
@@ -123,7 +125,7 @@ func main() {
 			continue
 		}
 
-		channels, err := configSource.Update(rootLogger)
+		channels, err := configSource.Update(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -133,7 +135,7 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(rootLogger, version)
+		config, err := configSource.Get(context.Background(), rootLogger, version)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
@@ -147,7 +149,7 @@ func main() {
 			cluster.ConfigItems[key] = decryptedValue
 		}
 
-		switch command {
+		switch cmd {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
 			err = p.Provision(context.Background(), rootLogger, cluster, config)
@@ -163,7 +165,7 @@ func main() {
 			}
 			log.Infof("Decommissioning done for cluster %s", cluster.ID)
 		default:
-			log.Fatalf("unknown command: %s", command)
+			log.Fatalf("unknown cmd: %s", cmd)
 		}
 	}
 }

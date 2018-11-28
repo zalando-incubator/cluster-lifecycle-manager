@@ -811,9 +811,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:39ebcc2b11457b703ae9ee2e8cca0f68df21969c6102cb3b705f76cca0ea0239"
+  digest = "1:c313aef534e493304f3666fbd24dca5932ebf776a82b7a40f961c9355794a1b1"
   name = "golang.org/x/sync"
-  packages = ["errgroup"]
+  packages = [
+    "errgroup",
+    "semaphore",
+  ]
   pruneopts = "UT"
   revision = "1d60e4601c6fd243af51cc01ddf169918a5407ca"
 
@@ -1161,6 +1164,7 @@
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
     "golang.org/x/sync/errgroup",
+    "golang.org/x/sync/semaphore",
     "gopkg.in/alecthomas/kingpin.v2",
     "gopkg.in/yaml.v2",
     "k8s.io/api/core/v1",

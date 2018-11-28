@@ -6,10 +6,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -40,6 +40,7 @@ type Options struct {
 // Controller defines the main control loop for the cluster-lifecycle-manager.
 type Controller struct {
 	logger               *log.Entry
+	execManager          *command.ExecManager
 	registry             registry.Registry
 	provisioner          provisioner.Provisioner
 	channelConfigSourcer channel.ConfigSource
@@ -50,9 +51,10 @@ type Controller struct {
 }
 
 // New initializes a new controller.
-func New(logger *log.Entry, registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
+func New(logger *log.Entry, execManager *command.ExecManager, registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
 	return &Controller{
 		logger:               logger,
+		execManager:          execManager,
 		registry:             registry,
 		provisioner:          provisioner,
 		channelConfigSourcer: channelConfigSourcer,
@@ -107,7 +109,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 
 // refresh refreshes the channel configuration and the cluster list
 func (c *Controller) refresh() error {
-	channels, err := c.channelConfigSourcer.Update(c.logger)
+	channels, err := c.channelConfigSourcer.Update(context.Background(), c.logger)
 	if err != nil {
 		return err
 	}
@@ -147,7 +149,7 @@ func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Conte
 		return clusterInfo.NextError
 	}
 
-	config, err := c.channelConfigSourcer.Get(logger, clusterInfo.NextVersion.ConfigVersion)
+	config, err := c.channelConfigSourcer.Get(updateCtx, logger, clusterInfo.NextVersion.ConfigVersion)
 	if err != nil {
 		return err
 	}

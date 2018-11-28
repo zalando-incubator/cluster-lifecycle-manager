@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,13 +18,13 @@ func NewDirectory(location string) ConfigSource {
 	return &Directory{location: location}
 }
 
-func (d *Directory) Update(logger *log.Entry) (ConfigVersions, error) {
+func (d *Directory) Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {
 	result := &directoryVersions{}
 	return result, nil
 }
 
 // Get returns the contents from the directory.
-func (d *Directory) Get(logger *log.Entry, version ConfigVersion) (*Config, error) {
+func (d *Directory) Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (*Config, error) {
 	return &Config{
 		Path: d.location,
 	}, nil

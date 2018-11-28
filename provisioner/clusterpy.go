@@ -63,6 +63,7 @@ const (
 
 type clusterpyProvisioner struct {
 	awsConfig       *aws.Config
+	execManager     *command.ExecManager
 	secretDecrypter decrypter.Decrypter
 	assumedRole     string
 	dryRun          bool
@@ -73,9 +74,10 @@ type clusterpyProvisioner struct {
 }
 
 // NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
-func NewClusterpyProvisioner(tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
+func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
 	provisioner := &clusterpyProvisioner{
 		awsConfig:       awsConfig,
+		execManager:     execManager,
 		secretDecrypter: secretDecrypter,
 		assumedRole:     assumedRole,
 		tokenSource:     tokenSource,
@@ -339,7 +341,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(logger, cluster, manifestsPath, manifests)
+	return p.apply(ctx, logger, cluster, manifestsPath, manifests)
 }
 
 type clusterStackParams struct {
@@ -833,7 +835,7 @@ type deletions struct {
 }
 
 // Deletions uses kubectl delete to delete the provided kubernetes resources.
-func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
+func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
 	token, err := p.tokenSource.Token()
 	if err != nil {
 		return errors.Wrapf(err, "no valid token")
@@ -867,7 +869,7 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Env = []string{}
 
-		out, err := command.Run(logger, cmd)
+		out, err := p.execManager.Run(ctx, logger, cmd)
 		if err != nil {
 			// if kubectl failed because the resource didn't
 			// exists, we don't treat it as an error since the
@@ -966,7 +968,7 @@ func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPa
 }
 
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
-func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, manifestsPath string, renderedManifests []string) error {
+func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, manifestsPath string, renderedManifests []string) error {
 	logger.Debugf("Checking for deletions.yaml")
 	deletions, err := parseDeletions(manifestsPath)
 	if err != nil {
@@ -974,7 +976,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 	}
 
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
-	err = p.Deletions(logger, cluster, deletions.PreApply)
+	err = p.Deletions(ctx, logger, cluster, deletions.PreApply)
 	if err != nil {
 		return err
 	}
@@ -1014,7 +1016,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 			applyManifest := func() error {
 				cmd := newApplyCommand()
 				cmd.Stdin = strings.NewReader(m)
-				_, err := command.Run(logger, cmd)
+				_, err := p.execManager.Run(ctx, logger, cmd)
 				return err
 			}
 			err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
@@ -1025,7 +1027,7 @@ func (p *clusterpyProvisioner) apply(logger *log.Entry, cluster *api.Cluster, ma
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
-	err = p.Deletions(logger, cluster, deletions.PostApply)
+	err = p.Deletions(ctx, logger, cluster, deletions.PostApply)
 	if err != nil {
 		return err
 	}

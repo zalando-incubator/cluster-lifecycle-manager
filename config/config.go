@@ -18,6 +18,7 @@ const (
 	defaultClusterTokenName                 = "cluster-rw"
 	defaultRegistry                         = "file://clusters.yaml"
 	defaultConcurrentUpdates                = "1"
+	defaultConcurrentExternalProcesses      = "10"
 	defaultAwsMaxRetries                    = "50"
 	defaultAwsMaxRetryInterval              = "10s"
 	defaultDrainGracePeriod                 = "6h"
@@ -33,29 +34,30 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 
 // LifecycleManagerConfig stores the configuration for app
 type LifecycleManagerConfig struct {
-	Registry            string
-	AccountFilter       IncludeExcludeFilter
-	Token               string
-	RegistryTokenName   string
-	ClusterTokenName    string
-	AssumedRole         string
-	Interval            time.Duration
-	Debug               bool
-	DumpRequest         bool
-	DryRun              bool
-	ConcurrentUpdates   uint
-	Listen              string
-	Workdir             string
-	Directory           string
-	GitRepositoryURL    string
-	SSHPrivateKeyFile   string
-	CredentialsDir      string
-	EnvironmentOrder    []string
-	ApplyOnly           bool
-	AwsMaxRetries       int
-	AwsMaxRetryInterval time.Duration
-	UpdateStrategy      UpdateStrategy
-	RemoveVolumes       bool
+	Registry                    string
+	AccountFilter               IncludeExcludeFilter
+	Token                       string
+	RegistryTokenName           string
+	ClusterTokenName            string
+	AssumedRole                 string
+	Interval                    time.Duration
+	Debug                       bool
+	DumpRequest                 bool
+	DryRun                      bool
+	ConcurrentUpdates           uint
+	Listen                      string
+	Workdir                     string
+	Directory                   string
+	GitRepositoryURL            string
+	SSHPrivateKeyFile           string
+	CredentialsDir              string
+	EnvironmentOrder            []string
+	ConcurrentExternalProcesses uint
+	ApplyOnly                   bool
+	AwsMaxRetries               int
+	AwsMaxRetryInterval         time.Duration
+	UpdateStrategy              UpdateStrategy
+	RemoveVolumes               bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -113,5 +115,6 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
 	kingpin.Flag("environment-order", "Roll out channel updates to the environments in a specific order.").StringsVar(&cfg.EnvironmentOrder)
+	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	return kingpin.Parse()
 }
