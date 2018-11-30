@@ -230,8 +230,8 @@ func manifestHash(context *templateContext, file string, template string, data i
 		return "", err
 	}
 
-	if !strings.HasPrefix(templateFile, context.baseDir) {
-		return "", fmt.Errorf("invalid template path: %s", templateFile)
+	if !strings.Contains(templateFile, context.baseDir) {
+		return "", fmt.Errorf("invalid template path: %s is outside of manifest directory %s", templateFile, context.baseDir)
 	}
 
 	templateData, ok := context.manifestData[templateFile]
