@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
-	"net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sort"
@@ -192,11 +192,6 @@ func startHTTPServer(listen string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	http.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-	http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	http.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 	http.ListenAndServe(listen, nil)
 }
 
