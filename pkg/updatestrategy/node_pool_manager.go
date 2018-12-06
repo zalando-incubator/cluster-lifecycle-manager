@@ -29,6 +29,7 @@ const (
 	lifecycleStatusLabel               = "lifecycle-status"
 	lifecycleStatusDraining            = "draining"
 	lifecycleStatusDecommissionPending = "decommission-pending"
+	lifecycleStatusReady               = "ready"
 
 	decommissionPendingTaintKey   = "decommission-pending"
 	decommissionPendingTaintValue = "rolling-upgrade"
@@ -39,6 +40,7 @@ const (
 type NodePoolManager interface {
 	GetPool(nodePool *api.NodePool) (*NodePool, error)
 	MarkNodeForDecommission(node *Node) error
+	AbortNodeDecommissioning(node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	CordonNode(node *Node) error
@@ -150,8 +152,18 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 		return err
 	}
 
-	if node.Labels[lifecycleStatusLabel] != lifecycleStatusDraining {
+	if node.Labels[lifecycleStatusLabel] == lifecycleStatusReady {
 		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+	if node.Labels[lifecycleStatusLabel] == lifecycleStatusDecommissionPending {
+		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusReady)
 		if err != nil {
 			return err
 		}
