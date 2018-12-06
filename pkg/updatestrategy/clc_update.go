@@ -8,20 +8,18 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
-const (
-	pollingInterval = 10 * time.Second
-)
-
 type CLCUpdateStrategy struct {
 	nodePoolManager NodePoolManager
 	logger          *log.Entry
+	pollingInterval time.Duration
 }
 
 // NewCLCUpdateStrategy initializes a new CLCUpdateStrategy.
-func NewCLCUpdateStrategy(logger *log.Entry, nodePoolManager NodePoolManager) *CLCUpdateStrategy {
+func NewCLCUpdateStrategy(logger *log.Entry, nodePoolManager NodePoolManager, pollingInterval time.Duration) *CLCUpdateStrategy {
 	return &CLCUpdateStrategy{
 		nodePoolManager: nodePoolManager,
 		logger:          logger.WithField("strategy", "clc"),
+		pollingInterval: pollingInterval,
 	}
 }
 
@@ -87,7 +85,7 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(pollingInterval):
+		case <-time.After(c.pollingInterval):
 		}
 	}
 }

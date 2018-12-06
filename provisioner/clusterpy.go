@@ -59,6 +59,7 @@ const (
 	updateStrategyRolling          = "rolling"
 	updateStrategyCLC              = "clc"
 	defaultMaxRetryTime            = 5 * time.Minute
+	clcPollingInterval             = 10 * time.Second
 )
 
 type clusterpyProvisioner struct {
@@ -657,7 +658,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	case updateStrategyRolling:
 		updater = updatestrategy.NewRollingUpdateStrategy(logger, poolManager, 3)
 	case updateStrategyCLC:
-		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager)
+		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager, clcPollingInterval)
 	default:
 		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
