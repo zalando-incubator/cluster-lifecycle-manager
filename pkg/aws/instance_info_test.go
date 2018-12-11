@@ -27,6 +27,11 @@ func TestInstanceInfo(t *testing.T) {
 			NVMEInstanceStorage:    false,
 			InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme1n1", NVME: true}, {Path: "/dev/nvme2n1", NVME: true}},
 		},
+		{
+			InstanceType: "r3.large",
+			VCPU:         2,
+			Memory:       16374562816,
+		},
 	} {
 		t.Run(tc.InstanceType, func(t *testing.T) {
 			info, err := InstanceInfo(tc.InstanceType)
