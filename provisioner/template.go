@@ -191,6 +191,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"split":                     split,
 		"mountUnitName":             mountUnitName,
 		"accountID":                 accountID,
+		"portRanges":                portRanges,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -307,4 +308,30 @@ func accountID(account string) (string, error) {
 		return "", fmt.Errorf("invalid account (expected type:id): %s", account)
 	}
 	return items[1], nil
+}
+
+type PortRange struct {
+	FromPort, ToPort int
+}
+
+// portRanges parses a comma separated list of port ranges
+func portRanges(ranges string) ([]PortRange, error) {
+	rangesL := strings.Split(ranges, ",")
+	p := make([]PortRange, len(rangesL))
+	for i, r := range rangesL {
+		splitR := strings.Split(r, "-")
+		if len(splitR) != 2 {
+			return nil, fmt.Errorf("invalid input for portRange: %s", ranges)
+		}
+		fromPort, err := strconv.Atoi(splitR[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid start port: %s in input: %s", splitR[0], ranges)
+		}
+		toPort, err := strconv.Atoi(splitR[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid end port: %s in input: %s", splitR[1], ranges)
+		}
+		p[i] = PortRange{FromPort: int(fromPort), ToPort: int(toPort)}
+	}
+	return p, nil
 }
