@@ -15,12 +15,18 @@ const (
 	gigabyte = 1024 * 1024 * 1024
 )
 
+type StorageDevice struct {
+	Path string
+	NVME bool
+}
+
 type Instance struct {
-	InstanceType        string
-	VCPU                int64
-	Memory              int64
-	NVMEInstanceStorage bool
-	Pricing             map[string]string
+	InstanceType           string
+	VCPU                   int64
+	Memory                 int64
+	NVMEInstanceStorage    bool
+	InstanceStorageDevices []StorageDevice
+	Pricing                map[string]string
 }
 
 type pricing struct {
@@ -35,6 +41,7 @@ type instanceInfo struct {
 	InstanceType string      `json:"instance_type"`
 	VCPU         interface{} `json:"vCPU"`
 	Memory       float64     `json:"memory"`
+	EBSAsNVME    bool        `json:"ebs_as_nvme"`
 	Storage      struct {
 		Devices             int  `json:"devices"`
 		NVMESSD             bool `json:"nvme_ssd"`
@@ -93,15 +100,33 @@ func loadInstanceInfo() map[string]Instance {
 			pricing[az] = azPricing.Linux.OnDemand
 		}
 
-		nvmeInstanceStorage := instance.Storage.Devices > 0 && instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization
+		// TODO drop soon
+		nvmeInstanceStorage := instance.Storage.Devices > 0 && instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization && !instance.EBSAsNVME
 
-		result[instance.InstanceType] = Instance{
+		instanceInfo := Instance{
 			InstanceType:        instance.InstanceType,
 			VCPU:                vCPU,
 			Memory:              int64(instance.Memory * gigabyte),
 			NVMEInstanceStorage: nvmeInstanceStorage,
 			Pricing:             pricing,
 		}
+
+		if instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization {
+			nvmeInitialIndex := 0
+			// Assuming only the root volume is mounted initially
+			if instance.EBSAsNVME {
+				nvmeInitialIndex = 1
+			}
+
+			for i := 0; i < instance.Storage.Devices; i++ {
+				instanceInfo.InstanceStorageDevices = append(instanceInfo.InstanceStorageDevices, StorageDevice{
+					Path: fmt.Sprintf("/dev/nvme%dn1", i+nvmeInitialIndex),
+					NVME: true,
+				})
+			}
+		}
+
+		result[instance.InstanceType] = instanceInfo
 	}
 
 	return result
