@@ -27,6 +27,8 @@ const (
 	autoscalingBufferCPUReservedConfigItem    = "autoscaling_buffer_cpu_reserved"
 	autoscalingBufferMemoryReservedConfigItem = "autoscaling_buffer_memory_reserved"
 	autoscalingBufferPoolsConfigItem          = "autoscaling_buffer_pools"
+	highestPossiblePort                       = 65535
+	lowestPossiblePort                        = 0
 )
 
 type templateContext struct {
@@ -331,7 +333,23 @@ func portRanges(ranges string) ([]PortRange, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid end port: %s in input: %s", splitR[1], ranges)
 		}
-		p[i] = PortRange{FromPort: int(fromPort), ToPort: int(toPort)}
+		if !validPortRange(fromPort, toPort) {
+			return nil, fmt.Errorf("port range %d-%d is invalid", fromPort, toPort)
+		}
+		p[i] = PortRange{FromPort: fromPort, ToPort: toPort}
 	}
 	return p, nil
+}
+
+func validPortRange(fromPort, toPort int) bool {
+	if fromPort > toPort {
+		return false
+	}
+	if toPort > highestPossiblePort {
+		return false
+	}
+	if fromPort < lowestPossiblePort {
+		return false
+	}
+	return true
 }

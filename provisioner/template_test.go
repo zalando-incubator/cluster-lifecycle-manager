@@ -381,4 +381,10 @@ func TestParsePortRanges(t *testing.T) {
 
 	_, err = renderSingle(t, `{{ portRanges "0-1,-2 }}`, "")
 	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ portRanges "30-20" }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ portRanges "0-200000" }}`, "")
+	require.Error(t, err)
 }
