@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
@@ -28,10 +29,13 @@ func (c *CLCUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.NodePo
 
 	err := c.doUpdate(ctx, nodePoolDesc)
 	if err != nil {
-		if ctx.Err() != nil {
-			err := c.rollbackUpdate(nodePoolDesc)
+		if ctx.Err() == context.Canceled {
+			backoffCfg := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10)
+			err := backoff.Retry(func() error {
+				return c.rollbackUpdate(nodePoolDesc)
+			}, backoffCfg)
 			if err != nil {
-				log.Errorf("Error while aborting the update for node pool '%s': %v", nodePoolDesc.Name, err)
+				c.logger.Errorf("Error while aborting the update for node pool '%s': %v", nodePoolDesc.Name, err)
 			}
 		}
 		return err
