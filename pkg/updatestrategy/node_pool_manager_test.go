@@ -141,6 +141,39 @@ func TestLabelNodes(t *testing.T) {
 	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "baz"})
 }
 
+func TestCompareAndSetNodeLabel(t *testing.T) {
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	}
+
+	mgr := &KubernetesNodePoolManager{
+		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+	}
+
+	err := mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "bar")
+	assert.NoError(t, err)
+
+	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
+
+	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "quux")
+	assert.NoError(t, err)
+
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "bar"})
+
+	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "bar", "quux")
+	assert.NoError(t, err)
+
+	updated3, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.EqualValues(t, updated3.Labels, map[string]string{"foo": "quux"})
+}
+
 func TestAnnotateNodes(t *testing.T) {
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{

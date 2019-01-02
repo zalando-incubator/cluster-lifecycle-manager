@@ -152,21 +152,17 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 		return err
 	}
 
-	if node.Labels[lifecycleStatusLabel] == lifecycleStatusReady {
-		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending)
-		if err != nil {
-			return err
-		}
+	err = m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusReady, lifecycleStatusDecommissionPending)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
-	if node.Labels[lifecycleStatusLabel] == lifecycleStatusDecommissionPending {
-		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusReady)
-		if err != nil {
-			return err
-		}
+	err := m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusReady)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -239,6 +235,29 @@ func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue s
 			node.Labels[labelKey] = labelValue
 			return !ok || value != labelValue
 		})
+}
+
+// compareAndSetNodeLabel updates a label of a Kubernetes node object if the current value is set to `expectedValue` or
+// not already defined.
+func (m *KubernetesNodePoolManager) compareAndSetNodeLabel(node *Node, labelKey, expectedValue, newValue string) error {
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Labels[labelKey]
+			return !ok || value == expectedValue
+		},
+		func(node *v1.Node) bool {
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
+			value, ok := node.Labels[labelKey]
+			if ok && value != expectedValue {
+				return false
+			}
+			node.Labels[labelKey] = newValue
+			return true
+		})
+
 }
 
 // updateTaint adds a taint with the provided key, value and effect if it isn't present or
