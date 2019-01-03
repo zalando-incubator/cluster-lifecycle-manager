@@ -17,14 +17,12 @@ func TestInstanceInfo(t *testing.T) {
 			InstanceType:           "i3.4xlarge",
 			VCPU:                   16,
 			Memory:                 130996502528,
-			NVMEInstanceStorage:    true,
 			InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme0n1", NVME: true}, {Path: "/dev/nvme1n1", NVME: true}},
 		},
 		{
 			InstanceType:           "m5d.4xlarge",
 			VCPU:                   16,
 			Memory:                 68719476736,
-			NVMEInstanceStorage:    false,
 			InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme1n1", NVME: true}, {Path: "/dev/nvme2n1", NVME: true}},
 		},
 		{
@@ -39,7 +37,6 @@ func TestInstanceInfo(t *testing.T) {
 			require.Equal(t, tc.InstanceType, info.InstanceType)
 			require.Equal(t, tc.VCPU, info.VCPU)
 			require.Equal(t, tc.Memory, info.Memory)
-			require.Equal(t, tc.NVMEInstanceStorage, info.NVMEInstanceStorage)
 			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
 		})
 	}

@@ -24,17 +24,7 @@ type Instance struct {
 	InstanceType           string
 	VCPU                   int64
 	Memory                 int64
-	NVMEInstanceStorage    bool
 	InstanceStorageDevices []StorageDevice
-	Pricing                map[string]string
-}
-
-type pricing struct {
-	OnDemand string `json:"ondemand"`
-}
-
-type osPricing struct {
-	Linux pricing `json:"linux"`
 }
 
 type instanceInfo struct {
@@ -47,7 +37,6 @@ type instanceInfo struct {
 		NVMESSD             bool `json:"nvme_ssd"`
 		NeedsInitialization bool `json:"storage_needs_initialization"`
 	} `json:"storage"`
-	Pricing map[string]osPricing `json:"pricing"`
 }
 
 var loadedInstances struct {
@@ -94,21 +83,10 @@ func loadInstanceInfo() map[string]Instance {
 			continue
 		}
 
-		pricing := make(map[string]string)
-
-		for az, azPricing := range instance.Pricing {
-			pricing[az] = azPricing.Linux.OnDemand
-		}
-
-		// TODO drop soon
-		nvmeInstanceStorage := instance.Storage.Devices > 0 && instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization && !instance.EBSAsNVME
-
 		instanceInfo := Instance{
-			InstanceType:        instance.InstanceType,
-			VCPU:                vCPU,
-			Memory:              int64(instance.Memory * gigabyte),
-			NVMEInstanceStorage: nvmeInstanceStorage,
-			Pricing:             pricing,
+			InstanceType: instance.InstanceType,
+			VCPU:         vCPU,
+			Memory:       int64(instance.Memory * gigabyte),
 		}
 
 		if instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization {
