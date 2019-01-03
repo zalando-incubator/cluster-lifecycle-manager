@@ -35,7 +35,6 @@ type templateContext struct {
 	manifestData          map[string]string
 	baseDir               string
 	computingManifestHash bool
-	readTemplate          func(string) ([]byte, error)
 }
 
 type podResources struct {

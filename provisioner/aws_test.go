@@ -210,17 +210,6 @@ func TestGetStackByName(t *testing.T) {
 	}
 }
 
-func TestEncodeUserdata(t *testing.T) {
-	encoded, err := encodeUserData("foobar")
-	if err != nil {
-		t.FailNow()
-	}
-	decoded, _ := decodeUserData(encoded)
-	if "foobar" != decoded {
-		t.Fatalf("expected %s, got %s", "foobar", decoded)
-	}
-}
-
 func TestCreateS3Client(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
 	err := a.createS3Bucket("")
@@ -229,30 +218,10 @@ func TestCreateS3Client(t *testing.T) {
 	}
 }
 
-func TestAsgHasTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{{Key: aws.String("key-1"), Value: aws.String("value-1")},
-		{Key: aws.String("key-2"), Value: aws.String("value-2")}}
-	tags := []*autoscaling.TagDescription{{Key: aws.String("key-2"), Value: aws.String("value-2")},
-		{Key: aws.String("key-1"), Value: aws.String("value-1")}}
-	hasTags := asgHasTags(expected, tags)
-	if !hasTags {
-		t.Fatalf("expected %v, tags %v should succeed", expected, tags)
-	}
-}
-
-func TestNotMatchingAsgHasTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{{Key: aws.String("key"), Value: aws.String("value")}}
-	tags := []*autoscaling.TagDescription{{Key: aws.String("key"), Value: aws.String("bar")}}
-	hasTags := asgHasTags(expected, tags)
-	if hasTags {
-		t.Fatalf("expected %v, tags %v should not succeed", expected, hasTags)
-	}
-}
-
 func TestCreateOrUpdateClusterStack(t *testing.T) {
 	awsAdapter := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	cluster := &api.Cluster{
-		ID: "cluster-id",
+		ID:                    "cluster-id",
 		InfrastructureAccount: "account-id",
 		Region:                "eu-central-1",
 	}

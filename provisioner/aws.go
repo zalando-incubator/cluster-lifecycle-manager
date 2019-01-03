@@ -1,15 +1,11 @@
 package provisioner
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"strings"
 	"time"
@@ -146,43 +142,6 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		dryRun:               dryRun,
 		logger:               logger,
 	}, nil
-}
-
-// encodeUserData gzip compresses and base64 encodes a userData string.
-func encodeUserData(userData string) (string, error) {
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	_, err := gz.Write([]byte(userData))
-	if err != nil {
-		return "", err
-	}
-	err = gz.Close()
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
-}
-
-// decodeUserData decodes base64 encoded + gzip compressed data.
-func decodeUserData(encodedUserData string) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(encodedUserData)
-	if err != nil {
-		return "", err
-	}
-
-	gz, err := gzip.NewReader(bytes.NewReader(decoded))
-	if err != nil {
-		return "", err
-	}
-	defer gz.Close()
-
-	data, err := ioutil.ReadAll(gz)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
 }
 
 // applyClusterStack creates or updates a stack specified by stackName and
@@ -549,26 +508,6 @@ func (a *awsAdapter) getEnvVars() ([]string, error) {
 	}, nil
 }
 
-// asgHasTags returns true if the asg tags matches the expected tags.
-// autoscaling tag keys are unique
-func asgHasTags(expected, tags []*autoscaling.TagDescription) bool {
-	if len(expected) > len(tags) {
-		return false
-	}
-
-	matching := 0
-
-	for _, e := range expected {
-		for _, tag := range tags {
-			if *e.Key == *tag.Key && *e.Value == *tag.Value {
-				matching++
-			}
-		}
-	}
-
-	return matching == len(expected)
-}
-
 func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
 	var filters []*ec2.Filter
 
@@ -602,9 +541,7 @@ func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 	}
 	acmSummaries := make([]*acm.CertificateSummary, 0)
 	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, lastPage bool) bool {
-		for _, cert := range page.CertificateSummaryList {
-			acmSummaries = append(acmSummaries, cert)
-		}
+		acmSummaries = append(acmSummaries, page.CertificateSummaryList...)
 		return true
 	})
 	if err != nil {

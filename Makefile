@@ -31,6 +31,9 @@ test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 fmt:
 	go fmt $(GOPKGS)
 
+staticcheck:
+	staticcheck -checks "all,-ST1000,-ST1003,-ST1005" $(GOPKGS)
+
 check:
 	golint $(GOPKGS)
 	go vet -v $(GOPKGS)
