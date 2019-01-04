@@ -148,17 +148,17 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
-				InstanceType: "m4.xlarge",
-				Name:         "master-default",
+				InstanceTypes: []string{"m4.xlarge"},
+				Name:          "master-default",
 			},
 			{
-				InstanceType: "t2.nano",
-				Name:         "worker-small",
+				InstanceTypes: []string{"t2.nano"},
+				Name:          "worker-small",
 			},
 			{
 				// 2 vcpu / 8gb
-				InstanceType: "m4.large",
-				Name:         "worker-default",
+				InstanceTypes: []string{"m4.large"},
+				Name:          "worker-default",
 			},
 		}))
 
@@ -173,8 +173,8 @@ func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
 		exampleCluster([]*api.NodePool{
 			{
 				// 8 vcpu / 32gb
-				InstanceType: "m4.2xlarge",
-				Name:         "worker-default",
+				InstanceTypes: []string{"m4.2xlarge"},
+				Name:          "worker-default",
 			},
 		}))
 
@@ -188,12 +188,12 @@ func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
 		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
-				InstanceType: "m4.xlarge",
-				Name:         "master-default",
+				InstanceTypes: []string{"m4.xlarge"},
+				Name:          "master-default",
 			},
 			{
-				InstanceType: "m4.large",
-				Name:         "testing-default",
+				InstanceTypes: []string{"m4.large"},
+				Name:          "testing-default",
 			},
 		}))
 
@@ -206,12 +206,12 @@ func TestAutoscalingBufferPoolBasedMismatchingType(t *testing.T) {
 		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
-				InstanceType: "r4.large",
-				Name:         "worker-one",
+				InstanceTypes: []string{"r4.large"},
+				Name:          "worker-one",
 			},
 			{
-				InstanceType: "c4.xlarge",
-				Name:         "worker-two",
+				InstanceTypes: []string{"c4.xlarge"},
+				Name:          "worker-two",
 			},
 		}))
 
@@ -233,8 +233,8 @@ func TestAutoscalingBufferPoolBasedInvalidSettings(t *testing.T) {
 	for _, configItems := range configSets {
 		cluster := exampleCluster([]*api.NodePool{
 			{
-				InstanceType: "m4.large",
-				Name:         "worker",
+				InstanceTypes: []string{"m4.large"},
+				Name:          "worker",
 			},
 		})
 		cluster.ConfigItems = configItems

@@ -178,7 +178,8 @@ func convertFromClusterModel(cluster *models.Cluster) *api.Cluster {
 func convertFromNodePoolModel(nodePool *models.NodePool) *api.NodePool {
 	return &api.NodePool{
 		DiscountStrategy: *nodePool.DiscountStrategy,
-		InstanceType:     *nodePool.InstanceType,
+		InstanceTypes:    nodePool.InstanceTypes,
+		InstanceType:     nodePool.InstanceTypes[0],
 		Name:             *nodePool.Name,
 		Profile:          *nodePool.Profile,
 		MinSize:          *nodePool.MinSize,

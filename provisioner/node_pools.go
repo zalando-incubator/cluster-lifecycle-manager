@@ -148,9 +148,11 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 
 // provisionNodePool provisions a single node pool.
 func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
-	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceType, "t2")
+	// TODO support multiple instance types here
+	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceTypes[0], "t2")
 
-	instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
+	// TODO support multiple instance types here
+	instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceTypes[0])
 	if err != nil {
 		return err
 	}

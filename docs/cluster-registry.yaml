@@ -73,6 +73,11 @@ paths:
           required: false
           type: string
           description: Filter on type.
+        - name: cost_center
+          in: query
+          required: false
+          type: string
+          description: Filter on cost center number.
       responses:
         200:
           description: List of all infrastructure accounts.
@@ -252,6 +257,12 @@ paths:
           type: boolean
           default: true
           description: Include technical data (config items, node pools) in the response, true by default
+        - name: cost_center
+          in: query
+          required: false
+          type: string
+          description: Filter on cost center number.
+
       responses:
         200:
           description: List of all Kubernetes clusters.
@@ -516,6 +527,38 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+    patch:
+      summary: Update node pool
+      description: Update a node pool.
+      tags:
+        - NodePools
+      operationId: updateNodePool
+      parameters:
+        - $ref: '#/parameters/cluster_id'
+        - $ref: '#/parameters/node_pool_name'
+        - name: node-pool
+          required: true
+          in: body
+          description: Node pool to be updated.
+          schema:
+            '$ref': '#/definitions/NodePoolUpdate'
+      responses:
+        200:
+          description: The node pool update request is accepted.
+          schema:
+            '$ref': '#/definitions/NodePool'
+        400:
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        403:
+          description: Forbidden
+        500:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
     delete:
       summary: Delete node pool
       description: Deletes node pool.
@@ -661,6 +704,10 @@ definitions:
         type: string
         example: team/bar
         description: Owner of the infrastructure account (references an object in the organization service)
+      cost_center:
+        type: string
+        example: "0000001234"
+        description: Cost center of the Owner/infrastructure account
       environment:
         type: string
         example: production
@@ -687,6 +734,7 @@ definitions:
       - type
       - name
       - owner
+      - cost_center
       - environment
       - criticality_level
       - external_id
@@ -713,6 +761,10 @@ definitions:
         type: string
         example: team/bar
         description: Owner of the infrastructure account (references an object in the organization service)
+      cost_center:
+        type: string
+        example: "0000001234"
+        description: Cost center of the Owner/infrastructure account
       environment:
         type: string
         example: production
@@ -989,12 +1041,15 @@ definitions:
           Profile used for the node pool. Possible values are "worker-default",
           "worker-database", "worker-gpu", "master". The "master" profile
           identifies the pool containing the cluster master
-      instance_type:
-        type: string
-        example: m5.large
-        description: |
-          Type of the instance to use for the nodes in the pool. All the nodes
-          in the pool share the same instance types
+      instance_types:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          type: string
+          example: m5.large
+          description: |
+            Types of the instances to use for the nodes in the pool.
       discount_strategy:
         type: string
         example: none
@@ -1023,10 +1078,59 @@ definitions:
     required:
       - name
       - profile
-      - instance_type
       - discount_strategy
+      - instance_types
       - min_size
       - max_size
+
+  NodePoolUpdate:
+    type: object
+    properties:
+      name:
+        type: string
+        example: pool-1
+        description: Name of the node pool
+      profile:
+        type: string
+        example: worker-default
+        description: |
+          Profile used for the node pool. Possible values are "worker-default",
+          "worker-database", "worker-gpu", "master". The "master" profile
+          identifies the pool containing the cluster master
+      instance_types:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          type: string
+          example: m5.large
+          description: |
+            Types of the instances to use for the nodes in the pool.
+      discount_strategy:
+        type: string
+        example: none
+        description: |
+          A discount strategy indicates the type of discount to be associated
+          with the node pool. This might affect the availability of the nodes in
+          the pools in case of preemptible or spot instances.  Possible values
+          depend on the provider, the only common one is "none".
+      min_size:
+        type: integer
+        example: 3
+        description: Minimum size of the node pool
+      max_size:
+        type: integer
+        example: 20
+        description: Maximum size of the node pool
+      config_items:
+        type: object
+        additionalProperties:
+          type: string
+        example:
+          local_storage: "yes"
+        description: |
+          Configuration items unique to the node pool. E.g. custom volume
+          configuration.
 
   Error:
     type: object

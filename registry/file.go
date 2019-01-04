@@ -39,6 +39,12 @@ func (r *fileRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 		return nil, err
 	}
 
+	for _, cluster := range fileClusters.Clusters {
+		for _, nodePool := range cluster.NodePools {
+			nodePool.InstanceType = nodePool.InstanceTypes[0]
+		}
+	}
+
 	return fileClusters.Clusters, nil
 }
 

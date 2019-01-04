@@ -61,7 +61,7 @@
   version = "v9"
 
 [[projects]]
-  digest = "1:aa0255912ca1ea445db812dc75ac0b18f3becc78014c9e78d6570e9ff93644eb"
+  digest = "1:40d174f5c44f6bf0055306f5061c35290e71c01ccb29814a561438e9892697c3"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -73,18 +73,25 @@
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
     "aws/credentials/stscreds",
+    "aws/csm",
     "aws/defaults",
     "aws/ec2metadata",
     "aws/endpoints",
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/ini",
+    "internal/s3err",
     "internal/sdkio",
     "internal/sdkrand",
+    "internal/sdkuri",
     "internal/shareddefaults",
     "private/protocol",
     "private/protocol/ec2query",
+    "private/protocol/eventstream",
+    "private/protocol/eventstream/eventstreamapi",
     "private/protocol/json/jsonutil",
     "private/protocol/jsonrpc",
     "private/protocol/query",
@@ -113,8 +120,8 @@
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "5197757a58a794d49d2d0c50a932997157734100"
-  version = "v1.13.60"
+  revision = "d75ca9c91e5bcf0c3adb9672a786ac65e8073a6e"
+  version = "v1.16.13"
 
 [[projects]]
   branch = "master"
@@ -211,14 +218,6 @@
   pruneopts = "UT"
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
-
-[[projects]]
-  digest = "1:fe8a03a8222d5b913f256972933d26d24ad7c8286692a42943bc01633cc8fce3"
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "358ee7663966325963d4e8b2e1fbd570c5195153"
-  version = "v1.38.1"
 
 [[projects]]
   branch = "master"
@@ -473,11 +472,11 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:e22af8c7518e1eab6f2eab2b7d7558927f816262586cd6ed9f349c97a6c285c4"
+  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0b12d6b5"
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:bb3cc4c1b21ea18cfa4e3e47440fc74d316ab25b0cf42927e8c1274917bd9891"
@@ -757,15 +756,15 @@
   revision = "9a301d65acbb728fcc3ace14f45f511a4cfeea9c"
 
 [[projects]]
-  digest = "1:931ad98cbd49d6c1711729718a8067ba024feb49b16a535d894af048b4909786"
+  digest = "1:9b6b1ce9a0f28363ca049f2c89050db91d94dd37c2e7bcf1869ba98e722c42bb"
   name = "github.com/zalando-incubator/kube-ingress-aws-controller"
   packages = [
     "aws",
     "certs",
   ]
   pruneopts = "UT"
-  revision = "c563054f0c02ae2e42c8463f93790bd28ffd4f6b"
-  version = "v0.8.0"
+  revision = "e0d8a32bc57dac5765d3381689c34790aae1b037"
+  version = "v0.8.1"
 
 [[projects]]
   branch = "master"

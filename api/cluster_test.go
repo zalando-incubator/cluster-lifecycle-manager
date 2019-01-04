@@ -45,6 +45,13 @@ func permute(value interface{}, field string) error {
 		default:
 			return fmt.Errorf("invalid map type for %s", field)
 		}
+	case reflect.Slice:
+		switch fld.Interface().(type) {
+		case []string:
+			fld.Set(reflect.ValueOf([]string{"a", "b", "c"}))
+		default:
+			return fmt.Errorf("invalid slice type for %s", field)
+		}
 	default:
 		return fmt.Errorf("unsupported type: %s", fld.Type())
 	}
@@ -72,7 +79,7 @@ func sampleCluster() *Cluster {
 			{
 				Name:             "master-default",
 				Profile:          "master-default",
-				InstanceType:     "m4.large",
+				InstanceTypes:    []string{"m4.large"},
 				DiscountStrategy: "none",
 				MinSize:          2,
 				MaxSize:          2,
@@ -81,7 +88,7 @@ func sampleCluster() *Cluster {
 			{
 				Name:             "worker-default",
 				Profile:          "worker-default",
-				InstanceType:     "m5.large",
+				InstanceTypes:    []string{"m5.large", "m5.2xlarge"},
 				DiscountStrategy: "none",
 				MinSize:          3,
 				MaxSize:          21,
@@ -123,6 +130,10 @@ func TestVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, field := range fields {
+		if field == "InstanceType" {
+			continue
+		}
+
 		cluster := sampleCluster()
 		err := permute(cluster.NodePools[0], field)
 		require.NoError(t, err, "node pool field: %s", field)
