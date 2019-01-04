@@ -85,7 +85,6 @@ type s3API interface {
 
 type autoscalingAPI interface {
 	DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
-	DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error)
 	UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error)
 	SuspendProcesses(input *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error)
 	ResumeProcesses(*autoscaling.ScalingProcessQuery) (*autoscaling.ResumeProcessesOutput, error)
@@ -97,8 +96,6 @@ type iamAPI interface {
 }
 
 type ec2API interface {
-	DescribeInstanceAttribute(input *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error)
-	DescribeSpotInstanceRequests(input *ec2.DescribeSpotInstanceRequestsInput) (*ec2.DescribeSpotInstanceRequestsOutput, error)
 	DescribeVpcs(input *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error)
 	DescribeVolumes(input *ec2.DescribeVolumesInput) (*ec2.DescribeVolumesOutput, error)
 	DescribeSubnets(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error)
@@ -220,7 +217,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
 		Capabilities:                []*string{aws.String(cloudformation.CapabilityCapabilityNamedIam)},
 		EnableTerminationProtection: aws.Bool(true),
-		Tags:                        tags,
+		Tags: tags,
 	}
 
 	if stackTemplateURL != "" {
