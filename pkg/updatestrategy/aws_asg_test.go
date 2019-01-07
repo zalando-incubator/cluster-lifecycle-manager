@@ -20,7 +20,6 @@ type mockASGAPI struct {
 	autoscalingiface.AutoScalingAPI
 	err    error
 	asgs   []*autoscaling.Group
-	descLC *autoscaling.DescribeLaunchConfigurationsOutput
 	descLB *autoscaling.DescribeLoadBalancersOutput
 }
 
@@ -31,10 +30,6 @@ func (a *mockASGAPI) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeA
 
 func (a *mockASGAPI) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, a.err
-}
-
-func (a *mockASGAPI) DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
-	return a.descLC, a.err
 }
 
 func (a *mockASGAPI) UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
@@ -56,24 +51,8 @@ func (a *mockASGAPI) DeleteTags(input *autoscaling.DeleteTagsInput) (*autoscalin
 type mockEC2API struct {
 	ec2iface.EC2API
 	err        error
-	descAttr   *ec2.DescribeInstanceAttributeOutput
 	descStatus *ec2.DescribeInstanceStatusOutput
-	descSpot   *ec2.DescribeSpotInstanceRequestsOutput
-	descInsts  *ec2.DescribeInstancesOutput
 	descTags   *ec2.DescribeTagsOutput
-}
-
-func (e *mockEC2API) DescribeInstanceAttribute(input *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
-	return e.descAttr, e.err
-}
-
-func (e *mockEC2API) DescribeSpotInstanceRequests(input *ec2.DescribeSpotInstanceRequestsInput) (*ec2.DescribeSpotInstanceRequestsOutput, error) {
-	return e.descSpot, e.err
-}
-
-func (e *mockEC2API) DescribeInstancesPages(input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
-	fn(e.descInsts, false)
-	return e.err
 }
 
 func (e *mockEC2API) DescribeInstanceStatus(input *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
@@ -129,16 +108,15 @@ func TestGet(tt *testing.T) {
 						Instances: []*autoscaling.Instance{
 							{
 								InstanceId: aws.String("instance_id"),
+								LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+									LaunchTemplateName: aws.String("launch_template"),
+									Version:            aws.String("1"),
+								},
 							},
 						},
-					},
-				},
-				descLC: &autoscaling.DescribeLaunchConfigurationsOutput{
-					LaunchConfigurations: []*autoscaling.LaunchConfiguration{
-						{
-							InstanceType: aws.String("instance_type"),
-							UserData:     aws.String("user_data"),
-							ImageId:      aws.String("ami"),
+						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+							LaunchTemplateName: aws.String("launch_template"),
+							Version:            aws.String("2"),
 						},
 					},
 				},
@@ -148,27 +126,6 @@ func TestGet(tt *testing.T) {
 							LoadBalancerName: aws.String("foo"),
 						},
 					},
-				},
-			},
-			ec2Client: &mockEC2API{
-				descAttr: &ec2.DescribeInstanceAttributeOutput{
-					InstanceType: &ec2.AttributeValue{Value: aws.String("instance_type")},
-					UserData:     &ec2.AttributeValue{Value: aws.String("user_data")},
-				},
-				descInsts: &ec2.DescribeInstancesOutput{
-					Reservations: []*ec2.Reservation{
-						{
-							Instances: []*ec2.Instance{
-								{
-									InstanceId: aws.String("instance_id"),
-									ImageId:    aws.String("ami"),
-								},
-							},
-						},
-					},
-				},
-				descSpot: &ec2.DescribeSpotInstanceRequestsOutput{
-					SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
 				},
 			},
 			elbClient: &mockELBAPI{
@@ -206,15 +163,15 @@ func TestGet(tt *testing.T) {
 						Instances: []*autoscaling.Instance{
 							{
 								InstanceId: aws.String("instance_id"),
+								LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+									LaunchTemplateName: aws.String("launch_template"),
+									Version:            aws.String("1"),
+								},
 							},
 						},
-					},
-				},
-				descLC: &autoscaling.DescribeLaunchConfigurationsOutput{
-					LaunchConfigurations: []*autoscaling.LaunchConfiguration{
-						{
-							InstanceType: aws.String("instance_type"),
-							UserData:     aws.String("user_data"),
+						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+							LaunchTemplateName: aws.String("launch_template"),
+							Version:            aws.String("1"),
 						},
 					},
 				},
@@ -224,27 +181,6 @@ func TestGet(tt *testing.T) {
 							LoadBalancerName: aws.String("foo"),
 						},
 					},
-				},
-			},
-			ec2Client: &mockEC2API{
-				descAttr: &ec2.DescribeInstanceAttributeOutput{
-					InstanceType: &ec2.AttributeValue{Value: aws.String("instance_type")},
-					UserData:     &ec2.AttributeValue{Value: aws.String("user_data_new")},
-				},
-				descInsts: &ec2.DescribeInstancesOutput{
-					Reservations: []*ec2.Reservation{
-						{
-							Instances: []*ec2.Instance{
-								{
-									InstanceId: aws.String("instance_id"),
-									ImageId:    aws.String("ami"),
-								},
-							},
-						},
-					},
-				},
-				descSpot: &ec2.DescribeSpotInstanceRequestsOutput{
-					SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
 				},
 			},
 			elbClient: &mockELBAPI{
