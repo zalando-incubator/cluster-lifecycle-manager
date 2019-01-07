@@ -763,8 +763,8 @@
     "certs",
   ]
   pruneopts = "UT"
-  revision = "e0d8a32bc57dac5765d3381689c34790aae1b037"
-  version = "v0.8.1"
+  revision = "368164e5261212441433af528a0a50cf4d1449eb"
+  version = "v0.8.2"
 
 [[projects]]
   branch = "master"
