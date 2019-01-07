@@ -115,8 +115,6 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 
 		time.Sleep(m.drainConfig.PollInterval)
 	}
-
-	return nil
 }
 
 func (m *KubernetesNodePoolManager) evictParallel(ctx context.Context, pods []v1.Pod) (bool, error) {
@@ -175,7 +173,7 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 		// PDB violation, log and check if we can force terminate the pod
 		m.logPdbViolated(pod)
 
-		forceTerminate, err := m.forceTerminationAllowed(pod, time.Now(), drainStart, lastForcedTermination)
+		forceTerminate, _ := m.forceTerminationAllowed(pod, time.Now(), drainStart, lastForcedTermination)
 		if forceTerminate {
 			err = deletePod(m.kube, m.podLogger(pod), pod)
 			if err != nil {

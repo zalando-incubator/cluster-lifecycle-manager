@@ -73,7 +73,7 @@ func TestApplyTemplate(t *testing.T) {
 	localID := "kube-aws-test-rdifazio55"
 	cluster := &api.Cluster{Region: region, LocalID: localID}
 
-	s, err := renderTemplate(context, "test_template", cluster)
+	_, err = renderTemplate(context, "test_template", cluster)
 	if err == nil {
 		t.Errorf("should fail, mate hosted zone configitems are not passed!")
 	}
@@ -81,7 +81,7 @@ func TestApplyTemplate(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"mate_hosted_zone": "hosted-zone",
 	}
-	s, err = renderTemplate(context, "test_template", cluster)
+	s, err := renderTemplate(context, "test_template", cluster)
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
