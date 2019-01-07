@@ -27,13 +27,14 @@ const (
 	autoscalingBufferCPUReservedConfigItem    = "autoscaling_buffer_cpu_reserved"
 	autoscalingBufferMemoryReservedConfigItem = "autoscaling_buffer_memory_reserved"
 	autoscalingBufferPoolsConfigItem          = "autoscaling_buffer_pools"
+	highestPossiblePort                       = 65535
+	lowestPossiblePort                        = 0
 )
 
 type templateContext struct {
 	manifestData          map[string]string
 	baseDir               string
 	computingManifestHash bool
-	readTemplate          func(string) ([]byte, error)
 }
 
 type podResources struct {
@@ -191,6 +192,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"split":                     split,
 		"mountUnitName":             mountUnitName,
 		"accountID":                 accountID,
+		"portRanges":                portRanges,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -307,4 +309,46 @@ func accountID(account string) (string, error) {
 		return "", fmt.Errorf("invalid account (expected type:id): %s", account)
 	}
 	return items[1], nil
+}
+
+type PortRange struct {
+	FromPort, ToPort int
+}
+
+// portRanges parses a comma separated list of port ranges
+func portRanges(ranges string) ([]PortRange, error) {
+	rangesL := strings.Split(ranges, ",")
+	p := make([]PortRange, len(rangesL))
+	for i, r := range rangesL {
+		splitR := strings.Split(r, "-")
+		if len(splitR) != 2 {
+			return nil, fmt.Errorf("invalid input for portRange: %s", ranges)
+		}
+		fromPort, err := strconv.Atoi(splitR[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid start port: %s in input: %s", splitR[0], ranges)
+		}
+		toPort, err := strconv.Atoi(splitR[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid end port: %s in input: %s", splitR[1], ranges)
+		}
+		if !validPortRange(fromPort, toPort) {
+			return nil, fmt.Errorf("port range %d-%d is invalid", fromPort, toPort)
+		}
+		p[i] = PortRange{FromPort: fromPort, ToPort: toPort}
+	}
+	return p, nil
+}
+
+func validPortRange(fromPort, toPort int) bool {
+	if fromPort > toPort {
+		return false
+	}
+	if toPort > highestPossiblePort {
+		return false
+	}
+	if fromPort < lowestPossiblePort {
+		return false
+	}
+	return true
 }

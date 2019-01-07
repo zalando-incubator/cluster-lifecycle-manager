@@ -349,3 +349,42 @@ func TestAccountIDFailsOnInvalid(t *testing.T) {
 		"")
 	require.Error(t, err)
 }
+
+func TestParsePortRanges(t *testing.T) {
+	testTemplate := `{{- if index .portRanges -}}
+{{- range $index, $element := portRanges .portRanges -}}
+- CidrIp: 0.0.0.0/0
+  FromPort: {{ $element.FromPort }}
+  IpProtocol: tcp
+  ToPort: {{ $element.ToPort }}
+{{ end -}}
+{{- end -}}`
+
+	r, err := renderSingle(t, testTemplate, map[string]string{"portRanges": "0-100,300-400"})
+	require.NoError(t, err)
+	require.Equal(t, `- CidrIp: 0.0.0.0/0
+  FromPort: 0
+  IpProtocol: tcp
+  ToPort: 100
+- CidrIp: 0.0.0.0/0
+  FromPort: 300
+  IpProtocol: tcp
+  ToPort: 400
+`, r, "rendered template is incorrect")
+
+	r, err = renderSingle(t, testTemplate, map[string]string{"portRanges": ""})
+	require.NoError(t, err)
+	require.Equal(t, "", r, "rendered template is not empty")
+
+	_, err = renderSingle(t, `{{ portRanges "0-1-2 }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ portRanges "0-1,-2 }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ portRanges "30-20" }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ portRanges "0-200000" }}`, "")
+	require.Error(t, err)
+}

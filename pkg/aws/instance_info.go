@@ -15,32 +15,28 @@ const (
 	gigabyte = 1024 * 1024 * 1024
 )
 
+type StorageDevice struct {
+	Path string
+	NVME bool
+}
+
 type Instance struct {
-	InstanceType        string
-	VCPU                int64
-	Memory              int64
-	NVMEInstanceStorage bool
-	Pricing             map[string]string
-}
-
-type pricing struct {
-	OnDemand string `json:"ondemand"`
-}
-
-type osPricing struct {
-	Linux pricing `json:"linux"`
+	InstanceType           string
+	VCPU                   int64
+	Memory                 int64
+	InstanceStorageDevices []StorageDevice
 }
 
 type instanceInfo struct {
 	InstanceType string      `json:"instance_type"`
 	VCPU         interface{} `json:"vCPU"`
 	Memory       float64     `json:"memory"`
+	EBSAsNVME    bool        `json:"ebs_as_nvme"`
 	Storage      struct {
 		Devices             int  `json:"devices"`
 		NVMESSD             bool `json:"nvme_ssd"`
 		NeedsInitialization bool `json:"storage_needs_initialization"`
 	} `json:"storage"`
-	Pricing map[string]osPricing `json:"pricing"`
 }
 
 var loadedInstances struct {
@@ -87,21 +83,28 @@ func loadInstanceInfo() map[string]Instance {
 			continue
 		}
 
-		pricing := make(map[string]string)
-
-		for az, azPricing := range instance.Pricing {
-			pricing[az] = azPricing.Linux.OnDemand
+		instanceInfo := Instance{
+			InstanceType: instance.InstanceType,
+			VCPU:         vCPU,
+			Memory:       int64(instance.Memory * gigabyte),
 		}
 
-		nvmeInstanceStorage := instance.Storage.Devices > 0 && instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization
+		if instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization {
+			nvmeInitialIndex := 0
+			// Assuming only the root volume is mounted initially
+			if instance.EBSAsNVME {
+				nvmeInitialIndex = 1
+			}
 
-		result[instance.InstanceType] = Instance{
-			InstanceType:        instance.InstanceType,
-			VCPU:                vCPU,
-			Memory:              int64(instance.Memory * gigabyte),
-			NVMEInstanceStorage: nvmeInstanceStorage,
-			Pricing:             pricing,
+			for i := 0; i < instance.Storage.Devices; i++ {
+				instanceInfo.InstanceStorageDevices = append(instanceInfo.InstanceStorageDevices, StorageDevice{
+					Path: fmt.Sprintf("/dev/nvme%dn1", i+nvmeInitialIndex),
+					NVME: true,
+				})
+			}
 		}
+
+		result[instance.InstanceType] = instanceInfo
 	}
 
 	return result

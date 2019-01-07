@@ -149,28 +149,12 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 // provisionNodePool provisions a single node pool.
 func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceType, "t2")
-	values["spot_price"] = ""
 
 	instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceType)
 	if err != nil {
 		return err
 	}
 	values["instance_info"] = instanceInfo
-
-	switch nodePool.DiscountStrategy {
-	case api.DiscountStrategyNone:
-		break
-	case api.DiscountStrategySpot:
-		onDemandPrice, ok := instanceInfo.Pricing[p.Cluster.Region]
-		if !ok {
-			p.logger.Warnf("No price data for region %s, instance type %s", p.Cluster.Region, nodePool.InstanceType)
-			onDemandPrice = "100.0"
-		}
-
-		values["spot_price"] = onDemandPrice
-	default:
-		return fmt.Errorf("unsupported node pool discount_strategy %s", nodePool.DiscountStrategy)
-	}
 
 	template, err := p.generateNodePoolStackTemplate(nodePool, values)
 	if err != nil {

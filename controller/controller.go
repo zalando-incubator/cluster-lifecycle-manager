@@ -101,6 +101,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 			if nextCluster != nil {
 				c.processCluster(updateCtx, workerNum, nextCluster)
 			}
+			cancelFunc()
 		case <-ctx.Done():
 			return
 		}

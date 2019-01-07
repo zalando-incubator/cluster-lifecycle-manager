@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sort"
@@ -94,7 +95,7 @@ func main() {
 	if cmd == controllerCmd.FullCommand() {
 		log.Info("Running control loop")
 
-		go serveHealthCheck(cfg.Listen)
+		go startHTTPServer(cfg.Listen)
 
 		opts := &controller.Options{
 			AccountFilter:     cfg.AccountFilter,
@@ -187,7 +188,7 @@ func orderByEnvironmentOrder(clusters []*api.Cluster, environmentOrder []string)
 	})
 }
 
-func serveHealthCheck(listen string) {
+func startHTTPServer(listen string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
