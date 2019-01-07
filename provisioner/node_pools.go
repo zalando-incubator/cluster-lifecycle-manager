@@ -146,13 +146,20 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 	return nil
 }
 
+func supportsT2Unlimited(instanceTypes []string) bool {
+	for _, instanceType := range instanceTypes {
+		if !strings.HasPrefix(instanceType, "t2.") {
+			return false
+		}
+	}
+	return true
+}
+
 // provisionNodePool provisions a single node pool.
 func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
-	// TODO support multiple instance types here
-	values["supports_t2_unlimited"] = strings.HasPrefix(nodePool.InstanceTypes[0], "t2")
+	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
-	// TODO support multiple instance types here
-	instanceInfo, err := awsExt.InstanceInfo(nodePool.InstanceTypes[0])
+	instanceInfo, err := awsExt.SyntheticInstanceInfo(nodePool.InstanceTypes)
 	if err != nil {
 		return err
 	}

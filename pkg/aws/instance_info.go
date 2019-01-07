@@ -56,6 +56,44 @@ func InstanceInfo(instanceType string) (Instance, error) {
 	return result, nil
 }
 
+func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
+	if len(instanceTypes) == 0 {
+		return Instance{}, fmt.Errorf("no instance types provided")
+	} else if len(instanceTypes) == 1 {
+		return InstanceInfo(instanceTypes[0])
+	} else {
+		first, err := InstanceInfo(instanceTypes[0])
+		if err != nil {
+			return Instance{}, err
+		}
+
+		result := Instance{
+			InstanceType:           first.InstanceType,
+			VCPU:                   first.VCPU,
+			Memory:                 first.Memory,
+			InstanceStorageDevices: first.InstanceStorageDevices,
+		}
+		for _, instanceType := range instanceTypes[1:] {
+			info, err := InstanceInfo(instanceType)
+			if err != nil {
+				return Instance{}, err
+			}
+
+			if info.VCPU < result.VCPU {
+				result.VCPU = info.VCPU
+			}
+			if info.Memory < result.Memory {
+				result.Memory = info.Memory
+			}
+			if !reflect.DeepEqual(result.InstanceStorageDevices, info.InstanceStorageDevices) {
+				return Instance{}, fmt.Errorf("incompatible InstanceStorageDevices: %s/%s", result.InstanceType, info.InstanceType)
+			}
+		}
+		result.InstanceType = "<multiple>"
+		return result, nil
+	}
+}
+
 func loadInstanceInfo() map[string]Instance {
 	data := MustAsset("instances.json")
 
