@@ -101,12 +101,11 @@ func (e *mockELBAPI) DescribeInstanceHealth(input *elb.DescribeInstanceHealthInp
 
 func TestGet(tt *testing.T) {
 	for _, tc := range []struct {
-		msg                  string
-		autoscalingInstances []*autoscaling.Instance
-		asgClient            autoscalingiface.AutoScalingAPI
-		ec2Client            ec2iface.EC2API
-		elbClient            elbiface.ELBAPI
-		success              bool
+		msg       string
+		asgClient autoscalingiface.AutoScalingAPI
+		ec2Client ec2iface.EC2API
+		elbClient elbiface.ELBAPI
+		success   bool
 	}{
 		{
 			msg:       "test not returning any ASG",
