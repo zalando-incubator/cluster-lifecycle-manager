@@ -53,7 +53,6 @@ const (
 	resourceLifecycleOwned         = "owned"
 	subnetsConfigItemKey           = "subnets"
 	vpcIDConfigItemKey             = "vpc_id"
-	vpcIPv4CIDRBlockConfigItemKey  = "vpc_ipv4_cidr"
 	subnetAllAZName                = "*"
 	maxApplyRetries                = 10
 	configKeyUpdateStrategy        = "update_strategy"

@@ -11,6 +11,9 @@ pipeline:
   - desc: test
     cmd: |
       make test
+  - desc: static checks
+    cmd: |
+      make staticcheck
   - desc: build
     cmd: |
       make build.docker
