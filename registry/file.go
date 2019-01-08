@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	yaml "gopkg.in/yaml.v2"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"gopkg.in/yaml.v2"
 )
 
 type fileRegistry struct {
@@ -41,6 +40,9 @@ func (r *fileRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 
 	for _, cluster := range fileClusters.Clusters {
 		for _, nodePool := range cluster.NodePools {
+			if len(nodePool.InstanceTypes) == 0 {
+				return nil, fmt.Errorf("no instance types for cluster %s, pool %s", cluster.ID, nodePool.Name)
+			}
 			nodePool.InstanceType = nodePool.InstanceTypes[0]
 		}
 	}

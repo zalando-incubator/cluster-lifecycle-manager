@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"fmt"
 	"net/url"
 
 	"golang.org/x/oauth2"
@@ -59,19 +60,22 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 		return nil, err
 	}
 
-	clusters := []*api.Cluster{}
+	var result []*api.Cluster
 
 	for _, cluster := range resp.Payload.Items {
 		if filter.LifecycleStatus == nil || *cluster.LifecycleStatus == *filter.LifecycleStatus {
-			c := convertFromClusterModel(cluster)
+			c, err := convertFromClusterModel(cluster)
+			if err != nil {
+				return nil, err
+			}
 			if account, ok := accounts[c.InfrastructureAccount]; ok {
 				c.Owner = *account.Owner
 			}
-			clusters = append(clusters, c)
+			result = append(result, c)
 		}
 	}
 
-	return clusters, nil
+	return result, nil
 }
 
 // UpdateCluster updates the lifecycle_status and status field of a cluster in
@@ -148,10 +152,14 @@ func newAuthInfo(tokenSource oauth2.TokenSource) (runtime.ClientAuthInfoWriter, 
 
 // converts a Cluster model generated from the cluster-registry swagger spec
 // into an *api.Cluster struct.
-func convertFromClusterModel(cluster *models.Cluster) *api.Cluster {
+func convertFromClusterModel(cluster *models.Cluster) (*api.Cluster, error) {
 	nodePools := make([]*api.NodePool, 0, len(cluster.NodePools))
 	for _, pool := range cluster.NodePools {
-		nodePools = append(nodePools, convertFromNodePoolModel(pool))
+		converted, err := convertFromNodePoolModel(pool)
+		if err != nil {
+			return nil, err
+		}
+		nodePools = append(nodePools, converted)
 	}
 
 	return &api.Cluster{
@@ -169,13 +177,16 @@ func convertFromClusterModel(cluster *models.Cluster) *api.Cluster {
 		Provider:              *cluster.Provider,
 		Region:                *cluster.Region,
 		Status:                convertFromClusterStatusModel(cluster.Status),
-	}
+	}, nil
 
 }
 
 // converts a NodePool model generated from the cluster-registry swagger spec
 // into an *api.NodePool struct.
-func convertFromNodePoolModel(nodePool *models.NodePool) *api.NodePool {
+func convertFromNodePoolModel(nodePool *models.NodePool) (*api.NodePool, error) {
+	if len(nodePool.InstanceTypes) == 0 {
+		return nil, fmt.Errorf("no instance types for pool %s", *nodePool.Name)
+	}
 	return &api.NodePool{
 		DiscountStrategy: *nodePool.DiscountStrategy,
 		InstanceTypes:    nodePool.InstanceTypes,
@@ -185,7 +196,7 @@ func convertFromNodePoolModel(nodePool *models.NodePool) *api.NodePool {
 		MinSize:          *nodePool.MinSize,
 		MaxSize:          *nodePool.MaxSize,
 		ConfigItems:      nodePool.ConfigItems,
-	}
+	}, nil
 }
 
 // converts a ClusterStatus model generated from the cluster-registry swagger
