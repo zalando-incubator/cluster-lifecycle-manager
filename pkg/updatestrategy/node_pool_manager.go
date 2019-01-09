@@ -29,6 +29,7 @@ const (
 	lifecycleStatusLabel               = "lifecycle-status"
 	lifecycleStatusDraining            = "draining"
 	lifecycleStatusDecommissionPending = "decommission-pending"
+	lifecycleStatusReady               = "ready"
 
 	decommissionPendingTaintKey   = "decommission-pending"
 	decommissionPendingTaintValue = "rolling-upgrade"
@@ -39,6 +40,7 @@ const (
 type NodePoolManager interface {
 	GetPool(nodePool *api.NodePool) (*NodePool, error)
 	MarkNodeForDecommission(node *Node) error
+	AbortNodeDecommissioning(node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	CordonNode(node *Node) error
@@ -150,11 +152,17 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 		return err
 	}
 
-	if node.Labels[lifecycleStatusLabel] != lifecycleStatusDraining {
-		err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending)
-		if err != nil {
-			return err
-		}
+	err = m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusReady, lifecycleStatusDecommissionPending)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+	err := m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusReady)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -227,6 +235,29 @@ func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue s
 			node.Labels[labelKey] = labelValue
 			return !ok || value != labelValue
 		})
+}
+
+// compareAndSetNodeLabel updates a label of a Kubernetes node object if the current value is set to `expectedValue` or
+// not already defined.
+func (m *KubernetesNodePoolManager) compareAndSetNodeLabel(node *Node, labelKey, expectedValue, newValue string) error {
+	return m.updateNode(
+		node,
+		func(node *Node) bool {
+			value, ok := node.Labels[labelKey]
+			return !ok || value == expectedValue
+		},
+		func(node *v1.Node) bool {
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
+			value, ok := node.Labels[labelKey]
+			if ok && value != expectedValue {
+				return false
+			}
+			node.Labels[labelKey] = newValue
+			return true
+		})
+
 }
 
 // updateTaint adds a taint with the provided key, value and effect if it isn't present or

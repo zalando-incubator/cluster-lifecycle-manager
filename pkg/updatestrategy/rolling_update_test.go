@@ -51,6 +51,10 @@ func (m *mockNodePoolManager) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
+func (m *mockNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+	return nil
+}
+
 func (m *mockNodePoolManager) ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error {
 	if replicas > m.nodePool.Current {
 		delta := replicas - m.nodePool.Current

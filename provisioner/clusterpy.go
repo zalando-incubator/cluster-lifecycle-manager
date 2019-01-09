@@ -57,7 +57,9 @@ const (
 	maxApplyRetries                = 10
 	configKeyUpdateStrategy        = "update_strategy"
 	updateStrategyRolling          = "rolling"
+	updateStrategyCLC              = "clc"
 	defaultMaxRetryTime            = 5 * time.Minute
+	clcPollingInterval             = 10 * time.Second
 )
 
 type clusterpyProvisioner struct {
@@ -620,45 +622,48 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		PollInterval:                   p.updateStrategy.PollInterval,
 	}
 
+	client, err := kubernetes.NewKubeClientWithTokenSource(cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// setup updater
+
 	// allow clusters to override their drain settings
-	handleDurationItem(cluster.ConfigItems, "drain_grace_period", func(v time.Duration) { drainConfig.ForceEvictionGracePeriod = v })
-	handleDurationItem(cluster.ConfigItems, "drain_min_pod_lifetime", func(v time.Duration) { drainConfig.MinPodLifetime = v })
-	handleDurationItem(cluster.ConfigItems, "drain_min_healthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinHealthyPDBSiblingLifetime = v })
-	handleDurationItem(cluster.ConfigItems, "drain_min_unhealthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinUnhealthyPDBSiblingLifetime = v })
-	handleDurationItem(cluster.ConfigItems, "drain_force_evict_interval", func(v time.Duration) { drainConfig.ForceEvictionInterval = v })
-	handleDurationItem(cluster.ConfigItems, "drain_poll_interval", func(v time.Duration) { drainConfig.PollInterval = v })
+	for _, setting := range []struct {
+		key string
+		fn  func(duration time.Duration)
+	}{
+		{"drain_grace_period", func(v time.Duration) { drainConfig.ForceEvictionGracePeriod = v }},
+		{"drain_min_pod_lifetime", func(v time.Duration) { drainConfig.MinPodLifetime = v }},
+		{"drain_min_healthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinHealthyPDBSiblingLifetime = v }},
+		{"drain_min_unhealthy_sibling_lifetime", func(v time.Duration) { drainConfig.MinUnhealthyPDBSiblingLifetime = v }},
+		{"drain_force_evict_interval", func(v time.Duration) { drainConfig.ForceEvictionInterval = v }},
+		{"drain_poll_interval", func(v time.Duration) { drainConfig.PollInterval = v }},
+	} {
+		if value, ok := cluster.ConfigItems[setting.key]; ok {
+			parsed, err := time.ParseDuration(value)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
+			}
+			setting.fn(parsed)
+		}
+	}
+
+	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, sess)
+	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig)
 
 	var updater updatestrategy.UpdateStrategy
-	var poolManager updatestrategy.NodePoolManager
 	switch updateStrategy {
 	case updateStrategyRolling:
-		client, err := kubernetes.NewKubeClientWithTokenSource(cluster.APIServerURL, p.tokenSource)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		// setup updater
-		poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, sess)
-
-		poolManager = updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig)
-
 		updater = updatestrategy.NewRollingUpdateStrategy(logger, poolManager, 3)
+	case updateStrategyCLC:
+		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager, clcPollingInterval)
 	default:
 		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
 
 	return adapter, updater, poolManager, nil
-}
-
-func handleDurationItem(configItems map[string]string, key string, set func(duration time.Duration)) error {
-	if value, ok := configItems[key]; ok {
-		parsed, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("invalid value for %s: %v", key, err)
-		}
-		set(parsed)
-	}
-	return nil
 }
 
 // tagSubnets tags all subnets in the default VPC with the kubernetes cluster
