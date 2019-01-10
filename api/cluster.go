@@ -103,9 +103,11 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 		if err != nil {
 			return nil, err
 		}
-		_, err = state.WriteString(nodePool.InstanceType)
-		if err != nil {
-			return nil, err
+		for _, instanceType := range nodePool.InstanceTypes {
+			_, err = state.WriteString(instanceType)
+			if err != nil {
+				return nil, err
+			}
 		}
 		_, err = state.WriteString(nodePool.DiscountStrategy)
 		if err != nil {

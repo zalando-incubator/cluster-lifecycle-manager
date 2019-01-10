@@ -39,6 +39,8 @@ const (
 type asgLaunchParameters struct {
 	launchTemplateName    string
 	launchTemplateVersion string
+	instanceTypes         map[string]struct{}
+	spot                  bool
 }
 
 // ASGNodePoolsBackend defines a node pool backed by an AWS Auto Scaling Group.
@@ -439,35 +441,90 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 		return nil, nil
 	}
 
-	launchParams := &asgLaunchParameters{}
-
-	if asg.LaunchTemplate == nil || aws.StringValue(asg.LaunchTemplate.LaunchTemplateName) == "" {
-		return nil, fmt.Errorf("no launch template found for ASG %s", aws.StringValue(asg.AutoScalingGroupName))
+	launchParams := &asgLaunchParameters{
+		instanceTypes: make(map[string]struct{}),
 	}
 
-	version := aws.StringValue(asg.LaunchTemplate.Version)
+	if asg.MixedInstancesPolicy != nil {
+		launchTemplateSpecification := asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification
+		launchParams.launchTemplateName = aws.StringValue(launchTemplateSpecification.LaunchTemplateName)
+		launchParams.launchTemplateVersion = aws.StringValue(launchTemplateSpecification.Version)
+
+		distribution := asg.MixedInstancesPolicy.InstancesDistribution
+		if aws.Int64Value(distribution.OnDemandBaseCapacity) != 0 {
+			return nil, fmt.Errorf("invalid MixedInstancesPolicy for ASG %s: InstancesDistribution.OnDemandBasedCapacity cannot be 0", aws.StringValue(asg.AutoScalingGroupName))
+		}
+
+		switch aws.Int64Value(asg.MixedInstancesPolicy.InstancesDistribution.OnDemandPercentageAboveBaseCapacity) {
+		case 0:
+			launchParams.spot = true
+		case 100:
+			launchParams.spot = false
+		default:
+			return nil, fmt.Errorf("invalid MixedInstancesPolicy for ASG %s: InstancesDistribution.OnDemandPercentageAboveBaseCapacity can be either 0 or 100", aws.StringValue(asg.AutoScalingGroupName))
+		}
+
+		for _, override := range asg.MixedInstancesPolicy.LaunchTemplate.Overrides {
+			launchParams.instanceTypes[aws.StringValue(override.InstanceType)] = struct{}{}
+		}
+	} else if asg.LaunchTemplate != nil {
+		launchParams.launchTemplateName = aws.StringValue(asg.LaunchTemplate.LaunchTemplateName)
+		launchParams.launchTemplateVersion = aws.StringValue(asg.LaunchTemplate.Version)
+
+		resp, err := n.ec2Client.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
+			LaunchTemplateName: aws.String(launchParams.launchTemplateName),
+			Versions:           aws.StringSlice([]string{launchParams.launchTemplateVersion}),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch launch template version %s for ASG %s: %v", launchParams.launchTemplateVersion, aws.StringValue(asg.AutoScalingGroupName), err)
+		}
+		if len(resp.LaunchTemplateVersions) == 0 {
+			return nil, fmt.Errorf("unable to find launch template version %s for ASG %s", launchParams.launchTemplateVersion, aws.StringValue(asg.AutoScalingGroupName))
+		}
+		version := resp.LaunchTemplateVersions[0]
+
+		launchParams.instanceTypes[aws.StringValue(version.LaunchTemplateData.InstanceType)] = struct{}{}
+		launchParams.spot = version.LaunchTemplateData.InstanceMarketOptions != nil && aws.StringValue(version.LaunchTemplateData.InstanceMarketOptions.MarketType) == ec2.MarketTypeSpot
+	}
+
+	if launchParams.launchTemplateName == "" {
+		return nil, fmt.Errorf("unable to determine launch template for ASG %s", aws.StringValue(asg.AutoScalingGroupName))
+	}
 
 	// don't allow dynamic versions like $Default/$Latest
-	if version == "" || strings.HasPrefix(version, "$") {
-		return nil, fmt.Errorf("unsupported launch template version for ASG %s: %s", aws.StringValue(asg.AutoScalingGroupName), version)
+	if launchParams.launchTemplateVersion == "" || strings.HasPrefix(launchParams.launchTemplateVersion, "$") {
+		return nil, fmt.Errorf("unsupported launch template version for ASG %s: %s", aws.StringValue(asg.AutoScalingGroupName), launchParams.launchTemplateVersion)
 	}
-	launchParams.launchTemplateName = aws.StringValue(asg.LaunchTemplate.LaunchTemplateName)
-	launchParams.launchTemplateVersion = version
 
 	oldInstances := make(map[string]bool)
 
-	for _, instance := range asg.Instances {
-		if n.instancePendingUpgrade(launchParams, instance) {
-			oldInstances[aws.StringValue(instance.InstanceId)] = true
+	describeParams := &ec2.DescribeInstancesInput{}
+	for _, asgInstance := range asg.Instances {
+		if aws.StringValue(asgInstance.LaunchTemplate.LaunchTemplateName) != launchParams.launchTemplateName || aws.StringValue(asgInstance.LaunchTemplate.Version) != launchParams.launchTemplateVersion {
+			oldInstances[aws.StringValue(asgInstance.InstanceId)] = true
 		}
+
+		describeParams.InstanceIds = append(describeParams.InstanceIds, asgInstance.InstanceId)
+	}
+
+	// figure out if instance types or spotness changed
+	err := n.ec2Client.DescribeInstancesPages(describeParams, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
+		for _, reservation := range output.Reservations {
+			for _, instance := range reservation.Instances {
+				_, typeValid := launchParams.instanceTypes[aws.StringValue(instance.InstanceType)]
+				spotInstance := instance.SpotInstanceRequestId != nil
+				if !typeValid || spotInstance != launchParams.spot {
+					oldInstances[aws.StringValue(instance.InstanceId)] = true
+				}
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch instance information for ASG %s: %v", aws.StringValue(asg.AutoScalingGroupName), err)
 	}
 
 	return oldInstances, nil
-}
-
-func (n *ASGNodePoolsBackend) instancePendingUpgrade(launchParams *asgLaunchParameters, instance *autoscaling.Instance) bool {
-	return aws.StringValue(instance.LaunchTemplate.LaunchTemplateName) != launchParams.launchTemplateName ||
-		aws.StringValue(instance.LaunchTemplate.Version) != launchParams.launchTemplateVersion
 }
 
 // getLoadBalancerAttachedInstancesReadiness returns a mapping of instanceId ->

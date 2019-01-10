@@ -147,17 +147,19 @@ func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
 	currentLargestInstance := aws.Instance{}
 
 	for _, pool := range pools {
-		instanceInfo, err := aws.InstanceInfo(pool.InstanceType)
-		if err != nil {
-			return nil, err
-		}
+		for _, instanceType := range pool.InstanceTypes {
+			instanceInfo, err := aws.InstanceInfo(instanceType)
+			if err != nil {
+				return nil, err
+			}
 
-		if instanceInfo.VCPU > currentLargestInstance.VCPU && instanceInfo.Memory > currentLargestInstance.Memory {
-			currentLargestInstance = instanceInfo
-		} else if instanceInfo.VCPU <= currentLargestInstance.VCPU && instanceInfo.Memory <= currentLargestInstance.Memory {
-			// do nothing
-		} else {
-			return nil, fmt.Errorf("unable to select autoscaling buffer settings, conflicting instance types %s and %s", currentLargestInstance.InstanceType, instanceInfo.InstanceType)
+			if instanceInfo.VCPU > currentLargestInstance.VCPU && instanceInfo.Memory > currentLargestInstance.Memory {
+				currentLargestInstance = instanceInfo
+			} else if instanceInfo.VCPU <= currentLargestInstance.VCPU && instanceInfo.Memory <= currentLargestInstance.Memory {
+				// do nothing
+			} else {
+				return nil, fmt.Errorf("unable to select autoscaling buffer settings, conflicting instance types %s and %s", currentLargestInstance.InstanceType, instanceInfo.InstanceType)
+			}
 		}
 	}
 
