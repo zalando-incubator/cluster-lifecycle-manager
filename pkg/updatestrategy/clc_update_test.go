@@ -33,6 +33,10 @@ type mockNodePoolManagerCLC struct {
 	abortFunc             func()
 }
 
+func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(node *Node) error {
+	return nil
+}
+
 func (m *mockNodePoolManagerCLC) advance() {
 	for _, node := range m.nodes {
 		switch node.state {
@@ -191,8 +195,8 @@ func TestCLCUpdateStrategy(t *testing.T) {
 			logger := log.WithField("test", true)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			nodePoolManager := &mockNodePoolManagerCLC{
-				generation: tc.nodePoolGeneration,
-				nodes:      tc.nodes,
+				generation:            tc.nodePoolGeneration,
+				nodes:                 tc.nodes,
 				abortAfterTerminating: tc.abortAfterTerminating,
 				abortFunc:             cancel,
 			}

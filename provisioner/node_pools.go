@@ -213,7 +213,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 
 // Reconcile finds all orphaned node pool stacks and decommission the node
 // pools by scaling them down gracefully and deleting the corresponding stacks.
-func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context) error {
+func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	// decommission orphaned node pools
 	tags := map[string]string{
 		tagNameKubernetesClusterPrefix + p.Cluster.ID: resourceLifecycleOwned,
@@ -235,8 +235,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context) error {
 	for _, stack := range orphaned {
 		nodePool := nodePoolStackToNodePool(stack)
 
-		// gracefully downscale node pool
-		err := p.nodePoolManager.ScalePool(ctx, nodePool, 0)
+		err := updater.PrepareForRemoval(ctx, nodePool)
 		if err != nil {
 			return err
 		}

@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // UpdateStrategy defines an interface for performing cluster node updates.
 type UpdateStrategy interface {
 	Update(ctx context.Context, nodePool *api.NodePool) error
+	PrepareForRemoval(ctx context.Context, nodePool *api.NodePool) error
 }
 
 // ProviderNodePoolsBackend is an interface for describing a node pools

@@ -102,6 +102,13 @@ func (r *RollingUpdateStrategy) increaseByUnmatchedNodes(ctx context.Context, no
 	return nil
 }
 
+func (r *RollingUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc *api.NodePool) error {
+	r.logger.Infof("Preparing for removal of node pool '%s'", nodePoolDesc.Name)
+
+	// gracefully downscale node pool
+	return r.nodePoolManager.ScalePool(ctx, nodePoolDesc, 0)
+}
+
 // Update performs a rolling update of a single node pool. Passing a context
 // allows stopping the update loop in case the context is canceled.
 func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.NodePool) error {
