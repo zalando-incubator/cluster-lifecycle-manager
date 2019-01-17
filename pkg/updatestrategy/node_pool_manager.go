@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,6 +33,9 @@ const (
 
 	decommissionPendingTaintKey   = "decommission-pending"
 	decommissionPendingTaintValue = "rolling-upgrade"
+
+	clcReplacementStrategyLabel = "cluster-lifecycle-controller.zalan.do/replacement-strategy"
+	clcReplacementStrategyNone  = "none"
 )
 
 // NodePoolManager defines an interface for managing node pools when performing
@@ -43,6 +46,7 @@ type NodePoolManager interface {
 	AbortNodeDecommissioning(node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
+	DisableReplacementNodeProvisioning(node *Node) error
 	CordonNode(node *Node) error
 }
 
@@ -165,6 +169,10 @@ func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
 		return err
 	}
 	return nil
+}
+
+func (m *KubernetesNodePoolManager) DisableReplacementNodeProvisioning(node *Node) error {
+	return m.labelNode(node, clcReplacementStrategyLabel, clcReplacementStrategyNone)
 }
 
 func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Node) bool, patch func(*v1.Node) bool) error {

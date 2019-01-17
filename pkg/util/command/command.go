@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"io"
@@ -49,6 +50,18 @@ func (m *ExecManager) RunSilently(ctx context.Context, logger *log.Entry, cmd *e
 	return string(out), err
 }
 
+// entry.WriterLevel for some reason creates a pipes and a goroutine which makes it impossible to test without hacks
+type logWriter func(args ...interface{})
+
+func (w logWriter) Write(p []byte) (n int, err error) {
+	scanner := bufio.NewScanner(bytes.NewReader(p))
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		w(scanner.Text())
+	}
+	return len(p), nil
+}
+
 // Run runs an exec.Cmd, capturing its output and additionally redirecting
 // it to a logger
 func (m *ExecManager) Run(ctx context.Context, logger *log.Entry, cmd *exec.Cmd) (string, error) {
@@ -60,8 +73,8 @@ func (m *ExecManager) Run(ctx context.Context, logger *log.Entry, cmd *exec.Cmd)
 
 	var output bytes.Buffer
 
-	cmd.Stdout = io.MultiWriter(&output, logger.WriterLevel(log.InfoLevel))
-	cmd.Stderr = io.MultiWriter(&output, logger.WriterLevel(log.ErrorLevel))
+	cmd.Stdout = io.MultiWriter(&output, logWriter(logger.Info))
+	cmd.Stderr = io.MultiWriter(&output, logWriter(logger.Error))
 
 	err = cmd.Run()
 	return output.String(), err

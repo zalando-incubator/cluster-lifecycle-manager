@@ -18,7 +18,7 @@ import (
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2"
 
@@ -333,7 +333,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// clean up removed node pools
-	err = nodePoolProvisioner.Reconcile(ctx)
+	err = nodePoolProvisioner.Reconcile(ctx, updater)
 	if err != nil {
 		return err
 	}
