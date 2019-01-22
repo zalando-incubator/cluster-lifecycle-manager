@@ -14,6 +14,7 @@ import (
 func exampleCluster(pools []*api.NodePool) *api.Cluster {
 	return &api.Cluster{
 		ConfigItems: map[string]string{
+			"autoscaling_buffer_pods":            "3",
 			"autoscaling_buffer_pools":           "worker",
 			"autoscaling_buffer_cpu_scale":       "0.75",
 			"autoscaling_buffer_memory_scale":    "0.75",
@@ -117,6 +118,17 @@ func renderAutoscaling(t *testing.T, cluster *api.Cluster) (string, error) {
 		cluster)
 }
 
+func TestAutoscalingNoPods(t *testing.T) {
+	cluster := exampleCluster([]*api.NodePool{})
+	cluster.ConfigItems = map[string]string{
+		"autoscaling_buffer_pods": "0",
+	}
+	result, err := renderAutoscaling(t, cluster)
+
+	require.NoError(t, err)
+	require.EqualValues(t, "100m 100Mi", result)
+}
+
 func TestAutoscalingBufferExplicit(t *testing.T) {
 	cluster := exampleCluster([]*api.NodePool{})
 	cluster.ConfigItems["autoscaling_buffer_cpu"] = "111m"
@@ -163,7 +175,7 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 		}))
 
 	require.NoError(t, err)
-	require.EqualValues(t, "800m 4692Mi", result)
+	require.EqualValues(t, "267m 1564Mi", result)
 }
 
 func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
@@ -179,7 +191,7 @@ func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
 		}))
 
 	require.NoError(t, err)
-	require.EqualValues(t, "6 24Gi", result)
+	require.EqualValues(t, "2 8Gi", result)
 }
 
 func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {

@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	autoscalingBufferPodCountConfigItem       = "autoscaling_buffer_pods"
 	autoscalingBufferExplicitCPUConfigItem    = "autoscaling_buffer_cpu"
 	autoscalingBufferExplicitMemoryConfigItem = "autoscaling_buffer_memory"
 	autoscalingBufferCPUScaleConfigItem       = "autoscaling_buffer_cpu_scale"
@@ -105,6 +106,18 @@ func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool,
 // it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
 // the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
 func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
+	autoscalingPodCount, err := strconv.ParseInt(cluster.ConfigItems[autoscalingBufferPodCountConfigItem], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for autoscaling_pod_count: %v", err)
+	}
+
+	if autoscalingPodCount == 0 {
+		return &podResources{
+			CPU:    "100m",
+			Memory: "100Mi",
+		}, nil
+	}
+
 	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
 	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
 
@@ -163,21 +176,20 @@ func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
 		}
 	}
 
+	cpu := k8sresource.NewMilliQuantity(effectiveQuantity(currentLargestInstance.VCPU*1000, cpuScale, cpuReserved, autoscalingPodCount), k8sresource.DecimalSI)
+	memory := k8sresource.NewQuantity(effectiveQuantity(currentLargestInstance.Memory, memoryScale, memoryReserved, autoscalingPodCount), k8sresource.BinarySI)
+
 	result := &podResources{
-		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentLargestInstance.VCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
-		Memory: k8sresource.NewQuantity(effectiveQuantity(currentLargestInstance.Memory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
+		CPU:    cpu.String(),
+		Memory: memory.String(),
 	}
 	return result, nil
 }
 
-func effectiveQuantity(instanceResource int64, scale float64, reservedResource int64) int64 {
-	scaledResource := int64(float64(instanceResource) * scale)
-	withoutReserved := instanceResource - reservedResource
-	if scaledResource < withoutReserved {
-		return scaledResource
-	} else {
-		return withoutReserved
-	}
+func effectiveQuantity(instanceResource int64, scale float64, reservedResource int64, podCount int64) int64 {
+	scaledResource := float64(instanceResource) * scale
+	withoutReserved := float64(instanceResource - reservedResource)
+	return int64(math.Ceil(math.Min(scaledResource, withoutReserved) / float64(podCount)))
 }
 
 // renderTemplate takes a fileName of a template and the model to apply to it.
