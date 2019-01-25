@@ -32,7 +32,7 @@ fmt:
 	go fmt $(GOPKGS)
 
 staticcheck:
-	staticcheck -checks "all,-ST1000,-ST1003,-ST1005" $(GOPKGS)
+	staticcheck $(GOPKGS)
 
 check:
 	golint $(GOPKGS)
@@ -48,6 +48,7 @@ $(GO_BINDATA):
 
 $(AWS_INSTANCE_DATA): $(GO_BINDATA) $(AWS_DATA_SRC)
 	$(GO_BINDATA) -pkg aws -o $(AWS_INSTANCE_DATA) --prefix $(dir $(AWS_DATA_SRC)) $(AWS_DATA_SRC)
+	echo '//lint:file-ignore ST1005 Ignore issues with generated code' >> $(AWS_INSTANCE_DATA)
 
 $(GO_SWAGGER):
 	mkdir -p build

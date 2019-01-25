@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -78,7 +78,7 @@ func New(version string) *LifecycleManagerConfig {
 // ValidateFlags for custom flag validation, e.g. check for the interval being not too short
 func (cfg *LifecycleManagerConfig) ValidateFlags() error {
 	if cfg.GitRepositoryURL == "" && cfg.Directory == "" {
-		return fmt.Errorf("Either --git-repository-url or --directory must be specified")
+		return fmt.Errorf("either --git-repository-url or --directory must be specified")
 	}
 	return nil
 }
