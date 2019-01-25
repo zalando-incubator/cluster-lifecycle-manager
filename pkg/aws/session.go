@@ -1,11 +1,12 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"time"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 func Config(maxRetries int, maxRetryInterval time.Duration) *aws.Config {
 	result := aws.NewConfig()
 	result.Retryer = NewClampedRetryer(maxRetries, maxRetryInterval)
+	result.EnforceShouldRetryCheck = aws.Bool(true)
 	return result
 }
 
