@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/cenkalti/backoff"
 	"github.com/coreos/container-linux-config-transpiler/config"
 	"github.com/coreos/container-linux-config-transpiler/config/platform"
@@ -141,6 +142,20 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 	}, nil
 }
 
+func (a *awsAdapter) VerifyAccount(accountId string) error {
+	stsService := sts.New(a.session)
+	response, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		return err
+	}
+	effectiveAccount := aws.StringValue(response.Account)
+	expectedAccount := getAWSAccountID(accountId)
+	if effectiveAccount != expectedAccount {
+		return fmt.Errorf("invalid AWS account, expected %s, found %s", expectedAccount, effectiveAccount)
+	}
+	return nil
+}
+
 // applyClusterStack creates or updates a stack specified by stackName and
 // stackTemplate.
 // If the stackTemplate exceeds the max size, it will automatically upload it
@@ -176,7 +191,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
 		Capabilities:                []*string{aws.String(cloudformation.CapabilityCapabilityNamedIam)},
 		EnableTerminationProtection: aws.Bool(true),
-		Tags: tags,
+		Tags:                        tags,
 	}
 
 	if stackTemplateURL != "" {
