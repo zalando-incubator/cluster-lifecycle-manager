@@ -27,16 +27,11 @@ clean:
 
 test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 	go test -v -race $(GOPKGS)
+	go vet -v $(GOPKGS)
+	staticcheck $(GOPKGS)
 
 fmt:
 	go fmt $(GOPKGS)
-
-staticcheck:
-	staticcheck $(GOPKGS)
-
-check:
-	golint $(GOPKGS)
-	go vet -v $(GOPKGS)
 
 $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
