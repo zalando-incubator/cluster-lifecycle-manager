@@ -953,6 +953,10 @@ func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPa
 
 		for _, f := range files {
 			file := path.Join(componentFolder, f.Name())
+			if !strings.HasSuffix(file, ".yaml") && !strings.HasSuffix(file, ".yml") {
+				log.Warnf("File isn't a manifest, skipping: %s", file)
+				continue
+			}
 			manifest, err := renderTemplate(applyContext, file, cluster)
 			if err != nil {
 				return nil, fmt.Errorf("error rendering template %s/%s: %v", c.Name(), f.Name(), err)
