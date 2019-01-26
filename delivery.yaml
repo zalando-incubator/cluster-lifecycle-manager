@@ -8,12 +8,9 @@ pipeline:
   - desc: install deps
     cmd: |
       dep ensure -v -vendor-only
-  - desc: test
+  - desc: test & check
     cmd: |
       make test
-  - desc: static checks
-    cmd: |
-      make staticcheck
   - desc: build
     cmd: |
       make build.docker
