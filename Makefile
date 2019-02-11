@@ -35,7 +35,7 @@ fmt:
 
 $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
-	curl -L -s --fail https://www.ec2instances.info/instances.json -o $@
+	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | del(.pricing)] | sort_by(.instance_type)' > "$@"
 
 $(GO_BINDATA):
 	mkdir -p build
