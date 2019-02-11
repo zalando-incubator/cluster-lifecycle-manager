@@ -72,7 +72,7 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 			return nil
 		}
 
-		c.logger.Infof("Waiting for decommissioning of the nodes (%d left)", nodes)
+		c.logger.WithField("node-pool", nodePoolDesc.Name).Infof("Waiting for decommissioning of the nodes (%d left)", nodes)
 
 		// wait for CLC to finish removing the nodes
 		select {
@@ -123,7 +123,7 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 			return nil
 		}
 
-		c.logger.Infof("Waiting for decommissioning of old nodes (%d left)", oldNodes)
+		c.logger.WithField("node-pool", nodePoolDesc.Name).Infof("Waiting for decommissioning of old nodes (%d left)", oldNodes)
 
 		// wait for CLC to finish rolling the nodes
 		select {
