@@ -1,9 +1,15 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"time"
+)
+
+const (
+	metadataService           = "ec2metadata"
+	maxMetadataServiceRetries = 8
 )
 
 type clampedRetryer struct {
@@ -16,6 +22,13 @@ func NewClampedRetryer(maxRetries int, maxRetryInterval time.Duration) request.R
 		DefaultRetryer:   client.DefaultRetryer{NumMaxRetries: maxRetries},
 		maxRetryInterval: maxRetryInterval,
 	}
+}
+
+func (retryer clampedRetryer) ShouldRetry(r *request.Request) bool {
+	if r.ClientInfo.ServiceName == metadataService {
+		return r.RetryCount < maxMetadataServiceRetries
+	}
+	return retryer.DefaultRetryer.ShouldRetry(r)
 }
 
 func (retryer clampedRetryer) RetryRules(r *request.Request) time.Duration {

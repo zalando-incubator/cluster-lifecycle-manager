@@ -596,6 +596,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		return nil, nil, nil, err
 	}
 
+	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	err = p.updateDefaults(cluster, channelConfig)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
