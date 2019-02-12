@@ -43,6 +43,10 @@ type mockNodePoolManager struct {
 	nodePool *NodePool
 }
 
+func (m *mockNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) error {
+	return nil
+}
+
 func (m *mockNodePoolManager) DisableReplacementNodeProvisioning(node *Node) error {
 	return nil
 }

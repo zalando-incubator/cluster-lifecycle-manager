@@ -54,6 +54,11 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 			return err
 		}
 
+		err = c.nodePoolManager.MarkPoolForDecommission(nodePoolDesc)
+		if err != nil {
+			return err
+		}
+
 		for _, node := range nodePool.Nodes {
 			err := c.nodePoolManager.DisableReplacementNodeProvisioning(node)
 			if err != nil {

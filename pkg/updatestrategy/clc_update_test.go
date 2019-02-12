@@ -33,6 +33,10 @@ type mockNodePoolManagerCLC struct {
 	abortFunc             func()
 }
 
+func (m *mockNodePoolManagerCLC) MarkPoolForDecommission(nodePool *api.NodePool) error {
+	return nil
+}
+
 func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(node *Node) error {
 	return nil
 }
