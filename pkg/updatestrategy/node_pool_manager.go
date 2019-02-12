@@ -46,6 +46,7 @@ type NodePoolManager interface {
 	AbortNodeDecommissioning(node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
+	MarkPoolForDecommission(nodePool *api.NodePool) error
 	DisableReplacementNodeProvisioning(node *Node) error
 	CordonNode(node *Node) error
 }
@@ -324,6 +325,10 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 	m.logger.WithField("node", node.Name).Info("Terminating node")
 
 	return m.backend.Terminate(node, decrementDesired)
+}
+
+func (m *KubernetesNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) error {
+	return m.backend.SuspendAutoscaling(nodePool)
 }
 
 // ScalePool scales a nodePool to the specified number of replicas.
