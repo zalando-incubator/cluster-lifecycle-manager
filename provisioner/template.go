@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"net"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -195,6 +196,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"mountUnitName":             mountUnitName,
 		"accountID":                 accountID,
 		"portRanges":                portRanges,
+		"splitHostPort":             splitHostPort,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -311,6 +313,20 @@ func accountID(account string) (string, error) {
 		return "", fmt.Errorf("invalid account (expected type:id): %s", account)
 	}
 	return items[1], nil
+}
+
+type HostPort struct {
+	Host string
+	Port string
+}
+
+// splitHostPort exposes net.SplitHostPort
+func splitHostPort(hostport string) (HostPort, error) {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return HostPort{}, err
+	}
+	return HostPort{Host: host, Port: port}, nil
 }
 
 type PortRange struct {
