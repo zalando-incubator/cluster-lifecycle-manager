@@ -388,3 +388,22 @@ func TestParsePortRanges(t *testing.T) {
 	_, err = renderSingle(t, `{{ portRanges "0-200000" }}`, "")
 	require.Error(t, err)
 }
+
+func TestSplitHostPort(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ with splitHostPort "example.org:80" }}{{.Host}} - {{.Port}}{{end}}`,
+		nil)
+
+	require.NoError(t, err)
+	require.EqualValues(t, "example.org - 80", result)
+}
+
+func TestSplitHostPortError(t *testing.T) {
+	_, err := renderSingle(
+		t,
+		`{{ with splitHostPort "a:b:c" }}{{.Host}} - {{.Port}}{{end}}`,
+		nil)
+
+	require.Error(t, err)
+}
