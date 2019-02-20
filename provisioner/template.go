@@ -3,7 +3,10 @@ package provisioner
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -197,6 +200,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"accountID":                 accountID,
 		"portRanges":                portRanges,
 		"splitHostPort":             splitHostPort,
+		"publicKey":                 publicKey,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -369,4 +373,28 @@ func validPortRange(fromPort, toPort int) bool {
 		return false
 	}
 	return true
+}
+
+// given a PEM-encoded private key, returns a PEM-encoded public key
+func publicKey(privateKey string) (string, error) {
+	decoded, _ := pem.Decode([]byte(privateKey))
+	if decoded == nil {
+		return "", errors.New("no PEM data found")
+	}
+
+	privKey, err := x509.ParsePKCS1PrivateKey(decoded.Bytes)
+	if err != nil {
+		return "", err
+	}
+
+	der, err := x509.MarshalPKIXPublicKey(privKey.Public())
+	if err != nil {
+		return "", err
+	}
+
+	block := pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: der,
+	}
+	return string(pem.EncodeToMemory(&block)), nil
 }

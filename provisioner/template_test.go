@@ -407,3 +407,50 @@ func TestSplitHostPortError(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+func TestPublicKey(t *testing.T) {
+	privkey := `-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAw6bd0oGYHTvzz+hbSBeym87rt/jHMEshthOuY2szifqroBzI
+gpARyzjjpaH2/QnYzgqOWpj2fbtuVYhSrclWqi8QdCKz83VneXe26IW/MGNmO/sT
+CssB1NPuoBWalBZMisbKeqvOqR7BxwCpKjerseEPE/oriPn3QEXOYqaY0eOCK/6Q
+6eSFxMd9n6p+o64htrt4q+rTxX1fUodPRuEf4QnSrEEbZq44hUkzmr4VCZi/LQrc
+EjfcpxFrM8PMvALaSqf21xHvFqF46Gj777h+7rv6fEfK5T+Twhb76Pc1Cz15dHDl
+qfbaVYjaEO0qSRHGJsT2A45zm/8zCwBpJKAtDwIDAQABAoIBACBkJeFN90MPw+Ot
+0j7zPWyyKzBADaofJiugwoRPIS88wuE1IrUK6Qc+GeI4GE34LV6fPMYfAN/8Ad5D
+PXzsEl8Gf7DadfRegY0Ils2UJvz519kiThrBVUJI+/6g1QCjWHS5SJhajVJOd0Jd
+B6SnptNCMV7bUg3RZG/NnseSUUaeG3JG5bsISiJPlPcZHU+rqUnQDnrB+/0ykGoi
+grhbtSt896zP+4gdjg3dLUi5UwGT93/h9vc2azK5HbVYuJzO/CClsAp+QfiI4Ia5
+5Tz4lnQ/yDYxT9mmrxV0hzr5hULnO/oPsdc2x7bp1gvjejQwkY61b8PTg8GrdhEu
+JJLVpXECgYEA9CxEoOowsH1yM8pE7XPzCvh9IwBYGt+6EEoEEQ6fzhNP54dJdFiF
+l6J/bTHLDLWuYWq3AZ+8wYOnYev2G8LIKauvQZNyOZlSUU4RL2htMZ31bFeELWA/
+cuixeZycTJBTuxAqtwWvyjJDmKYZAzdQReSNygaVcFHju6hpu0VxXq0CgYEAzSDw
+cMdz6WoGE0RiHNjhViFbENl6HoO9Cq/qzXcBoCf+1Yl85/AS3s+982IjyPqcbo/Z
+GEi7sq6pTnLUZKIImbIidDvIkEkxTmbNfS7151ILTHULMy4c8YPyTfo6h+vrO6XT
+zGuKtcc3K6txDbyb2abMg35t0Ljg0RN+togRHisCgYBPzSQE32VYWTd427OZU5rs
+S/hB9zvUVKhv6HDZzkjGRiOITPvhzYij3VT+MBbnqX07k3AKVNWQ/WE4LLE7s3ZN
+wDHAIdtkHcr8jaIqN1vwqmpqpVOqrNkvygMu9tNSZp0m9wqu1Gn2kGTtP+PO3EYd
+AayhiXNPyUO/sjQUI4cA5QKBgHURKWeTzMkXYyQ30K6Z7/AR1UEGfLVRhd/FigF8
+u4bFjKAdeRV9Y6eZc9Sk27tlm0VV/xXm3IgbOjC1RBWyi6n7icJAJDSEMQmHjhq1
+ZE2B+0TFP4ET/hyvqudpuWG8+GDwQLHXZjBb41ae30RxsZhDo1AgJVgLSvLHZ3eQ
+rARFAoGBAL1QriPbz2ZOujrSmPKbOl/H0y74QwmWwatf90cgzMA+/gNgmu8EYmC7
+zXJIFt24pCciexrRWOeR9LZdenWUXOvl2I+cKlIGLM42MxUQpN74BlHne0oQ+Mg3
+SDpur492ci/fjCMLtPFEmmQvdAjzC8cSHu8MqpLAEvxFBFKz+Q0T
+-----END RSA PRIVATE KEY-----`
+	pubkey := `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw6bd0oGYHTvzz+hbSBey
+m87rt/jHMEshthOuY2szifqroBzIgpARyzjjpaH2/QnYzgqOWpj2fbtuVYhSrclW
+qi8QdCKz83VneXe26IW/MGNmO/sTCssB1NPuoBWalBZMisbKeqvOqR7BxwCpKjer
+seEPE/oriPn3QEXOYqaY0eOCK/6Q6eSFxMd9n6p+o64htrt4q+rTxX1fUodPRuEf
+4QnSrEEbZq44hUkzmr4VCZi/LQrcEjfcpxFrM8PMvALaSqf21xHvFqF46Gj777h+
+7rv6fEfK5T+Twhb76Pc1Cz15dHDlqfbaVYjaEO0qSRHGJsT2A45zm/8zCwBpJKAt
+DwIDAQAB
+-----END PUBLIC KEY-----
+`
+
+	result, err := renderSingle(
+		t,
+		`{{ publicKey . }}`,
+		privkey)
+	require.NoError(t, err)
+	require.EqualValues(t, pubkey, result)
+}
