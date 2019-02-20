@@ -3,7 +3,10 @@ package provisioner
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -187,6 +190,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 	funcMap := template.FuncMap{
 		"getAWSAccountID":           getAWSAccountID,
 		"base64":                    base64Encode,
+		"base64Decode":              base64Decode,
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
@@ -197,6 +201,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"accountID":                 accountID,
 		"portRanges":                portRanges,
 		"splitHostPort":             splitHostPort,
+		"publicKey":                 publicKey,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -271,6 +276,15 @@ func mountUnitName(path string) (string, error) {
 // base64Encode base64 encodes a string.
 func base64Encode(value string) string {
 	return base64.StdEncoding.EncodeToString([]byte(value))
+}
+
+// base64Encode base64 decodes a string.
+func base64Decode(value string) (string, error) {
+	res, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return "", err
+	}
+	return string(res), nil
 }
 
 // asgSize computes effective size of an ASG (either min or max) from the corresponding
@@ -369,4 +383,28 @@ func validPortRange(fromPort, toPort int) bool {
 		return false
 	}
 	return true
+}
+
+// given a PEM-encoded private key, returns a PEM-encoded public key
+func publicKey(privateKey string) (string, error) {
+	decoded, _ := pem.Decode([]byte(privateKey))
+	if decoded == nil {
+		return "", errors.New("no PEM data found")
+	}
+
+	privKey, err := x509.ParsePKCS1PrivateKey(decoded.Bytes)
+	if err != nil {
+		return "", err
+	}
+
+	der, err := x509.MarshalPKIXPublicKey(privKey.Public())
+	if err != nil {
+		return "", err
+	}
+
+	block := pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: der,
+	}
+	return string(pem.EncodeToMemory(&block)), nil
 }
