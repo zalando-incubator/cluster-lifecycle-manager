@@ -190,6 +190,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 	funcMap := template.FuncMap{
 		"getAWSAccountID":           getAWSAccountID,
 		"base64":                    base64Encode,
+		"base64Decode":              base64Decode,
 		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
@@ -275,6 +276,15 @@ func mountUnitName(path string) (string, error) {
 // base64Encode base64 encodes a string.
 func base64Encode(value string) string {
 	return base64.StdEncoding.EncodeToString([]byte(value))
+}
+
+// base64Encode base64 decodes a string.
+func base64Decode(value string) (string, error) {
+	res, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return "", err
+	}
+	return string(res), nil
 }
 
 // asgSize computes effective size of an ASG (either min or max) from the corresponding

@@ -61,7 +61,7 @@ func TestTemplating(t *testing.T) {
 	require.EqualValues(t, "foo 1", result)
 }
 
-func TestBase64(t *testing.T) {
+func TestBase64Encode(t *testing.T) {
 	result, err := renderSingle(
 		t,
 		"{{ . | base64 }}",
@@ -69,6 +69,16 @@ func TestBase64(t *testing.T) {
 
 	require.NoError(t, err)
 	require.EqualValues(t, "YWJjMTIz", result)
+}
+
+func TestBase64Decode(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		"{{ . | base64Decode }}",
+		"YWJjMTIz")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "abc123", result)
 }
 
 func TestManifestHash(t *testing.T) {
