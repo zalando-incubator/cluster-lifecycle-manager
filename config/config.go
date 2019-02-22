@@ -51,7 +51,6 @@ type LifecycleManagerConfig struct {
 	GitRepositoryURL            string
 	SSHPrivateKeyFile           string
 	CredentialsDir              string
-	EnvironmentOrder            []string
 	ConcurrentExternalProcesses uint
 	ApplyOnly                   bool
 	AwsMaxRetries               int
@@ -114,7 +113,6 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("drain-poll-interval", "Interval between drain attempts.").Default(defaultDrainPollInterval).DurationVar(&cfg.UpdateStrategy.PollInterval)
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
-	kingpin.Flag("environment-order", "Roll out channel updates to the environments in a specific order.").StringsVar(&cfg.EnvironmentOrder)
 	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	return kingpin.Parse()
 }

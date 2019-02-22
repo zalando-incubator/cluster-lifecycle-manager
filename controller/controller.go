@@ -60,7 +60,7 @@ func New(logger *log.Entry, execManager *command.ExecManager, registry registry.
 		channelConfigSourcer: channelConfigSourcer,
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
-		clusterList:          NewClusterList(options.AccountFilter, options.EnvironmentOrder),
+		clusterList:          NewClusterList(options.AccountFilter),
 		concurrentUpdates:    options.ConcurrentUpdates,
 	}
 }

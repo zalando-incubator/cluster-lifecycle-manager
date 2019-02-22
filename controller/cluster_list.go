@@ -43,24 +43,12 @@ type ClusterList struct {
 	accountFilter config.IncludeExcludeFilter
 	clusters      map[string]*ClusterInfo
 	pendingUpdate []*ClusterInfo
-
-	// A map of env1 -> env2. For every channel, all clusters in env2 must be updated to a specific version before
-	// clusters in env1 will be allowed to be updated to it
-	prerequisiteEnvironments map[string]string
 }
 
-func NewClusterList(accountFilter config.IncludeExcludeFilter, environmentOrder []string) *ClusterList {
-	prerequisiteEnvironments := make(map[string]string)
-	for i, env := range environmentOrder {
-		if i > 0 {
-			prerequisiteEnvironments[env] = environmentOrder[i-1]
-		}
-	}
-
+func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
 	return &ClusterList{
-		accountFilter:            accountFilter,
-		clusters:                 make(map[string]*ClusterInfo),
-		prerequisiteEnvironments: prerequisiteEnvironments,
+		accountFilter: accountFilter,
+		clusters:      make(map[string]*ClusterInfo),
 	}
 }
 
@@ -72,14 +60,6 @@ func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions,
 
 	clusterList.updateClusters(channels, availableClusters)
 
-	// Collect information about used clusterInfo versions
-	usedVersions := newUsedVersions()
-	for _, clusterInfo := range clusterList.clusters {
-		if clusterInfo.Cluster.LifecycleStatus != statusDecommissionRequested {
-			usedVersions.addCluster(clusterInfo)
-		}
-	}
-
 	// Find out which clusters need updating
 	var pendingUpdate []*ClusterInfo
 	for _, cluster := range clusterList.clusters {
@@ -88,7 +68,7 @@ func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions,
 		}
 
 		// Compute and cache update priority; add the clusterInfo to the list if it needs anything done
-		cluster.updatePriority = clusterList.updatePriority(cluster, usedVersions)
+		cluster.updatePriority = clusterList.updatePriority(cluster)
 		if cluster.updatePriority != updatePriorityNone {
 			pendingUpdate = append(pendingUpdate, cluster)
 		}
@@ -178,7 +158,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 
 // updatePriority returns the update priority of the clusters. Clusters with higher priority will always be selected
 // for update before clusters with lower priority. A special value updatePriorityNone signifies that no update is needed.
-func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo, usedVersions usedVersions) uint32 {
+func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo) uint32 {
 	cluster := clusterInfo.Cluster
 
 	// cluster updates are blocked
@@ -194,16 +174,6 @@ func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo, usedVer
 	// cluster needs to be decommissioned
 	if cluster.LifecycleStatus == statusDecommissionRequested {
 		return updatePriorityDecommissionRequested
-	}
-
-	// if the cluster's environment has another environment marked as a prerequisite, check if all clusters
-	// in that environment use the new version. only allow channel version change it if's true.
-	if clusterInfo.NextVersion.ConfigVersion != clusterInfo.CurrentVersion.ConfigVersion {
-		if prerequisite, ok := clusterList.prerequisiteEnvironments[cluster.Environment]; ok {
-			if !usedVersions.fullyUpdated(prerequisite, clusterInfo.Cluster.Channel, clusterInfo.NextVersion.ConfigVersion) {
-				return updatePriorityNone
-			}
-		}
 	}
 
 	// cluster is already being updated (CLM restart?)
