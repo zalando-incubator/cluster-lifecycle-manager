@@ -108,7 +108,7 @@ func (m *mockNodePoolManagerCLC) findNode(nodeName string) (*mockNodeCLC, error)
 	return nil, fmt.Errorf("unknown node: %s", nodeName)
 }
 
-func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(node *Node) error {
+func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(node *Node, updatePriority string) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err
@@ -124,7 +124,11 @@ func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(node *Node) error {
+func (m *mockNodePoolManagerCLC) TargetPoolForNodeDecommission(nodePool *api.NodePool) error {
+	return nil
+}
+
+func (m *mockNodePoolManagerCLC) UnmarkNodeForDecommission(node *Node) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err

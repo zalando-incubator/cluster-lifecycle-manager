@@ -35,7 +35,7 @@ func NewRollingUpdateStrategy(logger *log.Entry, nodePoolManager NodePoolManager
 func (r *RollingUpdateStrategy) markOldNodes(nodePool *NodePool) error {
 	for _, node := range nodePool.Nodes {
 		if node.Generation != nodePool.Generation {
-			err := r.nodePoolManager.MarkNodeForDecommission(node)
+			err := r.nodePoolManager.MarkNodeForDecommission(node, "")
 			if err != nil {
 				return err
 			}

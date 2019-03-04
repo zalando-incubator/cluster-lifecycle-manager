@@ -29,6 +29,7 @@ const (
 	lifecycleStatusLabel               = "lifecycle-status"
 	lifecycleStatusDraining            = "draining"
 	lifecycleStatusDecommissionPending = "decommission-pending"
+	lifecycleStatusDecommissioning     = "decommissioning"
 	lifecycleStatusReady               = "ready"
 
 	decommissionPendingTaintKey   = "decommission-pending"
@@ -36,14 +37,17 @@ const (
 
 	clcReplacementStrategyLabel = "cluster-lifecycle-controller.zalan.do/replacement-strategy"
 	clcReplacementStrategyNone  = "none"
+	clcUpdatePriorityAnnotation = "cluster-lifecycle-controller.zalan.do/update-priority"
+	nodePoolLabel               = "kubernetes.io/node-pool"
 )
 
 // NodePoolManager defines an interface for managing node pools when performing
 // update operations.
 type NodePoolManager interface {
 	GetPool(nodePool *api.NodePool) (*NodePool, error)
-	MarkNodeForDecommission(node *Node) error
-	AbortNodeDecommissioning(node *Node) error
+	MarkNodeForDecommission(node *Node, updatePriority string) error
+	UnmarkNodeForDecommission(node *Node) error
+	TargetPoolForNodeDecommission(nodePool *api.NodePool) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	MarkPoolForDecommission(nodePool *api.NodePool) error
@@ -151,10 +155,17 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 	return nodePool, nil
 }
 
-func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
+func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node, updatePriority string) error {
 	err := m.taintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, v1.TaintEffectPreferNoSchedule)
 	if err != nil {
 		return err
+	}
+
+	if updatePriority != "" {
+		err := m.annotateNode(node, clcUpdatePriorityAnnotation, updatePriority)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusReady, lifecycleStatusDecommissionPending)
@@ -164,7 +175,33 @@ func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
-func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+func (m *KubernetesNodePoolManager) TargetPoolForNodeDecommission(nodePool *api.NodePool) error {
+	nodes, err := m.kube.CoreV1().Nodes().List(metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{lifecycleStatusLabel: lifecycleStatusDecommissioning},
+		}),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, node := range nodes.Items {
+		poolName := node.Labels[nodePoolLabel]
+		if poolName == "" {
+			return fmt.Errorf("unable to determine node pool for node %s", node.Name)
+		}
+		if poolName != nodePool.Name {
+			err := m.compareAndSetNodeLabel(&Node{Name: node.Name}, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusDecommissioning)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *KubernetesNodePoolManager) UnmarkNodeForDecommission(node *Node) error {
 	err := m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusReady)
 	if err != nil {
 		return err
@@ -292,17 +329,21 @@ func updateTaint(node *v1.Node, taintKey, taintValue string, effect v1.TaintEffe
 	return true
 }
 
+func taintSet(node *Node, taintKey, taintValue string, effect v1.TaintEffect) bool {
+	for _, taint := range node.Taints {
+		if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
+			return true
+		}
+	}
+	return false
+}
+
 // TaintNode sets a taint on a Kubernetes node object with a specified value and effect.
 func (m *KubernetesNodePoolManager) taintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
 	return m.updateNode(
 		node,
 		func(node *Node) bool {
-			for _, taint := range node.Taints {
-				if taint.Key == taintKey && taint.Value == taintValue && taint.Effect == effect {
-					return false
-				}
-			}
-			return true
+			return !taintSet(node, taintKey, taintValue, effect)
 		},
 		func(node *v1.Node) bool {
 			return updateTaint(node, taintKey, taintValue, effect)
@@ -360,7 +401,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 		// mark nodes to be removed
 		if replicas == 0 {
 			for _, node := range pool.Nodes {
-				err := m.MarkNodeForDecommission(node)
+				err := m.MarkNodeForDecommission(node, "")
 				if err != nil {
 					return err
 				}

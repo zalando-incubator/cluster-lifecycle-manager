@@ -66,7 +66,7 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 			}
 		}
 
-		nodes, err := c.markNodes(nodePool, func(_ *Node) bool {
+		nodes, err := c.markNodes(nodePool, "", func(_ *Node) bool {
 			return true
 		})
 		if err != nil {
@@ -96,7 +96,7 @@ func (c *CLCUpdateStrategy) rollbackUpdate(nodePoolDesc *api.NodePool) error {
 
 	for _, node := range nodePool.Nodes {
 		if node.Generation != nodePool.Generation {
-			err := c.nodePoolManager.AbortNodeDecommissioning(node)
+			err := c.nodePoolManager.UnmarkNodeForDecommission(node)
 			if err != nil {
 				return err
 			}
@@ -107,6 +107,8 @@ func (c *CLCUpdateStrategy) rollbackUpdate(nodePoolDesc *api.NodePool) error {
 }
 
 func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.NodePool) error {
+	updateTimestamp := time.Now().Format(time.RFC3339)
+
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -117,7 +119,7 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 			return err
 		}
 
-		oldNodes, err := c.markNodes(nodePool, func(node *Node) bool {
+		oldNodes, err := c.markNodes(nodePool, updateTimestamp, func(node *Node) bool {
 			return node.Generation != nodePool.Generation
 		})
 		if err != nil {
@@ -126,6 +128,11 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 
 		if oldNodes == 0 {
 			return nil
+		}
+
+		err = c.nodePoolManager.TargetPoolForNodeDecommission(nodePoolDesc)
+		if err != nil {
+			return err
 		}
 
 		c.logger.WithField("node-pool", nodePoolDesc.Name).Infof("Waiting for decommissioning of old nodes (%d left)", oldNodes)
@@ -139,11 +146,11 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 	}
 }
 
-func (c *CLCUpdateStrategy) markNodes(nodePool *NodePool, predicate func(*Node) bool) (int, error) {
+func (c *CLCUpdateStrategy) markNodes(nodePool *NodePool, updateTimestamp string, predicate func(*Node) bool) (int, error) {
 	marked := 0
 	for _, node := range nodePool.Nodes {
 		if predicate(node) {
-			err := c.nodePoolManager.MarkNodeForDecommission(node)
+			err := c.nodePoolManager.MarkNodeForDecommission(node, updateTimestamp)
 			marked++
 			if err != nil {
 				return 0, err

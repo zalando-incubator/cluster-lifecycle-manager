@@ -55,11 +55,15 @@ func (m *mockNodePoolManager) GetPool(nodePool *api.NodePool) (*NodePool, error)
 	return m.nodePool, nil
 }
 
-func (m *mockNodePoolManager) MarkNodeForDecommission(node *Node) error {
+func (m *mockNodePoolManager) MarkNodeForDecommission(node *Node, updatePriority string) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+func (m *mockNodePoolManager) UnmarkNodeForDecommission(node *Node) error {
+	return nil
+}
+
+func (m *mockNodePoolManager) TargetPoolForNodeDecommission(nodePool *api.NodePool) error {
 	return nil
 }
 
