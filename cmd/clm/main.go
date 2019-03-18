@@ -6,11 +6,9 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"sort"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/controller"
@@ -21,7 +19,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 	"golang.org/x/oauth2"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -102,7 +100,6 @@ func main() {
 			Interval:          cfg.Interval,
 			DryRun:            cfg.DryRun,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
-			EnvironmentOrder:  cfg.EnvironmentOrder,
 		}
 
 		ctrl := controller.New(rootLogger, execManager, clusterRegistry, p, configSource, opts)
@@ -118,8 +115,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	orderByEnvironmentOrder(clusters, cfg.EnvironmentOrder)
-
 	for _, cluster := range clusters {
 		if !cfg.AccountFilter.Allowed(cluster.InfrastructureAccount) {
 			log.Debugf("Skipping %s cluster, infrastructure account does not match provided filter.", cluster.ID)
@@ -169,23 +164,6 @@ func main() {
 			log.Fatalf("unknown cmd: %s", cmd)
 		}
 	}
-}
-
-// orderByEnvironmentOrder orders the clusters based on the provided environment ordering.
-// If environmentOrder is [A, B], all clusters with environment A will be reordered
-// before clusters with environment B. Position of clusters with environment not in
-// environmentOrder is unspecified (current implementation will order them first)
-func orderByEnvironmentOrder(clusters []*api.Cluster, environmentOrder []string) {
-	computedPriorities := make(map[string]int)
-	for i, env := range environmentOrder {
-		computedPriorities[env] = i + 1
-	}
-
-	sort.SliceStable(clusters, func(i, j int) bool {
-		iPriority := computedPriorities[clusters[i].Environment]
-		jPriority := computedPriorities[clusters[j].Environment]
-		return iPriority < jPriority
-	})
 }
 
 func startHTTPServer(listen string) {
