@@ -384,11 +384,12 @@ func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet,
 
 	var result []*ec2.Subnet
 	for _, subnet := range allSubnets {
-		subnet := aws.StringValue(subnet.SubnetId)
-		_, ok := desiredSubnets[subnet]
+		subnet := *subnet
+		subnetID := aws.StringValue(subnet.SubnetId)
+		_, ok := desiredSubnets[subnetID]
 		if ok {
-			result = append(result)
-			delete(desiredSubnets, subnet)
+			result = append(result, &subnet)
+			delete(desiredSubnets, subnetID)
 		}
 	}
 
