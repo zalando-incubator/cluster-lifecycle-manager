@@ -158,41 +158,51 @@ func TestLabelsString(t *testing.T) {
 
 var deletionsContent = []byte(`
 pre_apply:
-- name: secretary
+- name: secretary-pre
   namespace: kube-system
   kind: deployment
-- name: mate
+- name: mate-pre
+  kind: deployment
+- name: {{.Alias}}-pre
+  namespace: templated
   kind: deployment
 post_apply:
-- name: secretary
+- name: secretary-post
   namespace: kube-system
   kind: deployment
-- name: mate
-  kind: deployment`)
+- name: mate-post
+  kind: deployment
+- name: {{.Alias}}-post
+  namespace: templated
+  kind: deployment
+`)
 
 func TestParseDeletions(t *testing.T) {
 	err := ioutil.WriteFile(deletionsFile, deletionsContent, 0644)
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(deletionsFile)
 
-	deletions, err := parseDeletions(".")
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
+	exampleCluster := &api.Cluster{
+		Alias: "foobar",
+	}
+	expected := &deletions{
+		PreApply: []*resource{
+			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
+			{Name: "mate-pre", Namespace: "default", Kind: "deployment"},
+			{Name: "foobar-pre", Namespace: "templated", Kind: "deployment"},
+		},
+		PostApply: []*resource{
+			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
+			{Name: "mate-post", Namespace: "default", Kind: "deployment"},
+			{Name: "foobar-post", Namespace: "templated", Kind: "deployment"},
+		},
 	}
 
-	if len(deletions.PreApply) != 2 {
-		t.Errorf("expected %d PreApply deletions, got %d", 2, len(deletions.PreApply))
-	}
-
-	if len(deletions.PostApply) != 2 {
-		t.Errorf("expected %d PostApply deletions, got %d", 2, len(deletions.PostApply))
-	}
+	deletions, err := parseDeletions(exampleCluster, ".")
+	require.NoError(t, err)
+	require.EqualValues(t, expected, deletions)
 
 	// test not getting an error if file doesn't exists
-	_, err = parseDeletions("invalid_folder")
-	if err != nil {
-		t.Errorf("should not fail: %s", err)
-	}
+	_, err = parseDeletions(exampleCluster, "invalid_folder")
+	require.NoError(t, err)
 }

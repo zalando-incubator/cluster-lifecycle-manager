@@ -251,7 +251,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	// render the manifests to find out if they're valid
 	manifestsPath := path.Join(channelConfig.Path, manifestsPath)
-	manifests, err := p.renderManifests(cluster, manifestsPath)
+	deletions, err := parseDeletions(cluster, manifestsPath)
+	if err != nil {
+		return err
+	}
+	manifests, err := renderManifests(cluster, manifestsPath)
 	if err != nil {
 		return err
 	}
@@ -342,7 +346,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(ctx, logger, cluster, manifestsPath, manifests)
+	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
 type clusterStackParams struct {
@@ -897,10 +901,11 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 }
 
 // parseDeletions reads and parses the deletions.yaml.
-func parseDeletions(manifestsPath string) (*deletions, error) {
+func parseDeletions(cluster *api.Cluster, manifestsPath string) (*deletions, error) {
 	file := path.Join(manifestsPath, deletionsFile)
 
-	d, err := ioutil.ReadFile(file)
+	applyContext := newTemplateContext(manifestsPath)
+	rendered, err := renderTemplate(applyContext, file, cluster)
 	if err != nil {
 		// if the file doesn't exist we just treat it as if it was
 		// empty.
@@ -911,7 +916,7 @@ func parseDeletions(manifestsPath string) (*deletions, error) {
 	}
 
 	var deletions deletions
-	err = yaml.Unmarshal(d, &deletions)
+	err = yaml.Unmarshal([]byte(rendered), &deletions)
 	if err != nil {
 		return nil, err
 	}
@@ -932,7 +937,7 @@ func parseDeletions(manifestsPath string) (*deletions, error) {
 	return &deletions, nil
 }
 
-func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, error) {
+func renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, error) {
 	components, err := ioutil.ReadDir(manifestsPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot read directory: %s", manifestsPath)
@@ -982,15 +987,9 @@ func (p *clusterpyProvisioner) renderManifests(cluster *api.Cluster, manifestsPa
 }
 
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
-func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, manifestsPath string, renderedManifests []string) error {
-	logger.Debugf("Checking for deletions.yaml")
-	deletions, err := parseDeletions(manifestsPath)
-	if err != nil {
-		return err
-	}
-
+func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []string) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
-	err = p.Deletions(ctx, logger, cluster, deletions.PreApply)
+	err := p.Deletions(ctx, logger, cluster, deletions.PreApply)
 	if err != nil {
 		return err
 	}
