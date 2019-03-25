@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetInfrastructureID(t *testing.T) {
@@ -64,6 +65,54 @@ func TestHasTag(t *testing.T) {
 	} {
 		t.Run(tc.msg, func(t *testing.T) {
 			assert.Equal(t, hasTag(tc.tags, tc.tag), tc.expected)
+		})
+	}
+}
+
+func TestFilterSubnets(tt *testing.T) {
+	for _, tc := range []struct {
+		msg             string
+		subnets         []*ec2.Subnet
+		subnetIds       []string
+		expectedSubnets []*ec2.Subnet
+		err             bool
+	}{
+
+		{
+			msg: "test filtering out a single subnet",
+			subnets: []*ec2.Subnet{
+				{
+					SubnetId: aws.String("id-1"),
+				},
+				{
+					SubnetId: aws.String("id-2"),
+				},
+			},
+			subnetIds: []string{"id-1"},
+			expectedSubnets: []*ec2.Subnet{
+				{
+					SubnetId: aws.String("id-1"),
+				},
+			},
+		},
+		{
+			msg: "test filtering invalid subnets",
+			subnets: []*ec2.Subnet{
+				{
+					SubnetId: aws.String("id-1"),
+				},
+			},
+			subnetIds:       []string{"id-2"},
+			expectedSubnets: nil,
+		},
+	} {
+		tt.Run(tc.msg, func(t *testing.T) {
+			subnets, err := filterSubnets(tc.subnets, tc.subnetIds)
+			if tc.err {
+				require.Error(t, err)
+			} else {
+				require.EqualValues(t, tc.expectedSubnets, subnets)
+			}
 		})
 	}
 }
