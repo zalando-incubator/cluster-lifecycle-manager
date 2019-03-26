@@ -402,6 +402,22 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		return err
 	}
 
+	// check if stack exists
+	// this is a hack to avoid calling senza to generate the etcd stack
+	// which is only applied if the stack doesn't already exist
+	describeParams := &cloudformation.DescribeStacksInput{
+		StackName: aws.String(stackName),
+	}
+
+	resp, err := a.cloudformationClient.DescribeStacks(describeParams)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Stacks) == 1 {
+		return nil
+	}
+
 	args := []string{
 		"print",
 		stackDefinitionPath,
