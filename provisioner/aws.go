@@ -410,11 +410,8 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	}
 
 	resp, err := a.cloudformationClient.DescribeStacks(describeParams)
-	if err != nil {
-		return err
-	}
-
-	if len(resp.Stacks) == 1 {
+	// Ignore the error because the error indicates that the stack is missing
+	if err == nil && len(resp.Stacks) == 1 {
 		return nil
 	}
 
