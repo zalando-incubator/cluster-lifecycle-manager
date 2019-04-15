@@ -35,7 +35,7 @@ func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, clus
 	return nil
 }
 
-func (p *mockProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
 	return nil
 }
 
@@ -49,7 +49,7 @@ func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, c
 	return fmt.Errorf("failed to provision")
 }
 
-func (p *mockErrProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
 	return fmt.Errorf("failed to decommission")
 }
 
@@ -73,7 +73,7 @@ func MockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mockRegist
 		status = &api.ClusterStatus{}
 	}
 	cluster := &api.Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
+		ID:                    "aws:123456789012:eu-central-1:kube-1",
 		InfrastructureAccount: "aws:123456789012",
 		Channel:               "alpha",
 		LifecycleStatus:       lifecycleStatus,
