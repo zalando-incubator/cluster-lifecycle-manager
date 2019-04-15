@@ -1,4 +1,3 @@
 build/
-vendor/
 pkg/cluster-registry
 **/bindata.go
