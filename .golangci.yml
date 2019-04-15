@@ -3,12 +3,6 @@ linters-settings:
   golint:
     min-confidence: 0.9
 
-skip-dirs:
-    - pkg/cluster-registry/models
-    - pkg/cluster-registry/client
-    - pkg/cluster-registry/client/clusters
-    - pkg/cluster-registry/client/infrastructure_accounts
-
 linters:
   disable-all: true
   enable:

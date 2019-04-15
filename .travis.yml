@@ -16,7 +16,7 @@ before_install:
 
 script:
   - make build.docker
-  - make lint
   - make test
+  - make lint
   - roveralls
   - goveralls -v -coverprofile=roveralls.coverprofile -service=travis-ci
