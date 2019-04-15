@@ -1,7 +1,10 @@
 run:
 linters-settings:
   golint:
-      min-confidence: 0.9
+    min-confidence: 0.9
+
+skip-dirs:
+    - pkg/cluster-registry
 
 linters:
   disable-all: true
