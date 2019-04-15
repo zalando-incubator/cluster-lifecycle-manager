@@ -61,7 +61,7 @@ func permute(value interface{}, field string) error {
 
 func sampleCluster() *Cluster {
 	return &Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
+		ID:                    "aws:123456789012:eu-central-1:kube-1",
 		InfrastructureAccount: "aws:123456789012",
 		LocalID:               "kube-1",
 		APIServerURL:          "https://kube-1.foo.example.org/",

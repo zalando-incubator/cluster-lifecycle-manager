@@ -163,13 +163,13 @@ func convertFromClusterModel(cluster *models.Cluster) (*api.Cluster, error) {
 	}
 
 	return &api.Cluster{
-		Alias:            *cluster.Alias,
-		APIServerURL:     *cluster.APIServerURL,
-		Channel:          *cluster.Channel,
-		ConfigItems:      cluster.ConfigItems,
-		CriticalityLevel: *cluster.CriticalityLevel,
-		Environment:      *cluster.Environment,
-		ID:               *cluster.ID,
+		Alias:                 *cluster.Alias,
+		APIServerURL:          *cluster.APIServerURL,
+		Channel:               *cluster.Channel,
+		ConfigItems:           cluster.ConfigItems,
+		CriticalityLevel:      *cluster.CriticalityLevel,
+		Environment:           *cluster.Environment,
+		ID:                    *cluster.ID,
 		InfrastructureAccount: *cluster.InfrastructureAccount,
 		LifecycleStatus:       *cluster.LifecycleStatus,
 		LocalID:               *cluster.LocalID,

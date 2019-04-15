@@ -106,7 +106,7 @@ func loadInstanceInfo() map[string]Instance {
 	result := make(map[string]Instance)
 
 	for _, instance := range instanceInfo {
-		vCPU := int64(0)
+		var vCPU int64
 		switch v := instance.VCPU.(type) {
 		case float64:
 			vCPU = int64(v)

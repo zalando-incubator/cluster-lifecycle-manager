@@ -278,7 +278,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	err = createOrUpdateClusterStack(awsAdapter, ctx, cfgBasePath, cluster, values, bucketName)
+	err = createOrUpdateClusterStack(ctx, awsAdapter, cfgBasePath, cluster, values, bucketName)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ type clusterStackParams struct {
 	Values  map[string]interface{}
 }
 
-func createOrUpdateClusterStack(awsAdapter *awsAdapter, ctx context.Context, baseDir string, cluster *api.Cluster, values map[string]interface{}, bucketName string) error {
+func createOrUpdateClusterStack(ctx context.Context, awsAdapter *awsAdapter, baseDir string, cluster *api.Cluster, values map[string]interface{}, bucketName string) error {
 	params := &clusterStackParams{
 		Cluster: cluster,
 		Values:  values,

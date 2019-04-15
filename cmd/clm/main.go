@@ -170,7 +170,7 @@ func startHTTPServer(listen string) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	http.ListenAndServe(listen, nil)
+	log.Fatal(http.ListenAndServe(listen, nil))
 }
 
 func handleSigterm(cancelFunc func()) {

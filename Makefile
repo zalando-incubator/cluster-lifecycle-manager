@@ -31,6 +31,9 @@ test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 	$(GO) vet -v $(GOPKGS)
 	staticcheck $(GOPKGS)
 
+lint:
+	golangci-lint run ./...
+
 fmt:
 	$(GO) fmt $(GOPKGS)
 

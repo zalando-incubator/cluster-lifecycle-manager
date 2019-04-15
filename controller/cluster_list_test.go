@@ -128,10 +128,9 @@ func allClusterIds(clusterList *ClusterList) []string {
 				clusterList.ClusterProcessed(info)
 			}
 			return result
-		} else {
-			clusters = append(clusters, clusterInfo)
-			result = append(result, clusterInfo.Cluster.ID)
 		}
+		clusters = append(clusters, clusterInfo)
+		result = append(result, clusterInfo.Cluster.ID)
 	}
 }
 

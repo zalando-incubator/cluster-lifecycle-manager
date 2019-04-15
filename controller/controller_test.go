@@ -73,7 +73,7 @@ func MockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mockRegist
 		status = &api.ClusterStatus{}
 	}
 	cluster := &api.Cluster{
-		ID: "aws:123456789012:eu-central-1:kube-1",
+		ID:                    "aws:123456789012:eu-central-1:kube-1",
 		InfrastructureAccount: "aws:123456789012",
 		Channel:               "alpha",
 		LifecycleStatus:       lifecycleStatus,
@@ -199,7 +199,7 @@ func TestProcessCluster(t *testing.T) {
 			continue
 		}
 
-		err = controller.doProcessCluster(defaultLogger, ctx, next)
+		err = controller.doProcessCluster(ctx, defaultLogger, next)
 		if ti.success {
 			assert.NoError(t, err, ti.testcase)
 		} else {

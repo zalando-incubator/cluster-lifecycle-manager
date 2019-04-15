@@ -139,7 +139,7 @@ func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Context, clusterInfo *ClusterInfo) error {
+func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Entry, clusterInfo *ClusterInfo) (rerr error) {
 	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
@@ -154,7 +154,12 @@ func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Conte
 	if err != nil {
 		return err
 	}
-	defer c.channelConfigSourcer.Delete(logger, config)
+	defer func() {
+		err := c.channelConfigSourcer.Delete(logger, config)
+		if err != nil {
+			rerr = err
+		}
+	}()
 
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
@@ -203,7 +208,7 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 
 	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
-	err := c.doProcessCluster(clusterLog, updateCtx, clusterInfo)
+	err := c.doProcessCluster(updateCtx, clusterLog, clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {

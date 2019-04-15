@@ -59,10 +59,16 @@ spec:
             memory: 25Mi`
 
 func TestApplyTemplate(t *testing.T) {
-	ioutil.WriteFile("test_hashed", []byte(hashedTmpl), 0666)
+	err := ioutil.WriteFile("test_hashed", []byte(hashedTmpl), 0666)
+	if err != nil {
+		t.Errorf("should not fail %v", err)
+	}
 	defer os.Remove("test_hashed")
 
-	ioutil.WriteFile("test_template", []byte(tmpl), 0666)
+	err = ioutil.WriteFile("test_template", []byte(tmpl), 0666)
+	if err != nil {
+		t.Errorf("should not fail %v", err)
+	}
 	defer os.Remove("test_template")
 
 	cdir, err := os.Getwd()
@@ -120,10 +126,12 @@ func TestApplyTemplate(t *testing.T) {
 const tmplFunc = `{{ .ConfigItems.my_value | base64 }}`
 
 func TestApplyTemplateBase64Fun(t *testing.T) {
-	ioutil.WriteFile("test_hashed", []byte(hashedTmpl), 0666)
+	err := ioutil.WriteFile("test_hashed", []byte(hashedTmpl), 0666)
+	require.NoError(t, err)
 	defer os.Remove("test_hashed")
 
-	ioutil.WriteFile("test_template", []byte(tmplFunc), 0666)
+	err = ioutil.WriteFile("test_template", []byte(tmplFunc), 0666)
+	require.NoError(t, err)
 	defer os.Remove("test_template")
 
 	cdir, err := os.Getwd()

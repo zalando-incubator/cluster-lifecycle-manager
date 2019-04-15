@@ -179,9 +179,8 @@ func effectiveQuantity(instanceResource int64, scale float64, reservedResource i
 	withoutReserved := instanceResource - reservedResource
 	if scaledResource < withoutReserved {
 		return scaledResource
-	} else {
-		return withoutReserved
 	}
+	return withoutReserved
 }
 
 // renderTemplate takes a fileName of a template and the model to apply to it.
