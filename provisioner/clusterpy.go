@@ -450,8 +450,14 @@ func selectSubnetIDs(subnets []*ec2.Subnet) map[string]string {
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
-func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
-	awsAdapter, _, _, err := p.prepareProvision(logger, cluster, channelConfig)
+func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
+	if cluster.Provider != providerID {
+		return ErrProviderNotSupported
+	}
+
+	logger.Infof("Decommissioning cluster: %s (%s)", cluster.Alias, cluster.ID)
+
+	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
 	if err != nil {
 		return err
 	}
@@ -566,6 +572,40 @@ func waitForAPIServer(logger *log.Entry, server string, maxTimeout time.Duration
 	return fmt.Errorf("'%s' was not ready after %s", server, maxTimeout.String())
 }
 
+// setupAWSAdapter sets up the AWS Adapter used for communicating with AWS.
+func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.Cluster) (*awsAdapter, error) {
+	infrastructureAccount := strings.Split(cluster.InfrastructureAccount, ":")
+	if len(infrastructureAccount) != 2 {
+		return nil, fmt.Errorf("clusterpy: Unknown format for infrastructure account '%s", cluster.InfrastructureAccount)
+	}
+
+	if infrastructureAccount[0] != "aws" {
+		return nil, fmt.Errorf("clusterpy: Cannot work with cloud provider '%s", infrastructureAccount[0])
+	}
+
+	roleArn := p.assumedRole
+	if roleArn != "" {
+		roleArn = fmt.Sprintf("arn:aws:iam::%s:role/%s", infrastructureAccount[1], p.assumedRole)
+	}
+
+	sess, err := awsUtils.Session(p.awsConfig, roleArn)
+	if err != nil {
+		return nil, err
+	}
+
+	adapter, err := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.tokenSource, p.dryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	return adapter, nil
+}
+
 // prepareProvision checks that a cluster can be handled by the provisioner and
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should
@@ -577,33 +617,9 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
 
-	infrastructureAccount := strings.Split(cluster.InfrastructureAccount, ":")
-	if len(infrastructureAccount) != 2 {
-		return nil, nil, nil, fmt.Errorf("clusterpy: Unknown format for infrastructure account '%s", cluster.InfrastructureAccount)
-	}
-
-	if infrastructureAccount[0] != "aws" {
-		return nil, nil, nil, fmt.Errorf("clusterpy: Cannot work with cloud provider '%s", infrastructureAccount[0])
-	}
-
-	roleArn := p.assumedRole
-	if roleArn != "" {
-		roleArn = fmt.Sprintf("arn:aws:iam::%s:role/%s", infrastructureAccount[1], p.assumedRole)
-	}
-
-	sess, err := awsUtils.Session(p.awsConfig, roleArn)
+	adapter, err := p.setupAWSAdapter(logger, cluster)
 	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	adapter, err := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.tokenSource, p.dryRun)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
-	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
 	err = p.updateDefaults(cluster, channelConfig)
@@ -660,7 +676,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		}
 	}
 
-	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, sess)
+	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig)
 
 	var updater updatestrategy.UpdateStrategy

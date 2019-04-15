@@ -177,7 +177,7 @@ func (c *Controller) doProcessCluster(logger *log.Entry, updateCtx context.Conte
 		cluster.Status.NextVersion = ""
 		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
-		err = c.provisioner.Decommission(logger, cluster, config)
+		err = c.provisioner.Decommission(logger, cluster)
 		if err != nil {
 			return err
 		}
