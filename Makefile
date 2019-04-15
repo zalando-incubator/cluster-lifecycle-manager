@@ -29,7 +29,6 @@ clean:
 test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 	$(GO) test -v -race $(GOPKGS)
 	$(GO) vet -v $(GOPKGS)
-	staticcheck $(GOPKGS)
 
 lint:
 	golangci-lint run ./...
