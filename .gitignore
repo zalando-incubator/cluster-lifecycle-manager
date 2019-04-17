@@ -1,3 +1,2 @@
 build/
 pkg/cluster-registry/client
-**/bindata.go
