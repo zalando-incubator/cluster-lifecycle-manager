@@ -31,7 +31,7 @@ test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 	$(GO) vet -v $(GOPKGS)
 
 lint:
-	golangci-lint run ./...
+	go mod download && make && golangci-lint run ./...
 
 fmt:
 	$(GO) fmt $(GOPKGS)
