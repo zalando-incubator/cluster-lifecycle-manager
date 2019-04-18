@@ -13,6 +13,7 @@ import (
 	"net"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -156,7 +157,19 @@ func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool,
 // otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools, scales
 // it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
 // the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
-func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
+// TODO use the proper type for the argument
+func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error) {
+	var cluster *api.Cluster
+
+	switch v := clusterOrData.(type) {
+	case *api.Cluster:
+		cluster = v
+	case *templateData:
+		cluster = v.Cluster
+	default:
+		return nil, fmt.Errorf("autoscalingBufferSettings: expected *api.Cluster or *templateData, got %s", reflect.TypeOf(clusterOrData))
+	}
+
 	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
 	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
 
