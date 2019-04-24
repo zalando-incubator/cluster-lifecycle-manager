@@ -46,21 +46,9 @@ type AWSNodePoolProvisioner struct {
 	bucketName      string
 	cfgBaseDir      string
 	Cluster         *api.Cluster
+	azInfo          *AZInfo
+	templateContext *templateContext
 	logger          *log.Entry
-}
-
-// stackParams defined the parameters expected by a node pool stack template.
-type stackParams struct {
-	Cluster  *api.Cluster
-	NodePool *api.NodePool
-	UserData string
-	Values   map[string]interface{}
-}
-
-type userDataParams struct {
-	Cluster  *api.Cluster
-	NodePool *api.NodePool
-	Values   map[string]interface{}
 }
 
 func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
@@ -74,27 +62,17 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 		return "", fmt.Errorf("failed to find configuration for node pool profile '%s'", nodePool.Profile)
 	}
 
-	userDataParams := &userDataParams{
-		Cluster:  p.Cluster,
-		NodePool: nodePool,
-		Values:   values,
-	}
+	templateCtx := p.templateContext.Copy(nodePool, values, p.templateContext.userData)
 
 	userDataPath := path.Join(nodePoolProfilesPath, userDataFileName)
-	renderedUserData, err := p.prepareUserData(nodePoolProfilesPath, userDataPath, userDataParams)
+	renderedUserData, err := p.prepareUserData(templateCtx, userDataPath)
 	if err != nil {
 		return "", err
 	}
 
-	params := &stackParams{
-		Cluster:  p.Cluster,
-		NodePool: nodePool,
-		UserData: renderedUserData,
-		Values:   values,
-	}
-
+	templateCtx = templateCtx.Copy(nodePool, values, renderedUserData)
 	stackFilePath := path.Join(nodePoolProfilesPath, stackFileName)
-	return renderTemplate(newTemplateContext(nodePoolProfilesPath), stackFilePath, params)
+	return renderTemplate(templateCtx, stackFilePath)
 }
 
 // Provision provisions node pools of the cluster.
@@ -164,6 +142,13 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 		return err
 	}
 	values["instance_info"] = instanceInfo
+
+	// handle AZ overrides for the node pool
+	if azNames, ok := nodePool.ConfigItems[availabilityZonesConfigItemKey]; ok {
+		azInfo := p.azInfo.RestrictAZs(strings.Split(azNames, ","))
+		values[subnetsValueKey] = azInfo.SubnetsByAZ()
+		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
+	}
 
 	template, err := p.generateNodePoolStackTemplate(nodePool, values)
 	if err != nil {
@@ -253,8 +238,8 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 // prepareUserData prepares the user data by rendering the golang template
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config interface{}) (string, error) {
-	rendered, err := renderTemplate(newTemplateContext(basedir), clcPath, config)
+func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, clcPath string) (string, error) {
+	rendered, err := renderTemplate(templateCtx, clcPath)
 	if err != nil {
 		return "", err
 	}

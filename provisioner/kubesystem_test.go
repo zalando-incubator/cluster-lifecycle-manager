@@ -67,13 +67,13 @@ func TestApplyTemplate(t *testing.T) {
 
 	cdir, err := os.Getwd()
 	require.NoError(t, err)
-	context := newTemplateContext(cdir)
 
 	region := "eu-central"
 	localID := "kube-aws-test-rdifazio55"
 	cluster := &api.Cluster{Region: region, LocalID: localID}
+	context := newTemplateContext(cdir, cluster, nil, nil, "")
 
-	_, err = renderTemplate(context, "test_template", cluster)
+	_, err = renderTemplate(context, "test_template")
 	if err == nil {
 		t.Errorf("should fail, mate hosted zone configitems are not passed!")
 	}
@@ -81,7 +81,7 @@ func TestApplyTemplate(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"mate_hosted_zone": "hosted-zone",
 	}
-	s, err := renderTemplate(context, "test_template", cluster)
+	s, err := renderTemplate(context, "test_template")
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
@@ -128,7 +128,6 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 
 	cdir, err := os.Getwd()
 	require.NoError(t, err)
-	context := newTemplateContext(cdir)
 
 	value := "value"
 
@@ -136,7 +135,9 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"my_value": value,
 	}
-	s, err := renderTemplate(context, "test_template", cluster)
+	context := newTemplateContext(cdir, cluster, nil, nil, "")
+
+	s, err := renderTemplate(context, "test_template")
 	if err != nil {
 		t.Errorf("should not fail %v", err)
 	}
@@ -198,11 +199,13 @@ func TestParseDeletions(t *testing.T) {
 		},
 	}
 
-	deletions, err := parseDeletions(exampleCluster, ".")
+	context := newTemplateContext(".", exampleCluster, nil, nil, "")
+
+	deletions, err := parseDeletions(context, deletionsFile)
 	require.NoError(t, err)
 	require.EqualValues(t, expected, deletions)
 
 	// test not getting an error if file doesn't exists
-	_, err = parseDeletions(exampleCluster, "invalid_folder")
+	_, err = parseDeletions(context, "missing.yaml")
 	require.NoError(t, err)
 }

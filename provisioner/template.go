@@ -13,6 +13,7 @@ import (
 	"net"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -38,7 +39,39 @@ const (
 type templateContext struct {
 	manifestData          map[string]string
 	baseDir               string
+	cluster               *api.Cluster
+	nodePool              *api.NodePool
+	values                map[string]interface{}
+	userData              string
 	computingManifestHash bool
+}
+
+type templateData struct {
+	// From api.Cluster, drop after we migrate all Kubernetes manifests
+	Alias                 string
+	APIServerURL          string
+	Channel               string
+	ConfigItems           map[string]string
+	CriticalityLevel      int32
+	Environment           string
+	ID                    string
+	InfrastructureAccount string
+	LifecycleStatus       string
+	LocalID               string
+	NodePools             []*api.NodePool
+	Region                string
+	Owner                 string
+
+	// Available everywhere
+	Cluster *api.Cluster
+
+	// Available everywhere except defaults
+	Values map[string]interface{}
+
+	// Available in node pool templates
+	NodePool *api.NodePool
+
+	UserData string
 }
 
 type podResources struct {
@@ -46,10 +79,26 @@ type podResources struct {
 	Memory string
 }
 
-func newTemplateContext(baseDir string) *templateContext {
+func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
 	return &templateContext{
 		baseDir:      baseDir,
 		manifestData: make(map[string]string),
+		cluster:      cluster,
+		nodePool:     nodePool,
+		values:       values,
+		userData:     userData,
+	}
+}
+
+func (ctx *templateContext) Copy(pool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
+	return &templateContext{
+		baseDir:               ctx.baseDir,
+		manifestData:          make(map[string]string),
+		cluster:               ctx.cluster,
+		nodePool:              pool,
+		values:                values,
+		userData:              userData,
+		computingManifestHash: false,
 	}
 }
 
@@ -108,7 +157,19 @@ func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool,
 // otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools, scales
 // it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
 // the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
-func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
+// TODO use the proper type for the argument
+func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error) {
+	var cluster *api.Cluster
+
+	switch v := clusterOrData.(type) {
+	case *api.Cluster:
+		cluster = v
+	case *templateData:
+		cluster = v.Cluster
+	default:
+		return nil, fmt.Errorf("autoscalingBufferSettings: expected *api.Cluster or *templateData, got %s", reflect.TypeOf(clusterOrData))
+	}
+
 	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
 	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
 
@@ -184,14 +245,14 @@ func effectiveQuantity(instanceResource int64, scale float64, reservedResource i
 	}
 }
 
-// renderTemplate takes a fileName of a template and the model to apply to it.
+// renderTemplate takes a fileName of a template in the context and the model to apply to it.
 // returns the transformed template or an error if not successful
-func renderTemplate(context *templateContext, filePath string, data interface{}) (string, error) {
+func renderTemplate(context *templateContext, filePath string) (string, error) {
 	funcMap := template.FuncMap{
 		"getAWSAccountID":           getAWSAccountID,
 		"base64":                    base64Encode,
 		"base64Decode":              base64Decode,
-		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
+		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
 		"azID":                      azID,
@@ -213,7 +274,25 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		return "", err
 	}
 	var out bytes.Buffer
-	err = t.Execute(&out, data)
+	err = t.Execute(&out, &templateData{
+		Alias:                 context.cluster.Alias,
+		APIServerURL:          context.cluster.APIServerURL,
+		Channel:               context.cluster.Channel,
+		ConfigItems:           context.cluster.ConfigItems,
+		CriticalityLevel:      context.cluster.CriticalityLevel,
+		Environment:           context.cluster.Environment,
+		ID:                    context.cluster.ID,
+		InfrastructureAccount: context.cluster.InfrastructureAccount,
+		LifecycleStatus:       context.cluster.LifecycleStatus,
+		LocalID:               context.cluster.LocalID,
+		NodePools:             context.cluster.NodePools,
+		Region:                context.cluster.Region,
+		Owner:                 context.cluster.Owner,
+		Cluster:               context.cluster,
+		Values:                context.values,
+		NodePool:              context.nodePool,
+		UserData:              context.userData,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -227,7 +306,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 // manifestHash is a function for the templates that will return a hash of an interpolated sibling template
 // file. returns an error if computing manifestHash calls manifestHash again, if interpolation of that template
 // returns an error, or if the path is outside of the manifests folder.
-func manifestHash(context *templateContext, file string, template string, data interface{}) (string, error) {
+func manifestHash(context *templateContext, file string, template string) (string, error) {
 	if context.computingManifestHash {
 		return "", fmt.Errorf("manifestHash is not reentrant")
 	}
@@ -247,7 +326,7 @@ func manifestHash(context *templateContext, file string, template string, data i
 
 	templateData, ok := context.manifestData[templateFile]
 	if !ok {
-		applied, err := renderTemplate(context, templateFile, data)
+		applied, err := renderTemplate(context, templateFile)
 		if err != nil {
 			return "", err
 		}
@@ -291,11 +370,11 @@ func base64Decode(value string) (string, error) {
 // node pool size and the amount of ASGs in the pool. Current implementation just divides
 // and returns an error if the pool size is not an exact multiple, but maybe it's not the
 // best one.
-func asgSize(poolSize, asgPerPool int64) (int64, error) {
-	if poolSize%asgPerPool != 0 {
+func asgSize(poolSize int64, asgPerPool int) (int, error) {
+	if int(poolSize)%asgPerPool != 0 {
 		return 0, fmt.Errorf("pool size must be an exact multiple of %d", asgPerPool)
 	}
-	return poolSize / asgPerPool, nil
+	return int(poolSize) / asgPerPool, nil
 }
 
 // azID returns the last part of the availability zone name (1c for eu-central-1c)
@@ -305,8 +384,8 @@ func azID(azName string) string {
 }
 
 // azCount returns the count of availability zones in the subnet map
-func azCount(subnets map[string]string) int64 {
-	var result int64
+func azCount(subnets map[string]string) int {
+	var result int
 	for k := range subnets {
 		if k != subnetAllAZName {
 			result++
