@@ -255,8 +255,8 @@ func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, n
 
 // prepareCloudInit prepares the user data by rendering the golang template.
 // A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(templateCtx *templateContext, clcPath string) (string, error) {
-	rendered, err := renderTemplate(templateCtx, clcPath)
+func (p *AWSNodePoolProvisioner) prepareCloudInit(templateCtx *templateContext, cloudInitPath string) (string, error) {
+	rendered, err := renderTemplate(templateCtx, cloudInitPath)
 	if err != nil {
 		return "", err
 	}
