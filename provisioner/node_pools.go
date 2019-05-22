@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	userDataFileName      = "userdata.clc.yaml"
+	clcFileName           = "userdata.clc.yaml"
+	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
 	nodePoolTagKeyLegacy  = "NodePool"
 	nodePoolTagKey        = "kubernetes.io/node-pool"
@@ -63,9 +64,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 	}
 
 	templateCtx := p.templateContext.Copy(nodePool, values, p.templateContext.userData)
-
-	userDataPath := path.Join(nodePoolProfilesPath, userDataFileName)
-	renderedUserData, err := p.prepareUserData(templateCtx, userDataPath)
+	renderedUserData, err := p.prepareUserData(templateCtx, nodePoolProfilesPath)
 	if err != nil {
 		return "", err
 	}
@@ -235,10 +234,40 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-// prepareUserData prepares the user data by rendering the golang template
+// prepareUserData provisions and returns the UserData for a given node pool path.
+// It detects whether CloudInit or Container Linux Config (CLC) is used:
+// * CloudInit is rendered and returned.
+// * CLC is rendered, converted to Ignition, uploadeded to S3 and an Ignition file referencing the
+// uploaded file is returned.
+func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, nodePoolProfilesPath string) (string, error) {
+	clcPath := path.Join(nodePoolProfilesPath, clcFileName)
+	if _, err := os.Stat(clcPath); err == nil {
+		return p.prepareCLC(templateCtx, clcPath)
+	}
+
+	cloudInitPath := path.Join(nodePoolProfilesPath, cloudInitFileName)
+	if _, err := os.Stat(cloudInitPath); err == nil {
+		return p.prepareCloudInit(templateCtx, cloudInitPath)
+	}
+
+	return "", fmt.Errorf("no userdata file at '%s' nor '%s' found", clcPath, cloudInitPath)
+}
+
+// prepareCloudInit prepares the user data by rendering the golang template.
+// A EC2 UserData ready base64 string will be returned.
+func (p *AWSNodePoolProvisioner) prepareCloudInit(templateCtx *templateContext, clcPath string) (string, error) {
+	rendered, err := renderTemplate(templateCtx, clcPath)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(rendered)), nil
+}
+
+// prepareCLC prepares the user data by rendering the golang template
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, clcPath string) (string, error) {
+func (p *AWSNodePoolProvisioner) prepareCLC(templateCtx *templateContext, clcPath string) (string, error) {
 	rendered, err := renderTemplate(templateCtx, clcPath)
 	if err != nil {
 		return "", err
