@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -263,6 +264,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"portRanges":                portRanges,
 		"splitHostPort":             splitHostPort,
 		"publicKey":                 publicKey,
+		"stupsNATSubnets":           stupsNATSubnets,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -486,4 +488,62 @@ func publicKey(privateKey string) (string, error) {
 		Bytes: der,
 	}
 	return string(pem.EncodeToMemory(&block)), nil
+}
+
+// subdivide divides a network into smaller /size subnetworks
+func subdivide(network *net.IPNet, size int) ([]*net.IPNet, error) {
+	subnetSize, addrSize := network.Mask.Size()
+	if addrSize != 32 {
+		return nil, fmt.Errorf("only ipv4 subnets are supported, got %s", network)
+	}
+	if size < subnetSize || subnetSize > addrSize {
+		return nil, fmt.Errorf("subnet must be between /%d and /32", subnetSize)
+	}
+	newMask := net.CIDRMask(size, addrSize)
+
+	var addrCountOriginal uint32 = 1 << (uint(addrSize) - uint(subnetSize)) // addresses in the original network
+	var addrCountSubdivided uint32 = 1 << (uint(addrSize) - uint(size))     // addresses in the subnets
+
+	var result []*net.IPNet
+	for i := uint32(0); i < addrCountOriginal/addrCountSubdivided; i++ {
+		// add i * addrCountSubdivided to the initial IP address
+		newIp := make([]byte, 4)
+		binary.BigEndian.PutUint32(newIp, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
+
+		result = append(result, &net.IPNet{
+			IP:   newIp,
+			Mask: newMask,
+		})
+	}
+	return result, nil
+}
+
+// given a VPC CIDR block, return a comma-separated list of <count> NAT subnets from the STUPS setup
+func stupsNATSubnets(vpcCidr string) (string, error) {
+	_, vpcNet, err := net.ParseCIDR(vpcCidr)
+	if err != nil {
+		return "", err
+	}
+
+	// subdivide the network into /size+2 subnets first, take the second one
+	subnetSize, _ := vpcNet.Mask.Size()
+	if subnetSize == 0 || subnetSize > 24 {
+		return "", fmt.Errorf("invalid subnet, expecting at least /24: %s", vpcNet)
+	}
+
+	addrs, err := subdivide(vpcNet, subnetSize+2)
+	if err != nil {
+		return "", err
+	}
+
+	natNetworks, err := subdivide(addrs[1], 28)
+	if err != nil {
+		return "", err
+	}
+
+	var result []string
+	for i := 0; i < 3; i++ {
+		result = append(result, natNetworks[i].String())
+	}
+	return strings.Join(result, ","), nil
 }
