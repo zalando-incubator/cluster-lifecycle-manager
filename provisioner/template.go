@@ -519,31 +519,31 @@ func subdivide(network *net.IPNet, size int) ([]*net.IPNet, error) {
 }
 
 // given a VPC CIDR block, return a comma-separated list of <count> NAT subnets from the STUPS setup
-func stupsNATSubnets(vpcCidr string) (string, error) {
+func stupsNATSubnets(vpcCidr string) ([]string, error) {
 	_, vpcNet, err := net.ParseCIDR(vpcCidr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// subdivide the network into /size+2 subnets first, take the second one
 	subnetSize, _ := vpcNet.Mask.Size()
 	if subnetSize == 0 || subnetSize > 24 {
-		return "", fmt.Errorf("invalid subnet, expecting at least /24: %s", vpcNet)
+		return nil, fmt.Errorf("invalid subnet, expecting at least /24: %s", vpcNet)
 	}
 
 	addrs, err := subdivide(vpcNet, subnetSize+2)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	natNetworks, err := subdivide(addrs[1], 28)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var result []string
 	for i := 0; i < 3; i++ {
 		result = append(result, natNetworks[i].String())
 	}
-	return strings.Join(result, ","), nil
+	return result, nil
 }

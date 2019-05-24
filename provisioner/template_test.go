@@ -472,21 +472,21 @@ func TestStupsNATSubnets(t *testing.T) {
 	}{
 		{
 			vpc:     "172.31.0.0/16",
-			subnets: "172.31.64.0/28,172.31.64.16/28,172.31.64.32/28",
+			subnets: "172.31.64.0/28 172.31.64.16/28 172.31.64.32/28 ",
 		},
 		{
 			vpc:     "10.153.192.0/19",
-			subnets: "10.153.200.0/28,10.153.200.16/28,10.153.200.32/28",
+			subnets: "10.153.200.0/28 10.153.200.16/28 10.153.200.32/28 ",
 		},
 
 		{
 			vpc:     "10.149.64.0/19",
-			subnets: "10.149.72.0/28,10.149.72.16/28,10.149.72.32/28",
+			subnets: "10.149.72.0/28 10.149.72.16/28 10.149.72.32/28 ",
 		},
 	} {
 		result, err := renderSingle(
 			t,
-			`{{ stupsNATSubnets .Values.data }}`,
+			`{{ range $elem := stupsNATSubnets .Values.data }}{{$elem}} {{ end }}`,
 			tc.vpc)
 
 		require.NoError(t, err)
