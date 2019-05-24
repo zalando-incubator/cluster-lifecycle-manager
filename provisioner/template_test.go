@@ -464,3 +464,46 @@ DwIDAQAB
 	require.NoError(t, err)
 	require.EqualValues(t, pubkey, result)
 }
+
+func TestStupsNATSubnets(t *testing.T) {
+	for _, tc := range []struct {
+		vpc     string
+		subnets string
+	}{
+		{
+			vpc:     "172.31.0.0/16",
+			subnets: "172.31.64.0/28,172.31.64.16/28,172.31.64.32/28",
+		},
+		{
+			vpc:     "10.153.192.0/19",
+			subnets: "10.153.200.0/28,10.153.200.16/28,10.153.200.32/28",
+		},
+
+		{
+			vpc:     "10.149.64.0/19",
+			subnets: "10.149.72.0/28,10.149.72.16/28,10.149.72.32/28",
+		},
+	} {
+		result, err := renderSingle(
+			t,
+			`{{ stupsNATSubnets .Values.data }}`,
+			tc.vpc)
+
+		require.NoError(t, err)
+		require.EqualValues(t, tc.subnets, result)
+	}
+}
+
+func TestStupsNATSubnetsErrors(t *testing.T) {
+	for _, vpc := range []string{
+		"172.31.0.0/25",
+		"2001::/19",
+		"example",
+	} {
+		_, err := renderSingle(
+			t,
+			`{{ stupsNATSubnets .Values.data }}`,
+			vpc)
+		require.Error(t, err)
+	}
+}
