@@ -45,6 +45,7 @@ type templateContext struct {
 	values                map[string]interface{}
 	userData              string
 	computingManifestHash bool
+	s3GeneratedFilesPath  string
 }
 
 type templateData struct {
@@ -73,6 +74,9 @@ type templateData struct {
 	NodePool *api.NodePool
 
 	UserData string
+
+	// Path to the generated files uploaded to S3
+	S3GeneratedFilesPath string
 }
 
 type podResources struct {
@@ -294,6 +298,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		Values:                context.values,
 		NodePool:              context.nodePool,
 		UserData:              context.userData,
+		S3GeneratedFilesPath:  context.s3GeneratedFilesPath,
 	})
 	if err != nil {
 		return "", err

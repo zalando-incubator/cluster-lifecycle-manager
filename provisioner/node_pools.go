@@ -1,7 +1,9 @@
 package provisioner
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha512"
 	"encoding/base64"
@@ -20,16 +22,19 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"gopkg.in/yaml.v2"
 )
 
 const (
 	clcFileName           = "userdata.clc.yaml"
 	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
+	filesTemplateName     = "files.yaml"
 	nodePoolTagKeyLegacy  = "NodePool"
 	nodePoolTagKey        = "kubernetes.io/node-pool"
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
+	defaultSSLPermissions = 0400
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -247,21 +252,38 @@ func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, n
 
 	cloudInitPath := path.Join(nodePoolProfilesPath, cloudInitFileName)
 	if _, err := os.Stat(cloudInitPath); err == nil {
-		return p.prepareCloudInit(templateCtx, cloudInitPath)
+		return p.prepareCloudInit(nodePoolProfilesPath, templateCtx, cloudInitPath)
 	}
 
 	return "", fmt.Errorf("no userdata file at '%s' nor '%s' found", clcPath, cloudInitPath)
 }
 
 // prepareCloudInit prepares the user data by rendering the golang template.
+// It also uploads the dynamically generated files needed for the nodes in the pool
 // A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(templateCtx *templateContext, cloudInitPath string) (string, error) {
+func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, templateCtx *templateContext, cloudInitPath string) (string, error) {
+	s3Path, err := p.renderUploadGeneratedFiles(templateCtx, nodePoolProfilesPath)
+	if err != nil {
+		return "", err
+	}
+	templateCtx.s3GeneratedFilesPath = s3Path
+	p.logger.Debugf("Uploaded generated files to %s", s3Path)
 	rendered, err := renderTemplate(templateCtx, cloudInitPath)
 	if err != nil {
 		return "", err
 	}
-
-	return base64.StdEncoding.EncodeToString([]byte(rendered)), nil
+	var gzipBuffer bytes.Buffer
+	writer := gzip.NewWriter(&gzipBuffer)
+	defer writer.Close()
+	_, err = writer.Write([]byte(rendered))
+	if err != nil {
+		return "", err
+	}
+	err = writer.Close()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
 }
 
 // prepareCLC prepares the user data by rendering the golang template
@@ -315,6 +337,50 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName 
 	}
 
 	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
+}
+
+// renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
+// files is then uploaded to S3 and the generated path is added to the template context.
+func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string) (string, error) {
+	filesTemplatePath := path.Join(nodePoolProfilePath, filesTemplateName)
+	filesRendered, err := renderTemplate(templateCtx, filesTemplatePath)
+	if err != nil {
+		return "", err
+	}
+	generatedFiles := make(map[string]string)
+	if err != nil {
+		return "", err
+	}
+	err = yaml.Unmarshal([]byte(filesRendered), &generatedFiles)
+	if err != nil {
+		return "", nil
+	}
+	var filesTar bytes.Buffer
+	gzw := gzip.NewWriter(&filesTar)
+	defer gzw.Close()
+	tarWriter := tar.NewWriter(gzw)
+	defer tarWriter.Close()
+	for key, value := range generatedFiles {
+		decoded, err := base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return "", err
+		}
+		tarWriter.WriteHeader(&tar.Header{
+			Name: key,
+			Size: int64(len(decoded)),
+			Mode: defaultSSLPermissions,
+		})
+		tarWriter.Write(decoded)
+	}
+	err = tarWriter.Close()
+	if err != nil {
+		return "", nil
+	}
+	err = gzw.Close()
+	if err != nil {
+		return "", nil
+	}
+	return p.uploadUserDataToS3(filesTar.Bytes(), p.bucketName)
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
