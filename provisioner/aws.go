@@ -19,6 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -121,6 +123,7 @@ type awsAdapter struct {
 	tokenSrc             oauth2.TokenSource
 	dryRun               bool
 	logger               *log.Entry
+	kmsClient            kmsiface.KMSAPI
 }
 
 // newAWSAdapter initializes a new awsAdapter.
@@ -139,6 +142,7 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		tokenSrc:             tokenSrc,
 		dryRun:               dryRun,
 		logger:               logger,
+		kmsClient:            kms.New(sess),
 	}, nil
 }
 

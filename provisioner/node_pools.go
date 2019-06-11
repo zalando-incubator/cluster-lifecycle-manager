@@ -1,7 +1,6 @@
 package provisioner
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -22,7 +21,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -34,13 +32,22 @@ const (
 	nodePoolTagKey        = "kubernetes.io/node-pool"
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
-	defaultSSLPermissions = 0400
+	remoteFilesKMSKey     = "RemoteFilesEncryptionKey"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
 type NodePoolProvisioner interface {
 	Provision(values map[string]string) error
 	Reconcile() error
+}
+
+type remoteData struct {
+	Files []struct {
+		Path        string `yaml:"path" json:"path"`
+		Data        string `yaml:"data" json:"data"`
+		Encrypted   bool   `yaml:"encrypted" json:"encrypted"`
+		Permissions int64  `yaml:"permissions" json:"permissions"`
+	} `yaml:"files" json:"files"`
 }
 
 // AWSNodePoolProvisioner is a node provisioner able to provision node pools
@@ -339,6 +346,19 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName 
 	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
 }
 
+func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
+	clusterStack, err := adapter.getStackByName(clusterID)
+	if err != nil {
+		return "", err
+	}
+	for _, o := range clusterStack.Outputs {
+		if *o.OutputKey == remoteFilesKMSKey {
+			return *o.OutputValue, nil
+		}
+	}
+	return "", fmt.Errorf("failed to find the encryption key: %s", remoteFilesKMSKey)
+}
+
 // renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
 // files is then uploaded to S3 and the generated path is added to the template context.
 func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string) (string, error) {
@@ -347,40 +367,16 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templat
 	if err != nil {
 		return "", err
 	}
-	generatedFiles := make(map[string]string)
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.Cluster.LocalID)
 	if err != nil {
 		return "", err
 	}
-	err = yaml.Unmarshal([]byte(filesRendered), &generatedFiles)
+	archive, err := makeArchive(filesRendered, kmsKey, p.awsAdapter.kmsClient)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
-	var filesTar bytes.Buffer
-	gzw := gzip.NewWriter(&filesTar)
-	defer gzw.Close()
-	tarWriter := tar.NewWriter(gzw)
-	defer tarWriter.Close()
-	for key, value := range generatedFiles {
-		decoded, err := base64.StdEncoding.DecodeString(value)
-		if err != nil {
-			return "", err
-		}
-		tarWriter.WriteHeader(&tar.Header{
-			Name: key,
-			Size: int64(len(decoded)),
-			Mode: defaultSSLPermissions,
-		})
-		tarWriter.Write(decoded)
-	}
-	err = tarWriter.Close()
-	if err != nil {
-		return "", nil
-	}
-	err = gzw.Close()
-	if err != nil {
-		return "", nil
-	}
-	return p.uploadUserDataToS3(filesTar.Bytes(), p.bucketName)
+
+	return p.uploadUserDataToS3(archive, p.bucketName)
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
