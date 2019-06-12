@@ -28,7 +28,7 @@ func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte
 
 		decoded, err := base64Decode(remoteFile.Data)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode data: %v for file: %s", remoteFile.Data, remoteFile.Path)
+			return nil, fmt.Errorf("failed to decode data for file: %s", remoteFile.Path)
 		}
 		if remoteFile.Encrypted {
 			output, err := kmsClient.Encrypt(&kms.EncryptInput{KeyId: &kmsKey, Plaintext: []byte(decoded)})
