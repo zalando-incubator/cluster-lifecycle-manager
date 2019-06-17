@@ -307,9 +307,12 @@ func (p *AWSNodePoolProvisioner) prepareCLC(templateCtx *templateContext, clcPat
 	if err != nil {
 		return "", fmt.Errorf("failed to parse config %s: %v", clcPath, err)
 	}
-
+	userDataHash, err := generateDataHash(ignCfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
+	}
 	// upload to s3
-	uri, err := p.uploadUserDataToS3(ignCfg, p.bucketName)
+	uri, err := p.uploadUserDataToS3(userDataHash, ignCfg, p.bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -320,9 +323,7 @@ func (p *AWSNodePoolProvisioner) prepareCLC(templateCtx *templateContext, clcPat
 	return base64.StdEncoding.EncodeToString(ignCfg), nil
 }
 
-// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
-// The S3 object will be named by the sha512 hash of the data.
-func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName string) (string, error) {
+func generateDataHash(userData []byte) (string, error) {
 	// hash the userData to use as object name
 	hasher := sha512.New()
 	_, err := hasher.Write(userData)
@@ -330,20 +331,22 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName 
 		return "", err
 	}
 	sha := hex.EncodeToString(hasher.Sum(nil))
+	return fmt.Sprintf("%s.userdata", sha), nil
+}
 
-	objectName := fmt.Sprintf("%s.userdata", sha)
-
+// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
+// The S3 object will be named by the sha512 hash of the data.
+func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userDataHash string, userData []byte, bucketName string) (string, error) {
 	// Upload the stack template to S3
-	_, err = p.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
+	_, err := p.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
+		Key:    aws.String(userDataHash),
 		Body:   bytes.NewReader(userData),
 	})
 	if err != nil {
 		return "", err
 	}
-
-	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
+	return fmt.Sprintf("s3://%s/%s", bucketName, userDataHash), nil
 }
 
 func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
@@ -375,8 +378,11 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templat
 	if err != nil {
 		return "", err
 	}
-
-	return p.uploadUserDataToS3(archive, p.bucketName)
+	userDataHash, err := generateDataHash([]byte(filesRendered))
+	if err != nil {
+		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
+	}
+	return p.uploadUserDataToS3(userDataHash, archive, p.bucketName)
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
