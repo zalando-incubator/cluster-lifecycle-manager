@@ -32,7 +32,8 @@ const (
 	nodePoolTagKey        = "kubernetes.io/node-pool"
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
-	remoteFilesKMSKey     = "RemoteFilesEncryptionKey"
+	workerFilesKMSKey     = "WorkerFilesEncryptionKey"
+	masterFilesKMSKey     = "MasterFilesEncryptionKey"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -76,7 +77,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 	}
 
 	templateCtx := p.templateContext.Copy(nodePool, values, p.templateContext.userData)
-	renderedUserData, err := p.prepareUserData(templateCtx, nodePoolProfilesPath)
+	renderedUserData, err := p.prepareUserData(templateCtx, nodePoolProfilesPath, nodePool)
 	if err != nil {
 		return "", err
 	}
@@ -251,7 +252,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 // * CloudInit is rendered and returned.
 // * CLC is rendered, converted to Ignition, uploadeded to S3 and an Ignition file referencing the
 // uploaded file is returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, nodePoolProfilesPath string) (string, error) {
+func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, nodePoolProfilesPath string, nodePool *api.NodePool) (string, error) {
 	clcPath := path.Join(nodePoolProfilesPath, clcFileName)
 	if _, err := os.Stat(clcPath); err == nil {
 		return p.prepareCLC(templateCtx, clcPath)
@@ -259,7 +260,7 @@ func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, n
 
 	cloudInitPath := path.Join(nodePoolProfilesPath, cloudInitFileName)
 	if _, err := os.Stat(cloudInitPath); err == nil {
-		return p.prepareCloudInit(nodePoolProfilesPath, templateCtx, cloudInitPath)
+		return p.prepareCloudInit(nodePoolProfilesPath, templateCtx, cloudInitPath, nodePool.Profile)
 	}
 
 	return "", fmt.Errorf("no userdata file at '%s' nor '%s' found", clcPath, cloudInitPath)
@@ -268,8 +269,8 @@ func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, n
 // prepareCloudInit prepares the user data by rendering the golang template.
 // It also uploads the dynamically generated files needed for the nodes in the pool
 // A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, templateCtx *templateContext, cloudInitPath string) (string, error) {
-	s3Path, err := p.renderUploadGeneratedFiles(templateCtx, nodePoolProfilesPath)
+func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, templateCtx *templateContext, cloudInitPath string, poolProfile string) (string, error) {
+	s3Path, err := p.renderUploadGeneratedFiles(templateCtx, nodePoolProfilesPath, poolProfile)
 	if err != nil {
 		return "", err
 	}
@@ -349,28 +350,33 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userDataHash string, userDat
 	return fmt.Sprintf("s3://%s/%s", bucketName, userDataHash), nil
 }
 
-func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
+func getPKIKMSKey(adapter *awsAdapter, clusterID string, poolProfile string) (string, error) {
 	clusterStack, err := adapter.getStackByName(clusterID)
 	if err != nil {
 		return "", err
 	}
+	stackOutput := workerFilesKMSKey
+	if strings.Contains(poolProfile, "master") {
+		stackOutput = masterFilesKMSKey
+	}
 	for _, o := range clusterStack.Outputs {
-		if *o.OutputKey == remoteFilesKMSKey {
+		if *o.OutputKey == stackOutput {
 			return *o.OutputValue, nil
 		}
 	}
-	return "", fmt.Errorf("failed to find the encryption key: %s", remoteFilesKMSKey)
+	return "", fmt.Errorf("failed to find the encryption key: %s", stackOutput)
 }
 
 // renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
 // files is then uploaded to S3 and the generated path is added to the template context.
-func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string) (string, error) {
+func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string, poolProfile string) (string, error) {
 	filesTemplatePath := path.Join(nodePoolProfilePath, filesTemplateName)
 	filesRendered, err := renderTemplate(templateCtx, filesTemplatePath)
 	if err != nil {
 		return "", err
 	}
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.Cluster.LocalID)
+
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.Cluster.LocalID, poolProfile)
 	if err != nil {
 		return "", err
 	}
