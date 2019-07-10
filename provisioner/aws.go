@@ -351,12 +351,22 @@ func cloudformationHasTags(expected map[string]string, tags []*cloudformation.Ta
 
 }
 
+func isStackDeleting(stack *cloudformation.Stack) bool {
+	switch aws.StringValue(stack.StackStatus) {
+	case cloudformation.StackStatusDeleteInProgress,
+		cloudformation.StackStatusDeleteComplete:
+		return true
+	default:
+		return false
+	}
+}
+
 // DeleteStack deletes a cloudformation stack.
 func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformation.Stack) error {
 	stackName := aws.StringValue(stack.StackName)
 	a.logger.Infof("Deleting stack '%s'", stackName)
 
-	if aws.BoolValue(stack.EnableTerminationProtection) {
+	if !isStackDeleting(stack) {
 		// disable termination protection on stack before deleting
 		terminationParams := &cloudformation.UpdateTerminationProtectionInput{
 			StackName:                   aws.String(stackName),
@@ -370,23 +380,23 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 			}
 			return err
 		}
-	}
 
-	deleteParams := &cloudformation.DeleteStackInput{
-		StackName: aws.String(stackName),
-	}
-
-	_, err := a.cloudformationClient.DeleteStack(deleteParams)
-	if err != nil {
-		if isDoesNotExistsErr(err) {
-			return nil
+		deleteParams := &cloudformation.DeleteStackInput{
+			StackName: aws.String(stackName),
 		}
-		return err
+
+		_, err = a.cloudformationClient.DeleteStack(deleteParams)
+		if err != nil {
+			if isDoesNotExistsErr(err) {
+				return nil
+			}
+			return err
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(parentCtx, maxWaitTimeout)
 	defer cancel()
-	err = a.waitForStack(ctx, waitTime, stackName)
+	err := a.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
 			return nil
