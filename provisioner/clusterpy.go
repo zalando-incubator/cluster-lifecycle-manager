@@ -472,8 +472,12 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
+	stack := &cloudformation.Stack{
+		StackName: aws.String(cluster.LocalID),
+	}
+
 	// delete the main cluster stack
-	err = awsAdapter.DeleteStack(ctx, cluster.LocalID)
+	err = awsAdapter.DeleteStack(ctx, stack)
 	if err != nil {
 		return err
 	}
@@ -781,7 +785,7 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 	for _, stack := range stacks {
 		go func(stack cloudformation.Stack, errorsc chan error) {
 			deleteStack := func() error {
-				err := adapter.DeleteStack(ctx, aws.StringValue(stack.StackName))
+				err := adapter.DeleteStack(ctx, &stack)
 				if err != nil {
 					if isWrongStackStatusErr(err) {
 						return err
