@@ -237,7 +237,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		}
 
 		// delete node pool stack
-		err = p.awsAdapter.DeleteStack(ctx, aws.StringValue(stack.StackName))
+		err = p.awsAdapter.DeleteStack(ctx, stack)
 		if err != nil {
 			return err
 		}

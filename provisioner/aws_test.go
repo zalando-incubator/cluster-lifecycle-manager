@@ -297,3 +297,14 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
 }
+
+func TestIsStackDeleting(t *testing.T) {
+	stack := &cloudformation.Stack{
+		StackStatus: aws.String(cloudformation.StackStatusDeleteInProgress),
+	}
+
+	assert.True(t, isStackDeleting(stack))
+
+	stack.StackStatus = aws.String(cloudformation.StackStatusCreateComplete)
+	assert.False(t, isStackDeleting(stack))
+}
