@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,7 @@ func (s *s3APIStub) CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketO
 }
 
 type cloudFormationAPIStub struct {
+	cloudformationiface.CloudFormationAPI
 	statusMutex         *sync.Mutex
 	status              *string
 	onDescribeStackChan chan struct{}
@@ -76,6 +78,22 @@ func (c *cloudFormationAPIStub) getStatus() *string {
 	c.statusMutex.Lock()
 	defer c.statusMutex.Unlock()
 	return c.status
+}
+
+type cloudFormationAPIStub2 struct {
+	cloudformationiface.CloudFormationAPI
+	stacks []*cloudformation.Stack
+	err    error
+}
+
+func (cf *cloudFormationAPIStub2) DescribeStacksPages(input *cloudformation.DescribeStacksInput, fn func(*cloudformation.DescribeStacksOutput, bool) bool) error {
+	if len(cf.stacks) > 0 {
+		fn(&cloudformation.DescribeStacksOutput{
+			Stacks: cf.stacks,
+		}, true)
+		return nil
+	}
+	return cf.err
 }
 
 type autoscalingAPIStub struct {
@@ -307,4 +325,86 @@ func TestIsStackDeleting(t *testing.T) {
 
 	stack.StackStatus = aws.String(cloudformation.StackStatusCreateComplete)
 	assert.False(t, isStackDeleting(stack))
+}
+
+func TestListStacks(tt *testing.T) {
+	for _, tc := range []struct {
+		msg            string
+		cloudformation cloudformationiface.CloudFormationAPI
+		includeTags    map[string]string
+		excludeTags    map[string]string
+		expectedStacks []*cloudformation.Stack
+	}{
+		{
+			msg: "no tag filter should return all stacks",
+			cloudformation: &cloudFormationAPIStub2{
+				stacks: []*cloudformation.Stack{
+					{
+						StackName: aws.String("x"),
+					},
+				},
+			},
+			includeTags: nil,
+			excludeTags: nil,
+			expectedStacks: []*cloudformation.Stack{
+				{
+					StackName: aws.String("x"),
+				},
+			},
+		},
+		{
+			msg: "include tags + exclude tags should limit the returned stacks",
+			cloudformation: &cloudFormationAPIStub2{
+				stacks: []*cloudformation.Stack{
+					{
+						StackName: aws.String("x"),
+						Tags: []*cloudformation.Tag{
+							{
+								Key:   aws.String("a"),
+								Value: aws.String("b"),
+							},
+						},
+					},
+					{
+						StackName: aws.String("y"),
+						Tags: []*cloudformation.Tag{
+							{
+								Key:   aws.String("a"),
+								Value: aws.String("b"),
+							},
+							{
+								Key:   aws.String("c"),
+								Value: aws.String("d"),
+							},
+						},
+					},
+				},
+			},
+			includeTags: map[string]string{
+				"a": "b",
+			},
+			excludeTags: map[string]string{
+				"c": "d",
+			},
+			expectedStacks: []*cloudformation.Stack{
+				{
+					StackName: aws.String("x"),
+					Tags: []*cloudformation.Tag{
+						{
+							Key:   aws.String("a"),
+							Value: aws.String("b"),
+						},
+					},
+				},
+			},
+		},
+	} {
+		tt.Run(tc.msg, func(t *testing.T) {
+			adapter := awsAdapter{
+				cloudformationClient: tc.cloudformation,
+			}
+			stacks, _ := adapter.ListStacks(tc.includeTags, tc.excludeTags)
+			assert.Equal(t, tc.expectedStacks, stacks)
+		})
+	}
 }

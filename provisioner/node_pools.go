@@ -216,7 +216,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		nodePoolRoleTagKey:                            "true",
 	}
 
-	nodePoolStacks, err := p.awsAdapter.ListStacks(tags)
+	nodePoolStacks, err := p.awsAdapter.ListStacks(tags, nil)
 	if err != nil {
 		return err
 	}

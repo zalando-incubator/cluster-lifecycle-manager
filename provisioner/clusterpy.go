@@ -52,6 +52,8 @@ const (
 	subnetELBRoleTagName           = "kubernetes.io/role/elb"
 	resourceLifecycleShared        = "shared"
 	resourceLifecycleOwned         = "owned"
+	mainStackTagKey                = "cluster-lifecycle-controller.zalando.org/main-stack"
+	stackTagValueTrue              = "true"
 	subnetsConfigItemKey           = "subnets"
 	subnetsValueKey                = "subnets"
 	availabilityZonesConfigItemKey = "availability_zones"
@@ -790,10 +792,14 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 
 // deleteClusterStacks deletes all stacks tagged by the cluster id.
 func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
-	tags := map[string]string{
+	includeTags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}
-	stacks, err := adapter.ListStacks(tags)
+	excludeTags := map[string]string{
+		mainStackTagKey: stackTagValueTrue,
+	}
+
+	stacks, err := adapter.ListStacks(includeTags, excludeTags)
 	if err != nil {
 		return err
 	}
