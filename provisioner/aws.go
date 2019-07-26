@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -67,16 +68,6 @@ var (
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
 )
 
-// cloudFormationAPI is a minimal interface containing only the methods we use from the AWS SDK for cloudformation
-type cloudFormationAPI interface {
-	DescribeStacks(input *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error)
-	CreateStack(input *cloudformation.CreateStackInput) (*cloudformation.CreateStackOutput, error)
-	UpdateStack(input *cloudformation.UpdateStackInput) (*cloudformation.UpdateStackOutput, error)
-	DeleteStack(input *cloudformation.DeleteStackInput) (*cloudformation.DeleteStackOutput, error)
-	UpdateTerminationProtection(intput *cloudformation.UpdateTerminationProtectionInput) (*cloudformation.UpdateTerminationProtectionOutput, error)
-	DescribeStacksPages(input *cloudformation.DescribeStacksInput, fn func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool) error
-}
-
 // s3API is a minimal interface containing only the methods we use from the S3 API
 type s3API interface {
 	CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketOutput, error)
@@ -111,7 +102,7 @@ type s3UploaderAPI interface {
 
 type awsAdapter struct {
 	session              *session.Session
-	cloudformationClient cloudFormationAPI
+	cloudformationClient cloudformationiface.CloudFormationAPI
 	s3Client             s3API
 	s3Uploader           s3UploaderAPI
 	autoscalingClient    autoscalingAPI
@@ -185,7 +176,18 @@ func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster 
 		templateURL = result.Location
 	}
 
-	return a.applyStack(stackName, stackTemplate, templateURL, nil, true)
+	tags := []*cloudformation.Tag{
+		{
+			Key:   aws.String(tagNameKubernetesClusterPrefix + cluster.ID),
+			Value: aws.String(resourceLifecycleOwned),
+		},
+		{
+			Key:   aws.String(mainStackTagKey),
+			Value: aws.String(stackTagValueTrue),
+		},
+	}
+
+	return a.applyStack(stackName, stackTemplate, templateURL, tags, true)
 }
 
 // applyStack applies a cloudformation stack.
@@ -310,13 +312,13 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 }
 
 // ListStacks lists stacks filtered by tags.
-func (a *awsAdapter) ListStacks(tags map[string]string) ([]*cloudformation.Stack, error) {
+func (a *awsAdapter) ListStacks(includeTags, excludeTags map[string]string) ([]*cloudformation.Stack, error) {
 	params := &cloudformation.DescribeStacksInput{}
 
 	stacks := make([]*cloudformation.Stack, 0)
 	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool {
 		for _, stack := range resp.Stacks {
-			if cloudformationHasTags(tags, stack.Tags) {
+			if cloudformationHasTags(includeTags, stack.Tags) && cloudformationDoesNotHaveTags(excludeTags, stack.Tags) {
 				stacks = append(stacks, stack)
 			}
 		}
@@ -348,7 +350,23 @@ func cloudformationHasTags(expected map[string]string, tags []*cloudformation.Ta
 	}
 
 	return true
+}
 
+// cloudformationDoesNotHaveTags returns true if the excluded tags are not
+// found in the tags list.
+func cloudformationDoesNotHaveTags(excluded map[string]string, tags []*cloudformation.Tag) bool {
+	tagsMap := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		tagsMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
+	}
+
+	for key, val := range excluded {
+		if v, ok := tagsMap[key]; ok && v == val {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isStackDeleting(stack *cloudformation.Stack) bool {
