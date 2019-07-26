@@ -147,6 +147,22 @@ func (p *clusterpyProvisioner) decryptConfigItems(cluster *api.Cluster) error {
 	return nil
 }
 
+// propagateConfigItemsToNodePools propagates cluster-wide config items
+// to each node pool unless the node pool defines its own value.
+func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Cluster) {
+	for _, nodePool := range cluster.NodePools {
+		// If the node pool doesn't define any config items, we need to initialize it here.
+		if nodePool.ConfigItems == nil {
+			nodePool.ConfigItems = map[string]string{}
+		}
+		for name, value := range cluster.ConfigItems {
+			if _, ok := nodePool.ConfigItems[name]; !ok {
+				nodePool.ConfigItems[name] = value
+			}
+		}
+	}
+}
+
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
@@ -624,6 +640,8 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
 	}
+
+	p.propagateConfigItemsToNodePools(cluster)
 
 	// allow clusters to override their update strategy.
 	// use global update strategy if cluster doesn't define one.
