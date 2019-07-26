@@ -161,16 +161,6 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	// Propagate cluster config items to node pool if undefined on node pool
-	if nodePool.ConfigItems == nil {
-		nodePool.ConfigItems = map[string]string{}
-	}
-	for name, value := range p.Cluster.ConfigItems {
-		if _, ok := nodePool.ConfigItems[name]; !ok {
-			nodePool.ConfigItems[name] = value
-		}
-	}
-
 	template, err := p.generateNodePoolStackTemplate(nodePool, values)
 	if err != nil {
 		return err
