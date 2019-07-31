@@ -24,10 +24,7 @@ const (
 
 func removePod(client kubernetes.Interface, pod v1.Pod) error {
 	var zero int64
-	err := client.CoreV1().Pods(pod.GetNamespace()).Delete(pod.GetName(), &metav1.DeleteOptions{GracePeriodSeconds: &zero})
-	if err != nil {
-		return err
-	}
+	client.CoreV1().Pods(pod.GetNamespace()).Delete(pod.GetName(), &metav1.DeleteOptions{GracePeriodSeconds: &zero})
 	return nil
 }
 
