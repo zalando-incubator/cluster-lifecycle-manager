@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"net"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -38,7 +40,43 @@ const (
 type templateContext struct {
 	manifestData          map[string]string
 	baseDir               string
+	cluster               *api.Cluster
+	nodePool              *api.NodePool
+	values                map[string]interface{}
+	userData              string
 	computingManifestHash bool
+	s3GeneratedFilesPath  string
+}
+
+type templateData struct {
+	// From api.Cluster, drop after we migrate all Kubernetes manifests
+	Alias                 string
+	APIServerURL          string
+	Channel               string
+	ConfigItems           map[string]string
+	CriticalityLevel      int32
+	Environment           string
+	ID                    string
+	InfrastructureAccount string
+	LifecycleStatus       string
+	LocalID               string
+	NodePools             []*api.NodePool
+	Region                string
+	Owner                 string
+
+	// Available everywhere
+	Cluster *api.Cluster
+
+	// Available everywhere except defaults
+	Values map[string]interface{}
+
+	// Available in node pool templates
+	NodePool *api.NodePool
+
+	UserData string
+
+	// Path to the generated files uploaded to S3
+	S3GeneratedFilesPath string
 }
 
 type podResources struct {
@@ -46,10 +84,26 @@ type podResources struct {
 	Memory string
 }
 
-func newTemplateContext(baseDir string) *templateContext {
+func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
 	return &templateContext{
 		baseDir:      baseDir,
 		manifestData: make(map[string]string),
+		cluster:      cluster,
+		nodePool:     nodePool,
+		values:       values,
+		userData:     userData,
+	}
+}
+
+func (ctx *templateContext) Copy(pool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
+	return &templateContext{
+		baseDir:               ctx.baseDir,
+		manifestData:          make(map[string]string),
+		cluster:               ctx.cluster,
+		nodePool:              pool,
+		values:                values,
+		userData:              userData,
+		computingManifestHash: false,
 	}
 }
 
@@ -108,7 +162,19 @@ func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool,
 // otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools, scales
 // it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
 // the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
-func autoscalingBufferSettings(cluster *api.Cluster) (*podResources, error) {
+// TODO use the proper type for the argument
+func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error) {
+	var cluster *api.Cluster
+
+	switch v := clusterOrData.(type) {
+	case *api.Cluster:
+		cluster = v
+	case *templateData:
+		cluster = v.Cluster
+	default:
+		return nil, fmt.Errorf("autoscalingBufferSettings: expected *api.Cluster or *templateData, got %s", reflect.TypeOf(clusterOrData))
+	}
+
 	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
 	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
 
@@ -183,14 +249,14 @@ func effectiveQuantity(instanceResource int64, scale float64, reservedResource i
 	return withoutReserved
 }
 
-// renderTemplate takes a fileName of a template and the model to apply to it.
+// renderTemplate takes a fileName of a template in the context and the model to apply to it.
 // returns the transformed template or an error if not successful
-func renderTemplate(context *templateContext, filePath string, data interface{}) (string, error) {
+func renderTemplate(context *templateContext, filePath string) (string, error) {
 	funcMap := template.FuncMap{
 		"getAWSAccountID":           getAWSAccountID,
 		"base64":                    base64Encode,
 		"base64Decode":              base64Decode,
-		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template, data) },
+		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
 		"azID":                      azID,
@@ -201,6 +267,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		"portRanges":                portRanges,
 		"splitHostPort":             splitHostPort,
 		"publicKey":                 publicKey,
+		"stupsNATSubnets":           stupsNATSubnets,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -212,7 +279,26 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 		return "", err
 	}
 	var out bytes.Buffer
-	err = t.Execute(&out, data)
+	err = t.Execute(&out, &templateData{
+		Alias:                 context.cluster.Alias,
+		APIServerURL:          context.cluster.APIServerURL,
+		Channel:               context.cluster.Channel,
+		ConfigItems:           context.cluster.ConfigItems,
+		CriticalityLevel:      context.cluster.CriticalityLevel,
+		Environment:           context.cluster.Environment,
+		ID:                    context.cluster.ID,
+		InfrastructureAccount: context.cluster.InfrastructureAccount,
+		LifecycleStatus:       context.cluster.LifecycleStatus,
+		LocalID:               context.cluster.LocalID,
+		NodePools:             context.cluster.NodePools,
+		Region:                context.cluster.Region,
+		Owner:                 context.cluster.Owner,
+		Cluster:               context.cluster,
+		Values:                context.values,
+		NodePool:              context.nodePool,
+		UserData:              context.userData,
+		S3GeneratedFilesPath:  context.s3GeneratedFilesPath,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +312,7 @@ func renderTemplate(context *templateContext, filePath string, data interface{})
 // manifestHash is a function for the templates that will return a hash of an interpolated sibling template
 // file. returns an error if computing manifestHash calls manifestHash again, if interpolation of that template
 // returns an error, or if the path is outside of the manifests folder.
-func manifestHash(context *templateContext, file string, template string, data interface{}) (string, error) {
+func manifestHash(context *templateContext, file string, template string) (string, error) {
 	if context.computingManifestHash {
 		return "", fmt.Errorf("manifestHash is not reentrant")
 	}
@@ -246,7 +332,7 @@ func manifestHash(context *templateContext, file string, template string, data i
 
 	templateData, ok := context.manifestData[templateFile]
 	if !ok {
-		applied, err := renderTemplate(context, templateFile, data)
+		applied, err := renderTemplate(context, templateFile)
 		if err != nil {
 			return "", err
 		}
@@ -290,11 +376,11 @@ func base64Decode(value string) (string, error) {
 // node pool size and the amount of ASGs in the pool. Current implementation just divides
 // and returns an error if the pool size is not an exact multiple, but maybe it's not the
 // best one.
-func asgSize(poolSize, asgPerPool int64) (int64, error) {
-	if poolSize%asgPerPool != 0 {
+func asgSize(poolSize int64, asgPerPool int) (int, error) {
+	if int(poolSize)%asgPerPool != 0 {
 		return 0, fmt.Errorf("pool size must be an exact multiple of %d", asgPerPool)
 	}
-	return poolSize / asgPerPool, nil
+	return int(poolSize) / asgPerPool, nil
 }
 
 // azID returns the last part of the availability zone name (1c for eu-central-1c)
@@ -304,8 +390,8 @@ func azID(azName string) string {
 }
 
 // azCount returns the count of availability zones in the subnet map
-func azCount(subnets map[string]string) int64 {
-	var result int64
+func azCount(subnets map[string]string) int {
+	var result int
 	for k := range subnets {
 		if k != subnetAllAZName {
 			result++
@@ -406,4 +492,62 @@ func publicKey(privateKey string) (string, error) {
 		Bytes: der,
 	}
 	return string(pem.EncodeToMemory(&block)), nil
+}
+
+// subdivide divides a network into smaller /size subnetworks
+func subdivide(network *net.IPNet, size int) ([]*net.IPNet, error) {
+	subnetSize, addrSize := network.Mask.Size()
+	if addrSize != 32 {
+		return nil, fmt.Errorf("only ipv4 subnets are supported, got %s", network)
+	}
+	if size < subnetSize || subnetSize > addrSize {
+		return nil, fmt.Errorf("subnet must be between /%d and /32", subnetSize)
+	}
+	newMask := net.CIDRMask(size, addrSize)
+
+	var addrCountOriginal uint32 = 1 << (uint(addrSize) - uint(subnetSize)) // addresses in the original network
+	var addrCountSubdivided uint32 = 1 << (uint(addrSize) - uint(size))     // addresses in the subnets
+
+	var result []*net.IPNet
+	for i := uint32(0); i < addrCountOriginal/addrCountSubdivided; i++ {
+		// add i * addrCountSubdivided to the initial IP address
+		newIp := make([]byte, 4)
+		binary.BigEndian.PutUint32(newIp, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
+
+		result = append(result, &net.IPNet{
+			IP:   newIp,
+			Mask: newMask,
+		})
+	}
+	return result, nil
+}
+
+// given a VPC CIDR block, return a comma-separated list of <count> NAT subnets from the STUPS setup
+func stupsNATSubnets(vpcCidr string) ([]string, error) {
+	_, vpcNet, err := net.ParseCIDR(vpcCidr)
+	if err != nil {
+		return nil, err
+	}
+
+	// subdivide the network into /size+2 subnets first, take the second one
+	subnetSize, _ := vpcNet.Mask.Size()
+	if subnetSize == 0 || subnetSize > 24 {
+		return nil, fmt.Errorf("invalid subnet, expecting at least /24: %s", vpcNet)
+	}
+
+	addrs, err := subdivide(vpcNet, subnetSize+2)
+	if err != nil {
+		return nil, err
+	}
+
+	natNetworks, err := subdivide(addrs[1], 28)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for i := 0; i < 3; i++ {
+		result = append(result, natNetworks[i].String())
+	}
+	return result, nil
 }

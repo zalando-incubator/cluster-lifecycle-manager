@@ -39,8 +39,8 @@ func render(t *testing.T, templates map[string]string, templateName string, data
 		require.NoError(t, err, "error while writing %s", fullPath)
 	}
 
-	context := newTemplateContext(basedir)
-	return renderTemplate(context, path.Join(basedir, templateName), data)
+	context := newTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "")
+	return renderTemplate(context, path.Join(basedir, templateName))
 }
 
 func renderSingle(t *testing.T, template string, data interface{}) (string, error) {
@@ -54,7 +54,7 @@ func renderSingle(t *testing.T, template string, data interface{}) (string, erro
 func TestTemplating(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		"foo {{ . }}",
+		"foo {{ .Values.data }}",
 		"1")
 
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestTemplating(t *testing.T) {
 func TestBase64Encode(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		"{{ . | base64 }}",
+		"{{ .Values.data | base64 }}",
 		"abc123")
 
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestBase64Encode(t *testing.T) {
 func TestBase64Decode(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		"{{ . | base64Decode }}",
+		"{{ .Values.data | base64Decode }}",
 		"YWJjMTIz")
 
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestManifestHash(t *testing.T) {
 	result, err := render(
 		t,
 		map[string]string{
-			"dir/config.yaml": "foo {{ . }}",
+			"dir/config.yaml": "foo {{ .Values.data }}",
 			"dir/foo.yaml":    `{{ manifestHash "config.yaml" }}`,
 		},
 		"dir/foo.yaml",
@@ -123,7 +123,7 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 func renderAutoscaling(t *testing.T, cluster *api.Cluster) (string, error) {
 	return renderSingle(
 		t,
-		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
+		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
 		cluster)
 }
 
@@ -155,7 +155,7 @@ func TestAutoscalingBufferExplicitOnlyOne(t *testing.T) {
 func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
+		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				InstanceTypes: []string{"m4.xlarge"},
@@ -179,7 +179,7 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
+		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				// 8 vcpu / 32gb
@@ -195,7 +195,7 @@ func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
 func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
 	_, err := renderSingle(
 		t,
-		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
+		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
 		exampleCluster([]*api.NodePool{
 			{
 				InstanceTypes: []string{"m4.xlarge"},
@@ -290,7 +290,7 @@ func TestAZID(t *testing.T) {
 func TestAZCountSimple(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ azCount . }}`,
+		`{{ azCount .Values.data }}`,
 		map[string]string{
 			"*":             "subnet-foo,subnet-bar,subnet-baz",
 			"eu-central-1a": "subnet-foo",
@@ -305,7 +305,7 @@ func TestAZCountSimple(t *testing.T) {
 func TestAZCountStarOnly(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ azCount . }}`,
+		`{{ azCount .Values.data }}`,
 		map[string]string{
 			"*": "",
 		})
@@ -317,7 +317,7 @@ func TestAZCountStarOnly(t *testing.T) {
 func TestAZCountNoSubnets(t *testing.T) {
 	result, err := renderSingle(
 		t,
-		`{{ azCount . }}`,
+		`{{ azCount .Values.data }}`,
 		map[string]string{})
 
 	require.NoError(t, err)
@@ -361,8 +361,8 @@ func TestAccountIDFailsOnInvalid(t *testing.T) {
 }
 
 func TestParsePortRanges(t *testing.T) {
-	testTemplate := `{{- if index .portRanges -}}
-{{- range $index, $element := portRanges .portRanges -}}
+	testTemplate := `{{- if index .Values.data.portRanges -}}
+{{- range $index, $element := portRanges .Values.data.portRanges -}}
 - CidrIp: 0.0.0.0/0
   FromPort: {{ $element.FromPort }}
   IpProtocol: tcp
@@ -459,8 +459,51 @@ DwIDAQAB
 
 	result, err := renderSingle(
 		t,
-		`{{ publicKey . }}`,
+		`{{ publicKey .Values.data }}`,
 		privkey)
 	require.NoError(t, err)
 	require.EqualValues(t, pubkey, result)
+}
+
+func TestStupsNATSubnets(t *testing.T) {
+	for _, tc := range []struct {
+		vpc     string
+		subnets string
+	}{
+		{
+			vpc:     "172.31.0.0/16",
+			subnets: "172.31.64.0/28 172.31.64.16/28 172.31.64.32/28 ",
+		},
+		{
+			vpc:     "10.153.192.0/19",
+			subnets: "10.153.200.0/28 10.153.200.16/28 10.153.200.32/28 ",
+		},
+
+		{
+			vpc:     "10.149.64.0/19",
+			subnets: "10.149.72.0/28 10.149.72.16/28 10.149.72.32/28 ",
+		},
+	} {
+		result, err := renderSingle(
+			t,
+			`{{ range $elem := stupsNATSubnets .Values.data }}{{$elem}} {{ end }}`,
+			tc.vpc)
+
+		require.NoError(t, err)
+		require.EqualValues(t, tc.subnets, result)
+	}
+}
+
+func TestStupsNATSubnetsErrors(t *testing.T) {
+	for _, vpc := range []string{
+		"172.31.0.0/25",
+		"2001::/19",
+		"example",
+	} {
+		_, err := renderSingle(
+			t,
+			`{{ stupsNATSubnets .Values.data }}`,
+			vpc)
+		require.Error(t, err)
+	}
 }

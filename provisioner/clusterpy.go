@@ -41,17 +41,23 @@ import (
 
 const (
 	providerID                     = "zalando-aws"
-	manifestsPath                  = "cluster/manifests"
+	configRootPath                 = "cluster"
+	manifestsDir                   = "manifests"
 	deletionsFile                  = "deletions.yaml"
 	clusterStackFileName           = "cluster.yaml"
-	defaultsFile                   = "cluster/config-defaults.yaml"
+	defaultsFile                   = "config-defaults.yaml"
 	defaultNamespace               = "default"
 	kubectlNotFound                = "(NotFound)"
 	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
 	subnetELBRoleTagName           = "kubernetes.io/role/elb"
 	resourceLifecycleShared        = "shared"
 	resourceLifecycleOwned         = "owned"
+	mainStackTagKey                = "cluster-lifecycle-controller.zalando.org/main-stack"
+	stackTagValueTrue              = "true"
 	subnetsConfigItemKey           = "subnets"
+	subnetsValueKey                = "subnets"
+	availabilityZonesConfigItemKey = "availability_zones"
+	availabilityZonesValueKey      = "availability_zones"
 	vpcIDConfigItemKey             = "vpc_id"
 	subnetAllAZName                = "*"
 	maxApplyRetries                = 10
@@ -99,12 +105,13 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config) error {
-	defaultsFile := path.Join(channelConfig.Path, defaultsFile)
+	defaultsFile := path.Join(channelConfig.Path, configRootPath, defaultsFile)
 
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
 
-	result, err := renderTemplate(newTemplateContext(channelConfig.Path), defaultsFile, &withoutConfigItems)
+	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "")
+	result, err := renderTemplate(params, defaultsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -140,6 +147,22 @@ func (p *clusterpyProvisioner) decryptConfigItems(cluster *api.Cluster) error {
 		cluster.ConfigItems[key] = plaintext
 	}
 	return nil
+}
+
+// propagateConfigItemsToNodePools propagates cluster-wide config items
+// to each node pool unless the node pool defines its own value.
+func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Cluster) {
+	for _, nodePool := range cluster.NodePools {
+		// If the node pool doesn't define any config items, we need to initialize it here.
+		if nodePool.ConfigItems == nil {
+			nodePool.ConfigItems = map[string]string{}
+		}
+		for name, value := range cluster.ConfigItems {
+			if _, ok := nodePool.ConfigItems[name]; !ok {
+				nodePool.ConfigItems[name] = value
+			}
+		}
+	}
 }
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
@@ -198,23 +221,16 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// find the best subnet for each AZ
-	subnetsPerZone := selectSubnetIDs(subnets)
+	azInfo := selectSubnetIDs(subnets)
 
-	// build a subnet list for the virtual '*' AZ
-	for az, subnet := range subnetsPerZone {
-		if az == subnetAllAZName {
-			continue
-		}
-		if existing, ok := subnetsPerZone[subnetAllAZName]; ok {
-			subnetsPerZone[subnetAllAZName] = existing + "," + subnet
-		} else {
-			subnetsPerZone[subnetAllAZName] = subnet
-		}
+	// if availability zones are defined, filter the subnet list
+	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
+		azInfo = azInfo.RestrictAZs(strings.Split(azNames, ","))
 	}
 
 	// TODO legacy, remove once we switch to Values in all clusters
 	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-		cluster.ConfigItems[subnetsConfigItemKey] = subnetsPerZone[subnetAllAZName]
+		cluster.ConfigItems[subnetsConfigItemKey] = azInfo.SubnetsByAZ()[subnetAllAZName]
 	}
 
 	apiURL, err := url.Parse(cluster.APIServerURL)
@@ -243,25 +259,27 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		"node_labels": fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
 		// TODO(tech-debt): custom legacy value
 		"apiserver_count":           "1",
-		"subnets":                   subnetsPerZone,
+		subnetsValueKey:             azInfo.SubnetsByAZ(),
+		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
 	}
 
 	// render the manifests to find out if they're valid
-	manifestsPath := path.Join(channelConfig.Path, manifestsPath)
-	deletions, err := parseDeletions(cluster, manifestsPath)
+	configPath := path.Join(channelConfig.Path, configRootPath)
+	templateCtx := newTemplateContext(configPath, cluster, nil, values, "")
+	deletions, err := parseDeletions(templateCtx, path.Join(configPath, manifestsDir, deletionsFile))
 	if err != nil {
 		return err
 	}
-	manifests, err := renderManifests(cluster, manifestsPath)
+	manifests, err := renderManifests(templateCtx, path.Join(configPath, manifestsDir))
 	if err != nil {
 		return err
 	}
 
 	// create etcd stack if needed.
-	etcdStackDefinitionPath := path.Join(channelConfig.Path, "cluster", "etcd-cluster.yaml")
+	etcdStackDefinitionPath := path.Join(configPath, "etcd-cluster.yaml")
 
 	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinitionPath, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
 	if err != nil {
@@ -272,13 +290,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	cfgBasePath := path.Join(channelConfig.Path, "cluster")
-
 	// create bucket name with aws account ID to ensure uniqueness across
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	err = createOrUpdateClusterStack(ctx, awsAdapter, cfgBasePath, cluster, values, bucketName)
+	err = createOrUpdateClusterStack(awsAdapter, ctx, templateCtx, path.Join(configPath, clusterStackFileName), bucketName)
 	if err != nil {
 		return err
 	}
@@ -287,7 +303,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	cfgNodePoolBaseDir := path.Join(cfgBasePath, "node-pools")
+	cfgNodePoolBaseDir := path.Join(configPath, "node-pools")
 
 	// provision node pools
 	nodePoolProvisioner := &AWSNodePoolProvisioner{
@@ -296,6 +312,8 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		bucketName:      bucketName,
 		cfgBaseDir:      cfgNodePoolBaseDir,
 		Cluster:         cluster,
+		templateContext: templateCtx,
+		azInfo:          azInfo,
 		logger:          logger,
 	}
 
@@ -349,31 +367,20 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-type clusterStackParams struct {
-	Cluster *api.Cluster
-	Values  map[string]interface{}
-}
-
-func createOrUpdateClusterStack(ctx context.Context, awsAdapter *awsAdapter, baseDir string, cluster *api.Cluster, values map[string]interface{}, bucketName string) error {
-	params := &clusterStackParams{
-		Cluster: cluster,
-		Values:  values,
-	}
-
-	stackFilePath := path.Join(baseDir, clusterStackFileName)
-	output, err := renderTemplate(newTemplateContext(baseDir), stackFilePath, params)
+func createOrUpdateClusterStack(awsAdapter *awsAdapter, ctx context.Context, templateCtx *templateContext, stackFilePath string, bucketName string) error {
+	output, err := renderTemplate(templateCtx, stackFilePath)
 	if err != nil {
 		return err
 	}
 
-	err = awsAdapter.applyClusterStack(cluster.LocalID, output, cluster, bucketName)
+	err = awsAdapter.applyClusterStack(templateCtx.cluster.LocalID, output, templateCtx.cluster, bucketName)
 	if err != nil {
 		return err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
-	err = awsAdapter.waitForStack(ctx, waitTime, cluster.LocalID)
+	err = awsAdapter.waitForStack(ctx, waitTime, templateCtx.cluster.LocalID)
 	if err != nil {
 		return err
 	}
@@ -410,7 +417,7 @@ func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet,
 // kube-controller-manager when finding subnets for ELBs used for services of
 // type LoadBalancer.
 // https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
-func selectSubnetIDs(subnets []*ec2.Subnet) map[string]string {
+func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 	subnetsByAZ := make(map[string]*ec2.Subnet)
 	for _, subnet := range subnets {
 		az := aws.StringValue(subnet.AvailabilityZone)
@@ -446,7 +453,7 @@ func selectSubnetIDs(subnets []*ec2.Subnet) map[string]string {
 		result[az] = aws.StringValue(subnet.SubnetId)
 	}
 
-	return result
+	return &AZInfo{subnets: result}
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
@@ -483,8 +490,12 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
+	stack := &cloudformation.Stack{
+		StackName: aws.String(cluster.LocalID),
+	}
+
 	// delete the main cluster stack
-	err = awsAdapter.DeleteStack(ctx, cluster.LocalID)
+	err = awsAdapter.DeleteStack(ctx, stack)
 	if err != nil {
 		return err
 	}
@@ -631,6 +642,8 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
 	}
+
+	p.propagateConfigItemsToNodePools(cluster)
 
 	// allow clusters to override their update strategy.
 	// use global update strategy if cluster doesn't define one.
@@ -779,10 +792,14 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 
 // deleteClusterStacks deletes all stacks tagged by the cluster id.
 func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
-	tags := map[string]string{
+	includeTags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}
-	stacks, err := adapter.ListStacks(tags)
+	excludeTags := map[string]string{
+		mainStackTagKey: stackTagValueTrue,
+	}
+
+	stacks, err := adapter.ListStacks(includeTags, excludeTags)
 	if err != nil {
 		return err
 	}
@@ -792,7 +809,7 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 	for _, stack := range stacks {
 		go func(stack cloudformation.Stack, errorsc chan error) {
 			deleteStack := func() error {
-				err := adapter.DeleteStack(ctx, aws.StringValue(stack.StackName))
+				err := adapter.DeleteStack(ctx, &stack)
 				if err != nil {
 					if isWrongStackStatusErr(err) {
 						return err
@@ -917,11 +934,8 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 }
 
 // parseDeletions reads and parses the deletions.yaml.
-func parseDeletions(cluster *api.Cluster, manifestsPath string) (*deletions, error) {
-	file := path.Join(manifestsPath, deletionsFile)
-
-	applyContext := newTemplateContext(manifestsPath)
-	rendered, err := renderTemplate(applyContext, file, cluster)
+func parseDeletions(ctx *templateContext, file string) (*deletions, error) {
+	rendered, err := renderTemplate(ctx, file)
 	if err != nil {
 		// if the file doesn't exist we just treat it as if it was
 		// empty.
@@ -953,14 +967,13 @@ func parseDeletions(cluster *api.Cluster, manifestsPath string) (*deletions, err
 	return &deletions, nil
 }
 
-func renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, error) {
+func renderManifests(ctx *templateContext, manifestsPath string) ([]string, error) {
 	components, err := ioutil.ReadDir(manifestsPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot read directory: %s", manifestsPath)
 	}
 
 	var result []string
-	applyContext := newTemplateContext(manifestsPath)
 
 	for _, c := range components {
 		// skip deletions.yaml if found
@@ -984,7 +997,7 @@ func renderManifests(cluster *api.Cluster, manifestsPath string) ([]string, erro
 				log.Warnf("File isn't a manifest, skipping: %s", file)
 				continue
 			}
-			manifest, err := renderTemplate(applyContext, file, cluster)
+			manifest, err := renderTemplate(ctx, file)
 			if err != nil {
 				return nil, fmt.Errorf("error rendering template %s/%s: %v", c.Name(), f.Name(), err)
 			}

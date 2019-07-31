@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha512"
 	"encoding/base64"
@@ -23,18 +24,30 @@ import (
 )
 
 const (
-	userDataFileName      = "userdata.clc.yaml"
+	clcFileName           = "userdata.clc.yaml"
+	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
+	filesTemplateName     = "files.yaml"
 	nodePoolTagKeyLegacy  = "NodePool"
 	nodePoolTagKey        = "kubernetes.io/node-pool"
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
+	remoteFilesKMSKey     = "RemoteFilesEncryptionKey"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
 type NodePoolProvisioner interface {
 	Provision(values map[string]string) error
 	Reconcile() error
+}
+
+type remoteData struct {
+	Files []struct {
+		Path        string `yaml:"path" json:"path"`
+		Data        string `yaml:"data" json:"data"`
+		Encrypted   bool   `yaml:"encrypted" json:"encrypted"`
+		Permissions int64  `yaml:"permissions" json:"permissions"`
+	} `yaml:"files" json:"files"`
 }
 
 // AWSNodePoolProvisioner is a node provisioner able to provision node pools
@@ -46,21 +59,9 @@ type AWSNodePoolProvisioner struct {
 	bucketName      string
 	cfgBaseDir      string
 	Cluster         *api.Cluster
+	azInfo          *AZInfo
+	templateContext *templateContext
 	logger          *log.Entry
-}
-
-// stackParams defined the parameters expected by a node pool stack template.
-type stackParams struct {
-	Cluster  *api.Cluster
-	NodePool *api.NodePool
-	UserData string
-	Values   map[string]interface{}
-}
-
-type userDataParams struct {
-	Cluster  *api.Cluster
-	NodePool *api.NodePool
-	Values   map[string]interface{}
 }
 
 func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
@@ -74,27 +75,15 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 		return "", fmt.Errorf("failed to find configuration for node pool profile '%s'", nodePool.Profile)
 	}
 
-	userDataParams := &userDataParams{
-		Cluster:  p.Cluster,
-		NodePool: nodePool,
-		Values:   values,
-	}
-
-	userDataPath := path.Join(nodePoolProfilesPath, userDataFileName)
-	renderedUserData, err := p.prepareUserData(nodePoolProfilesPath, userDataPath, userDataParams)
+	templateCtx := p.templateContext.Copy(nodePool, values, p.templateContext.userData)
+	renderedUserData, err := p.prepareUserData(templateCtx, nodePoolProfilesPath)
 	if err != nil {
 		return "", err
 	}
 
-	params := &stackParams{
-		Cluster:  p.Cluster,
-		NodePool: nodePool,
-		UserData: renderedUserData,
-		Values:   values,
-	}
-
+	templateCtx = templateCtx.Copy(nodePool, values, renderedUserData)
 	stackFilePath := path.Join(nodePoolProfilesPath, stackFileName)
-	return renderTemplate(newTemplateContext(nodePoolProfilesPath), stackFilePath, params)
+	return renderTemplate(templateCtx, stackFilePath)
 }
 
 // Provision provisions node pools of the cluster.
@@ -165,6 +154,13 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	}
 	values["instance_info"] = instanceInfo
 
+	// handle AZ overrides for the node pool
+	if azNames, ok := nodePool.ConfigItems[availabilityZonesConfigItemKey]; ok {
+		azInfo := p.azInfo.RestrictAZs(strings.Split(azNames, ","))
+		values[subnetsValueKey] = azInfo.SubnetsByAZ()
+		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
+	}
+
 	template, err := p.generateNodePoolStackTemplate(nodePool, values)
 	if err != nil {
 		return err
@@ -220,7 +216,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		nodePoolRoleTagKey:                            "true",
 	}
 
-	nodePoolStacks, err := p.awsAdapter.ListStacks(tags)
+	nodePoolStacks, err := p.awsAdapter.ListStacks(tags, nil)
 	if err != nil {
 		return err
 	}
@@ -241,7 +237,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		}
 
 		// delete node pool stack
-		err = p.awsAdapter.DeleteStack(ctx, aws.StringValue(stack.StackName))
+		err = p.awsAdapter.DeleteStack(ctx, stack)
 		if err != nil {
 			return err
 		}
@@ -250,11 +246,58 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-// prepareUserData prepares the user data by rendering the golang template
+// prepareUserData provisions and returns the UserData for a given node pool path.
+// It detects whether CloudInit or Container Linux Config (CLC) is used:
+// * CloudInit is rendered and returned.
+// * CLC is rendered, converted to Ignition, uploadeded to S3 and an Ignition file referencing the
+// uploaded file is returned.
+func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, nodePoolProfilesPath string) (string, error) {
+	clcPath := path.Join(nodePoolProfilesPath, clcFileName)
+	if _, err := os.Stat(clcPath); err == nil {
+		return p.prepareCLC(templateCtx, clcPath)
+	}
+
+	cloudInitPath := path.Join(nodePoolProfilesPath, cloudInitFileName)
+	if _, err := os.Stat(cloudInitPath); err == nil {
+		return p.prepareCloudInit(nodePoolProfilesPath, templateCtx, cloudInitPath)
+	}
+
+	return "", fmt.Errorf("no userdata file at '%s' nor '%s' found", clcPath, cloudInitPath)
+}
+
+// prepareCloudInit prepares the user data by rendering the golang template.
+// It also uploads the dynamically generated files needed for the nodes in the pool
+// A EC2 UserData ready base64 string will be returned.
+func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, templateCtx *templateContext, cloudInitPath string) (string, error) {
+	s3Path, err := p.renderUploadGeneratedFiles(templateCtx, nodePoolProfilesPath)
+	if err != nil {
+		return "", err
+	}
+	templateCtx.s3GeneratedFilesPath = s3Path
+	p.logger.Debugf("Uploaded generated files to %s", s3Path)
+	rendered, err := renderTemplate(templateCtx, cloudInitPath)
+	if err != nil {
+		return "", err
+	}
+	var gzipBuffer bytes.Buffer
+	writer := gzip.NewWriter(&gzipBuffer)
+	defer writer.Close()
+	_, err = writer.Write([]byte(rendered))
+	if err != nil {
+		return "", err
+	}
+	err = writer.Close()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
+}
+
+// prepareCLC prepares the user data by rendering the golang template
 // and uploading the User Data to S3. A EC2 UserData ready base64 string will
 // be returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config interface{}) (string, error) {
-	rendered, err := renderTemplate(newTemplateContext(basedir), clcPath, config)
+func (p *AWSNodePoolProvisioner) prepareCLC(templateCtx *templateContext, clcPath string) (string, error) {
+	rendered, err := renderTemplate(templateCtx, clcPath)
 	if err != nil {
 		return "", err
 	}
@@ -264,9 +307,12 @@ func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config
 	if err != nil {
 		return "", fmt.Errorf("failed to parse config %s: %v", clcPath, err)
 	}
-
+	userDataHash, err := generateDataHash(ignCfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
+	}
 	// upload to s3
-	uri, err := p.uploadUserDataToS3(ignCfg, p.bucketName)
+	uri, err := p.uploadUserDataToS3(userDataHash, ignCfg, p.bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -277,9 +323,7 @@ func (p *AWSNodePoolProvisioner) prepareUserData(basedir, clcPath string, config
 	return base64.StdEncoding.EncodeToString(ignCfg), nil
 }
 
-// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
-// The S3 object will be named by the sha512 hash of the data.
-func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName string) (string, error) {
+func generateDataHash(userData []byte) (string, error) {
 	// hash the userData to use as object name
 	hasher := sha512.New()
 	_, err := hasher.Write(userData)
@@ -287,20 +331,58 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userData []byte, bucketName 
 		return "", err
 	}
 	sha := hex.EncodeToString(hasher.Sum(nil))
+	return fmt.Sprintf("%s.userdata", sha), nil
+}
 
-	objectName := fmt.Sprintf("%s.userdata", sha)
-
+// uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
+// The S3 object will be named by the sha512 hash of the data.
+func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userDataHash string, userData []byte, bucketName string) (string, error) {
 	// Upload the stack template to S3
-	_, err = p.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
+	_, err := p.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectName),
+		Key:    aws.String(userDataHash),
 		Body:   bytes.NewReader(userData),
 	})
 	if err != nil {
 		return "", err
 	}
+	return fmt.Sprintf("s3://%s/%s", bucketName, userDataHash), nil
+}
 
-	return fmt.Sprintf("s3://%s/%s", bucketName, objectName), nil
+func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
+	clusterStack, err := adapter.getStackByName(clusterID)
+	if err != nil {
+		return "", err
+	}
+	for _, o := range clusterStack.Outputs {
+		if *o.OutputKey == remoteFilesKMSKey {
+			return *o.OutputValue, nil
+		}
+	}
+	return "", fmt.Errorf("failed to find the encryption key: %s", remoteFilesKMSKey)
+}
+
+// renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
+// files is then uploaded to S3 and the generated path is added to the template context.
+func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string) (string, error) {
+	filesTemplatePath := path.Join(nodePoolProfilePath, filesTemplateName)
+	filesRendered, err := renderTemplate(templateCtx, filesTemplatePath)
+	if err != nil {
+		return "", err
+	}
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.Cluster.LocalID)
+	if err != nil {
+		return "", err
+	}
+	archive, err := makeArchive(filesRendered, kmsKey, p.awsAdapter.kmsClient)
+	if err != nil {
+		return "", err
+	}
+	userDataHash, err := generateDataHash([]byte(filesRendered))
+	if err != nil {
+		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
+	}
+	return p.uploadUserDataToS3(userDataHash, archive, p.bucketName)
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
