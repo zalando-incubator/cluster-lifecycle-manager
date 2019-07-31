@@ -1,11 +1,15 @@
 package provisioner
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -24,7 +28,7 @@ func exampleCluster(pools []*api.NodePool) *api.Cluster {
 	}
 }
 
-func render(t *testing.T, templates map[string]string, templateName string, data interface{}) (string, error) {
+func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
 	basedir, err := ioutil.TempDir(os.TempDir(), t.Name())
 	require.NoError(t, err, "unable to create temp dir")
 
@@ -39,7 +43,7 @@ func render(t *testing.T, templates map[string]string, templateName string, data
 		require.NoError(t, err, "error while writing %s", fullPath)
 	}
 
-	context := newTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "")
+	context := newTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "", adapter)
 	return renderTemplate(context, path.Join(basedir, templateName))
 }
 
@@ -48,7 +52,8 @@ func renderSingle(t *testing.T, template string, data interface{}) (string, erro
 		t,
 		map[string]string{"dir/foo.yaml": template},
 		"dir/foo.yaml",
-		data)
+		data,
+		nil)
 }
 
 func TestTemplating(t *testing.T) {
@@ -89,7 +94,8 @@ func TestManifestHash(t *testing.T) {
 			"dir/foo.yaml":    `{{ manifestHash "config.yaml" }}`,
 		},
 		"dir/foo.yaml",
-		"abc123")
+		"abc123",
+		nil)
 
 	require.NoError(t, err)
 	require.EqualValues(t, "82b883f3662dfed3357ba6c497a77684b1d84468c6aa49bf89c4f209889ddc77", result)
@@ -102,7 +108,8 @@ func TestManifestHashMissingFile(t *testing.T) {
 			"dir/foo.yaml": `{{ manifestHash "missing.yaml" }}`,
 		},
 		"dir/foo.yaml",
-		"")
+		"",
+		nil)
 
 	require.Error(t, err)
 }
@@ -115,7 +122,8 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 			"dir/foo.yaml":    `{{ manifestHash "config.yaml" }}`,
 		},
 		"dir/foo.yaml",
-		"")
+		"",
+		nil)
 
 	require.Error(t, err)
 }
@@ -505,5 +513,70 @@ func TestStupsNATSubnetsErrors(t *testing.T) {
 			`{{ stupsNATSubnets .Values.data }}`,
 			vpc)
 		require.Error(t, err)
+	}
+}
+
+type mockEC2Client struct {
+	ec2iface.EC2API
+	t               *testing.T
+	kubernetesImage string
+	ownerID         string
+	output          []*ec2.Image
+}
+
+func (c mockEC2Client) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+	require.Len(c.t, input.Filters, 2)
+	require.Equal(c.t, describeImageFilterNameName, *input.Filters[0].Name)
+	require.Len(c.t, input.Filters[0].Values, 1)
+	require.Equal(c.t, c.kubernetesImage, *input.Filters[0].Values[0])
+	require.Equal(c.t, describeImageFilterNameOwner, *input.Filters[1].Name)
+	require.Len(c.t, input.Filters[1].Values, 1)
+	require.Equal(c.t, c.ownerID, *input.Filters[1].Values[0])
+	return &ec2.DescribeImagesOutput{Images: c.output}, nil
+}
+
+func TestAmiID(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		imageName string
+		ownerID   string
+		imageID   string
+		output    []*ec2.Image
+		expectErr bool
+	}{
+		{
+			name:      "basic",
+			imageName: "kubernetes-image-ami",
+			ownerID:   "8085",
+			imageID:   "ami-0001dsf",
+			output:    []*ec2.Image{{ImageId: aws.String("ami-0001dsf")}},
+			expectErr: false,
+		},
+		{
+			name:      "multiple images",
+			imageName: "kubernetes-image-ami",
+			ownerID:   "8085",
+			output:    []*ec2.Image{{ImageId: aws.String("ami-00232ccd")}, {ImageId: aws.String("ami-0001dsf")}},
+			expectErr: true,
+		},
+	} {
+		t.Run(tc.name, func(tt *testing.T) {
+			adapter := awsAdapter{ec2Client: mockEC2Client{t: t, kubernetesImage: tc.imageName, ownerID: tc.ownerID, output: tc.output}}
+			result, err := render(
+				t,
+				map[string]string{
+					"dir/foo.yaml": fmt.Sprintf(`{{ amiID "%s" "%s" }}`, tc.imageName, tc.ownerID),
+				},
+				"dir/foo.yaml",
+				"abc123",
+				&adapter)
+
+			if !tc.expectErr {
+				require.NoError(t, err)
+				require.EqualValues(t, tc.imageID, result)
+			} else {
+				require.Error(t, err)
+			}
+		})
 	}
 }
