@@ -10,6 +10,7 @@ pipeline:
   commands:
   - desc: test & check
     cmd: |
+      make lint
       make test
   - desc: build
     cmd: |
