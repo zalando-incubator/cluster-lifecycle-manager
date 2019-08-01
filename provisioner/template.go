@@ -20,6 +20,8 @@ import (
 	"strings"
 	"text/template"
 
+	awsUtil "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
@@ -35,6 +37,8 @@ const (
 	autoscalingBufferPoolsConfigItem          = "autoscaling_buffer_pools"
 	highestPossiblePort                       = 65535
 	lowestPossiblePort                        = 0
+	describeImageFilterNameName               = "name"
+	describeImageFilterNameOwner              = "owner-id"
 )
 
 type templateContext struct {
@@ -46,6 +50,7 @@ type templateContext struct {
 	userData              string
 	computingManifestHash bool
 	s3GeneratedFilesPath  string
+	awsAdapter            *awsAdapter
 }
 
 type templateData struct {
@@ -84,7 +89,7 @@ type podResources struct {
 	Memory string
 }
 
-func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
+func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string, adapter *awsAdapter) *templateContext {
 	return &templateContext{
 		baseDir:      baseDir,
 		manifestData: make(map[string]string),
@@ -92,6 +97,7 @@ func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.Node
 		nodePool:     nodePool,
 		values:       values,
 		userData:     userData,
+		awsAdapter:   adapter,
 	}
 }
 
@@ -268,6 +274,9 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"splitHostPort":             splitHostPort,
 		"publicKey":                 publicKey,
 		"stupsNATSubnets":           stupsNATSubnets,
+		"amiID": func(imageName, imageOwner string) (string, error) {
+			return amiID(context.awsAdapter, imageName, imageOwner)
+		},
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -550,4 +559,23 @@ func stupsNATSubnets(vpcCidr string) ([]string, error) {
 		result = append(result, natNetworks[i].String())
 	}
 	return result, nil
+}
+
+func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
+	if adapter == nil || adapter.ec2Client == nil {
+		return "", fmt.Errorf("the ec2 client is not available")
+	}
+
+	input := ec2.DescribeImagesInput{Filters: []*ec2.Filter{
+		{Name: awsUtil.String(describeImageFilterNameName), Values: awsUtil.StringSlice([]string{imageName})},
+		{Name: awsUtil.String(describeImageFilterNameOwner), Values: awsUtil.StringSlice([]string{imageOwner})},
+	}}
+	output, err := adapter.ec2Client.DescribeImages(&input)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe image with name %s and owner %s: %v", imageName, imageOwner, err)
+	}
+	if len(output.Images) != 1 {
+		return "", fmt.Errorf("more than one image found with name: %s and owner: %s", imageName, imageOwner)
+	}
+	return *output.Images[0].ImageId, nil
 }

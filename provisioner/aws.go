@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
@@ -85,17 +86,6 @@ type iamAPI interface {
 	ListAccountAliases(input *iam.ListAccountAliasesInput) (*iam.ListAccountAliasesOutput, error)
 }
 
-type ec2API interface {
-	DescribeVpcs(input *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error)
-	DescribeVolumes(input *ec2.DescribeVolumesInput) (*ec2.DescribeVolumesOutput, error)
-	DescribeSubnets(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error)
-
-	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
-	DeleteTags(input *ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error)
-
-	DeleteVolume(input *ec2.DeleteVolumeInput) (*ec2.DeleteVolumeOutput, error)
-}
-
 type s3UploaderAPI interface {
 	Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
 }
@@ -107,7 +97,7 @@ type awsAdapter struct {
 	s3Uploader           s3UploaderAPI
 	autoscalingClient    autoscalingAPI
 	iamClient            iamAPI
-	ec2Client            ec2API
+	ec2Client            ec2iface.EC2API
 	acmClient            acmiface.ACMAPI
 	region               string
 	apiServer            string

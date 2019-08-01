@@ -77,7 +77,7 @@ func TestApplyTemplate(t *testing.T) {
 	region := "eu-central"
 	localID := "kube-aws-test-rdifazio55"
 	cluster := &api.Cluster{Region: region, LocalID: localID}
-	context := newTemplateContext(cdir, cluster, nil, nil, "")
+	context := newTemplateContext(cdir, cluster, nil, nil, "", nil)
 
 	_, err = renderTemplate(context, "test_template")
 	if err == nil {
@@ -143,7 +143,7 @@ func TestApplyTemplateBase64Fun(t *testing.T) {
 	cluster.ConfigItems = map[string]string{
 		"my_value": value,
 	}
-	context := newTemplateContext(cdir, cluster, nil, nil, "")
+	context := newTemplateContext(cdir, cluster, nil, nil, "", nil)
 
 	s, err := renderTemplate(context, "test_template")
 	if err != nil {
@@ -207,7 +207,7 @@ func TestParseDeletions(t *testing.T) {
 		},
 	}
 
-	context := newTemplateContext(".", exampleCluster, nil, nil, "")
+	context := newTemplateContext(".", exampleCluster, nil, nil, "", nil)
 
 	deletions, err := parseDeletions(context, deletionsFile)
 	require.NoError(t, err)

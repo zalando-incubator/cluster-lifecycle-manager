@@ -110,7 +110,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
 
-	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "")
+	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "", nil)
 	result, err := renderTemplate(params, defaultsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -268,7 +268,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	// render the manifests to find out if they're valid
 	configPath := path.Join(channelConfig.Path, configRootPath)
-	templateCtx := newTemplateContext(configPath, cluster, nil, values, "")
+	templateCtx := newTemplateContext(configPath, cluster, nil, values, "", awsAdapter)
 	deletions, err := parseDeletions(templateCtx, path.Join(configPath, manifestsDir, deletionsFile))
 	if err != nil {
 		return err
