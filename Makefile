@@ -54,7 +54,6 @@ $(GO_SWAGGER):
 
 $(CR_CLIENT): $(GO_SWAGGER) $(SPEC)
 	mkdir -p $@
-	touch $@
 	$(GO_SWAGGER) generate client --name cluster-registry --principal oauth.User --spec docs/cluster-registry.yaml --target ./$(CR_CLIENT)
 
 build.local: build/$(BINARY)
