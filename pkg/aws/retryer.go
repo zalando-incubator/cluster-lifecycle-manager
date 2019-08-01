@@ -35,7 +35,6 @@ func (retryer clampedRetryer) RetryRules(r *request.Request) time.Duration {
 	baseInterval := retryer.DefaultRetryer.RetryRules(r)
 	if baseInterval < retryer.maxRetryInterval {
 		return baseInterval
-	} else {
-		return retryer.maxRetryInterval
 	}
+	return retryer.maxRetryInterval
 }

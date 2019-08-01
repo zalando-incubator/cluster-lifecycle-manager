@@ -1,18 +1,21 @@
 language: go
+dist: xenial
 
 go:
   - "1.12.x"
 
 env:
-- GO111MODULE=on
+- GO111MODULE=on GOLANGCI_RELEASE="v1.17.1"
 
 before_install:
   - go get github.com/mattn/goveralls
   - go get github.com/lawrencewoodman/roveralls
-  - go get honnef.co/go/tools/cmd/staticcheck
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCI_RELEASE}
+
 
 script:
   - make build.docker
   - make test
+  - make lint
   - roveralls
   - goveralls -v -coverprofile=roveralls.coverprofile -service=travis-ci

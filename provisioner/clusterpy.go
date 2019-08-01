@@ -294,7 +294,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	err = createOrUpdateClusterStack(awsAdapter, ctx, templateCtx, path.Join(configPath, clusterStackFileName), bucketName)
+	err = createOrUpdateClusterStack(ctx, awsAdapter, templateCtx, path.Join(configPath, clusterStackFileName), bucketName)
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateClusterStack(awsAdapter *awsAdapter, ctx context.Context, templateCtx *templateContext, stackFilePath string, bucketName string) error {
+func createOrUpdateClusterStack(ctx context.Context, awsAdapter *awsAdapter, templateCtx *templateContext, stackFilePath string, bucketName string) error {
 	output, err := renderTemplate(templateCtx, stackFilePath)
 	if err != nil {
 		return err

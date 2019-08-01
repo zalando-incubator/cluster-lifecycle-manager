@@ -199,7 +199,7 @@ func TestProcessCluster(t *testing.T) {
 			continue
 		}
 
-		err = controller.doProcessCluster(defaultLogger, ctx, next)
+		err = controller.doProcessCluster(ctx, defaultLogger, next)
 		if ti.success {
 			assert.NoError(t, err, ti.testcase)
 		} else {
