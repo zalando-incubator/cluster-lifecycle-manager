@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"gopkg.in/yaml.v2"
@@ -41,12 +42,18 @@ func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte
 			compressionInput = []byte(decoded)
 			finalPath = remoteFile.Path
 		}
-		tarWriter.WriteHeader(&tar.Header{
+		err = tarWriter.WriteHeader(&tar.Header{
 			Name: finalPath,
 			Size: int64(len(compressionInput)),
 			Mode: remoteFile.Permissions,
 		})
-		tarWriter.Write(compressionInput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write header: %v", err)
+		}
+		_, err = tarWriter.Write(compressionInput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write to tar archive: %v", err)
+		}
 	}
 	err = tarWriter.Close()
 	if err != nil {
