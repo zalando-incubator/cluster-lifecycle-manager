@@ -18,7 +18,7 @@ import (
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"golang.org/x/oauth2"
 
@@ -104,13 +104,13 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == providerID
 }
 
-func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config) error {
+func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config, adapter *awsAdapter) error {
 	defaultsFile := path.Join(channelConfig.Path, configRootPath, defaultsFile)
 
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
 
-	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "", nil)
+	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "", adapter)
 	result, err := renderTemplate(params, defaultsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -633,7 +633,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		return nil, nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
-	err = p.updateDefaults(cluster, channelConfig)
+	err = p.updateDefaults(cluster, channelConfig, adapter)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
