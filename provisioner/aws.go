@@ -271,6 +271,8 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 		if err != nil {
 			return err
 		}
+
+		var err error
 		switch *stack.StackStatus {
 		case cloudformation.StackStatusUpdateComplete:
 			return nil
@@ -279,17 +281,20 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 		case cloudformation.StackStatusDeleteComplete:
 			return nil
 		case cloudformation.StackStatusCreateFailed:
-			return errCreateFailed
+			err = errCreateFailed
 		case cloudformation.StackStatusDeleteFailed:
-			return errDeleteFailed
+			err = errDeleteFailed
 		case cloudformation.StackStatusRollbackComplete:
-			return errRollbackComplete
+			err = errRollbackComplete
 		case cloudformation.StackStatusRollbackFailed:
-			return errRollbackFailed
+			err = errRollbackFailed
 		case cloudformation.StackStatusUpdateRollbackComplete:
-			return errUpdateRollbackComplete
+			err = errUpdateRollbackComplete
 		case cloudformation.StackStatusUpdateRollbackFailed:
-			return errUpdateRollbackFailed
+			err = errUpdateRollbackFailed
+		}
+		if err != nil {
+			return fmt.Errorf("%s, reason: %s", err, *stack.StackStatusReason)
 		}
 		a.logger.Debugf("Stack '%s' - [%s]", stackName, *stack.StackStatus)
 
