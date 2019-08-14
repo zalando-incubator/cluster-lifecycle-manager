@@ -272,7 +272,6 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 			return err
 		}
 
-		var err error
 		switch *stack.StackStatus {
 		case cloudformation.StackStatusUpdateComplete:
 			return nil
