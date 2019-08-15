@@ -33,6 +33,7 @@ type cloudFormationAPIStub struct {
 	cloudformationiface.CloudFormationAPI
 	statusMutex         *sync.Mutex
 	status              *string
+	statusReason        *string
 	onDescribeStackChan chan struct{}
 	createErr           error
 	updateErr           error
@@ -41,7 +42,7 @@ type cloudFormationAPIStub struct {
 
 func (c *cloudFormationAPIStub) DescribeStacks(input *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
 	name := "foobar"
-	s := cloudformation.Stack{StackName: aws.String(name), StackStatus: c.getStatus()}
+	s := cloudformation.Stack{StackName: aws.String(name), StackStatus: c.getStatus(), StackStatusReason: c.getStatusReason()}
 	if c.onDescribeStackChan != nil {
 		c.onDescribeStackChan <- struct{}{}
 	}
@@ -78,6 +79,18 @@ func (c *cloudFormationAPIStub) getStatus() *string {
 	c.statusMutex.Lock()
 	defer c.statusMutex.Unlock()
 	return c.status
+}
+
+func (c *cloudFormationAPIStub) setStatusReason(statusReason string) {
+	c.statusMutex.Lock()
+	c.statusReason = &statusReason
+	c.statusMutex.Unlock()
+}
+
+func (c *cloudFormationAPIStub) getStatusReason() *string {
+	c.statusMutex.Lock()
+	defer c.statusMutex.Unlock()
+	return c.statusReason
 }
 
 type cloudFormationAPIStub2 struct {
@@ -191,7 +204,9 @@ func testWaitForStackWithRollback(t *testing.T) {
 	// Wait and Rollback Case
 	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	onDescribeStackChan := make(chan struct{}, 2)
-	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress), onDescribeStackChan: onDescribeStackChan}
+	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress),
+		statusReason:        aws.String("The following resource(s) failed to update: [AutoScalingGroup1b, AutoScalingGroup1c]."),
+		onDescribeStackChan: onDescribeStackChan}
 	awsMock.cloudformationClient = stub
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,7 +224,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 	}()
 
 	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
-	if err != errRollbackComplete {
+	if err == nil || !strings.Contains(err.Error(), errRollbackComplete.Error()) {
 		t.Errorf("should return rollback complete, got: %v", err)
 	}
 	if counter != 2 {
