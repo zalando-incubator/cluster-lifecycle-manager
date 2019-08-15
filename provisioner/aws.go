@@ -294,7 +294,7 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 		}
 		if err != nil {
 			if stack.StackStatusReason != nil {
-				return fmt.Errorf("%s, reason: %s", err, *stack.StackStatusReason)
+				return fmt.Errorf("%v, reason: %v", err, *stack.StackStatusReason)
 			}
 			return err
 		}
