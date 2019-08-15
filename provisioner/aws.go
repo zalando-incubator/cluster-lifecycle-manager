@@ -293,7 +293,10 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 			err = errUpdateRollbackFailed
 		}
 		if err != nil {
-			return fmt.Errorf("%s, reason: %s", err, *stack.StackStatusReason)
+			if stack.StackStatusReason != nil {
+				return fmt.Errorf("%s, reason: %s", err, *stack.StackStatusReason)
+			}
+			return err
 		}
 		a.logger.Debugf("Stack '%s' - [%s]", stackName, *stack.StackStatus)
 
