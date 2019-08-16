@@ -49,7 +49,7 @@ require (
 	github.com/onsi/gomega v1.4.1 // indirect
 	github.com/pborman/uuid v0.0.0-20180122190007-c65b2f87fee3 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.3 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/pflag v1.0.3 // indirect
