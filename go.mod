@@ -53,7 +53,7 @@ require (
 	github.com/prometheus/client_golang v0.9.3 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/pflag v1.0.3 // indirect
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/vincent-petithory/dataurl v0.0.0-20160330182126-9a301d65acbb // indirect
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.0
 	go4.org v0.0.0-20180809161055-417644f6feb5 // indirect
