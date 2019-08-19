@@ -6,7 +6,7 @@ require (
 	github.com/ajeddeloh/go-json v0.0.0-20170920214419-6a2fe990e083 // indirect
 	github.com/ajeddeloh/yaml v0.0.0-20170912190910-6b94386aeefd // indirect
 	github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf // indirect
-	github.com/aws/aws-sdk-go v1.23.2
+	github.com/aws/aws-sdk-go v1.23.3
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/coreos/container-linux-config-transpiler v0.6.1
 	github.com/coreos/go-semver v0.2.0 // indirect
