@@ -55,7 +55,7 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/vincent-petithory/dataurl v0.0.0-20160330182126-9a301d65acbb // indirect
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.0
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.11
 	go4.org v0.0.0-20180809161055-417644f6feb5 // indirect
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
