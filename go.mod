@@ -25,7 +25,6 @@ require (
 	github.com/go-openapi/strfmt v0.0.0-20180811230431-eed2e948ab46
 	github.com/go-openapi/swag v0.0.0-20180715190254-becd2f08beaf
 	github.com/go-openapi/validate v0.0.0-20180809073206-7c1911976134
-	github.com/go-playground/locales v0.12.1 // indirect
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
@@ -36,7 +35,6 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
 	github.com/json-iterator/go v0.0.0-20180806060727-1624edc4454b // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/mailru/easyjson v0.0.0-20180730094502-03f2033d19d5 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
@@ -63,9 +61,7 @@ require (
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.21.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect

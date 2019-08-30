@@ -27,7 +27,7 @@ const (
 	defaultDrainMinUnhealthySiblingLifetime = "6h"
 	defaultDrainForceEvictInterval          = "5m"
 	defaultDrainPollInterval                = "30s"
-	defaultUpdateStrategy                   = "rolling"
+	defaultUpdateStrategy                   = "clc"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
