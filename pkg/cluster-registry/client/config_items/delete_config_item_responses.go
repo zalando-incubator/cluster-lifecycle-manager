@@ -24,42 +24,36 @@ type DeleteConfigItemReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *DeleteConfigItemReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 204:
 		result := NewDeleteConfigItemNoContent()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewDeleteConfigItemBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewDeleteConfigItemUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewDeleteConfigItemForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewDeleteConfigItemNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewDeleteConfigItemInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -108,6 +102,10 @@ type DeleteConfigItemBadRequest struct {
 
 func (o *DeleteConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *DeleteConfigItemBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteConfigItemBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -200,6 +198,10 @@ type DeleteConfigItemInternalServerError struct {
 
 func (o *DeleteConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *DeleteConfigItemInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteConfigItemInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

@@ -24,42 +24,36 @@ type CreateInfrastructureAccountReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *CreateInfrastructureAccountReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 201:
 		result := NewCreateInfrastructureAccountCreated()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewCreateInfrastructureAccountBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewCreateInfrastructureAccountUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewCreateInfrastructureAccountForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 409:
 		result := NewCreateInfrastructureAccountConflict()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewCreateInfrastructureAccountInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -87,6 +81,10 @@ type CreateInfrastructureAccountCreated struct {
 
 func (o *CreateInfrastructureAccountCreated) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
+}
+
+func (o *CreateInfrastructureAccountCreated) GetPayload() *models.InfrastructureAccount {
+	return o.Payload
 }
 
 func (o *CreateInfrastructureAccountCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -200,6 +198,10 @@ type CreateInfrastructureAccountInternalServerError struct {
 
 func (o *CreateInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *CreateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *CreateInfrastructureAccountInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

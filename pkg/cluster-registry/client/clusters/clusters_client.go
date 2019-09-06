@@ -6,6 +6,8 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"fmt"
+
 	"github.com/go-openapi/runtime"
 
 	strfmt "github.com/go-openapi/strfmt"
@@ -51,8 +53,14 @@ func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.Cli
 	if err != nil {
 		return nil, err
 	}
-	return result.(*CreateClusterCreated), nil
-
+	success, ok := result.(*CreateClusterCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for createCluster: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -83,8 +91,14 @@ func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.Cli
 	if err != nil {
 		return nil, err
 	}
-	return result.(*DeleteClusterNoContent), nil
-
+	success, ok := result.(*DeleteClusterNoContent)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for deleteCluster: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -114,8 +128,14 @@ func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAut
 	if err != nil {
 		return nil, err
 	}
-	return result.(*GetClusterOK), nil
-
+	success, ok := result.(*GetClusterOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for getCluster: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -146,8 +166,14 @@ func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.Clien
 	if err != nil {
 		return nil, err
 	}
-	return result.(*ListClustersOK), nil
-
+	success, ok := result.(*ListClustersOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for listClusters: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -177,8 +203,14 @@ func (a *Client) UpdateCluster(params *UpdateClusterParams, authInfo runtime.Cli
 	if err != nil {
 		return nil, err
 	}
-	return result.(*UpdateClusterOK), nil
-
+	success, ok := result.(*UpdateClusterOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for updateCluster: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 // SetTransport changes the transport on the client

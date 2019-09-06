@@ -24,42 +24,36 @@ type DeleteClusterReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *DeleteClusterReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 204:
 		result := NewDeleteClusterNoContent()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewDeleteClusterBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewDeleteClusterUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewDeleteClusterForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewDeleteClusterNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewDeleteClusterInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -108,6 +102,10 @@ type DeleteClusterBadRequest struct {
 
 func (o *DeleteClusterBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *DeleteClusterBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteClusterBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -160,6 +158,10 @@ func (o *DeleteClusterForbidden) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
 }
 
+func (o *DeleteClusterForbidden) GetPayload() *models.Error {
+	return o.Payload
+}
+
 func (o *DeleteClusterForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
@@ -208,6 +210,10 @@ type DeleteClusterInternalServerError struct {
 
 func (o *DeleteClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *DeleteClusterInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteClusterInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

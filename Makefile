@@ -13,9 +13,7 @@ AWS_DATA_SRC         = awsdata/instances.json
 DOCKERFILE           ?= Dockerfile
 GOPKGS               = $(shell $(GO) list ./...)
 GO_SWAGGER           = ./build/swagger
-GO_SWAGGER_VERSION   = 4c3aa23a8c9ac15f4fd63c3e28f12bd20e387f62 # should match the version in go.mod
 GO_BINDATA           = ./build/go-bindata
-GO_BINDATA_VERSION   = 6025e8de665b31fa74ab1a66f2cddd8c0abf887e # should match the version in go.mod
 BUILD_FLAGS          ?= -v
 LDFLAGS              ?= -X main.version=$(VERSION) -w -s
 
@@ -42,7 +40,7 @@ $(AWS_DATA_SRC):
 
 $(GO_BINDATA):
 	mkdir -p build
-	GOBIN=$(shell pwd)/build $(GO) get github.com/jteeuwen/go-bindata/go-bindata@$(GO_BINDATA_VERSION)
+	GOBIN=$(shell pwd)/build $(GO) install github.com/jteeuwen/go-bindata/go-bindata
 
 $(AWS_INSTANCE_DATA): $(GO_BINDATA) $(AWS_DATA_SRC)
 	$(GO_BINDATA) -pkg aws -o $(AWS_INSTANCE_DATA) --prefix $(dir $(AWS_DATA_SRC)) $(AWS_DATA_SRC)
@@ -50,7 +48,7 @@ $(AWS_INSTANCE_DATA): $(GO_BINDATA) $(AWS_DATA_SRC)
 
 $(GO_SWAGGER):
 	mkdir -p build
-	GOBIN=$(shell pwd)/build $(GO) get github.com/go-swagger/go-swagger/cmd/swagger@$(GO_SWAGGER_VERSION)
+	GOBIN=$(shell pwd)/build $(GO) install github.com/go-swagger/go-swagger/cmd/swagger
 
 $(CR_CLIENT): $(GO_SWAGGER) $(SPEC)
 	mkdir -p $@

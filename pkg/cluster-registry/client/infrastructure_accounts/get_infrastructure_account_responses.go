@@ -24,35 +24,30 @@ type GetInfrastructureAccountReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *GetInfrastructureAccountReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewGetInfrastructureAccountOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 401:
 		result := NewGetInfrastructureAccountUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewGetInfrastructureAccountForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewGetInfrastructureAccountNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewGetInfrastructureAccountInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -80,6 +75,10 @@ type GetInfrastructureAccountOK struct {
 
 func (o *GetInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
+}
+
+func (o *GetInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
+	return o.Payload
 }
 
 func (o *GetInfrastructureAccountOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -172,6 +171,10 @@ type GetInfrastructureAccountInternalServerError struct {
 
 func (o *GetInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *GetInfrastructureAccountInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *GetInfrastructureAccountInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

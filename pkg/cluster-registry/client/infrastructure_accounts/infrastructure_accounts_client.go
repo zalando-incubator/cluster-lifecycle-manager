@@ -6,6 +6,8 @@ package infrastructure_accounts
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"fmt"
+
 	"github.com/go-openapi/runtime"
 
 	strfmt "github.com/go-openapi/strfmt"
@@ -52,8 +54,14 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 	if err != nil {
 		return nil, err
 	}
-	return result.(*CreateInfrastructureAccountCreated), nil
-
+	success, ok := result.(*CreateInfrastructureAccountCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for createInfrastructureAccount: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -84,8 +92,14 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 	if err != nil {
 		return nil, err
 	}
-	return result.(*GetInfrastructureAccountOK), nil
-
+	success, ok := result.(*GetInfrastructureAccountOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for getInfrastructureAccount: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -113,8 +127,14 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 	if err != nil {
 		return nil, err
 	}
-	return result.(*ListInfrastructureAccountsOK), nil
-
+	success, ok := result.(*ListInfrastructureAccountsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for listInfrastructureAccounts: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -144,8 +164,14 @@ func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccount
 	if err != nil {
 		return nil, err
 	}
-	return result.(*UpdateInfrastructureAccountOK), nil
-
+	success, ok := result.(*UpdateInfrastructureAccountOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for updateInfrastructureAccount: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 // SetTransport changes the transport on the client
