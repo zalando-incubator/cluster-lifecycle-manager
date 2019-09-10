@@ -6,6 +6,8 @@ package node_pool_config_items
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"fmt"
+
 	"github.com/go-openapi/runtime"
 
 	strfmt "github.com/go-openapi/strfmt"
@@ -51,8 +53,14 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 	if err != nil {
 		return nil, err
 	}
-	return result.(*AddOrUpdateNodePoolConfigItemOK), nil
-
+	success, ok := result.(*AddOrUpdateNodePoolConfigItemOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for addOrUpdateNodePoolConfigItem: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -82,8 +90,14 @@ func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams
 	if err != nil {
 		return nil, err
 	}
-	return result.(*DeleteNodePoolConfigItemNoContent), nil
-
+	success, ok := result.(*DeleteNodePoolConfigItemNoContent)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for deleteNodePoolConfigItem: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 // SetTransport changes the transport on the client

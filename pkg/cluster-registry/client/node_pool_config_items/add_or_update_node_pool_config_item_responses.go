@@ -24,35 +24,30 @@ type AddOrUpdateNodePoolConfigItemReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *AddOrUpdateNodePoolConfigItemReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewAddOrUpdateNodePoolConfigItemOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewAddOrUpdateNodePoolConfigItemBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewAddOrUpdateNodePoolConfigItemUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewAddOrUpdateNodePoolConfigItemForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewAddOrUpdateNodePoolConfigItemInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -82,6 +77,10 @@ func (o *AddOrUpdateNodePoolConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
 }
 
+func (o *AddOrUpdateNodePoolConfigItemOK) GetPayload() *models.ConfigValue {
+	return o.Payload
+}
+
 func (o *AddOrUpdateNodePoolConfigItemOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ConfigValue)
@@ -109,6 +108,10 @@ type AddOrUpdateNodePoolConfigItemBadRequest struct {
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *AddOrUpdateNodePoolConfigItemBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -180,6 +183,10 @@ type AddOrUpdateNodePoolConfigItemInternalServerError struct {
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *AddOrUpdateNodePoolConfigItemInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

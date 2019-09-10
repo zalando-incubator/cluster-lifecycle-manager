@@ -27,28 +27,24 @@ type ListNodePoolsReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *ListNodePoolsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewListNodePoolsOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 401:
 		result := NewListNodePoolsUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewListNodePoolsForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewListNodePoolsInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -76,6 +72,10 @@ type ListNodePoolsOK struct {
 
 func (o *ListNodePoolsOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
+}
+
+func (o *ListNodePoolsOK) GetPayload() *ListNodePoolsOKBody {
+	return o.Payload
 }
 
 func (o *ListNodePoolsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -147,6 +147,10 @@ type ListNodePoolsInternalServerError struct {
 
 func (o *ListNodePoolsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *ListNodePoolsInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *ListNodePoolsInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

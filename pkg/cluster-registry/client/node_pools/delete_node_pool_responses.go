@@ -24,42 +24,36 @@ type DeleteNodePoolReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *DeleteNodePoolReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 204:
 		result := NewDeleteNodePoolNoContent()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewDeleteNodePoolBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewDeleteNodePoolUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewDeleteNodePoolForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewDeleteNodePoolNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewDeleteNodePoolInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -108,6 +102,10 @@ type DeleteNodePoolBadRequest struct {
 
 func (o *DeleteNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *DeleteNodePoolBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteNodePoolBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -200,6 +198,10 @@ type DeleteNodePoolInternalServerError struct {
 
 func (o *DeleteNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *DeleteNodePoolInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteNodePoolInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

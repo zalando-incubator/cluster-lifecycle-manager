@@ -24,42 +24,36 @@ type CreateClusterReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *CreateClusterReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 201:
 		result := NewCreateClusterCreated()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewCreateClusterBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewCreateClusterUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewCreateClusterForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 409:
 		result := NewCreateClusterConflict()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewCreateClusterInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -89,6 +83,10 @@ func (o *CreateClusterCreated) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
 }
 
+func (o *CreateClusterCreated) GetPayload() *models.Cluster {
+	return o.Payload
+}
+
 func (o *CreateClusterCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Cluster)
@@ -116,6 +114,10 @@ type CreateClusterBadRequest struct {
 
 func (o *CreateClusterBadRequest) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *CreateClusterBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *CreateClusterBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -208,6 +210,10 @@ type CreateClusterInternalServerError struct {
 
 func (o *CreateClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *CreateClusterInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *CreateClusterInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

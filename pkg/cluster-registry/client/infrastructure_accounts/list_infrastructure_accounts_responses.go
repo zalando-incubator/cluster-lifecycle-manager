@@ -27,28 +27,24 @@ type ListInfrastructureAccountsReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *ListInfrastructureAccountsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewListInfrastructureAccountsOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 401:
 		result := NewListInfrastructureAccountsUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewListInfrastructureAccountsForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewListInfrastructureAccountsInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -76,6 +72,10 @@ type ListInfrastructureAccountsOK struct {
 
 func (o *ListInfrastructureAccountsOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
+}
+
+func (o *ListInfrastructureAccountsOK) GetPayload() *ListInfrastructureAccountsOKBody {
+	return o.Payload
 }
 
 func (o *ListInfrastructureAccountsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -147,6 +147,10 @@ type ListInfrastructureAccountsInternalServerError struct {
 
 func (o *ListInfrastructureAccountsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *ListInfrastructureAccountsInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *ListInfrastructureAccountsInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

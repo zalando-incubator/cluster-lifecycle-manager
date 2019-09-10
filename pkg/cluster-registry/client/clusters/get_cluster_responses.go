@@ -24,35 +24,30 @@ type GetClusterReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *GetClusterReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewGetClusterOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 401:
 		result := NewGetClusterUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewGetClusterForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewGetClusterNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewGetClusterInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -80,6 +75,10 @@ type GetClusterOK struct {
 
 func (o *GetClusterOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK  %+v", 200, o.Payload)
+}
+
+func (o *GetClusterOK) GetPayload() *models.Cluster {
+	return o.Payload
 }
 
 func (o *GetClusterOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -172,6 +171,10 @@ type GetClusterInternalServerError struct {
 
 func (o *GetClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *GetClusterInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *GetClusterInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

@@ -24,42 +24,36 @@ type DeleteNodePoolConfigItemReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *DeleteNodePoolConfigItemReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 204:
 		result := NewDeleteNodePoolConfigItemNoContent()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewDeleteNodePoolConfigItemBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewDeleteNodePoolConfigItemUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewDeleteNodePoolConfigItemForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 404:
 		result := NewDeleteNodePoolConfigItemNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewDeleteNodePoolConfigItemInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -108,6 +102,10 @@ type DeleteNodePoolConfigItemBadRequest struct {
 
 func (o *DeleteNodePoolConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *DeleteNodePoolConfigItemBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteNodePoolConfigItemBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -200,6 +198,10 @@ type DeleteNodePoolConfigItemInternalServerError struct {
 
 func (o *DeleteNodePoolConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *DeleteNodePoolConfigItemInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *DeleteNodePoolConfigItemInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

@@ -24,35 +24,30 @@ type CreateOrUpdateNodePoolReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *CreateOrUpdateNodePoolReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewCreateOrUpdateNodePoolOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewCreateOrUpdateNodePoolBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewCreateOrUpdateNodePoolUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewCreateOrUpdateNodePoolForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewCreateOrUpdateNodePoolInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -82,6 +77,10 @@ func (o *CreateOrUpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
 }
 
+func (o *CreateOrUpdateNodePoolOK) GetPayload() *models.NodePool {
+	return o.Payload
+}
+
 func (o *CreateOrUpdateNodePoolOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.NodePool)
@@ -109,6 +108,10 @@ type CreateOrUpdateNodePoolBadRequest struct {
 
 func (o *CreateOrUpdateNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *CreateOrUpdateNodePoolBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *CreateOrUpdateNodePoolBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -180,6 +183,10 @@ type CreateOrUpdateNodePoolInternalServerError struct {
 
 func (o *CreateOrUpdateNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *CreateOrUpdateNodePoolInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *CreateOrUpdateNodePoolInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {

@@ -24,35 +24,30 @@ type AddOrUpdateConfigItemReader struct {
 // ReadResponse reads a server response into the received o.
 func (o *AddOrUpdateConfigItemReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
-
 	case 200:
 		result := NewAddOrUpdateConfigItemOK()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return result, nil
-
 	case 400:
 		result := NewAddOrUpdateConfigItemBadRequest()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 401:
 		result := NewAddOrUpdateConfigItemUnauthorized()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 403:
 		result := NewAddOrUpdateConfigItemForbidden()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
 		return nil, result
-
 	case 500:
 		result := NewAddOrUpdateConfigItemInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -82,6 +77,10 @@ func (o *AddOrUpdateConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
 }
 
+func (o *AddOrUpdateConfigItemOK) GetPayload() *models.ConfigValue {
+	return o.Payload
+}
+
 func (o *AddOrUpdateConfigItemOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ConfigValue)
@@ -109,6 +108,10 @@ type AddOrUpdateConfigItemBadRequest struct {
 
 func (o *AddOrUpdateConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
+}
+
+func (o *AddOrUpdateConfigItemBadRequest) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *AddOrUpdateConfigItemBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -180,6 +183,10 @@ type AddOrUpdateConfigItemInternalServerError struct {
 
 func (o *AddOrUpdateConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *AddOrUpdateConfigItemInternalServerError) GetPayload() *models.Error {
+	return o.Payload
 }
 
 func (o *AddOrUpdateConfigItemInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
