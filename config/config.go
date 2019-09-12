@@ -27,7 +27,7 @@ const (
 	defaultDrainMinUnhealthySiblingLifetime = "6h"
 	defaultDrainForceEvictInterval          = "5m"
 	defaultDrainPollInterval                = "30s"
-	defaultUpdateStrategy                   = "rolling"
+	defaultUpdateStrategy                   = "clc"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
@@ -111,7 +111,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("drain-min-unhealthy-sibling-lifetime", "Minimum lifetime of unhealthy pods in the same PDB as the one considered for forced termination.").Default(defaultDrainMinUnhealthySiblingLifetime).DurationVar(&cfg.UpdateStrategy.MinUnhealthyPDBSiblingLifetime)
 	kingpin.Flag("drain-force-evict-interval", "Interval between forced terminations of pods on the same node.").Default(defaultDrainForceEvictInterval).DurationVar(&cfg.UpdateStrategy.ForceEvictionInterval)
 	kingpin.Flag("drain-poll-interval", "Interval between drain attempts.").Default(defaultDrainPollInterval).DurationVar(&cfg.UpdateStrategy.PollInterval)
-	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling")
+	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling", "clc")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
 	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	return kingpin.Parse()
