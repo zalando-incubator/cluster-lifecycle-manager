@@ -26,6 +26,8 @@ require (
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mweagle/go-cloudformation v0.0.0-20180907140519-9c0b967a1b12 // indirect
 	github.com/onsi/ginkgo v1.6.0 // indirect
 	github.com/onsi/gomega v1.4.1 // indirect
