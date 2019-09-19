@@ -2,6 +2,8 @@ package channel
 
 import (
 	"context"
+	"path"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -14,8 +16,14 @@ type Directory struct {
 type directoryVersions struct{}
 
 // NewDirectory initializes a new directory-based ChannelSource.
-func NewDirectory(location string) ConfigSource {
-	return &Directory{location: location}
+func NewDirectory(location string) (ConfigSource, error) {
+	abspath, err := filepath.Abs(path.Clean(location))
+	if err != nil {
+		return nil, err
+	}
+	return &Directory{
+		location: abspath,
+	}, nil
 }
 
 func (d *Directory) Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {

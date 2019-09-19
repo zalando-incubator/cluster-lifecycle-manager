@@ -81,7 +81,10 @@ func main() {
 	var configSource channel.ConfigSource
 
 	if cfg.Directory != "" {
-		configSource = channel.NewDirectory(cfg.Directory)
+		configSource, err = channel.NewDirectory(cfg.Directory)
+		if err != nil {
+			log.Fatalf("Failed to setup directory channel config source: %v", err)
+		}
 	} else {
 		var err error
 		configSource, err = channel.NewGit(execManager, cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
