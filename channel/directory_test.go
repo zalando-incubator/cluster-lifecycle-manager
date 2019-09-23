@@ -13,7 +13,8 @@ func TestDirectoryChannel(t *testing.T) {
 
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	d := NewDirectory(location)
+	d, err := NewDirectory(location)
+	require.NoError(t, err)
 	channels, err := d.Update(context.Background(), logger)
 	require.NoError(t, err)
 	require.Empty(t, channels)
