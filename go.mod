@@ -36,7 +36,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/vincent-petithory/dataurl v0.0.0-20160330182126-9a301d65acbb // indirect
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.11
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.12
 	go.mongodb.org/mongo-driver v1.1.1 // indirect
 	go4.org v0.0.0-20180809161055-417644f6feb5 // indirect
 	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b // indirect

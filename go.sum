@@ -371,6 +371,8 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.8.11 h1:+yvhmNo9FGlRnctYzV4YG7yvmG828FSgcEsvlYBIx+Y=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.8.11/go.mod h1:o2wQ1+JzHf/R7lre/LmoXr5gSiXqXuqF7DgJPNYJtjI=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.8.12 h1:+PBfypccKBRNm0vmBK7oM+UHf73EyV5/gdsYesbxI7k=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.8.12/go.mod h1:eFnLsNhRZ6orT1y6GVjGd6IzkZmnyDJpDyd0T+7F+sQ=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.mongodb.org/mongo-driver v1.0.3/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
