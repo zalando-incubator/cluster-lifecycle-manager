@@ -277,6 +277,8 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"amiID": func(imageName, imageOwner string) (string, error) {
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
+		"nodeCIDRMaxNodes": nodeCIDRMaxNodes,
+		"nodeCIDRMaxPods":  nodeCIDRMaxPods,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -578,4 +580,33 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 		return "", fmt.Errorf("more than one image found with name: %s and owner: %s", imageName, imageOwner)
 	}
 	return *output.Images[0].ImageId, nil
+}
+
+func checkCIDRMaxSize(maskSize int) error {
+	if maskSize < 24 || maskSize > 28 {
+		return fmt.Errorf("invalid value for maskSize: %d", maskSize)
+	}
+	return nil
+}
+
+func nodeCIDRMaxNodes(maskSize int) (int, error) {
+	err := checkCIDRMaxSize(maskSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return 2 << (maskSize - 16 - 1), nil
+}
+
+func nodeCIDRMaxPods(maskSize int) (int, error) {
+	err := checkCIDRMaxSize(maskSize)
+	if err != nil {
+		return 0, err
+	}
+
+	maxPods := 2 << (32 - maskSize - 2)
+	if maxPods > 110 {
+		maxPods = 110
+	}
+	return maxPods, nil
 }
