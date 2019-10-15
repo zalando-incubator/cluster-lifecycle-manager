@@ -626,6 +626,7 @@ func TestNodeCIDRMaxPods(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		cidr          int
+		extraCapacity int
 		expected      string
 		expectedError bool
 	}{
@@ -635,14 +636,21 @@ func TestNodeCIDRMaxPods(t *testing.T) {
 			expected: "110",
 		},
 		{
+			name:          "basic+extra",
+			cidr:          24,
+			extraCapacity: 10,
+			expected:      "110",
+		},
+		{
 			name:     "larger",
 			cidr:     25,
 			expected: "64",
 		},
 		{
-			name:     "large",
-			cidr:     27,
-			expected: "16",
+			name:          "large",
+			cidr:          27,
+			extraCapacity: 5,
+			expected:      "21",
 		},
 		{
 			name:          "error: too small",
@@ -656,7 +664,10 @@ func TestNodeCIDRMaxPods(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := renderSingle(t, "{{ nodeCIDRMaxPods .Values.data }}", tc.cidr)
+			result, err := renderSingle(t, "{{ nodeCIDRMaxPods .Values.data.cidr .Values.data.extra_capacity }}", map[string]int{
+				"cidr":           tc.cidr,
+				"extra_capacity": tc.extraCapacity,
+			})
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {

@@ -598,13 +598,13 @@ func nodeCIDRMaxNodes(maskSize int) (int, error) {
 	return 2 << (maskSize - 16 - 1), nil
 }
 
-func nodeCIDRMaxPods(maskSize int) (int, error) {
+func nodeCIDRMaxPods(maskSize int, extraCapacity int) (int, error) {
 	err := checkCIDRMaxSize(maskSize)
 	if err != nil {
 		return 0, err
 	}
 
-	maxPods := 2 << (32 - maskSize - 2)
+	maxPods := 2<<(32-maskSize-2) + extraCapacity
 	if maxPods > 110 {
 		maxPods = 110
 	}
