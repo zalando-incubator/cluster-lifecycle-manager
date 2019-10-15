@@ -13,10 +13,9 @@ require (
 	github.com/go-openapi/errors v0.19.2
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/runtime v0.19.6
-	github.com/go-openapi/spec v0.19.3 // indirect
-	github.com/go-openapi/strfmt v0.19.2
+	github.com/go-openapi/strfmt v0.19.3
 	github.com/go-openapi/swag v0.19.5
-	github.com/go-openapi/validate v0.19.2
+	github.com/go-openapi/validate v0.19.3
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/go-swagger/go-swagger v0.20.1
 	github.com/googleapis/gnostic v0.2.0 // indirect
@@ -26,8 +25,6 @@ require (
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mweagle/go-cloudformation v0.0.0-20180907140519-9c0b967a1b12 // indirect
 	github.com/onsi/ginkgo v1.6.0 // indirect
 	github.com/onsi/gomega v1.4.1 // indirect
@@ -37,7 +34,6 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/vincent-petithory/dataurl v0.0.0-20160330182126-9a301d65acbb // indirect
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.8.13
-	go.mongodb.org/mongo-driver v1.1.1 // indirect
 	go4.org v0.0.0-20180809161055-417644f6feb5 // indirect
 	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,7 +30,7 @@ func exampleCluster(pools []*api.NodePool) *api.Cluster {
 }
 
 func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
-	basedir, err := ioutil.TempDir(os.TempDir(), t.Name())
+	basedir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(t.Name(), "/", "_"))
 	require.NoError(t, err, "unable to create temp dir")
 
 	defer os.RemoveAll(basedir)
@@ -560,7 +561,7 @@ func TestAmiID(t *testing.T) {
 			expectErr: true,
 		},
 	} {
-		t.Run(tc.name, func(tt *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			adapter := awsAdapter{ec2Client: mockEC2Client{t: t, kubernetesImage: tc.imageName, ownerID: tc.ownerID, output: tc.output}}
 			result, err := render(
 				t,
@@ -576,6 +577,91 @@ func TestAmiID(t *testing.T) {
 				require.EqualValues(t, tc.imageID, result)
 			} else {
 				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestNodeCIDRMaxNodes(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		cidr          int
+		expected      string
+		expectedError bool
+	}{
+		{
+			name:     "basic",
+			cidr:     24,
+			expected: "256",
+		},
+		{
+			name:     "large",
+			cidr:     27,
+			expected: "2048",
+		},
+		{
+			name:          "error: too small",
+			cidr:          19,
+			expectedError: true,
+		},
+		{
+			name:          "error: too large",
+			cidr:          29,
+			expectedError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, "{{ nodeCIDRMaxNodes .Values.data }}", tc.cidr)
+			if tc.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.EqualValues(t, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestNodeCIDRMaxPods(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		cidr          int
+		expected      string
+		expectedError bool
+	}{
+		{
+			name:     "basic",
+			cidr:     24,
+			expected: "110",
+		},
+		{
+			name:     "larger",
+			cidr:     25,
+			expected: "64",
+		},
+		{
+			name:     "large",
+			cidr:     27,
+			expected: "16",
+		},
+		{
+			name:          "error: too small",
+			cidr:          19,
+			expectedError: true,
+		},
+		{
+			name:          "error: too large",
+			cidr:          29,
+			expectedError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, "{{ nodeCIDRMaxPods .Values.data }}", tc.cidr)
+			if tc.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.EqualValues(t, tc.expected, result)
 			}
 		})
 	}
