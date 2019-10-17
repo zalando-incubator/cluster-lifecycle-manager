@@ -36,7 +36,7 @@ fmt:
 
 $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
-	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | {instance_type, vCPU, memory, ebs_as_nvme, storage: (if .storage == null then null else .storage | {devices, nvme_ssd, storage_needs_initialization} end)}] | sort_by(.instance_type)' > "$@"
+	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | {instance_type, vCPU, memory}] | sort_by(.instance_type)' > "$@"
 
 $(GO_BINDATA):
 	mkdir -p build

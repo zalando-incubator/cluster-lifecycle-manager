@@ -14,16 +14,9 @@ func TestInstanceInfo(t *testing.T) {
 			Memory:       17179869184,
 		},
 		{
-			InstanceType:           "i3.4xlarge",
-			VCPU:                   16,
-			Memory:                 130996502528,
-			InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme0n1", NVME: true}, {Path: "/dev/nvme1n1", NVME: true}},
-		},
-		{
-			InstanceType:           "m5d.4xlarge",
-			VCPU:                   16,
-			Memory:                 68719476736,
-			InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme1n1", NVME: true}, {Path: "/dev/nvme2n1", NVME: true}},
+			InstanceType: "i3.4xlarge",
+			VCPU:         16,
+			Memory:       130996502528,
 		},
 		{
 			InstanceType: "r3.large",
@@ -37,7 +30,6 @@ func TestInstanceInfo(t *testing.T) {
 			require.Equal(t, tc.InstanceType, info.InstanceType)
 			require.Equal(t, tc.VCPU, info.VCPU)
 			require.Equal(t, tc.Memory, info.Memory)
-			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
 		})
 	}
 }
@@ -85,23 +77,12 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "multiple types",
-			instanceTypes: []string{"c5d.xlarge", "r5d.large"},
+			instanceTypes: []string{"c5.xlarge", "r5d.large"},
 			expectedInstance: Instance{
-				InstanceType:           "<multiple>",
-				VCPU:                   2,
-				Memory:                 8589934592,
-				InstanceStorageDevices: []StorageDevice{{Path: "/dev/nvme1n1", NVME: true}},
+				InstanceType: "<multiple>",
+				VCPU:         2,
+				Memory:       8589934592,
 			},
-		},
-		{
-			name:          "multiple types, incompatible storage devices",
-			instanceTypes: []string{"m5.large", "m5d.xlarge"},
-			expectedError: true,
-		},
-		{
-			name:          "multiple types, incompatible storage device paths",
-			instanceTypes: []string{"i3.large", "m5d.xlarge"},
-			expectedError: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -113,7 +94,6 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				require.Equal(t, tc.expectedInstance.InstanceType, info.InstanceType)
 				require.Equal(t, tc.expectedInstance.VCPU, info.VCPU)
 				require.Equal(t, tc.expectedInstance.Memory, info.Memory)
-				require.Equal(t, tc.expectedInstance.InstanceStorageDevices, info.InstanceStorageDevices)
 			}
 		})
 	}
