@@ -2,1942 +2,1116 @@
   {
     "instance_type": "a1.2xlarge",
     "vCPU": 8,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "a1.4xlarge",
     "vCPU": 16,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "a1.large",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 4
   },
   {
     "instance_type": "a1.medium",
     "vCPU": 1,
-    "memory": 2,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 2
   },
   {
     "instance_type": "a1.xlarge",
     "vCPU": 4,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "c1.medium",
     "vCPU": 2,
-    "memory": 1.7,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 1.7
   },
   {
     "instance_type": "c1.xlarge",
     "vCPU": 8,
-    "memory": 7,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 7
   },
   {
     "instance_type": "c3.2xlarge",
     "vCPU": 8,
-    "memory": 15,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 15
   },
   {
     "instance_type": "c3.4xlarge",
     "vCPU": 16,
-    "memory": 30,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 30
   },
   {
     "instance_type": "c3.8xlarge",
     "vCPU": 32,
-    "memory": 60,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 60
   },
   {
     "instance_type": "c3.large",
     "vCPU": 2,
-    "memory": 3.75,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 3.75
   },
   {
     "instance_type": "c3.xlarge",
     "vCPU": 4,
-    "memory": 7.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 7.5
   },
   {
     "instance_type": "c4.2xlarge",
     "vCPU": 8,
-    "memory": 15,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 15
   },
   {
     "instance_type": "c4.4xlarge",
     "vCPU": 16,
-    "memory": 30,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 30
   },
   {
     "instance_type": "c4.8xlarge",
     "vCPU": 36,
-    "memory": 60,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 60
   },
   {
     "instance_type": "c4.large",
     "vCPU": 2,
-    "memory": 3.75,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 3.75
   },
   {
     "instance_type": "c4.xlarge",
     "vCPU": 4,
-    "memory": 7.5,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 7.5
   },
   {
     "instance_type": "c5.12xlarge",
     "vCPU": 48,
-    "memory": 96,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 96
   },
   {
     "instance_type": "c5.18xlarge",
     "vCPU": 72,
-    "memory": 144,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 144
   },
   {
     "instance_type": "c5.24xlarge",
     "vCPU": 96,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 192
   },
   {
     "instance_type": "c5.2xlarge",
     "vCPU": 8,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "c5.4xlarge",
     "vCPU": 16,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "c5.9xlarge",
     "vCPU": 36,
-    "memory": 72,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 72
   },
   {
     "instance_type": "c5.large",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 4
   },
   {
     "instance_type": "c5.metal",
     "vCPU": 96,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 192
   },
   {
     "instance_type": "c5.xlarge",
     "vCPU": 4,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "c5d.18xlarge",
     "vCPU": 72,
-    "memory": 144,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 144
   },
   {
     "instance_type": "c5d.2xlarge",
     "vCPU": 8,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "c5d.4xlarge",
     "vCPU": 16,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "c5d.9xlarge",
     "vCPU": 36,
-    "memory": 72,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 72
   },
   {
     "instance_type": "c5d.large",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 4
   },
   {
     "instance_type": "c5d.xlarge",
     "vCPU": 4,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 8
   },
   {
     "instance_type": "c5n.18xlarge",
     "vCPU": 72,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 192
   },
   {
     "instance_type": "c5n.2xlarge",
     "vCPU": 8,
-    "memory": 21,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 21
   },
   {
     "instance_type": "c5n.4xlarge",
     "vCPU": 16,
-    "memory": 42,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 42
   },
   {
     "instance_type": "c5n.9xlarge",
     "vCPU": 36,
-    "memory": 96,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 96
   },
   {
     "instance_type": "c5n.large",
     "vCPU": 2,
-    "memory": 5.25,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 5.25
+  },
+  {
+    "instance_type": "c5n.metal",
+    "vCPU": 72,
+    "memory": 192
   },
   {
     "instance_type": "c5n.xlarge",
     "vCPU": 4,
-    "memory": 10.5,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 10.5
   },
   {
     "instance_type": "cc2.8xlarge",
     "vCPU": 32,
-    "memory": 60.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 60.5
   },
   {
     "instance_type": "cr1.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 244
   },
   {
     "instance_type": "d2.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 6,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 61
   },
   {
     "instance_type": "d2.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 12,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "d2.8xlarge",
     "vCPU": 36,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 24,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "d2.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 3,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 30.5
   },
   {
     "instance_type": "f1.16xlarge",
     "vCPU": 64,
-    "memory": 976,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 976
   },
   {
     "instance_type": "f1.2xlarge",
     "vCPU": 8,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "f1.4xlarge",
     "vCPU": 16,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "g2.2xlarge",
     "vCPU": 8,
-    "memory": 15,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 15
   },
   {
     "instance_type": "g2.8xlarge",
     "vCPU": 32,
-    "memory": 60,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 60
   },
   {
     "instance_type": "g3.16xlarge",
     "vCPU": 64,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 488
   },
   {
     "instance_type": "g3.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 122
   },
   {
     "instance_type": "g3.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 244
   },
   {
     "instance_type": "g3s.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 30.5
+  },
+  {
+    "instance_type": "g4dn.12xlarge",
+    "vCPU": 48,
+    "memory": 192
+  },
+  {
+    "instance_type": "g4dn.16xlarge",
+    "vCPU": 64,
+    "memory": 256
+  },
+  {
+    "instance_type": "g4dn.2xlarge",
+    "vCPU": 8,
+    "memory": 32
+  },
+  {
+    "instance_type": "g4dn.4xlarge",
+    "vCPU": 16,
+    "memory": 64
+  },
+  {
+    "instance_type": "g4dn.8xlarge",
+    "vCPU": 32,
+    "memory": 128
+  },
+  {
+    "instance_type": "g4dn.xlarge",
+    "vCPU": 4,
+    "memory": 16
   },
   {
     "instance_type": "h1.16xlarge",
     "vCPU": 64,
-    "memory": 256,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 8,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 256
   },
   {
     "instance_type": "h1.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "h1.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "h1.8xlarge",
     "vCPU": 32,
-    "memory": 128,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 128
   },
   {
     "instance_type": "hs1.8xlarge",
     "vCPU": 17,
-    "memory": 117,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 24,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 117
   },
   {
     "instance_type": "i2.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 61
   },
   {
     "instance_type": "i2.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "i2.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 8,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "i2.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 30.5
   },
   {
     "instance_type": "i3.16xlarge",
     "vCPU": 64,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 8,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 488
   },
   {
     "instance_type": "i3.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 61
   },
   {
     "instance_type": "i3.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "i3.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "i3.large",
     "vCPU": 2,
-    "memory": 15.25,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 15.25
   },
   {
     "instance_type": "i3.metal",
     "vCPU": 72,
-    "memory": 512,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 8,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 512
   },
   {
     "instance_type": "i3.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 30.5
   },
   {
     "instance_type": "i3en.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "i3en.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 8,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 768
   },
   {
     "instance_type": "i3en.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "i3en.3xlarge",
     "vCPU": 12,
-    "memory": 96,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 96
   },
   {
     "instance_type": "i3en.6xlarge",
     "vCPU": 24,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 192
   },
   {
     "instance_type": "i3en.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
+  },
+  {
+    "instance_type": "i3en.metal",
+    "vCPU": 96,
+    "memory": 768
   },
   {
     "instance_type": "i3en.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "m1.large",
     "vCPU": 2,
-    "memory": 7.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 7.5
   },
   {
     "instance_type": "m1.medium",
     "vCPU": 1,
-    "memory": 3.75,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 3.75
   },
   {
     "instance_type": "m1.small",
     "vCPU": 1,
-    "memory": 1.7,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 1.7
   },
   {
     "instance_type": "m1.xlarge",
     "vCPU": 4,
-    "memory": 15,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 15
   },
   {
     "instance_type": "m2.2xlarge",
     "vCPU": 4,
-    "memory": 34.2,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 34.2
   },
   {
     "instance_type": "m2.4xlarge",
     "vCPU": 8,
-    "memory": 68.4,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 68.4
   },
   {
     "instance_type": "m2.xlarge",
     "vCPU": 2,
-    "memory": 17.1,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 17.1
   },
   {
     "instance_type": "m3.2xlarge",
     "vCPU": 8,
-    "memory": 30,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 30
   },
   {
     "instance_type": "m3.large",
     "vCPU": 2,
-    "memory": 7.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 7.5
   },
   {
     "instance_type": "m3.medium",
     "vCPU": 1,
-    "memory": 3.75,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 3.75
   },
   {
     "instance_type": "m3.xlarge",
     "vCPU": 4,
-    "memory": 15,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": true
-    }
+    "memory": 15
   },
   {
     "instance_type": "m4.10xlarge",
     "vCPU": 40,
-    "memory": 160,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 160
   },
   {
     "instance_type": "m4.16xlarge",
     "vCPU": 64,
-    "memory": 256,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 256
   },
   {
     "instance_type": "m4.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "m4.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 64
   },
   {
     "instance_type": "m4.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "m4.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "m5.12xlarge",
     "vCPU": 48,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 192
   },
   {
     "instance_type": "m5.16xlarge",
     "vCPU": 64,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 256
   },
   {
     "instance_type": "m5.24xlarge",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 384
   },
   {
     "instance_type": "m5.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "m5.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 64
   },
   {
     "instance_type": "m5.8xlarge",
     "vCPU": 32,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 128
   },
   {
     "instance_type": "m5.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "m5.metal",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 384
   },
   {
     "instance_type": "m5.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "m5a.12xlarge",
     "vCPU": 48,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 192
   },
   {
     "instance_type": "m5a.16xlarge",
     "vCPU": 64,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 256
   },
   {
     "instance_type": "m5a.24xlarge",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 384
   },
   {
     "instance_type": "m5a.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "m5a.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 64
   },
   {
     "instance_type": "m5a.8xlarge",
     "vCPU": 32,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 128
   },
   {
     "instance_type": "m5a.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "m5a.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "m5ad.12xlarge",
     "vCPU": 48,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 192
   },
   {
     "instance_type": "m5ad.24xlarge",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "m5ad.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "m5ad.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "m5ad.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 8
   },
   {
     "instance_type": "m5ad.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "m5d.12xlarge",
     "vCPU": 48,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 192
   },
   {
     "instance_type": "m5d.16xlarge",
     "vCPU": 64,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 256
   },
   {
     "instance_type": "m5d.24xlarge",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "m5d.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "m5d.4xlarge",
     "vCPU": 16,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "m5d.8xlarge",
     "vCPU": 32,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 128
   },
   {
     "instance_type": "m5d.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 8
   },
   {
     "instance_type": "m5d.metal",
     "vCPU": 96,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "m5d.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "p2.16xlarge",
     "vCPU": 64,
-    "memory": 768,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 768
   },
   {
     "instance_type": "p2.8xlarge",
     "vCPU": 32,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 488
   },
   {
     "instance_type": "p2.xlarge",
     "vCPU": 4,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 61
   },
   {
     "instance_type": "p3.16xlarge",
     "vCPU": 64,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 488
   },
   {
     "instance_type": "p3.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 61
   },
   {
     "instance_type": "p3.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 244
   },
   {
     "instance_type": "p3dn.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 768
   },
   {
     "instance_type": "r3.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 61
   },
   {
     "instance_type": "r3.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "r3.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "r3.large",
     "vCPU": 2,
-    "memory": 15.25,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 15.25
   },
   {
     "instance_type": "r3.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 30.5
   },
   {
     "instance_type": "r4.16xlarge",
     "vCPU": 64,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 488
   },
   {
     "instance_type": "r4.2xlarge",
     "vCPU": 8,
-    "memory": 61,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 61
   },
   {
     "instance_type": "r4.4xlarge",
     "vCPU": 16,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 122
   },
   {
     "instance_type": "r4.8xlarge",
     "vCPU": 32,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 244
   },
   {
     "instance_type": "r4.large",
     "vCPU": 2,
-    "memory": 15.25,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 15.25
   },
   {
     "instance_type": "r4.xlarge",
     "vCPU": 4,
-    "memory": 30.5,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 30.5
   },
   {
     "instance_type": "r5.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 384
   },
   {
     "instance_type": "r5.16xlarge",
     "vCPU": 64,
-    "memory": 512,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 512
   },
   {
     "instance_type": "r5.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 768
   },
   {
     "instance_type": "r5.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 64
   },
   {
     "instance_type": "r5.4xlarge",
     "vCPU": 16,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 128
   },
   {
     "instance_type": "r5.8xlarge",
     "vCPU": 32,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 256
   },
   {
     "instance_type": "r5.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "r5.metal",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 768
   },
   {
     "instance_type": "r5.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "r5a.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 384
   },
   {
     "instance_type": "r5a.16xlarge",
     "vCPU": 64,
-    "memory": 512,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 512
   },
   {
     "instance_type": "r5a.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 768
   },
   {
     "instance_type": "r5a.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 64
   },
   {
     "instance_type": "r5a.4xlarge",
     "vCPU": 16,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 128
   },
   {
     "instance_type": "r5a.8xlarge",
     "vCPU": 32,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 256
   },
   {
     "instance_type": "r5a.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "r5a.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "r5ad.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "r5ad.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 768
   },
   {
     "instance_type": "r5ad.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "r5ad.4xlarge",
     "vCPU": 16,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 128
   },
   {
     "instance_type": "r5ad.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "r5ad.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "r5d.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "r5d.16xlarge",
     "vCPU": 64,
-    "memory": 512,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 512
   },
   {
     "instance_type": "r5d.24xlarge",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 768
   },
   {
     "instance_type": "r5d.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "r5d.4xlarge",
     "vCPU": 16,
-    "memory": 128,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 128
   },
   {
     "instance_type": "r5d.8xlarge",
     "vCPU": 32,
-    "memory": 256,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 256
   },
   {
     "instance_type": "r5d.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "r5d.metal",
     "vCPU": 96,
-    "memory": 768,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 4,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 768
   },
   {
     "instance_type": "r5d.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   },
   {
     "instance_type": "t1.micro",
     "vCPU": 1,
-    "memory": 0.613,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 0.613
   },
   {
     "instance_type": "t2.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "t2.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "t2.medium",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 4
   },
   {
     "instance_type": "t2.micro",
     "vCPU": 1,
-    "memory": 1,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 1
   },
   {
     "instance_type": "t2.nano",
     "vCPU": 1,
-    "memory": 0.5,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 0.5
   },
   {
     "instance_type": "t2.small",
     "vCPU": 1,
-    "memory": 2,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 2
   },
   {
     "instance_type": "t2.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "t3.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "t3.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "t3.medium",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 4
   },
   {
     "instance_type": "t3.micro",
     "vCPU": 2,
-    "memory": 1,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 1
   },
   {
     "instance_type": "t3.nano",
     "vCPU": 2,
-    "memory": 0.5,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 0.5
   },
   {
     "instance_type": "t3.small",
     "vCPU": 2,
-    "memory": 2,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 2
   },
   {
     "instance_type": "t3.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "t3a.2xlarge",
     "vCPU": 8,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 32
   },
   {
     "instance_type": "t3a.large",
     "vCPU": 2,
-    "memory": 8,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 8
   },
   {
     "instance_type": "t3a.medium",
     "vCPU": 2,
-    "memory": 4,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 4
   },
   {
     "instance_type": "t3a.micro",
     "vCPU": 2,
-    "memory": 1,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 1
   },
   {
     "instance_type": "t3a.nano",
     "vCPU": 2,
-    "memory": 0.5,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 0.5
   },
   {
     "instance_type": "t3a.small",
     "vCPU": 2,
-    "memory": 2,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 2
   },
   {
     "instance_type": "t3a.xlarge",
     "vCPU": 4,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": null
+    "memory": 16
   },
   {
     "instance_type": "u-12tb1.metal",
     "vCPU": 448,
-    "memory": 12288,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 12288
   },
   {
     "instance_type": "u-6tb1.metal",
     "vCPU": 448,
-    "memory": 6144,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 6144
   },
   {
     "instance_type": "u-9tb1.metal",
     "vCPU": 448,
-    "memory": 9216,
-    "ebs_as_nvme": false,
-    "storage": null
+    "memory": 9216
   },
   {
     "instance_type": "x1.16xlarge",
     "vCPU": 64,
-    "memory": 976,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 976
   },
   {
     "instance_type": "x1.32xlarge",
     "vCPU": 128,
-    "memory": 1952,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 1952
   },
   {
     "instance_type": "x1e.16xlarge",
     "vCPU": 64,
-    "memory": 1952,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 1952
   },
   {
     "instance_type": "x1e.2xlarge",
     "vCPU": 8,
-    "memory": 244,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 244
   },
   {
     "instance_type": "x1e.32xlarge",
     "vCPU": 128,
-    "memory": 3904,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 3904
   },
   {
     "instance_type": "x1e.4xlarge",
     "vCPU": 16,
-    "memory": 488,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 488
   },
   {
     "instance_type": "x1e.8xlarge",
     "vCPU": 32,
-    "memory": 976,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 976
   },
   {
     "instance_type": "x1e.xlarge",
     "vCPU": 4,
-    "memory": 122,
-    "ebs_as_nvme": false,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": false,
-      "storage_needs_initialization": false
-    }
+    "memory": 122
   },
   {
     "instance_type": "z1d.12xlarge",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "z1d.2xlarge",
     "vCPU": 8,
-    "memory": 64,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 64
   },
   {
     "instance_type": "z1d.3xlarge",
     "vCPU": 12,
-    "memory": 96,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 96
   },
   {
     "instance_type": "z1d.6xlarge",
     "vCPU": 24,
-    "memory": 192,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 192
   },
   {
     "instance_type": "z1d.large",
     "vCPU": 2,
-    "memory": 16,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 16
   },
   {
     "instance_type": "z1d.metal",
     "vCPU": 48,
-    "memory": 384,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 2,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 384
   },
   {
     "instance_type": "z1d.xlarge",
     "vCPU": 4,
-    "memory": 32,
-    "ebs_as_nvme": true,
-    "storage": {
-      "devices": 1,
-      "nvme_ssd": true,
-      "storage_needs_initialization": false
-    }
+    "memory": 32
   }
 ]

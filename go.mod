@@ -25,7 +25,6 @@ require (
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
-	github.com/mweagle/go-cloudformation v0.0.0-20180907140519-9c0b967a1b12 // indirect
 	github.com/onsi/ginkgo v1.6.0 // indirect
 	github.com/onsi/gomega v1.4.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -42,7 +41,6 @@ require (
 	golang.org/x/tools v0.0.0-20190906115428-bc9f4f258ada // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
-	gopkg.in/go-playground/validator.v9 v9.21.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.2.4

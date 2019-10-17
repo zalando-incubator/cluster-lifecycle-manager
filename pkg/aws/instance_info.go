@@ -2,11 +2,10 @@ package aws
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"sync"
-
-	"fmt"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,28 +14,16 @@ const (
 	gigabyte = 1024 * 1024 * 1024
 )
 
-type StorageDevice struct {
-	Path string
-	NVME bool
-}
-
 type Instance struct {
-	InstanceType           string
-	VCPU                   int64
-	Memory                 int64
-	InstanceStorageDevices []StorageDevice
+	InstanceType string
+	VCPU         int64
+	Memory       int64
 }
 
 type instanceInfo struct {
 	InstanceType string      `json:"instance_type"`
 	VCPU         interface{} `json:"vCPU"`
 	Memory       float64     `json:"memory"`
-	EBSAsNVME    bool        `json:"ebs_as_nvme"`
-	Storage      struct {
-		Devices             int  `json:"devices"`
-		NVMESSD             bool `json:"nvme_ssd"`
-		NeedsInitialization bool `json:"storage_needs_initialization"`
-	} `json:"storage"`
 }
 
 var loadedInstances struct {
@@ -68,10 +55,9 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 		}
 
 		result := Instance{
-			InstanceType:           first.InstanceType,
-			VCPU:                   first.VCPU,
-			Memory:                 first.Memory,
-			InstanceStorageDevices: first.InstanceStorageDevices,
+			InstanceType: first.InstanceType,
+			VCPU:         first.VCPU,
+			Memory:       first.Memory,
 		}
 		for _, instanceType := range instanceTypes[1:] {
 			info, err := InstanceInfo(instanceType)
@@ -84,9 +70,6 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 			}
 			if info.Memory < result.Memory {
 				result.Memory = info.Memory
-			}
-			if !reflect.DeepEqual(result.InstanceStorageDevices, info.InstanceStorageDevices) {
-				return Instance{}, fmt.Errorf("incompatible InstanceStorageDevices: %s/%s", result.InstanceType, info.InstanceType)
 			}
 		}
 		result.InstanceType = "<multiple>"
@@ -125,21 +108,6 @@ func loadInstanceInfo() map[string]Instance {
 			InstanceType: instance.InstanceType,
 			VCPU:         vCPU,
 			Memory:       int64(instance.Memory * gigabyte),
-		}
-
-		if instance.Storage.NVMESSD && !instance.Storage.NeedsInitialization {
-			nvmeInitialIndex := 0
-			// Assuming only the root volume is mounted initially
-			if instance.EBSAsNVME {
-				nvmeInitialIndex = 1
-			}
-
-			for i := 0; i < instance.Storage.Devices; i++ {
-				instanceInfo.InstanceStorageDevices = append(instanceInfo.InstanceStorageDevices, StorageDevice{
-					Path: fmt.Sprintf("/dev/nvme%dn1", i+nvmeInitialIndex),
-					NVME: true,
-				})
-			}
 		}
 
 		result[instance.InstanceType] = instanceInfo
