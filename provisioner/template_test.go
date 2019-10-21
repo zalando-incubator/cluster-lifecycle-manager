@@ -585,7 +585,7 @@ func TestAmiID(t *testing.T) {
 func TestNodeCIDRMaxNodes(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
-		cidr          int
+		cidr          int64
 		expected      string
 		expectedError bool
 	}{
@@ -625,8 +625,8 @@ func TestNodeCIDRMaxNodes(t *testing.T) {
 func TestNodeCIDRMaxPods(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
-		cidr          int
-		extraCapacity int
+		cidr          int64
+		extraCapacity int64
 		expected      string
 		expectedError bool
 	}{
@@ -664,7 +664,7 @@ func TestNodeCIDRMaxPods(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := renderSingle(t, "{{ nodeCIDRMaxPods .Values.data.cidr .Values.data.extra_capacity }}", map[string]int{
+			result, err := renderSingle(t, "{{ nodeCIDRMaxPods .Values.data.cidr .Values.data.extra_capacity }}", map[string]int64{
 				"cidr":           tc.cidr,
 				"extra_capacity": tc.extraCapacity,
 			})
@@ -676,4 +676,15 @@ func TestNodeCIDRMaxPods(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseInt64(t *testing.T) {
+	result, err := renderSingle(t, `{{ parseInt64 "1234" }}`, nil)
+	require.NoError(t, err)
+	require.EqualValues(t, "1234", result)
+}
+
+func TestParseInt64Error(t *testing.T) {
+	_, err := renderSingle(t, `{{ parseInt64 "foobar" }}`, nil)
+	require.Error(t, err)
 }
