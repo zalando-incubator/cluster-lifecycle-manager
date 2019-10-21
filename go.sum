@@ -154,6 +154,8 @@ github.com/go-openapi/validate v0.19.2 h1:ky5l57HjyVRrsJfd2+Ro5Z9PjGuKbsmftwyMtk
 github.com/go-openapi/validate v0.19.2/go.mod h1:1tRCw7m3jtI8eNWEEliiAqUIcBztB2KDnRCRMUi7GTA=
 github.com/go-openapi/validate v0.19.3 h1:PAH/2DylwWcIU1s0Y7k3yNmeAgWOcKrNE2Q7Ww/kCg4=
 github.com/go-openapi/validate v0.19.3/go.mod h1:90Vh6jjkTn+OT1Eefm0ZixWNFjhtOH7vS9k0lo6zwJo=
+github.com/go-openapi/validate v0.19.4 h1:LGjO87VyXY3bIKjlYpXSFuLRG2mTeuYlZyeNwFFWpyM=
+github.com/go-openapi/validate v0.19.4/go.mod h1:BkJ0ZmXui7yB0bJXWSXgLPNTmbLVeX/3D1xn/N9mMUM=
 github.com/go-playground/locales v0.12.1 h1:2FITxuFt/xuCNP1Acdhv62OzaCiviiE4kotfhkmOqEc=
 github.com/go-playground/locales v0.12.1/go.mod h1:IUMDtCfWo/w/mtMfIE/IG2K+Ey3ygWanZIBtBW0W2TM=
 github.com/go-playground/universal-translator v0.0.0-20170327191703-71201497bace/go.mod h1:1AnU7NaIRDWWzGEKwgtJRd2xk99HeFyHw3yid4rvQIY=
