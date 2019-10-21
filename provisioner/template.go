@@ -279,6 +279,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		},
 		"nodeCIDRMaxNodes": nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":  nodeCIDRMaxPods,
+		"parseInt64":       parseInt64,
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -582,14 +583,18 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 	return *output.Images[0].ImageId, nil
 }
 
-func checkCIDRMaxSize(maskSize int) error {
+func parseInt64(value string) (int64, error) {
+	return strconv.ParseInt(value, 10, 64)
+}
+
+func checkCIDRMaxSize(maskSize int64) error {
 	if maskSize < 24 || maskSize > 28 {
 		return fmt.Errorf("invalid value for maskSize: %d", maskSize)
 	}
 	return nil
 }
 
-func nodeCIDRMaxNodes(maskSize int) (int, error) {
+func nodeCIDRMaxNodes(maskSize int64) (int64, error) {
 	err := checkCIDRMaxSize(maskSize)
 	if err != nil {
 		return 0, err
@@ -598,7 +603,7 @@ func nodeCIDRMaxNodes(maskSize int) (int, error) {
 	return 2 << (maskSize - 16 - 1), nil
 }
 
-func nodeCIDRMaxPods(maskSize int, extraCapacity int) (int, error) {
+func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
 	err := checkCIDRMaxSize(maskSize)
 	if err != nil {
 		return 0, err
