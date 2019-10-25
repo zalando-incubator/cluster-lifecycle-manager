@@ -229,27 +229,11 @@ func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error)
 				return nil, err
 			}
 
-			// instance type from node pool has a greater vCPU and memory than the current best fit
-			// and continue
-			if instanceInfo.VCPU > currentBestFitVCPU && instanceInfo.Memory > currentBestFitMemory {
-				currentBestFitVCPU = instanceInfo.VCPU
-				currentBestFitMemory = instanceInfo.Memory
-				continue
-			}
-			// instance type from node pool have less or equal vCPU and memory than the current best fit
-			// do nothing and continue
-			if instanceInfo.VCPU <= currentBestFitVCPU && instanceInfo.Memory <= currentBestFitMemory {
-				continue
-			}
-
-			// only in case we are unable to select autoscaling buffer settings from one specific instance type
-			// e.g. r5.2xlarge (8vCPU and 64Gb) and c5.4xlarge (16vCPU and 32GB)
-			// select the lowest vCPU (8vCPU) and memory (32GB)
-			if instanceInfo.VCPU < currentBestFitVCPU {
+			if currentBestFitVCPU == 0 || instanceInfo.VCPU < currentBestFitVCPU {
 				currentBestFitVCPU = instanceInfo.VCPU
 			}
 
-			if instanceInfo.Memory < currentBestFitMemory {
+			if currentBestFitMemory == 0 || instanceInfo.Memory < currentBestFitMemory {
 				currentBestFitMemory = instanceInfo.Memory
 			}
 		}
