@@ -220,7 +220,7 @@ func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error)
 		return nil, fmt.Errorf("no pools matching %s", poolNameRegex)
 	}
 
-	var currentLargestVCPU, currentLargestMemory int64
+	var currentBestFitVCPU, currentBestFitMemory int64
 
 	for _, pool := range pools {
 		for _, instanceType := range pool.InstanceTypes {
@@ -229,23 +229,35 @@ func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error)
 				return nil, err
 			}
 
-			if instanceInfo.VCPU > currentLargestVCPU {
-				currentLargestVCPU = instanceInfo.VCPU
+			// instance type from node pool has a greater vCPU and memory than the current best fit
+			// and continue
+			if instanceInfo.VCPU > currentBestFitVCPU && instanceInfo.Memory > currentBestFitMemory {
+				currentBestFitVCPU = instanceInfo.VCPU
+				currentBestFitMemory = instanceInfo.Memory
+				continue
+			}
+			// instance type from node pool have less or equal vCPU and memory than the current best fit
+			// do nothing and continue
+			if instanceInfo.VCPU <= currentBestFitVCPU && instanceInfo.Memory <= currentBestFitMemory {
+				continue
 			}
 
-			if instanceInfo.Memory > currentLargestMemory {
-				currentLargestMemory = instanceInfo.Memory
+			// only in case we are unable to select autoscaling buffer settings from one specific instance type
+			// e.g. r5.2xlarge (8vCPU and 64Gb) and c5.4xlarge (16vCPU and 32GB)
+			// select the lowest vCPU (8vCPU) and memory (32GB)
+			if instanceInfo.VCPU < currentBestFitVCPU {
+				currentBestFitVCPU = instanceInfo.VCPU
+			}
+
+			if instanceInfo.Memory < currentBestFitMemory {
+				currentBestFitMemory = instanceInfo.Memory
 			}
 		}
 	}
 
-	if currentLargestVCPU == 0 || currentLargestMemory == 0 {
-		return nil, fmt.Errorf("unable to select autoscaling buffer settings, invalid CPU setting %d and Memory setting %d", currentLargestVCPU, currentLargestMemory)
-	}
-
 	result := &podResources{
-		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentLargestVCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
-		Memory: k8sresource.NewQuantity(effectiveQuantity(currentLargestMemory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
+		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentBestFitVCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
+		Memory: k8sresource.NewQuantity(effectiveQuantity(currentBestFitMemory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
 	}
 	return result, nil
 }

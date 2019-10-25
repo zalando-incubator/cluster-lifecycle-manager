@@ -175,13 +175,13 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 				Name:          "worker-small",
 			},
 			{
-				// 4 vcpu / 7.5gb
-				InstanceTypes: []string{"c4.xlarge"},
-				Name:          "worker-high-cpu",
+				// 8 vcpu / 64gb
+				InstanceTypes: []string{"r5.2xlarge"},
+				Name:          "worker-high-memory",
 			},
 			{
-				// 4 vcpu / 15gb
-				InstanceTypes: []string{"c4.2xlarge"},
+				// 16 vcpu / 32gb
+				InstanceTypes: []string{"c5.4xlarge"},
 				Name:          "worker-super-high-cpu",
 			},
 			{
@@ -192,7 +192,7 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 		}))
 
 	require.NoError(t, err)
-	require.EqualValues(t, "6 11520Mi", result)
+	require.EqualValues(t, "6 24Gi", result)
 }
 
 func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
