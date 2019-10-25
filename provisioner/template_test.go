@@ -171,18 +171,19 @@ func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
 				Name:          "master-default",
 			},
 			{
-				InstanceTypes: []string{"t2.nano"},
-				Name:          "worker-small",
-			},
-			{
 				// 2 vcpu / 8gb
 				InstanceTypes: []string{"m4.large"},
 				Name:          "worker-default",
 			},
+			{
+				// 4 vcpu / 7.5gb
+				InstanceTypes: []string{"c4.xlarge"},
+				Name:          "worker-cpu",
+			},
 		}))
 
 	require.NoError(t, err)
-	require.EqualValues(t, "800m 4692Mi", result)
+	require.EqualValues(t, "800m 4180Mi", result)
 }
 
 func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {

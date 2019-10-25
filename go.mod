@@ -21,6 +21,7 @@ require (
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
+	github.com/json-iterator/go v1.1.7 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
@@ -37,8 +38,6 @@ require (
 	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/sys v0.0.0-20190904154756-749cb33beabd // indirect
-	golang.org/x/tools v0.0.0-20190906115428-bc9f4f258ada // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

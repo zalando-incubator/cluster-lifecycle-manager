@@ -220,7 +220,7 @@ func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error)
 		return nil, fmt.Errorf("no pools matching %s", poolNameRegex)
 	}
 
-	currentLargestInstance := aws.Instance{}
+	var currentBestFitVCPU, currentBestFitMemory int64
 
 	for _, pool := range pools {
 		for _, instanceType := range pool.InstanceTypes {
@@ -229,19 +229,19 @@ func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error)
 				return nil, err
 			}
 
-			if instanceInfo.VCPU > currentLargestInstance.VCPU && instanceInfo.Memory > currentLargestInstance.Memory {
-				currentLargestInstance = instanceInfo
-			} else if instanceInfo.VCPU <= currentLargestInstance.VCPU && instanceInfo.Memory <= currentLargestInstance.Memory {
-				// do nothing
-			} else {
-				return nil, fmt.Errorf("unable to select autoscaling buffer settings, conflicting instance types %s and %s", currentLargestInstance.InstanceType, instanceInfo.InstanceType)
+			if currentBestFitVCPU == 0 || instanceInfo.VCPU < currentBestFitVCPU {
+				currentBestFitVCPU = instanceInfo.VCPU
+			}
+
+			if currentBestFitMemory == 0 || instanceInfo.Memory < currentBestFitMemory {
+				currentBestFitMemory = instanceInfo.Memory
 			}
 		}
 	}
 
 	result := &podResources{
-		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentLargestInstance.VCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
-		Memory: k8sresource.NewQuantity(effectiveQuantity(currentLargestInstance.Memory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
+		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentBestFitVCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
+		Memory: k8sresource.NewQuantity(effectiveQuantity(currentBestFitMemory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
 	}
 	return result, nil
 }
