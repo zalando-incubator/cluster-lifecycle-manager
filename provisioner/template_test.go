@@ -587,6 +587,7 @@ func TestNodeCIDRMaxNodes(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		cidr          int64
+		reserved      int64
 		expected      string
 		expectedError bool
 	}{
@@ -594,6 +595,12 @@ func TestNodeCIDRMaxNodes(t *testing.T) {
 			name:     "basic",
 			cidr:     24,
 			expected: "256",
+		},
+		{
+			name:     "basic+reserved",
+			cidr:     24,
+			reserved: 10,
+			expected: "246",
 		},
 		{
 			name:     "large",
@@ -612,7 +619,10 @@ func TestNodeCIDRMaxNodes(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := renderSingle(t, "{{ nodeCIDRMaxNodes .Values.data }}", tc.cidr)
+			result, err := renderSingle(t, "{{ nodeCIDRMaxNodes .Values.data.cidr .Values.data.reserved }}", map[string]int64{
+				"cidr":     tc.cidr,
+				"reserved": tc.reserved,
+			})
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
