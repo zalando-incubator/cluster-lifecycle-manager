@@ -594,13 +594,13 @@ func checkCIDRMaxSize(maskSize int64) error {
 	return nil
 }
 
-func nodeCIDRMaxNodes(maskSize int64) (int64, error) {
+func nodeCIDRMaxNodes(maskSize int64, reserved int64) (int64, error) {
 	err := checkCIDRMaxSize(maskSize)
 	if err != nil {
 		return 0, err
 	}
 
-	return 2 << (maskSize - 16 - 1), nil
+	return 2<<(maskSize-16-1) - reserved, nil
 }
 
 func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
