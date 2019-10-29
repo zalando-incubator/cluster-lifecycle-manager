@@ -16,29 +16,28 @@ func createTempDir(t *testing.T) string {
 }
 
 func setupExampleConfig(t *testing.T, baseDir string, mainStack string) {
-	directories := []string{
-		"cluster/manifests/example1",
-		"cluster/manifests/example2",
-		"cluster/node-pools/example",
-	}
-	files := map[string]string{
-		"cluster/manifests/example1/main.yaml":   "example1-main",
-		"cluster/manifests/example1/unknown.swp": "ignored",
-		"cluster/manifests/example2/config.yaml": "example2-config",
-		"cluster/manifests/example2/main.yaml":   "example2-main",
-		"cluster/manifests/deletions.yaml":       "deletions",
-		"cluster/node-pools/example/main.yaml":   "node-pool",
-		"cluster/config-defaults.yaml":           "defaults",
-		"cluster/stack.yaml":                     mainStack,
-	}
+	setupConfig(
+		t, baseDir,
+		map[string]string{
+			"cluster/manifests/example1/main.yaml":   "example1-main",
+			"cluster/manifests/example1/unknown.swp": "ignored",
+			"cluster/manifests/example2/config.yaml": "example2-config",
+			"cluster/manifests/example2/main.yaml":   "example2-main",
+			"cluster/manifests/deletions.yaml":       "deletions",
+			"cluster/node-pools/example/main.yaml":   "node-pool",
+			"cluster/config-defaults.yaml":           "defaults",
+			"cluster/stack.yaml":                     mainStack,
+		})
+}
 
-	for _, directory := range directories {
-		err := os.MkdirAll(path.Join(baseDir, directory), 0755)
+func setupConfig(t *testing.T, baseDir string, manifests map[string]string) {
+	for manifestPath, contents := range manifests {
+		fullpath := path.Join(baseDir, manifestPath)
+
+		err := os.MkdirAll(path.Dir(fullpath), 0755)
 		require.NoError(t, err)
-	}
 
-	for filename, contents := range files {
-		err := ioutil.WriteFile(path.Join(baseDir, filename), []byte(contents), 0644)
+		err = ioutil.WriteFile(fullpath, []byte(contents), 0644)
 		require.NoError(t, err)
 	}
 }
