@@ -16,10 +16,7 @@ type ConfigSource interface {
 	Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error)
 
 	// Get returns a Config related to the specified version from the local copy.
-	Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (*Config, error)
-
-	// Delete deletes the config.
-	Delete(logger *log.Entry, config *Config) error
+	Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (Config, error)
 }
 
 // ConfigVersions is a snapshot of the versions at the time of an update
@@ -27,7 +24,22 @@ type ConfigVersions interface {
 	Version(channel string) (ConfigVersion, error)
 }
 
-// Config defines the path to the directory of the channel configuration files.
-type Config struct {
-	Path string
+type Manifest struct {
+	Path     string
+	Contents []byte
+}
+
+type Component struct {
+	Name      string
+	Manifests []Manifest
+}
+
+type Config interface {
+	StackManifest(manifestName string) (Manifest, error)
+	NodePoolManifest(profileName string, manifestName string) (Manifest, error)
+	DefaultsManifests() ([]Manifest, error)
+	DeletionsManifests() ([]Manifest, error)
+	Components() ([]Component, error)
+
+	Delete() error
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
-	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -28,8 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/cenkalti/backoff"
-	"github.com/coreos/container-linux-config-transpiler/config"
-	"github.com/coreos/container-linux-config-transpiler/config/platform"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
@@ -49,16 +48,6 @@ const (
 	etcdKMSKeyAlias             = "alias/etcd-cluster"
 	etcdScalyrAccountKey        = "etcd_scalyr_key"
 	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
-	ignitionBaseTemplate        = `{
-  "ignition": {
-    "version": "2.1.0",
-    "config": {
-      "replace": {
-        "source": "%s"
-      }
-    }
-  }
-}`
 )
 
 var (
@@ -425,7 +414,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 }
 
 // CreateOrUpdateEtcdStack creates or updates an etcd stack.
-func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName, stackDefinitionPath, networkCIDR, vpcID string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinition []byte, networkCIDR, vpcID string, cluster *api.Cluster) error {
 	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
 
 	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
@@ -456,6 +445,18 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	}
 
 	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrAccountKey])
+	if err != nil {
+		return err
+	}
+
+	td, err := ioutil.TempDir("", "etcd-cluster")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(td)
+
+	stackDefinitionPath := path.Join(td, "etcd-cluster.yaml")
+	err = ioutil.WriteFile(stackDefinitionPath, stackDefinition, 0644)
 	if err != nil {
 		return err
 	}
@@ -562,20 +563,6 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 			return err
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
-}
-
-func clcToIgnition(data []byte) ([]byte, error) {
-	cfg, ast, report := config.Parse(data)
-	if len(report.Entries) > 0 {
-		return nil, errors.New(report.String())
-	}
-
-	ignCfg, report := config.Convert(cfg, platform.EC2, ast)
-	if len(report.Entries) > 0 {
-		return nil, fmt.Errorf("failed to convert to ignition: %s", report.String())
-	}
-
-	return json.Marshal(&ignCfg)
 }
 
 // getEnvVars gets AWS credentials from the session and returns the

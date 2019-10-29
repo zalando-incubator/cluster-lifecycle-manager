@@ -9,8 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
-	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,12 +17,12 @@ import (
 	"github.com/mitchellh/copystructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
 const (
-	clcFileName           = "userdata.clc.yaml"
 	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
 	filesTemplateName     = "files.yaml"
@@ -33,6 +31,9 @@ const (
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
 	remoteFilesKMSKey     = "RemoteFilesEncryptionKey"
+
+	userDataValuesKey             = "UserData"
+	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -57,33 +58,26 @@ type AWSNodePoolProvisioner struct {
 	awsAdapter      *awsAdapter
 	nodePoolManager updatestrategy.NodePoolManager
 	bucketName      string
-	cfgBaseDir      string
-	Cluster         *api.Cluster
+	config          channel.Config
+	cluster         *api.Cluster
 	azInfo          *AZInfo
 	templateContext *templateContext
 	logger          *log.Entry
 }
 
 func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	nodePoolProfilesPath := path.Join(p.cfgBaseDir, nodePool.Profile)
-	fi, err := os.Stat(nodePoolProfilesPath)
+	renderedUserData, err := p.prepareCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
 	}
 
-	if !fi.IsDir() {
-		return "", fmt.Errorf("failed to find configuration for node pool profile '%s'", nodePool.Profile)
-	}
+	values[userDataValuesKey] = renderedUserData
 
-	templateCtx := p.templateContext.Copy(nodePool, values, p.templateContext.userData)
-	renderedUserData, err := p.prepareUserData(templateCtx, nodePoolProfilesPath)
+	stackManifest, err := p.config.NodePoolManifest(nodePool.Profile, stackFileName)
 	if err != nil {
 		return "", err
 	}
-
-	templateCtx = templateCtx.Copy(nodePool, values, renderedUserData)
-	stackFilePath := path.Join(nodePoolProfilesPath, stackFileName)
-	return renderTemplate(templateCtx, stackFilePath)
+	return renderSingleTemplate(stackManifest, p.cluster, nodePool, values, p.awsAdapter)
 }
 
 // Provision provisions node pools of the cluster.
@@ -96,7 +90,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 		return err
 	}
 
-	nodePools := p.Cluster.NodePools
+	nodePools := p.cluster.NodePools
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -167,11 +161,11 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 	}
 
 	// TODO: stackname pattern
-	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.Replace(p.Cluster.ID, ":", "-", -1))
+	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.Replace(p.cluster.ID, ":", "-", -1))
 
 	tags := []*cloudformation.Tag{
 		{
-			Key:   aws.String(tagNameKubernetesClusterPrefix + p.Cluster.ID),
+			Key:   aws.String(tagNameKubernetesClusterPrefix + p.cluster.ID),
 			Value: aws.String(resourceLifecycleOwned),
 		},
 		{
@@ -212,7 +206,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	// decommission orphaned node pools
 	tags := map[string]string{
-		tagNameKubernetesClusterPrefix + p.Cluster.ID: resourceLifecycleOwned,
+		tagNameKubernetesClusterPrefix + p.cluster.ID: resourceLifecycleOwned,
 		nodePoolRoleTagKey:                            "true",
 	}
 
@@ -222,7 +216,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	// find orphaned by comparing node pool stacks to node pools defined for cluster
-	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.Cluster.NodePools)
+	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.NodePools)
 
 	if len(orphaned) > 0 {
 		p.logger.Infof("Found %d node pool stacks to decommission", len(orphaned))
@@ -246,36 +240,23 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-// prepareUserData provisions and returns the UserData for a given node pool path.
-// It detects whether CloudInit or Container Linux Config (CLC) is used:
-// * CloudInit is rendered and returned.
-// * CLC is rendered, converted to Ignition, uploadeded to S3 and an Ignition file referencing the
-// uploaded file is returned.
-func (p *AWSNodePoolProvisioner) prepareUserData(templateCtx *templateContext, nodePoolProfilesPath string) (string, error) {
-	clcPath := path.Join(nodePoolProfilesPath, clcFileName)
-	if _, err := os.Stat(clcPath); err == nil {
-		return p.prepareCLC(templateCtx, clcPath)
-	}
-
-	cloudInitPath := path.Join(nodePoolProfilesPath, cloudInitFileName)
-	if _, err := os.Stat(cloudInitPath); err == nil {
-		return p.prepareCloudInit(nodePoolProfilesPath, templateCtx, cloudInitPath)
-	}
-
-	return "", fmt.Errorf("no userdata file at '%s' nor '%s' found", clcPath, cloudInitPath)
-}
-
 // prepareCloudInit prepares the user data by rendering the golang template.
 // It also uploads the dynamically generated files needed for the nodes in the pool
 // A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, templateCtx *templateContext, cloudInitPath string) (string, error) {
-	s3Path, err := p.renderUploadGeneratedFiles(templateCtx, nodePoolProfilesPath)
+func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+	s3Path, err := p.renderUploadGeneratedFiles(nodePool, values)
 	if err != nil {
 		return "", err
 	}
-	templateCtx.s3GeneratedFilesPath = s3Path
+
 	p.logger.Debugf("Uploaded generated files to %s", s3Path)
-	rendered, err := renderTemplate(templateCtx, cloudInitPath)
+	values[s3GeneratedFilesPathValuesKey] = s3Path
+
+	cloudInitContents, err := p.config.NodePoolManifest(nodePool.Profile, cloudInitFileName)
+	if err != nil {
+		return "", err
+	}
+	rendered, err := renderSingleTemplate(cloudInitContents, p.cluster, nodePool, values, p.awsAdapter)
 	if err != nil {
 		return "", err
 	}
@@ -291,36 +272,6 @@ func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePoolProfilesPath string, t
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
-}
-
-// prepareCLC prepares the user data by rendering the golang template
-// and uploading the User Data to S3. A EC2 UserData ready base64 string will
-// be returned.
-func (p *AWSNodePoolProvisioner) prepareCLC(templateCtx *templateContext, clcPath string) (string, error) {
-	rendered, err := renderTemplate(templateCtx, clcPath)
-	if err != nil {
-		return "", err
-	}
-
-	// convert to ignition
-	ignCfg, err := clcToIgnition([]byte(rendered))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse config %s: %v", clcPath, err)
-	}
-	userDataHash, err := generateDataHash(ignCfg)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
-	}
-	// upload to s3
-	uri, err := p.uploadUserDataToS3(userDataHash, ignCfg, p.bucketName)
-	if err != nil {
-		return "", err
-	}
-
-	// create ignition config pulling from s3
-	ignCfg = []byte(fmt.Sprintf(ignitionBaseTemplate, uri))
-
-	return base64.StdEncoding.EncodeToString(ignCfg), nil
 }
 
 func generateDataHash(userData []byte) (string, error) {
@@ -364,13 +315,16 @@ func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
 
 // renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
 // files is then uploaded to S3 and the generated path is added to the template context.
-func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(templateCtx *templateContext, nodePoolProfilePath string) (string, error) {
-	filesTemplatePath := path.Join(nodePoolProfilePath, filesTemplateName)
-	filesRendered, err := renderTemplate(templateCtx, filesTemplatePath)
+func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+	filesTemplate, err := p.config.NodePoolManifest(nodePool.Profile, filesTemplateName)
 	if err != nil {
 		return "", err
 	}
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.Cluster.LocalID)
+	filesRendered, err := renderSingleTemplate(filesTemplate, p.cluster, nodePool, values, p.awsAdapter)
+	if err != nil {
+		return "", err
+	}
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID)
 	if err != nil {
 		return "", err
 	}

@@ -6,12 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
-
-	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -85,21 +84,13 @@ func getRepoName(repoURI string) (string, error) {
 }
 
 // Get checks out the specified version from the git repo.
-func (g *Git) Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (*Config, error) {
+func (g *Git) Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (Config, error) {
 	repoDir, err := g.localClone(ctx, logger, string(version))
 	if err != nil {
 		return nil, err
 	}
 
-	return &Config{
-		Path: repoDir,
-	}, nil
-}
-
-// Delete deletes the underlying git repository checkout specified by the
-// config Path.
-func (g *Git) Delete(logger *log.Entry, config *Config) error {
-	return os.RemoveAll(config.Path)
+	return NewSimpleConfig(repoDir, true)
 }
 
 func (g *Git) Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {

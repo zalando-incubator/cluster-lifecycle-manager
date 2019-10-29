@@ -155,7 +155,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		return err
 	}
 	defer func() {
-		err := c.channelConfigSourcer.Delete(logger, config)
+		err := config.Delete()
 		if err != nil {
 			rerr = err
 		}

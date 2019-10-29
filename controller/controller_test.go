@@ -31,7 +31,7 @@ func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == mockProvider
 }
 
-func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
 	return nil
 }
 
@@ -45,7 +45,7 @@ func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -59,7 +59,7 @@ func (p *mockErrCreateProvisioner) Supports(cluster *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrCreateProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config *channel.Config) error {
+func (p *mockErrCreateProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -103,18 +103,46 @@ func MockChannelSource(configVersions map[string]channel.ConfigVersion, failGet 
 	}
 }
 
-func (r *mockChannelSource) Get(ctx context.Context, logger *log.Entry, version channel.ConfigVersion) (*channel.Config, error) {
+func (r *mockChannelSource) Get(ctx context.Context, logger *log.Entry, version channel.ConfigVersion) (channel.Config, error) {
 	if r.failGet {
 		return nil, fmt.Errorf("failed to checkout version %s", version)
 	}
-	return &channel.Config{}, nil
+	return &mockConfig{}, nil
 }
 
 func (r *mockChannelSource) Update(ctx context.Context, logger *log.Entry) (channel.ConfigVersions, error) {
 	return r.configVersions, nil
 }
 
-func (r *mockChannelSource) Delete(logger *log.Entry, config *channel.Config) error {
+func (r *mockChannelSource) Delete(logger *log.Entry, config channel.Config) error {
+	return nil
+}
+
+type mockConfig struct {
+	mockManifest channel.Manifest
+}
+
+func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
+	return c.mockManifest, nil
+}
+
+func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
+	return c.mockManifest, nil
+}
+
+func (c *mockConfig) DefaultsManifests() ([]channel.Manifest, error) {
+	return []channel.Manifest{c.mockManifest}, nil
+}
+
+func (c *mockConfig) DeletionsManifests() ([]channel.Manifest, error) {
+	return []channel.Manifest{c.mockManifest}, nil
+}
+
+func (c *mockConfig) Components() ([]channel.Component, error) {
+	return nil, nil
+}
+
+func (c *mockConfig) Delete() error {
 	return nil
 }
 
