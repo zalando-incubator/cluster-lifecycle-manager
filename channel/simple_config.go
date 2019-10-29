@@ -22,12 +22,13 @@ type SimpleConfig struct {
 	allowDelete bool
 }
 
-func NewSimpleConfig(baseDir string, allowDelete bool) (*SimpleConfig, error) {
+func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*SimpleConfig, error) {
 	abspath, err := filepath.Abs(path.Clean(baseDir))
 	if err != nil {
 		return nil, err
 	}
 	return &SimpleConfig{
+		pathPrefix:  sourceName + "/",
 		baseDir:     abspath,
 		allowDelete: allowDelete,
 	}, nil
@@ -40,7 +41,7 @@ func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Mani
 		return Manifest{}, err
 	}
 	return Manifest{
-		Path:     path.Join(manifestDirectory, name),
+		Path:     path.Join(c.pathPrefix, manifestDirectory, name),
 		Contents: res,
 	}, nil
 }
@@ -56,6 +57,9 @@ func (c *SimpleConfig) NodePoolManifest(profileName string, manifestName string)
 func (c *SimpleConfig) DefaultsManifests() ([]Manifest, error) {
 	res, err := c.readManifest(configRoot, defaultsFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return []Manifest{res}, nil
@@ -64,6 +68,9 @@ func (c *SimpleConfig) DefaultsManifests() ([]Manifest, error) {
 func (c *SimpleConfig) DeletionsManifests() ([]Manifest, error) {
 	res, err := c.readManifest(path.Join(configRoot, manifestsDir), deletionsFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return []Manifest{res}, nil

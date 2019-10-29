@@ -148,7 +148,7 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 	}
 
 	result := &ClusterVersion{
-		ConfigVersion: channelVersion,
+		ConfigVersion: channelVersion.ID(),
 		ClusterHash:   base64.RawURLEncoding.EncodeToString(hasher.Sum(nil)),
 	}
 	return result, nil

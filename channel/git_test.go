@@ -50,11 +50,11 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 	commit("branch commit")
 }
 
-func checkout(t *testing.T, logger *log.Entry, source ConfigSource, versions ConfigVersions, channel string) Config {
-	version, err := versions.Version(channel)
+func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+	version, err := source.Version(channel)
 	require.NoError(t, err)
 
-	checkout, err := source.Get(context.Background(), logger, version)
+	checkout, err := version.Get(context.Background(), logger)
 	require.NoError(t, err)
 
 	return checkout
@@ -70,26 +70,26 @@ func TestGitGet(t *testing.T) {
 	defer os.RemoveAll(workdir)
 
 	createGitRepo(t, logger, repoTempdir)
-	c, err := NewGit(command.NewExecManager(1), workdir, repoTempdir, "")
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workdir, repoTempdir, "")
 	require.NoError(t, err)
 
-	versions, err := c.Update(context.Background(), logger)
+	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
 	// check master channel
-	master := checkout(t, logger, c, versions, "master")
-	verifyExampleConfig(t, master, "channel1")
+	master := checkout(t, logger, c, "master")
+	verifyExampleConfig(t, master, "testsrc", "channel1")
 
 	// check another channel
-	channel2 := checkout(t, logger, c, versions, "channel2")
-	verifyExampleConfig(t, channel2, "channel2")
+	channel2 := checkout(t, logger, c, "channel2")
+	verifyExampleConfig(t, channel2, "testsrc", "channel2")
 
 	// check sha
 	out, err := exec.Command("git", "-C", repoTempdir, "rev-parse", "master").Output()
 	require.NoError(t, err)
 
-	sha := checkout(t, logger, c, versions, strings.TrimSpace(string(out)))
-	verifyExampleConfig(t, sha, "channel1")
+	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
+	verifyExampleConfig(t, sha, "testsrc", "channel1")
 }
 
 func TestGetRepoName(t *testing.T) {

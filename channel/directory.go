@@ -8,33 +8,34 @@ import (
 
 // Directory defines a channel source where everything is stored in a directory.
 type Directory struct {
+	name     string
 	location string
 }
 
-type directoryVersions struct{}
-
 // NewDirectory initializes a new directory-based ChannelSource.
-func NewDirectory(location string) (ConfigSource, error) {
+func NewDirectory(name string, location string) (ConfigSource, error) {
 	return &Directory{
+		name:     name,
 		location: location,
 	}, nil
 }
 
-func (d *Directory) Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {
-	result := &directoryVersions{}
-	return result, nil
+func (d *Directory) Name() string {
+	return d.name
 }
 
-// Get returns the contents from the directory.
-func (d *Directory) Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (Config, error) {
-	return NewSimpleConfig(d.location, false)
-}
-
-// Delete is a no-op for the directory channelSource.
-func (d *Directory) Delete(logger *log.Entry, config *Config) error {
+func (d *Directory) Update(ctx context.Context, logger *log.Entry) error {
 	return nil
 }
 
-func (d *directoryVersions) Version(channel string) (ConfigVersion, error) {
-	return "<dir>", nil
+func (d *Directory) Version(channel string) (ConfigVersion, error) {
+	return d, nil
+}
+
+func (d *Directory) ID() string {
+	return "<dir>"
+}
+
+func (d *Directory) Get(ctx context.Context, logger *log.Entry) (Config, error) {
+	return NewSimpleConfig(d.name, d.location, false)
 }

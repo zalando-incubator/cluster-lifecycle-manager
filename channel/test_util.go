@@ -43,29 +43,29 @@ func setupExampleConfig(t *testing.T, baseDir string, mainStack string) {
 	}
 }
 
-func expectedManifest(path string, contents string) Manifest {
+func expectedManifest(sourceName, manifestPath string, contents string) Manifest {
 	return Manifest{
-		Path:     path,
+		Path:     path.Join(sourceName, manifestPath),
 		Contents: []byte(contents),
 	}
 }
 
-func verifyExampleConfig(t *testing.T, config Config, mainStack string) {
+func verifyExampleConfig(t *testing.T, config Config, sourceName string, mainStack string) {
 	stack, err := config.StackManifest("stack.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest("cluster/stack.yaml", mainStack), stack)
+	require.Equal(t, expectedManifest(sourceName, "cluster/stack.yaml", mainStack), stack)
 
 	pool, err := config.NodePoolManifest("example", "main.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest("cluster/node-pools/example/main.yaml", "node-pool"), pool)
+	require.Equal(t, expectedManifest(sourceName, "cluster/node-pools/example/main.yaml", "node-pool"), pool)
 
 	defaults, err := config.DefaultsManifests()
 	require.NoError(t, err)
-	require.Equal(t, []Manifest{expectedManifest("cluster/config-defaults.yaml", "defaults")}, defaults)
+	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/config-defaults.yaml", "defaults")}, defaults)
 
 	deletions, err := config.DeletionsManifests()
 	require.NoError(t, err)
-	require.Equal(t, []Manifest{expectedManifest("cluster/manifests/deletions.yaml", "deletions")}, deletions)
+	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/manifests/deletions.yaml", "deletions")}, deletions)
 
 	manifests, err := config.Components()
 	require.NoError(t, err)
@@ -73,14 +73,14 @@ func verifyExampleConfig(t *testing.T, config Config, mainStack string) {
 		{
 			Name: "example1",
 			Manifests: []Manifest{
-				expectedManifest("cluster/manifests/example1/main.yaml", "example1-main"),
+				expectedManifest(sourceName, "cluster/manifests/example1/main.yaml", "example1-main"),
 			},
 		},
 		{
 			Name: "example2",
 			Manifests: []Manifest{
-				expectedManifest("cluster/manifests/example2/config.yaml", "example2-config"),
-				expectedManifest("cluster/manifests/example2/main.yaml", "example2-main"),
+				expectedManifest(sourceName, "cluster/manifests/example2/config.yaml", "example2-config"),
+				expectedManifest(sourceName, "cluster/manifests/example2/main.yaml", "example2-main"),
 			},
 		},
 	}

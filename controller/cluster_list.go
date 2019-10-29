@@ -32,6 +32,7 @@ type ClusterInfo struct {
 	updatePriority uint32
 	Cluster        *api.Cluster
 
+	ChannelVersion channel.ConfigVersion
 	CurrentVersion *api.ClusterVersion
 	NextVersion    *api.ClusterVersion
 	NextError      error
@@ -54,11 +55,11 @@ func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
 
 // UpdateAvailable adds new clusters to the list, updates the cluster data for existing ones and removes clusters
 // that are no longer active. It also updates the list of clusters that need to be updated with the new information.
-func (clusterList *ClusterList) UpdateAvailable(channels channel.ConfigVersions, availableClusters []*api.Cluster) {
+func (clusterList *ClusterList) UpdateAvailable(configSource channel.ConfigSource, availableClusters []*api.Cluster) {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
-	clusterList.updateClusters(channels, availableClusters)
+	clusterList.updateClusters(configSource, availableClusters)
 
 	// Find out which clusters need updating
 	var pendingUpdate []*ClusterInfo
@@ -93,7 +94,7 @@ func updateBlocked(cluster *api.Cluster) bool {
 	return ok
 }
 
-func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, availableClusters []*api.Cluster) {
+func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource, availableClusters []*api.Cluster) {
 	availableClusterIds := make(map[string]bool)
 
 	for _, cluster := range availableClusters {
@@ -114,7 +115,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 		var channelVersion channel.ConfigVersion
 		var nextVersion *api.ClusterVersion
 		var nextError error
-		channelVersion, nextError = channels.Version(cluster.Channel)
+		channelVersion, nextError = configSource.Version(cluster.Channel)
 		if nextError == nil {
 			nextVersion, nextError = cluster.Version(channelVersion)
 		}
@@ -123,6 +124,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 			if existing.state != stateProcessing {
 				existing.state = stateIdle
 				existing.Cluster = cluster
+				existing.ChannelVersion = channelVersion
 				existing.CurrentVersion = currentVersion
 				existing.NextVersion = nextVersion
 				existing.NextError = nextError
@@ -136,6 +138,7 @@ func (clusterList *ClusterList) updateClusters(channels channel.ConfigVersions, 
 				state:          stateIdle,
 				cancelUpdate:   func() {},
 				Cluster:        cluster,
+				ChannelVersion: channelVersion,
 				CurrentVersion: currentVersion,
 				NextVersion:    nextVersion,
 				NextError:      nextError,

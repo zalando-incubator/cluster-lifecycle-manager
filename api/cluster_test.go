@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
@@ -100,8 +103,18 @@ func sampleCluster() *Cluster {
 	}
 }
 
+type mockVersion struct{}
+
+func (v mockVersion) ID() string {
+	return "git-commit-hash"
+}
+
+func (v mockVersion) Get(ctx context.Context, logger *logrus.Entry) (channel.Config, error) {
+	return nil, errors.New("unsupported")
+}
+
 func TestVersion(t *testing.T) {
-	commitHash := channel.ConfigVersion("git-commit-hash")
+	commitHash := mockVersion{}
 
 	version, err := sampleCluster().Version(commitHash)
 	require.NoError(t, err)

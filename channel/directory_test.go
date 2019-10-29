@@ -17,16 +17,19 @@ func TestDirectoryChannel(t *testing.T) {
 
 	setupExampleConfig(t, tempdir, "main")
 
-	d, err := NewDirectory(tempdir)
-	require.NoError(t, err)
-	channels, err := d.Update(context.Background(), logger)
-	require.NoError(t, err)
-	require.Empty(t, channels)
-
-	config, err := d.Get(context.Background(), logger, "channel")
+	d, err := NewDirectory("testsrc", tempdir)
 	require.NoError(t, err)
 
-	verifyExampleConfig(t, config, "main")
+	err = d.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	anyVersion, err := d.Version("foobar")
+	require.NoError(t, err)
+
+	config, err := anyVersion.Get(context.Background(), logger)
+	require.NoError(t, err)
+
+	verifyExampleConfig(t, config, "testsrc", "main")
 
 	require.NoError(t, config.Delete())
 	_, err = os.Stat(tempdir)

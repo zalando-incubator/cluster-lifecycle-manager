@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -113,9 +112,6 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 	for _, file := range defaultsFiles {
 		result, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, adapter)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
 			return err
 		}
 
@@ -952,9 +948,6 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	for _, deletionsFile := range deletionsFiles {
 		res, err := renderSingleTemplate(deletionsFile, cluster, nil, values, adapter)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
 			return nil, err
 		}
 

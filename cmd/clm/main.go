@@ -81,13 +81,13 @@ func main() {
 	var configSource channel.ConfigSource
 
 	if cfg.Directory != "" {
-		configSource, err = channel.NewDirectory(cfg.Directory)
+		configSource, err = channel.NewDirectory("main", cfg.Directory)
 		if err != nil {
 			log.Fatalf("Failed to setup directory channel config source: %v", err)
 		}
 	} else {
 		var err error
-		configSource, err = channel.NewGit(execManager, cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
+		configSource, err = channel.NewGit(execManager, "main", cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
 		if err != nil {
 			log.Fatalf("Failed to setup git channel config source: %v", err)
 		}
@@ -124,17 +124,17 @@ func main() {
 			continue
 		}
 
-		channels, err := configSource.Update(context.Background(), rootLogger)
+		err := configSource.Update(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		version, err := channels.Version(cluster.Channel)
+		version, err := configSource.Version(cluster.Channel)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(context.Background(), rootLogger, version)
+		config, err := version.Get(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}

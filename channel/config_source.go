@@ -6,21 +6,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ConfigVersion string
+type ConfigVersion interface {
+	// ID returns this version's unique ID (e.g. a git commit SHA)
+	ID() string
+
+	// Get returns a Config related to the specified version from the local copy.
+	Get(ctx context.Context, logger *log.Entry) (Config, error)
+}
 
 // ConfigSource is an interface for getting the cluster configuration for a
 // certain channel.
 type ConfigSource interface {
-	// Update synchronizes the local copy of the configuration with the remote one
-	// and returns the available channel versions.
-	Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error)
+	// Name of the config source
+	Name() string
 
-	// Get returns a Config related to the specified version from the local copy.
-	Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (Config, error)
-}
+	// Update synchronizes the local copy of the configuration with the remote one.
+	Update(ctx context.Context, logger *log.Entry) error
 
-// ConfigVersions is a snapshot of the versions at the time of an update
-type ConfigVersions interface {
+	// Version returns the ConfigVersion for a corresponding channel
 	Version(channel string) (ConfigVersion, error)
 }
 

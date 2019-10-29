@@ -57,7 +57,7 @@ func New(logger *log.Entry, execManager *command.ExecManager, registry registry.
 		execManager:          execManager,
 		registry:             registry,
 		provisioner:          provisioner,
-		channelConfigSourcer: channelConfigSourcer,
+		channelConfigSourcer: channel.NewCachingSource(channelConfigSourcer),
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
 		clusterList:          NewClusterList(options.AccountFilter),
@@ -110,7 +110,7 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 
 // refresh refreshes the channel configuration and the cluster list
 func (c *Controller) refresh() error {
-	channels, err := c.channelConfigSourcer.Update(context.Background(), c.logger)
+	err := c.channelConfigSourcer.Update(context.Background(), c.logger)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
-	c.clusterList.UpdateAvailable(channels, c.dropUnsupported(clusters))
+	c.clusterList.UpdateAvailable(c.channelConfigSourcer, c.dropUnsupported(clusters))
 	return nil
 }
 
@@ -150,7 +150,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		return clusterInfo.NextError
 	}
 
-	config, err := c.channelConfigSourcer.Get(updateCtx, logger, clusterInfo.NextVersion.ConfigVersion)
+	config, err := clusterInfo.ChannelVersion.Get(updateCtx, logger)
 	if err != nil {
 		return err
 	}
