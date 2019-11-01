@@ -1,16 +1,20 @@
 package provisioner
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -698,4 +702,71 @@ func TestParseInt64(t *testing.T) {
 func TestParseInt64Error(t *testing.T) {
 	_, err := renderSingle(t, `{{ parseInt64 "foobar" }}`, nil)
 	require.Error(t, err)
+}
+
+type mockKMSAPI struct {
+	kmsiface.KMSAPI
+	expectedKeyID string
+	expectedValue []byte
+	result        []byte
+	fail          bool
+}
+
+func (mock mockKMSAPI) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, error) {
+	keyID := aws.StringValue(input.KeyId)
+	if keyID != mock.expectedKeyID {
+		return nil, fmt.Errorf("unexpected key ID %s", keyID)
+	}
+	if !reflect.DeepEqual(input.Plaintext, mock.expectedValue) {
+		return nil, fmt.Errorf("unexpected value: %v", input.Plaintext)
+	}
+	if mock.fail {
+		return nil, errors.New("KMS operation failed")
+	}
+	return &kms.EncryptOutput{
+		CiphertextBlob: mock.result,
+	}, nil
+}
+
+func TestKMSEncrypt(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail bool
+	}{
+		{
+			name: "encryption succeeds",
+			fail: false,
+		},
+		{
+			name: "encryption fails",
+			fail: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter := awsAdapter{
+				kmsClient: mockKMSAPI{
+					expectedKeyID: "key-id",
+					expectedValue: []byte("test"),
+					result:        []byte("foobar"),
+					fail:          tc.fail,
+				},
+			}
+
+			result, err := render(
+				t,
+				map[string]string{
+					"foo.yaml": `aws:kms:{{ kmsEncrypt "key-id" "test" }}`,
+				},
+				"foo.yaml",
+				nil,
+				&adapter)
+
+			if tc.fail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "aws:kms:Zm9vYmFy", result)
+			}
+		})
+	}
 }
