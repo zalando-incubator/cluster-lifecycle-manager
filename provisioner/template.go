@@ -281,6 +281,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"nodeCIDRMaxNodes": nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":  nodeCIDRMaxPods,
 		"parseInt64":       parseInt64,
+		"kmsKeyARN":        func(keyID string) (string, error) { return kmsKeyARN(context.awsAdapter, keyID) },
 		"kmsEncrypt":       func(keyID, value string) (string, error) { return kmsEncrypt(context.awsAdapter, keyID, value) },
 	}
 
@@ -626,5 +627,16 @@ func kmsEncrypt(awsAdapter *awsAdapter, keyID, value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString([]byte(output.CiphertextBlob)), nil
+	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
+}
+
+func kmsKeyARN(awsAdapter *awsAdapter, keyId string) (string, error) {
+	output, err := awsAdapter.kmsClient.DescribeKey(&kms.DescribeKeyInput{
+		KeyId: awsUtil.String(keyId),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return awsUtil.StringValue(output.KeyMetadata.Arn), nil
 }

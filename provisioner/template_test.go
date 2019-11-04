@@ -708,7 +708,8 @@ type mockKMSAPI struct {
 	kmsiface.KMSAPI
 	expectedKeyID string
 	expectedValue []byte
-	result        []byte
+	encryptResult []byte
+	keyARN        string
 	fail          bool
 }
 
@@ -724,7 +725,23 @@ func (mock mockKMSAPI) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, err
 		return nil, errors.New("KMS operation failed")
 	}
 	return &kms.EncryptOutput{
-		CiphertextBlob: mock.result,
+		CiphertextBlob: mock.encryptResult,
+	}, nil
+}
+
+func (mock mockKMSAPI) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+	keyID := aws.StringValue(input.KeyId)
+	if keyID != mock.expectedKeyID {
+		return nil, fmt.Errorf("unexpected key ID %s", keyID)
+	}
+	if mock.fail {
+		return nil, errors.New("KMS operation failed")
+	}
+
+	return &kms.DescribeKeyOutput{
+		KeyMetadata: &kms.KeyMetadata{
+			Arn: aws.String(mock.keyARN),
+		},
 	}, nil
 }
 
@@ -747,7 +764,7 @@ func TestKMSEncrypt(t *testing.T) {
 				kmsClient: mockKMSAPI{
 					expectedKeyID: "key-id",
 					expectedValue: []byte("test"),
-					result:        []byte("foobar"),
+					encryptResult: []byte("foobar"),
 					fail:          tc.fail,
 				},
 			}
@@ -766,6 +783,49 @@ func TestKMSEncrypt(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, "aws:kms:Zm9vYmFy", result)
+			}
+		})
+	}
+}
+
+func TestKMSKeyARN(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail bool
+	}{
+		{
+			name: "lookup succeeds",
+			fail: false,
+		},
+		{
+			name: "lookup fails",
+			fail: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter := awsAdapter{
+				kmsClient: mockKMSAPI{
+					expectedKeyID: "key-id",
+					expectedValue: []byte("test"),
+					keyARN:        "arn:aws:key/1234",
+					fail:          tc.fail,
+				},
+			}
+
+			result, err := render(
+				t,
+				map[string]string{
+					"foo.yaml": `{{ kmsKeyARN "key-id" }}`,
+				},
+				"foo.yaml",
+				nil,
+				&adapter)
+
+			if tc.fail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "arn:aws:key/1234", result)
 			}
 		})
 	}
