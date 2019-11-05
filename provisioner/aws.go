@@ -3,6 +3,7 @@ package provisioner
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,6 +46,8 @@ const (
 	lifecycleStatusReady        = "ready"
 	etcdInstanceTypeKey         = "etcd_instance_type"
 	etcdInstanceCountKey        = "etcd_instance_count"
+	etcdKMSKeyAlias             = "alias/etcd-cluster"
+	etcdScalyrAccountKey        = "etcd_scalyr_key"
 	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
 	ignitionBaseTemplate        = `{
   "ignition": {
@@ -447,6 +450,16 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		return nil
 	}
 
+	kmsKeyARN, err := a.resolveKeyID(etcdKMSKeyAlias)
+	if err != nil {
+		return err
+	}
+
+	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrAccountKey])
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"print",
 		stackDefinitionPath,
@@ -455,14 +468,10 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		fmt.Sprintf("EtcdS3Backup=%s", bucketName),
 		fmt.Sprintf("NetworkCIDR=%s", networkCIDR),
 		fmt.Sprintf("VpcID=%s", vpcID),
-	}
-
-	if instanceType, ok := cluster.ConfigItems[etcdInstanceTypeKey]; ok {
-		args = append(args, fmt.Sprintf("InstanceType=%s", instanceType))
-	}
-
-	if instanceCount, ok := cluster.ConfigItems[etcdInstanceCountKey]; ok {
-		args = append(args, fmt.Sprintf("InstanceCount=%s", instanceCount))
+		fmt.Sprintf("InstanceType=%s", cluster.ConfigItems[etcdInstanceTypeKey]),
+		fmt.Sprintf("InstanceCount=%s", cluster.ConfigItems[etcdInstanceCountKey]),
+		fmt.Sprintf("KMSKey=%s", kmsKeyARN),
+		fmt.Sprintf("ScalyrAccountKey=%s", encryptedScalyrKey),
 	}
 
 	cmd := exec.Command(
@@ -502,6 +511,30 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	}
 
 	return nil
+}
+
+// resolveKeyID resolved a local key ID (e.g. alias/etcd-cluster) into the ARN
+func (a *awsAdapter) resolveKeyID(keyID string) (string, error) {
+	output, err := a.kmsClient.DescribeKey(&kms.DescribeKeyInput{
+		KeyId: aws.String(keyID),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return aws.StringValue(output.KeyMetadata.Arn), nil
+}
+
+// kmsEncryptForTaupage encrypts a string using a Taupage-compatible format (aws:kms:…)
+func (a *awsAdapter) kmsEncryptForTaupage(keyID string, value string) (string, error) {
+	output, err := a.kmsClient.Encrypt(&kms.EncryptInput{
+		KeyId:     aws.String(keyID),
+		Plaintext: []byte(value),
+	})
+	if err != nil {
+		return "", err
+	}
+	return "aws:kms:" + base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
 }
 
 // createS3Bucket creates an s3 bucket if it doesn't exist.
