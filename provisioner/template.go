@@ -22,7 +22,6 @@ import (
 
 	awsUtil "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
@@ -281,8 +280,6 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"nodeCIDRMaxNodes": nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":  nodeCIDRMaxPods,
 		"parseInt64":       parseInt64,
-		"kmsKeyARN":        func(keyID string) (string, error) { return kmsKeyARN(context.awsAdapter, keyID) },
-		"kmsEncrypt":       func(keyID, value string) (string, error) { return kmsEncrypt(context.awsAdapter, keyID, value) },
 	}
 
 	content, err := ioutil.ReadFile(filePath)
@@ -617,26 +614,4 @@ func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
 		maxPods = 110
 	}
 	return maxPods, nil
-}
-
-func kmsEncrypt(awsAdapter *awsAdapter, keyID, value string) (string, error) {
-	output, err := awsAdapter.kmsClient.Encrypt(&kms.EncryptInput{
-		KeyId:     awsUtil.String(keyID),
-		Plaintext: []byte(value),
-	})
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
-}
-
-func kmsKeyARN(awsAdapter *awsAdapter, keyId string) (string, error) {
-	output, err := awsAdapter.kmsClient.DescribeKey(&kms.DescribeKeyInput{
-		KeyId: awsUtil.String(keyId),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return awsUtil.StringValue(output.KeyMetadata.Arn), nil
 }
