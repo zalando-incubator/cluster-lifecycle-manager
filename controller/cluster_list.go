@@ -116,6 +116,7 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 		var nextVersion *api.ClusterVersion
 		var nextError error
 		channelVersion, nextError = configSource.Version(cluster.Channel)
+
 		if nextError == nil {
 			nextVersion, nextError = cluster.Version(channelVersion)
 		}
