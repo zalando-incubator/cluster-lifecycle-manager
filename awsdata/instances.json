@@ -20,6 +20,11 @@
     "memory": 2
   },
   {
+    "instance_type": "a1.metal",
+    "vCPU": 16,
+    "memory": 32
+  },
+  {
     "instance_type": "a1.xlarge",
     "vCPU": 4,
     "memory": 8
@@ -130,9 +135,19 @@
     "memory": 8
   },
   {
+    "instance_type": "c5d.12xlarge",
+    "vCPU": 48,
+    "memory": 96
+  },
+  {
     "instance_type": "c5d.18xlarge",
     "vCPU": 72,
     "memory": 144
+  },
+  {
+    "instance_type": "c5d.24xlarge",
+    "vCPU": 96,
+    "memory": 192
   },
   {
     "instance_type": "c5d.2xlarge",
@@ -153,6 +168,11 @@
     "instance_type": "c5d.large",
     "vCPU": 2,
     "memory": 4
+  },
+  {
+    "instance_type": "c5d.metal",
+    "vCPU": 96,
+    "memory": 192
   },
   {
     "instance_type": "c5d.xlarge",
@@ -293,6 +313,11 @@
     "instance_type": "g4dn.8xlarge",
     "vCPU": 32,
     "memory": 128
+  },
+  {
+    "instance_type": "g4dn.metal",
+    "vCPU": 96,
+    "memory": 384
   },
   {
     "instance_type": "g4dn.xlarge",
@@ -665,6 +690,96 @@
     "memory": 16
   },
   {
+    "instance_type": "m5dn.12xlarge",
+    "vCPU": 48,
+    "memory": 192
+  },
+  {
+    "instance_type": "m5dn.16xlarge",
+    "vCPU": 64,
+    "memory": 256
+  },
+  {
+    "instance_type": "m5dn.24xlarge",
+    "vCPU": 96,
+    "memory": 384
+  },
+  {
+    "instance_type": "m5dn.2xlarge",
+    "vCPU": 8,
+    "memory": 32
+  },
+  {
+    "instance_type": "m5dn.4xlarge",
+    "vCPU": 16,
+    "memory": 64
+  },
+  {
+    "instance_type": "m5dn.8xlarge",
+    "vCPU": 32,
+    "memory": 128
+  },
+  {
+    "instance_type": "m5dn.large",
+    "vCPU": 2,
+    "memory": 8
+  },
+  {
+    "instance_type": "m5dn.metal",
+    "vCPU": 96,
+    "memory": 384
+  },
+  {
+    "instance_type": "m5dn.xlarge",
+    "vCPU": 4,
+    "memory": 16
+  },
+  {
+    "instance_type": "m5n.12xlarge",
+    "vCPU": 48,
+    "memory": 192
+  },
+  {
+    "instance_type": "m5n.16xlarge",
+    "vCPU": 64,
+    "memory": 256
+  },
+  {
+    "instance_type": "m5n.24xlarge",
+    "vCPU": 96,
+    "memory": 384
+  },
+  {
+    "instance_type": "m5n.2xlarge",
+    "vCPU": 8,
+    "memory": 32
+  },
+  {
+    "instance_type": "m5n.4xlarge",
+    "vCPU": 16,
+    "memory": 64
+  },
+  {
+    "instance_type": "m5n.8xlarge",
+    "vCPU": 32,
+    "memory": 128
+  },
+  {
+    "instance_type": "m5n.large",
+    "vCPU": 2,
+    "memory": 8
+  },
+  {
+    "instance_type": "m5n.metal",
+    "vCPU": 96,
+    "memory": 384
+  },
+  {
+    "instance_type": "m5n.xlarge",
+    "vCPU": 4,
+    "memory": 16
+  },
+  {
     "instance_type": "p2.16xlarge",
     "vCPU": 64,
     "memory": 768
@@ -915,6 +1030,96 @@
     "memory": 32
   },
   {
+    "instance_type": "r5dn.12xlarge",
+    "vCPU": 48,
+    "memory": 384
+  },
+  {
+    "instance_type": "r5dn.16xlarge",
+    "vCPU": 64,
+    "memory": 512
+  },
+  {
+    "instance_type": "r5dn.24xlarge",
+    "vCPU": 96,
+    "memory": 768
+  },
+  {
+    "instance_type": "r5dn.2xlarge",
+    "vCPU": 8,
+    "memory": 64
+  },
+  {
+    "instance_type": "r5dn.4xlarge",
+    "vCPU": 16,
+    "memory": 128
+  },
+  {
+    "instance_type": "r5dn.8xlarge",
+    "vCPU": 32,
+    "memory": 256
+  },
+  {
+    "instance_type": "r5dn.large",
+    "vCPU": 2,
+    "memory": 16
+  },
+  {
+    "instance_type": "r5dn.metal",
+    "vCPU": 96,
+    "memory": 768
+  },
+  {
+    "instance_type": "r5dn.xlarge",
+    "vCPU": 4,
+    "memory": 32
+  },
+  {
+    "instance_type": "r5n.12xlarge",
+    "vCPU": 48,
+    "memory": 384
+  },
+  {
+    "instance_type": "r5n.16xlarge",
+    "vCPU": 64,
+    "memory": 512
+  },
+  {
+    "instance_type": "r5n.24xlarge",
+    "vCPU": 96,
+    "memory": 768
+  },
+  {
+    "instance_type": "r5n.2xlarge",
+    "vCPU": 8,
+    "memory": 64
+  },
+  {
+    "instance_type": "r5n.4xlarge",
+    "vCPU": 16,
+    "memory": 128
+  },
+  {
+    "instance_type": "r5n.8xlarge",
+    "vCPU": 32,
+    "memory": 256
+  },
+  {
+    "instance_type": "r5n.large",
+    "vCPU": 2,
+    "memory": 16
+  },
+  {
+    "instance_type": "r5n.metal",
+    "vCPU": 96,
+    "memory": 768
+  },
+  {
+    "instance_type": "r5n.xlarge",
+    "vCPU": 4,
+    "memory": 32
+  },
+  {
     "instance_type": "t1.micro",
     "vCPU": 1,
     "memory": 0.613
@@ -1028,6 +1233,16 @@
     "instance_type": "u-12tb1.metal",
     "vCPU": 448,
     "memory": 12288
+  },
+  {
+    "instance_type": "u-18tb1.metal",
+    "vCPU": 448,
+    "memory": 18432
+  },
+  {
+    "instance_type": "u-24tb1.metal",
+    "vCPU": 448,
+    "memory": 24576
   },
   {
     "instance_type": "u-6tb1.metal",
