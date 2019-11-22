@@ -2,7 +2,6 @@ version: "2017-09-20"
 pipeline:
 - id: build
   overlay: ci/golang
-  vm: large
   type: script
   cache:
     paths:
