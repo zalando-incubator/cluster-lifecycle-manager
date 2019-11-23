@@ -1,4 +1,4 @@
-.PHONY: clean check build.local build.linux build.osx build.docker build.push
+.PHONY: clean lint build.local build.linux build.osx build.docker build.push
 
 BINARY               ?= clm
 VERSION              ?= $(shell git describe --tags --always --dirty)
@@ -28,8 +28,9 @@ test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 	$(GO) test -v -race $(GOPKGS)
 	$(GO) vet -v $(GOPKGS)
 
-lint:
-	go mod download && make && golangci-lint run ./...
+lint: $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
+	$(GO) mod download
+	golangci-lint run ./...
 
 fmt:
 	$(GO) fmt $(GOPKGS)
