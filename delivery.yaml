@@ -5,6 +5,7 @@ pipeline:
   type: script
   env:
     GOFLAGS: "-mod=readonly"
+  vm: large
   cache:
     paths:
     - /go/pkg/mod
