@@ -120,7 +120,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 
 	// limit surge to max size of the node pool
 	surge := int(math.Min(float64(nodePoolDesc.MaxSize), float64(r.surge)))
-	spotPool := nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot
+	spotPool := nodePoolDesc.IsSpot()
 
 	for {
 		// wait/scale to ensure that we have at least 'surge' new nodes in the node pool
