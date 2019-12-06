@@ -2,11 +2,6 @@ package api
 
 import "strings"
 
-const (
-	DiscountStrategyNone = "none"
-	DiscountStrategySpot = "spot_max_price"
-)
-
 // NodePool describes a node pool in a kubernetes cluster.
 type NodePool struct {
 	DiscountStrategy string            `json:"discount_strategy" yaml:"discount_strategy"`
@@ -19,6 +14,10 @@ type NodePool struct {
 
 	// Deprecated, only kept here so the existing clusters don't break
 	InstanceType string
+}
+
+func (np NodePool) IsSpot() bool {
+	return np.Profile == "spot_max_price" || np.Profile == "spot"
 }
 
 // NodePools is a slice of *NodePool which implements the sort interface to

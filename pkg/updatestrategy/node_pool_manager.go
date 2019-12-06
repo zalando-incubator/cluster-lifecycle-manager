@@ -427,7 +427,7 @@ func WaitForDesiredNodes(ctx context.Context, logger *log.Entry, n NodePoolManag
 		}
 
 		// Don't wait for Spot nodes, just proceed with whatever we want to do
-		if nodePoolDesc.DiscountStrategy == api.DiscountStrategySpot {
+		if nodePoolDesc.IsSpot() {
 			break
 		}
 
