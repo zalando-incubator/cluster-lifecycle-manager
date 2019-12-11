@@ -9,11 +9,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net"
 	"path"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -23,6 +21,7 @@ import (
 	awsUtil "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
@@ -42,19 +41,17 @@ const (
 )
 
 type templateContext struct {
-	manifestData          map[string]string
-	baseDir               string
+	templateData          map[string]string
+	fileData              map[string][]byte
 	cluster               *api.Cluster
 	nodePool              *api.NodePool
 	values                map[string]interface{}
-	userData              string
 	computingManifestHash bool
-	s3GeneratedFilesPath  string
 	awsAdapter            *awsAdapter
 }
 
 type templateData struct {
-	// From api.Cluster, drop after we migrate all Kubernetes manifests
+	// From api.Cluster, TODO: drop after we migrate all Kubernetes manifests
 	Alias                 string
 	APIServerURL          string
 	Channel               string
@@ -78,9 +75,10 @@ type templateData struct {
 	// Available in node pool templates
 	NodePool *api.NodePool
 
+	// User data (deprecated, TODO: move to .Values.UserData)
 	UserData string
 
-	// Path to the generated files uploaded to S3
+	// Path to the generated files uploaded to S3 (deprecated, TODO: move to .Values.S3GeneratedFilesPath)
 	S3GeneratedFilesPath string
 }
 
@@ -89,28 +87,20 @@ type podResources struct {
 	Memory string
 }
 
-func newTemplateContext(baseDir string, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, userData string, adapter *awsAdapter) *templateContext {
+func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) *templateContext {
 	return &templateContext{
-		baseDir:      baseDir,
-		manifestData: make(map[string]string),
+		fileData:     fileData,
+		templateData: make(map[string]string),
 		cluster:      cluster,
 		nodePool:     nodePool,
 		values:       values,
-		userData:     userData,
 		awsAdapter:   adapter,
 	}
 }
 
-func (ctx *templateContext) Copy(pool *api.NodePool, values map[string]interface{}, userData string) *templateContext {
-	return &templateContext{
-		baseDir:               ctx.baseDir,
-		manifestData:          make(map[string]string),
-		cluster:               ctx.cluster,
-		nodePool:              pool,
-		values:                values,
-		userData:              userData,
-		computingManifestHash: false,
-	}
+func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) (string, error) {
+	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter)
+	return renderTemplate(ctx, manifest.Path)
 }
 
 func requiredConfigItem(cluster *api.Cluster, configItem string) (string, error) {
@@ -257,12 +247,12 @@ func effectiveQuantity(instanceResource int64, scale float64, reservedResource i
 
 // renderTemplate takes a fileName of a template in the context and the model to apply to it.
 // returns the transformed template or an error if not successful
-func renderTemplate(context *templateContext, filePath string) (string, error) {
+func renderTemplate(context *templateContext, file string) (string, error) {
 	funcMap := template.FuncMap{
 		"getAWSAccountID":           getAWSAccountID,
 		"base64":                    base64Encode,
 		"base64Decode":              base64Decode,
-		"manifestHash":              func(template string) (string, error) { return manifestHash(context, filePath, template) },
+		"manifestHash":              func(template string) (string, error) { return manifestHash(context, file, template) },
 		"autoscalingBufferSettings": autoscalingBufferSettings,
 		"asgSize":                   asgSize,
 		"azID":                      azID,
@@ -282,16 +272,17 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		"parseInt64":       parseInt64,
 	}
 
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return "", err
+	content, ok := context.fileData[file]
+	if !ok {
+		return "", fmt.Errorf("template file not found: %s", file)
 	}
-	t, err := template.New(filePath).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
+	t, err := template.New(file).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
 	if err != nil {
 		return "", err
 	}
 	var out bytes.Buffer
-	err = t.Execute(&out, &templateData{
+
+	data := &templateData{
 		Alias:                 context.cluster.Alias,
 		APIServerURL:          context.cluster.APIServerURL,
 		Channel:               context.cluster.Channel,
@@ -308,15 +299,23 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 		Cluster:               context.cluster,
 		Values:                context.values,
 		NodePool:              context.nodePool,
-		UserData:              context.userData,
-		S3GeneratedFilesPath:  context.s3GeneratedFilesPath,
-	})
+	}
+
+	if ud, ok := context.values[userDataValuesKey]; ok {
+		data.UserData = ud.(string)
+	}
+
+	if s3path, ok := context.values[s3GeneratedFilesPathValuesKey]; ok {
+		data.S3GeneratedFilesPath = s3path.(string)
+	}
+
+	err = t.Execute(&out, data)
 	if err != nil {
 		return "", err
 	}
 
 	templateData := out.String()
-	context.manifestData[filePath] = templateData
+	context.templateData[file] = templateData
 
 	return templateData, nil
 }
@@ -324,7 +323,7 @@ func renderTemplate(context *templateContext, filePath string) (string, error) {
 // manifestHash is a function for the templates that will return a hash of an interpolated sibling template
 // file. returns an error if computing manifestHash calls manifestHash again, if interpolation of that template
 // returns an error, or if the path is outside of the manifests folder.
-func manifestHash(context *templateContext, file string, template string) (string, error) {
+func manifestHash(context *templateContext, originalFile, templateFile string) (string, error) {
 	if context.computingManifestHash {
 		return "", fmt.Errorf("manifestHash is not reentrant")
 	}
@@ -333,18 +332,10 @@ func manifestHash(context *templateContext, file string, template string) (strin
 		context.computingManifestHash = false
 	}()
 
-	templateFile, err := filepath.Abs(path.Clean(path.Join(path.Dir(file), template)))
-	if err != nil {
-		return "", err
-	}
-
-	if !strings.HasPrefix(templateFile, context.baseDir) {
-		return "", fmt.Errorf("invalid template path: %s", templateFile)
-	}
-
-	templateData, ok := context.manifestData[templateFile]
+	newPath := path.Clean(path.Join(path.Dir(originalFile), templateFile))
+	templateData, ok := context.templateData[newPath]
 	if !ok {
-		applied, err := renderTemplate(context, templateFile)
+		applied, err := renderTemplate(context, newPath)
 		if err != nil {
 			return "", err
 		}

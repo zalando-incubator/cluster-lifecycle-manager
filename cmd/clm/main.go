@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
@@ -29,14 +31,49 @@ var (
 	version         = "unknown"
 )
 
+func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerConfig) (channel.ConfigSource, error) {
+	var sources []channel.ConfigSource
+
+	for _, source := range cfg.ConfigSources {
+		parts := strings.SplitN(source, ":", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid config source definition: %s", source)
+		}
+
+		name := parts[0]
+
+		switch parts[1] {
+		case "dir", "directory":
+			dir, err := channel.NewDirectory(name, parts[2])
+			if err != nil {
+				return nil, fmt.Errorf("unable to setup directory config source %s: %v", name, err)
+			}
+			sources = append(sources, dir)
+		case "git":
+			git, err := channel.NewGit(exec, name, cfg.Workdir, parts[2], cfg.SSHPrivateKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("unable to setup git config source %s: %v", name, err)
+			}
+			sources = append(sources, git)
+		default:
+			return nil, fmt.Errorf("unknown config source type %s", parts[1])
+		}
+	}
+
+	switch len(sources) {
+	case 0:
+		return nil, fmt.Errorf("at least one --config-source is required")
+	case 1:
+		return sources[0], nil
+	default:
+		return channel.NewCombinedSource(sources)
+	}
+}
+
 func main() {
 	cfg := config.New(version)
 
 	cmd := cfg.ParseFlags()
-
-	if err := cfg.ValidateFlags(); err != nil {
-		log.Fatalf("Incorrectly configured flag: %v", err)
-	}
 
 	if cfg.Debug {
 		log.SetLevel(log.DebugLevel)
@@ -78,19 +115,9 @@ func main() {
 		RemoveVolumes:  cfg.RemoveVolumes,
 	})
 
-	var configSource channel.ConfigSource
-
-	if cfg.Directory != "" {
-		configSource, err = channel.NewDirectory(cfg.Directory)
-		if err != nil {
-			log.Fatalf("Failed to setup directory channel config source: %v", err)
-		}
-	} else {
-		var err error
-		configSource, err = channel.NewGit(execManager, cfg.Workdir, cfg.GitRepositoryURL, cfg.SSHPrivateKeyFile)
-		if err != nil {
-			log.Fatalf("Failed to setup git channel config source: %v", err)
-		}
+	configSource, err := setupConfigSource(execManager, cfg)
+	if err != nil {
+		log.Fatalf("Failed to setup channel config source: %v", err)
 	}
 
 	if cmd == controllerCmd.FullCommand() {
@@ -124,17 +151,17 @@ func main() {
 			continue
 		}
 
-		channels, err := configSource.Update(context.Background(), rootLogger)
+		err := configSource.Update(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		version, err := channels.Version(cluster.Channel)
+		version, err := configSource.Version(cluster.Channel)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}
 
-		config, err := configSource.Get(context.Background(), rootLogger, version)
+		config, err := version.Get(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}

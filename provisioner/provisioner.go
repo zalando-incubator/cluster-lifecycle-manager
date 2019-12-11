@@ -29,6 +29,6 @@ type Options struct {
 // clusters.
 type Provisioner interface {
 	Supports(cluster *api.Cluster) bool
-	Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error
+	Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error
 	Decommission(logger *log.Entry, cluster *api.Cluster) error
 }

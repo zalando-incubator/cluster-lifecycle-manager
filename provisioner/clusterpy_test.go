@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -8,8 +9,36 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+)
+
+var (
+	deletionsContent = `
+pre_apply:
+- name: secretary-pre
+  namespace: kube-system
+  kind: deployment
+- name: mate-pre
+  kind: deployment
+post_apply:
+- name: secretary-post
+  namespace: kube-system
+  kind: deployment
+- name: mate-post
+  kind: deployment
+`
+
+	deletionsContent2 = `
+pre_apply:
+- name: {{.Alias}}-pre
+  namespace: templated
+  kind: deployment
+post_apply:
+- name: {{.Alias}}-post
+  namespace: templated
+  kind: deployment
+`
 )
 
 func TestGetInfrastructureID(t *testing.T) {
@@ -155,4 +184,70 @@ func TestPropagateConfigItemsToNodePool(tt *testing.T) {
 		p.propagateConfigItemsToNodePools(cluster)
 		assert.Equal(tt, tc.expected, cluster.NodePools[0].ConfigItems)
 	}
+}
+
+func TestLabelsString(t *testing.T) {
+	labels := labels(map[string]string{"key": "value", "foo": "bar"})
+	expected := []string{"key=value,foo=bar", "foo=bar,key=value"}
+	labelStr := labels.String()
+	if labelStr != expected[0] && labelStr != expected[1] {
+		t.Errorf("expected labels format: %+v, got %+v", expected, labels)
+	}
+}
+
+type mockConfig struct {
+	deletions []channel.Manifest
+}
+
+func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
+	return channel.Manifest{}, errors.New("unsupported: StackManifest")
+}
+
+func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
+	return channel.Manifest{}, errors.New("unsupported: NodePoolManifest")
+}
+
+func (c *mockConfig) DefaultsManifests() ([]channel.Manifest, error) {
+	return nil, errors.New("unsupported: DefaultsManifests")
+}
+
+func (c *mockConfig) DeletionsManifests() ([]channel.Manifest, error) {
+	return c.deletions, nil
+}
+
+func (c *mockConfig) Components() ([]channel.Component, error) {
+	return nil, errors.New("unsupported: Components")
+}
+
+func (c *mockConfig) Delete() error {
+	return nil
+}
+
+func TestParseDeletions(t *testing.T) {
+	cfg := &mockConfig{
+		deletions: []channel.Manifest{
+			{Path: "deletions.yaml", Contents: []byte(deletionsContent)},
+			{Path: "deletions.yaml", Contents: []byte(deletionsContent2)},
+		},
+	}
+
+	exampleCluster := &api.Cluster{
+		Alias: "foobar",
+	}
+	expected := &deletions{
+		PreApply: []*resource{
+			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
+			{Name: "mate-pre", Namespace: "default", Kind: "deployment"},
+			{Name: "foobar-pre", Namespace: "templated", Kind: "deployment"},
+		},
+		PostApply: []*resource{
+			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
+			{Name: "mate-post", Namespace: "default", Kind: "deployment"},
+			{Name: "foobar-post", Namespace: "templated", Kind: "deployment"},
+		},
+	}
+
+	deletions, err := parseDeletions(cfg, exampleCluster, nil, nil)
+	require.NoError(t, err)
+	require.EqualValues(t, expected, deletions)
 }

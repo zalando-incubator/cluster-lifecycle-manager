@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -9,20 +10,28 @@ import (
 )
 
 func TestDirectoryChannel(t *testing.T) {
-	location := "/test-dir"
-
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	d, err := NewDirectory(location)
-	require.NoError(t, err)
-	channels, err := d.Update(context.Background(), logger)
-	require.NoError(t, err)
-	require.Empty(t, channels)
+	tempdir := createTempDir(t)
+	defer os.RemoveAll(tempdir)
 
-	cc, err := d.Get(context.Background(), logger, "channel")
+	setupExampleConfig(t, tempdir, "main")
+
+	d, err := NewDirectory("testsrc", tempdir)
 	require.NoError(t, err)
 
-	if cc.Path != location {
-		t.Errorf("expected %s, got %s", location, cc.Path)
-	}
+	err = d.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	anyVersion, err := d.Version("foobar")
+	require.NoError(t, err)
+
+	config, err := anyVersion.Get(context.Background(), logger)
+	require.NoError(t, err)
+
+	verifyExampleConfig(t, config, "testsrc", "main")
+
+	require.NoError(t, config.Delete())
+	_, err = os.Stat(tempdir)
+	require.NoError(t, err)
 }

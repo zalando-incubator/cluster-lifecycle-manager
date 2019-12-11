@@ -6,12 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
-
-	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -20,6 +19,7 @@ import (
 // Git defines a channel source where the channels are stored in a git
 // repository.
 type Git struct {
+	name              string
 	exec              *command.ExecManager
 	workdir           string
 	repositoryURL     string
@@ -29,28 +29,27 @@ type Git struct {
 	mutex             *sync.Mutex
 }
 
-type GitVersions struct {
-	branches map[string]ConfigVersion
+type gitVersion struct {
+	git *Git
+	sha string
 }
 
-var gitSha = regexp.MustCompile("^[a-f0-9]{40}$")
-
-func NewGitVersions(branches map[string]ConfigVersion) *GitVersions {
-	return &GitVersions{branches: branches}
+func (v *gitVersion) ID() string {
+	return v.sha
 }
 
-func (versions *GitVersions) Version(channel string) (ConfigVersion, error) {
-	if version, ok := versions.branches[channel]; ok {
-		return version, nil
+func (v *gitVersion) Get(ctx context.Context, logger *log.Entry) (Config, error) {
+	repoDir, err := v.git.localClone(ctx, logger, v.sha)
+	if err != nil {
+		return nil, err
 	}
-	if gitSha.MatchString(channel) {
-		return ConfigVersion(channel), nil
-	}
-	return "", fmt.Errorf("unknown channel: %s", channel)
+
+	return NewSimpleConfig(v.git.name, repoDir, true)
+
 }
 
 // NewGit initializes a new git based ChannelSource.
-func NewGit(execManager *command.ExecManager, workdir, repositoryURL, sshPrivateKeyFile string) (ConfigSource, error) {
+func NewGit(execManager *command.ExecManager, name string, workdir, repositoryURL, sshPrivateKeyFile string) (ConfigSource, error) {
 	absWorkdir, err := filepath.Abs(workdir)
 	if err != nil {
 		return nil, err
@@ -63,6 +62,7 @@ func NewGit(execManager *command.ExecManager, workdir, repositoryURL, sshPrivate
 	}
 
 	return &Git{
+		name:              name,
 		exec:              execManager,
 		workdir:           absWorkdir,
 		repoName:          repoName,
@@ -84,70 +84,44 @@ func getRepoName(repoURI string) (string, error) {
 	return match[1], nil
 }
 
-// Get checks out the specified version from the git repo.
-func (g *Git) Get(ctx context.Context, logger *log.Entry, version ConfigVersion) (*Config, error) {
-	repoDir, err := g.localClone(ctx, logger, string(version))
-	if err != nil {
-		return nil, err
-	}
-
-	return &Config{
-		Path: repoDir,
-	}, nil
+func (g *Git) Name() string {
+	return g.name
 }
 
-// Delete deletes the underlying git repository checkout specified by the
-// config Path.
-func (g *Git) Delete(logger *log.Entry, config *Config) error {
-	return os.RemoveAll(config.Path)
-}
-
-func (g *Git) Update(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {
+func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
 	_, err := os.Stat(g.repoDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return nil, err
+			return err
 		}
 
 		err = g.cmd(ctx, logger, "clone", "--mirror", g.repositoryURL, g.repoDir)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	err = g.cmd(ctx, logger, "--git-dir", g.repoDir, "remote", "update", "--prune")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return g.availableChannels(ctx, logger)
+	return nil
 }
 
-func (g *Git) availableChannels(ctx context.Context, logger *log.Entry) (ConfigVersions, error) {
-	cmd := exec.Command("git", "--git-dir", g.repoDir, "show-ref", "--heads")
-	out, err := g.exec.RunSilently(ctx, logger, cmd)
+func (g *Git) Version(channel string) (ConfigVersion, error) {
+	sha, err := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel).Output()
 	if err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]ConfigVersion)
-	for _, line := range strings.Split(out, "\n") {
-		if line != "" {
-			chunks := strings.Split(line, " ")
-			if len(chunks) != 2 {
-				return nil, fmt.Errorf("availableChannels: invalid line in show-ref output: %s", line)
-			}
-
-			hash := chunks[0]
-			channel := strings.Replace(chunks[1], "refs/heads/", "", 1)
-
-			result[channel] = ConfigVersion(hash)
-		}
-	}
-	return NewGitVersions(result), nil
+	return &gitVersion{
+		git: g,
+		sha: strings.TrimSpace(string(sha)),
+	}, nil
 }
 
 // localClone duplicates a repo by cloning to temp location with unix time

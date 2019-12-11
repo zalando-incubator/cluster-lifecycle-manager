@@ -21,7 +21,7 @@ func (p *stdoutProvisioner) Supports(cluster *api.Cluster) bool {
 }
 
 // Provision mocks provisioning a cluster.
-func (p *stdoutProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
+func (p *stdoutProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
 	logger.Infof("stdout: Provisioning cluster %s.", cluster.ID)
 
 	return nil

@@ -3,12 +3,9 @@ package provisioner
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
-	"path"
 	"sort"
 	"strings"
 	"time"
@@ -41,11 +38,8 @@ import (
 
 const (
 	providerID                     = "zalando-aws"
-	configRootPath                 = "cluster"
-	manifestsDir                   = "manifests"
-	deletionsFile                  = "deletions.yaml"
+	etcdStackFileName              = "etcd-cluster.yaml"
 	clusterStackFileName           = "cluster.yaml"
-	defaultsFile                   = "config-defaults.yaml"
 	defaultNamespace               = "default"
 	kubectlNotFound                = "(NotFound)"
 	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
@@ -104,30 +98,36 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == providerID
 }
 
-func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig *channel.Config, adapter *awsAdapter) error {
-	defaultsFile := path.Join(channelConfig.Path, configRootPath, defaultsFile)
+func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter) error {
+	defaultsFiles, err := channelConfig.DefaultsManifests()
+	if err != nil {
+		return err
+	}
 
 	withoutConfigItems := *cluster
 	withoutConfigItems.ConfigItems = make(map[string]string)
 
-	params := newTemplateContext(path.Join(channelConfig.Path, configRootPath), &withoutConfigItems, nil, nil, "", adapter)
-	result, err := renderTemplate(params, defaultsFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
+	allDefaults := make(map[string]string)
+
+	for _, file := range defaultsFiles {
+		result, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, adapter)
+		if err != nil {
+			return err
 		}
-		return err
+
+		var defaults map[string]string
+		err = yaml.Unmarshal([]byte(result), &defaults)
+		if err != nil {
+			return err
+		}
+
+		for k, v := range defaults {
+			allDefaults[k] = v
+		}
 	}
 
-	var defaults map[string]string
-	err = yaml.Unmarshal([]byte(result), &defaults)
-	if err != nil {
-		return err
-	}
-
-	for k, v := range defaults {
-		_, ok := cluster.ConfigItems[k]
-		if !ok {
+	for k, v := range allDefaults {
+		if _, ok := cluster.ConfigItems[k]; !ok {
 			cluster.ConfigItems[k] = v
 		}
 	}
@@ -167,7 +167,7 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
-func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) error {
+func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
 	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
@@ -267,21 +267,22 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// render the manifests to find out if they're valid
-	configPath := path.Join(channelConfig.Path, configRootPath)
-	templateCtx := newTemplateContext(configPath, cluster, nil, values, "", awsAdapter)
-	deletions, err := parseDeletions(templateCtx, path.Join(configPath, manifestsDir, deletionsFile))
+	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter)
 	if err != nil {
 		return err
 	}
-	manifests, err := renderManifests(templateCtx, path.Join(configPath, manifestsDir))
+	manifests, err := renderManifests(channelConfig, cluster, values, awsAdapter)
 	if err != nil {
 		return err
 	}
 
 	// create etcd stack if needed.
-	etcdStackDefinitionPath := path.Join(configPath, "etcd-cluster.yaml")
+	etcdStackDefinition, err := channelConfig.StackManifest(etcdStackFileName)
+	if err != nil {
+		return err
+	}
 
-	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinitionPath, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
+	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
 	if err != nil {
 		return err
 	}
@@ -294,7 +295,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	err = createOrUpdateClusterStack(ctx, awsAdapter, templateCtx, path.Join(configPath, clusterStackFileName), bucketName)
+	err = createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName)
 	if err != nil {
 		return err
 	}
@@ -303,16 +304,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	cfgNodePoolBaseDir := path.Join(configPath, "node-pools")
-
 	// provision node pools
 	nodePoolProvisioner := &AWSNodePoolProvisioner{
 		awsAdapter:      awsAdapter,
 		nodePoolManager: nodePoolManager,
 		bucketName:      bucketName,
-		cfgBaseDir:      cfgNodePoolBaseDir,
-		Cluster:         cluster,
-		templateContext: templateCtx,
+		config:          channelConfig,
+		cluster:         cluster,
 		azInfo:          azInfo,
 		logger:          logger,
 	}
@@ -367,20 +365,25 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateClusterStack(ctx context.Context, awsAdapter *awsAdapter, templateCtx *templateContext, stackFilePath string, bucketName string) error {
-	output, err := renderTemplate(templateCtx, stackFilePath)
+func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) error {
+	template, err := config.StackManifest(clusterStackFileName)
 	if err != nil {
 		return err
 	}
 
-	err = awsAdapter.applyClusterStack(templateCtx.cluster.LocalID, output, templateCtx.cluster, bucketName)
+	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
+	if err != nil {
+		return err
+	}
+
+	err = adapter.applyClusterStack(cluster.LocalID, rendered, cluster, bucketName)
 	if err != nil {
 		return err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
-	err = awsAdapter.waitForStack(ctx, waitTime, templateCtx.cluster.LocalID)
+	err = adapter.waitForStack(ctx, waitTime, cluster.LocalID)
 	if err != nil {
 		return err
 	}
@@ -621,7 +624,7 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should
 // be refactored.
-func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig *channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, updatestrategy.NodePoolManager, error) {
+func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, updatestrategy.NodePoolManager, error) {
 	if cluster.Provider != providerID {
 		return nil, nil, nil, ErrProviderNotSupported
 	}
@@ -933,82 +936,75 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 	return nil
 }
 
-// parseDeletions reads and parses the deletions.yaml.
-func parseDeletions(ctx *templateContext, file string) (*deletions, error) {
-	rendered, err := renderTemplate(ctx, file)
-	if err != nil {
-		// if the file doesn't exist we just treat it as if it was
-		// empty.
-		if os.IsNotExist(err) {
-			return &deletions{}, nil
-		}
-		return nil, err
-	}
+// parseDeletions reads and parses the deletions from the config.
+func parseDeletions(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) (*deletions, error) {
+	result := &deletions{}
 
-	var deletions deletions
-	err = yaml.Unmarshal([]byte(rendered), &deletions)
+	deletionsFiles, err := config.DeletionsManifests()
 	if err != nil {
 		return nil, err
 	}
 
-	// ensure namespace is set, default to 'kube-system' if empty.
-	for _, deletion := range deletions.PreApply {
-		if deletion.Namespace == "" {
-			deletion.Namespace = defaultNamespace
+	for _, deletionsFile := range deletionsFiles {
+		res, err := renderSingleTemplate(deletionsFile, cluster, nil, values, adapter)
+		if err != nil {
+			return nil, err
 		}
+
+		var deletions deletions
+		err = yaml.Unmarshal([]byte(res), &deletions)
+		if err != nil {
+			return nil, err
+		}
+
+		// ensure namespace is set, default to 'kube-system' if empty.
+		for _, deletion := range deletions.PreApply {
+			if deletion.Namespace == "" {
+				deletion.Namespace = defaultNamespace
+			}
+		}
+
+		for _, deletion := range deletions.PostApply {
+			if deletion.Namespace == "" {
+				deletion.Namespace = defaultNamespace
+			}
+		}
+
+		result.PreApply = append(result.PreApply, deletions.PreApply...)
+		result.PostApply = append(result.PostApply, deletions.PostApply...)
 	}
 
-	for _, deletion := range deletions.PostApply {
-		if deletion.Namespace == "" {
-			deletion.Namespace = defaultNamespace
-		}
-	}
-
-	return &deletions, nil
+	return result, nil
 }
 
-func renderManifests(ctx *templateContext, manifestsPath string) ([]string, error) {
-	components, err := ioutil.ReadDir(manifestsPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot read directory: %s", manifestsPath)
-	}
-
+func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]string, error) {
 	var result []string
 
-	for _, c := range components {
-		// skip deletions.yaml if found
-		if c.Name() == deletionsFile {
-			continue
-		}
+	components, err := config.Components()
+	if err != nil {
+		return nil, err
+	}
 
-		// we only apply yaml files
-		if !c.IsDir() {
-			continue
+	for _, component := range components {
+		fileData := make(map[string][]byte)
+		for _, manifest := range component.Manifests {
+			fileData[manifest.Path] = manifest.Contents
 		}
-		componentFolder := path.Join(manifestsPath, c.Name())
-		files, err := ioutil.ReadDir(componentFolder)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot read directory %s", c.Name())
-		}
+		ctx := newTemplateContext(fileData, cluster, nil, values, adapter)
 
-		for _, f := range files {
-			file := path.Join(componentFolder, f.Name())
-			if !strings.HasSuffix(file, ".yaml") && !strings.HasSuffix(file, ".yml") {
-				log.Warnf("File isn't a manifest, skipping: %s", file)
-				continue
-			}
-			manifest, err := renderTemplate(ctx, file)
+		for _, manifest := range component.Manifests {
+			rendered, err := renderTemplate(ctx, manifest.Path)
 			if err != nil {
-				return nil, fmt.Errorf("error rendering template %s/%s: %v", c.Name(), f.Name(), err)
+				return nil, fmt.Errorf("error rendering template %s: %v", manifest.Path, err)
 			}
 
 			// If there's no content we skip the file.
-			if stripWhitespace(manifest) == "" {
-				log.Debugf("Skipping empty file: %s", file)
+			if stripWhitespace(rendered) == "" {
+				log.Debugf("Skipping empty file: %s", manifest.Path)
 				continue
 			}
 
-			result = append(result, manifest)
+			result = append(result, rendered)
 		}
 	}
 

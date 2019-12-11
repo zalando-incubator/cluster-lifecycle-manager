@@ -2,10 +2,8 @@ package channel
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"testing"
 
@@ -16,10 +14,7 @@ import (
 
 // helper function to setup a test repository.
 func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
-	err := os.MkdirAll(dir, 0755)
-	require.NoError(t, err)
-
-	err = exec.Command("git", "-C", dir, "init").Run()
+	err := exec.Command("git", "-C", dir, "init").Run()
 	require.NoError(t, err)
 
 	execManager := command.NewExecManager(1)
@@ -37,10 +32,9 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 		require.NoError(t, err)
 	}
 
-	err = ioutil.WriteFile(path.Join(dir, "init_file"), []byte{}, 0644)
-	require.NoError(t, err)
+	setupExampleConfig(t, dir, "channel1")
 
-	err = exec.Command("git", "-C", dir, "add", "init_file").Run()
+	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
 	require.NoError(t, err)
 
 	commit("initial commit")
@@ -48,68 +42,54 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 	err = exec.Command("git", "-C", dir, "checkout", "-b", "channel2").Run()
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(path.Join(dir, "different_file"), []byte{}, 0644)
-	require.NoError(t, err)
+	setupExampleConfig(t, dir, "channel2")
 
-	err = exec.Command("git", "-C", dir, "add", "different_file").Run()
+	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
 	require.NoError(t, err)
 
 	commit("branch commit")
 }
 
-func checkout(t *testing.T, logger *log.Entry, source ConfigSource, versions ConfigVersions, channel string) string {
-	version, err := versions.Version(channel)
+func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+	version, err := source.Version(channel)
 	require.NoError(t, err)
 
-	checkout, err := source.Get(context.Background(), logger, version)
+	checkout, err := version.Get(context.Background(), logger)
 	require.NoError(t, err)
 
-	return checkout.Path
-}
-
-func requireFile(t *testing.T, dir string, file string) {
-	_, err := os.Stat(path.Join(dir, file))
-	require.NoError(t, err)
-}
-
-func requireNoFile(t *testing.T, dir string, file string) {
-	_, err := os.Stat(path.Join(dir, file))
-	require.NotNil(t, err)
-	require.True(t, os.IsNotExist(err), "unexpected error: %v", err)
+	return checkout
 }
 
 func TestGitGet(t *testing.T) {
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	workdir := "workdir_test"
-	tmpRepo := "tmp_test_repo.git"
-	createGitRepo(t, logger, tmpRepo)
-	defer os.RemoveAll(tmpRepo)
+	repoTempdir := createTempDir(t)
+	defer os.RemoveAll(repoTempdir)
 
-	c, err := NewGit(command.NewExecManager(1), workdir, tmpRepo, "")
-	require.NoError(t, err)
+	workdir := createTempDir(t)
 	defer os.RemoveAll(workdir)
 
-	versions, err := c.Update(context.Background(), logger)
+	createGitRepo(t, logger, repoTempdir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workdir, repoTempdir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
 	// check master channel
-	master := checkout(t, logger, c, versions, "master")
-	requireFile(t, master, "init_file")
-	requireNoFile(t, master, "different_file")
+	master := checkout(t, logger, c, "master")
+	verifyExampleConfig(t, master, "testsrc", "channel1")
 
 	// check another channel
-	channel2 := checkout(t, logger, c, versions, "channel2")
-	requireFile(t, channel2, "init_file")
-	requireFile(t, channel2, "different_file")
+	channel2 := checkout(t, logger, c, "channel2")
+	verifyExampleConfig(t, channel2, "testsrc", "channel2")
 
 	// check sha
-	out, err := exec.Command("git", "-C", tmpRepo, "rev-parse", "master").Output()
+	out, err := exec.Command("git", "-C", repoTempdir, "rev-parse", "master").Output()
 	require.NoError(t, err)
 
-	sha := checkout(t, logger, c, versions, strings.TrimSpace(string(out)))
-	requireFile(t, sha, "init_file")
-	requireNoFile(t, sha, "different_file")
+	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
+	verifyExampleConfig(t, sha, "testsrc", "channel1")
 }
 
 func TestGetRepoName(t *testing.T) {

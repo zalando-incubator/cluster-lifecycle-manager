@@ -2,10 +2,6 @@ package provisioner
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,29 +26,21 @@ func exampleCluster(pools []*api.NodePool) *api.Cluster {
 }
 
 func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
-	basedir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(t.Name(), "/", "_"))
-	require.NoError(t, err, "unable to create temp dir")
-
-	defer os.RemoveAll(basedir)
+	templateData := make(map[string][]byte, len(templates))
 
 	for name, content := range templates {
-		fullPath := path.Join(basedir, name)
-		parentDir := path.Dir(fullPath)
-		err := os.MkdirAll(parentDir, 0755)
-		require.NoError(t, err, "error while creating %s", parentDir)
-		err = ioutil.WriteFile(fullPath, []byte(content), 0644)
-		require.NoError(t, err, "error while writing %s", fullPath)
+		templateData[name] = []byte(content)
 	}
 
-	context := newTemplateContext(basedir, &api.Cluster{}, nil, map[string]interface{}{"data": data}, "", adapter)
-	return renderTemplate(context, path.Join(basedir, templateName))
+	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter)
+	return renderTemplate(context, templateName)
 }
 
 func renderSingle(t *testing.T, template string, data interface{}) (string, error) {
 	return render(
 		t,
-		map[string]string{"dir/foo.yaml": template},
-		"dir/foo.yaml",
+		map[string]string{"foo.yaml": template},
+		"foo.yaml",
 		data,
 		nil)
 }
@@ -106,9 +94,9 @@ func TestManifestHashMissingFile(t *testing.T) {
 	_, err := render(
 		t,
 		map[string]string{
-			"dir/foo.yaml": `{{ manifestHash "missing.yaml" }}`,
+			"foo.yaml": `{{ manifestHash "missing.yaml" }}`,
 		},
-		"dir/foo.yaml",
+		"foo.yaml",
 		"",
 		nil)
 
@@ -119,10 +107,10 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 	_, err := render(
 		t,
 		map[string]string{
-			"dir/config.yaml": `{{ manifestHash "foo.yaml" }}`,
-			"dir/foo.yaml":    `{{ manifestHash "config.yaml" }}`,
+			"config.yaml": `{{ manifestHash "foo.yaml" }}`,
+			"foo.yaml":    `{{ manifestHash "config.yaml" }}`,
 		},
-		"dir/foo.yaml",
+		"foo.yaml",
 		"",
 		nil)
 
@@ -567,9 +555,9 @@ func TestAmiID(t *testing.T) {
 			result, err := render(
 				t,
 				map[string]string{
-					"dir/foo.yaml": fmt.Sprintf(`{{ amiID "%s" "%s" }}`, tc.imageName, tc.ownerID),
+					"foo.yaml": fmt.Sprintf(`{{ amiID "%s" "%s" }}`, tc.imageName, tc.ownerID),
 				},
-				"dir/foo.yaml",
+				"foo.yaml",
 				"abc123",
 				&adapter)
 

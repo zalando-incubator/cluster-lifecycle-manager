@@ -1,13 +1,12 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -47,8 +46,7 @@ type LifecycleManagerConfig struct {
 	ConcurrentUpdates           uint
 	Listen                      string
 	Workdir                     string
-	Directory                   string
-	GitRepositoryURL            string
+	ConfigSources               []string
 	SSHPrivateKeyFile           string
 	CredentialsDir              string
 	ConcurrentExternalProcesses uint
@@ -74,14 +72,6 @@ func New(version string) *LifecycleManagerConfig {
 	return &LifecycleManagerConfig{} // populate the values not passed through the flags
 }
 
-// ValidateFlags for custom flag validation, e.g. check for the interval being not too short
-func (cfg *LifecycleManagerConfig) ValidateFlags() error {
-	if cfg.GitRepositoryURL == "" && cfg.Directory == "" {
-		return fmt.Errorf("either --git-repository-url or --directory must be specified")
-	}
-	return nil
-}
-
 // ParseFlags calls flag parsing. Might call termination handler in case if the kingpin internal validations are enabled.
 func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("registry", "The location of a cluster registry. This can either be a filepath to a clusters.yaml or an URL for a cluster registry.").Default(defaultRegistry).Short('f').StringVar(&cfg.Registry)
@@ -97,8 +87,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)
 	kingpin.Flag("listen", "Address to listen at, e.g. :9090 or 0.0.0.0:9090").Default(defaultListener).StringVar(&cfg.Listen)
 	kingpin.Flag("workdir", "Path to working directory used for storing channel configurations.").Default(defaultWorkdir).StringVar(&cfg.Workdir)
-	kingpin.Flag("directory", "Path of a directory to use as channel config source.").StringVar(&cfg.Directory)
-	kingpin.Flag("git-repository-url", "URL of the git repository to use as channel config source.").StringVar(&cfg.GitRepositoryURL)
+	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").Required().StringsVar(&cfg.ConfigSources)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)
 	kingpin.Flag("ssh-private-key-path", "Path to SSH private key used when pulling from a private git repository.").Envar("SSH_PRIVATE_KEY_PATH").StringVar(&cfg.SSHPrivateKeyFile)
 	kingpin.Flag("credentials-dir", "Path to OAuth credentials").Envar("CREDENTIALS_DIR").Default(defaultCredentialsDir).StringVar(&cfg.CredentialsDir)
