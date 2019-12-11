@@ -82,6 +82,9 @@ func (c *SimpleConfig) Components() ([]Component, error) {
 	componentsDir := path.Join(c.baseDir, configRoot, manifestsDir)
 	components, err := ioutil.ReadDir(componentsDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	for _, component := range components {
