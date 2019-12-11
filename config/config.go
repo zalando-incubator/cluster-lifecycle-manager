@@ -46,6 +46,7 @@ type LifecycleManagerConfig struct {
 	ConcurrentUpdates           uint
 	Listen                      string
 	Workdir                     string
+	Directory                   string
 	ConfigSources               []string
 	SSHPrivateKeyFile           string
 	CredentialsDir              string
@@ -87,7 +88,8 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)
 	kingpin.Flag("listen", "Address to listen at, e.g. :9090 or 0.0.0.0:9090").Default(defaultListener).StringVar(&cfg.Listen)
 	kingpin.Flag("workdir", "Path to working directory used for storing channel configurations.").Default(defaultWorkdir).StringVar(&cfg.Workdir)
-	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").Required().StringsVar(&cfg.ConfigSources)
+	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
+	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)
 	kingpin.Flag("ssh-private-key-path", "Path to SSH private key used when pulling from a private git repository.").Envar("SSH_PRIVATE_KEY_PATH").StringVar(&cfg.SSHPrivateKeyFile)
 	kingpin.Flag("credentials-dir", "Path to OAuth credentials").Envar("CREDENTIALS_DIR").Default(defaultCredentialsDir).StringVar(&cfg.CredentialsDir)

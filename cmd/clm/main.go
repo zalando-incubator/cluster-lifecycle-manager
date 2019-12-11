@@ -32,6 +32,13 @@ var (
 )
 
 func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerConfig) (channel.ConfigSource, error) {
+	if cfg.Directory != "" {
+		if len(cfg.ConfigSources) > 0 {
+			log.Fatalf("--directory can't be used with --config-source")
+		}
+		return channel.NewDirectory("main", cfg.Directory)
+	}
+
 	var sources []channel.ConfigSource
 
 	for _, source := range cfg.ConfigSources {
