@@ -11,7 +11,7 @@ require (
 	github.com/coreos/ignition v0.27.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/errors v0.19.3
-	github.com/go-openapi/runtime v0.19.8
+	github.com/go-openapi/runtime v0.19.9
 	github.com/go-openapi/strfmt v0.19.4
 	github.com/go-openapi/swag v0.19.5
 	github.com/go-openapi/validate v0.19.5
