@@ -10,7 +10,7 @@ require (
 	github.com/coreos/container-linux-config-transpiler v0.9.0
 	github.com/coreos/ignition v0.27.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/go-openapi/errors v0.19.2
+	github.com/go-openapi/errors v0.19.3
 	github.com/go-openapi/runtime v0.19.8
 	github.com/go-openapi/strfmt v0.19.3
 	github.com/go-openapi/swag v0.19.5
