@@ -32,15 +32,22 @@ var loadedInstances struct {
 }
 
 func InstanceInfo(instanceType string) (Instance, error) {
-	loadedInstances.once.Do(func() {
-		loadedInstances.instances = loadInstanceInfo()
-	})
+	AllInstances()
 
 	result, ok := loadedInstances.instances[instanceType]
 	if !ok {
 		return Instance{}, fmt.Errorf("unknown instance type: %s", instanceType)
 	}
 	return result, nil
+}
+
+// AllInstances returns information for all known AWS EC2 instances.
+func AllInstances() map[string]Instance {
+	loadedInstances.once.Do(func() {
+		loadedInstances.instances = loadInstanceInfo()
+	})
+
+	return loadedInstances.instances
 }
 
 func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
