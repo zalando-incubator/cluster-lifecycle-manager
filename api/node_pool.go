@@ -21,7 +21,7 @@ type NodePool struct {
 }
 
 func (np NodePool) IsSpot() bool {
-	return np.Profile == "spot_max_price" || np.Profile == "spot"
+	return np.DiscountStrategy == "spot_max_price" || np.DiscountStrategy == "spot"
 }
 
 // AvailableStorage returns the storage available on the instance for the user data based on the
