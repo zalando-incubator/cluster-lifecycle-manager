@@ -15,15 +15,23 @@ const (
 )
 
 type Instance struct {
-	InstanceType string
-	VCPU         int64
-	Memory       int64
+	InstanceType              string
+	VCPU                      int64
+	Memory                    int64
+	InstanceStorageDevices    int64
+	InstanceStorageDeviceSize int64
 }
 
 type instanceInfo struct {
 	InstanceType string      `json:"instance_type"`
 	VCPU         interface{} `json:"vCPU"`
 	Memory       float64     `json:"memory"`
+	EBSAsNVME    bool        `json:"ebs_as_nvme"`
+	Storage      struct {
+		Devices int64 `json:"devices"`
+		NVMESSD bool  `json:"nvme_ssd"`
+		Size    int64 `json:"size"`
+	} `json:"storage"`
 }
 
 var loadedInstances struct {
@@ -62,9 +70,11 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 		}
 
 		result := Instance{
-			InstanceType: first.InstanceType,
-			VCPU:         first.VCPU,
-			Memory:       first.Memory,
+			InstanceType:              first.InstanceType,
+			VCPU:                      first.VCPU,
+			Memory:                    first.Memory,
+			InstanceStorageDevices:    first.InstanceStorageDevices,
+			InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
 		}
 		for _, instanceType := range instanceTypes[1:] {
 			info, err := InstanceInfo(instanceType)
@@ -72,16 +82,21 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 				return Instance{}, err
 			}
 
-			if info.VCPU < result.VCPU {
-				result.VCPU = info.VCPU
-			}
-			if info.Memory < result.Memory {
-				result.Memory = info.Memory
-			}
+			result.VCPU = min(result.VCPU, info.VCPU)
+			result.Memory = min(result.Memory, info.Memory)
+			result.InstanceStorageDeviceSize = min(result.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
+			result.InstanceStorageDevices = min(result.InstanceStorageDevices, info.InstanceStorageDevices)
 		}
 		result.InstanceType = "<multiple>"
 		return result, nil
 	}
+}
+
+func min(a int64, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func loadInstanceInfo() map[string]Instance {
@@ -115,6 +130,11 @@ func loadInstanceInfo() map[string]Instance {
 			InstanceType: instance.InstanceType,
 			VCPU:         vCPU,
 			Memory:       int64(instance.Memory * gigabyte),
+		}
+
+		if instance.Storage.NVMESSD {
+			instanceInfo.InstanceStorageDevices = instance.Storage.Devices
+			instanceInfo.InstanceStorageDeviceSize = gigabyte * instance.Storage.Size
 		}
 
 		result[instance.InstanceType] = instanceInfo

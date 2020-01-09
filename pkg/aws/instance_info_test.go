@@ -14,9 +14,16 @@ func TestInstanceInfo(t *testing.T) {
 			Memory:       17179869184,
 		},
 		{
-			InstanceType: "i3.4xlarge",
-			VCPU:         16,
-			Memory:       130996502528,
+			InstanceType:              "i3.4xlarge",
+			VCPU:                      16,
+			Memory:                    130996502528,
+			InstanceStorageDevices:    2,
+			InstanceStorageDeviceSize: 1900 * gigabyte,
+		},
+		{
+			InstanceType: "i2.2xlarge",
+			VCPU:         8,
+			Memory:       65498251264,
 		},
 		{
 			InstanceType: "r3.large",
@@ -30,6 +37,7 @@ func TestInstanceInfo(t *testing.T) {
 			require.Equal(t, tc.InstanceType, info.InstanceType)
 			require.Equal(t, tc.VCPU, info.VCPU)
 			require.Equal(t, tc.Memory, info.Memory)
+			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
 		})
 	}
 }
@@ -76,12 +84,34 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			expectedError: true,
 		},
 		{
-			name:          "multiple types",
-			instanceTypes: []string{"c5.xlarge", "r5d.large"},
+			name:          "multiple types, different storage device size",
+			instanceTypes: []string{"c5d.xlarge", "r5d.large"},
+			expectedInstance: Instance{
+				InstanceType:              "<multiple>",
+				VCPU:                      2,
+				Memory:                    8589934592,
+				InstanceStorageDevices:    1,
+				InstanceStorageDeviceSize: 100 * gigabyte,
+			},
+		},
+		{
+			name:          "multiple types, different storage device count",
+			instanceTypes: []string{"m5d.xlarge", "m5d.4xlarge"},
+			expectedInstance: Instance{
+				InstanceType:              "<multiple>",
+				VCPU:                      4,
+				Memory:                    17179869184,
+				InstanceStorageDevices:    1,
+				InstanceStorageDeviceSize: 75 * gigabyte,
+			},
+		},
+		{
+			name:          "multiple types, some with storage, some without",
+			instanceTypes: []string{"m5d.xlarge", "m5.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "<multiple>",
-				VCPU:         2,
-				Memory:       8589934592,
+				VCPU:         4,
+				Memory:       17179869184,
 			},
 		},
 	} {
@@ -94,6 +124,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				require.Equal(t, tc.expectedInstance.InstanceType, info.InstanceType)
 				require.Equal(t, tc.expectedInstance.VCPU, info.VCPU)
 				require.Equal(t, tc.expectedInstance.Memory, info.Memory)
+				require.Equal(t, tc.expectedInstance.InstanceStorageDevices, info.InstanceStorageDevices)
 			}
 		})
 	}
