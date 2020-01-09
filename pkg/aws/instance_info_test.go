@@ -91,7 +91,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      2,
 				Memory:                    8589934592,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 100 * gigabyte,
+				InstanceStorageDeviceSize: 75 * gigabyte,
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      4,
 				Memory:                    17179869184,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 75 * gigabyte,
+				InstanceStorageDeviceSize: 150 * gigabyte,
 			},
 		},
 		{
@@ -125,6 +125,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				require.Equal(t, tc.expectedInstance.VCPU, info.VCPU)
 				require.Equal(t, tc.expectedInstance.Memory, info.Memory)
 				require.Equal(t, tc.expectedInstance.InstanceStorageDevices, info.InstanceStorageDevices)
+				require.Equal(t, tc.expectedInstance.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
 			}
 		})
 	}
