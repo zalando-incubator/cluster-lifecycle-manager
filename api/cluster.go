@@ -153,3 +153,7 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 	}
 	return result, nil
 }
+
+func (cluster *Cluster) Channels() []string {
+	return []string{cluster.Channel}
+}

@@ -52,7 +52,7 @@ func TestCombinedSource(t *testing.T) {
 	combined, err := NewCombinedSource([]ConfigSource{mainSrc, secondarySrc})
 	require.NoError(t, err)
 
-	anyVersion, err := combined.Version("foobar")
+	anyVersion, err := combined.Version([]string{"foobar"})
 	require.NoError(t, err)
 
 	config, err := anyVersion.Get(context.Background(), logger)
