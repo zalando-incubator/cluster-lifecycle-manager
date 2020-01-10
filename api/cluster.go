@@ -10,6 +10,10 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
 
+const (
+	overrideChannelConfigItem = "override_channel"
+)
+
 // Cluster describes a kubernetes cluster and related configuration.
 type Cluster struct {
 	Alias                 string            `json:"alias"                  yaml:"alias"`
@@ -155,5 +159,10 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 }
 
 func (cluster *Cluster) Channels() []string {
-	return []string{cluster.Channel}
+	var result []string
+	if override, ok := cluster.ConfigItems[overrideChannelConfigItem]; ok {
+		result = append(result, override)
+	}
+	result = append(result, cluster.Channel)
+	return result
 }
