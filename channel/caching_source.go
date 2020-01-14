@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -28,14 +29,16 @@ func (c *CachingSource) Update(ctx context.Context, logger *logrus.Entry) error 
 	return c.target.Update(ctx, logger)
 }
 
-func (c *CachingSource) Version(channel string) (ConfigVersion, error) {
-	if cached, ok := c.cache[channel]; ok {
+func (c *CachingSource) Version(channels []string) (ConfigVersion, error) {
+	cacheKey := strings.Join(channels, "\x00")
+
+	if cached, ok := c.cache[cacheKey]; ok {
 		return cached, nil
 	}
-	res, err := c.target.Version(channel)
+	res, err := c.target.Version(channels)
 	if err != nil {
 		return nil, err
 	}
-	c.cache[channel] = res
+	c.cache[cacheKey] = res
 	return res, nil
 }

@@ -50,8 +50,8 @@ func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
 	commit("branch commit")
 }
 
-func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
-	version, err := source.Version(channel)
+func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channels []string) Config {
+	version, err := source.Version(channels)
 	require.NoError(t, err)
 
 	checkout, err := version.Get(context.Background(), logger)
@@ -77,18 +77,22 @@ func TestGitGet(t *testing.T) {
 	require.NoError(t, err)
 
 	// check master channel
-	master := checkout(t, logger, c, "master")
+	master := checkout(t, logger, c, []string{"master"})
 	verifyExampleConfig(t, master, "testsrc", "channel1")
 
 	// check another channel
-	channel2 := checkout(t, logger, c, "channel2")
+	channel2 := checkout(t, logger, c, []string{"channel2"})
 	verifyExampleConfig(t, channel2, "testsrc", "channel2")
+
+	// check that missing channels are ignored
+	channel3 := checkout(t, logger, c, []string{"channel3", "master"})
+	verifyExampleConfig(t, channel3, "testsrc", "channel1")
 
 	// check sha
 	out, err := exec.Command("git", "-C", repoTempdir, "rev-parse", "master").Output()
 	require.NoError(t, err)
 
-	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
+	sha := checkout(t, logger, c, []string{strings.TrimSpace(string(out))})
 	verifyExampleConfig(t, sha, "testsrc", "channel1")
 }
 
