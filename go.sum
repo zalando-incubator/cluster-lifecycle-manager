@@ -133,6 +133,8 @@ github.com/go-openapi/runtime v0.19.8 h1:la3rOpJ+UnJSCgsgMv/xKHCMCpKJtFVa7ai4mPn
 github.com/go-openapi/runtime v0.19.8/go.mod h1:dhGWCTKRXlAfGnQG0ONViOZpjfg0m2gUt9nTQPQZuoo=
 github.com/go-openapi/runtime v0.19.9 h1:Ay3ckvUJy9iTA4F6EWjx4c2/o3dfHiYdwJbOqIvGLx4=
 github.com/go-openapi/runtime v0.19.9/go.mod h1:dhGWCTKRXlAfGnQG0ONViOZpjfg0m2gUt9nTQPQZuoo=
+github.com/go-openapi/runtime v0.19.10 h1:UJ9h8j9t3PrQk9g6RiAQ2tWm7nXUwcX2LgrTsm6ClbI=
+github.com/go-openapi/runtime v0.19.10/go.mod h1:dhGWCTKRXlAfGnQG0ONViOZpjfg0m2gUt9nTQPQZuoo=
 github.com/go-openapi/spec v0.17.0/go.mod h1:XkF/MOi14NmjsfZ8VtAKf8pIlbZzyoTvZsdfssdxcBI=
 github.com/go-openapi/spec v0.18.0/go.mod h1:XkF/MOi14NmjsfZ8VtAKf8pIlbZzyoTvZsdfssdxcBI=
 github.com/go-openapi/spec v0.19.2 h1:SStNd1jRcYtfKCN7R0laGNs80WYYvn5CbBjM2sOmCrE=
