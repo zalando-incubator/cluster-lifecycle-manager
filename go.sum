@@ -367,6 +367,8 @@ github.com/zalando-incubator/kube-ingress-aws-controller v0.9.7 h1:D9SPUjhggflOp
 github.com/zalando-incubator/kube-ingress-aws-controller v0.9.7/go.mod h1:xfdZLJxH2yDDWvA8M8vb8RlxFMdJ7VIORcSHPruWTNk=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.9.8 h1:IiOcv7loq9t5VrmwOVjQNgwg/DWbR/COckGL5A4X9mM=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.9.8/go.mod h1:xfdZLJxH2yDDWvA8M8vb8RlxFMdJ7VIORcSHPruWTNk=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.0 h1:rdhDPj2v9nwKvodiyJa3wFCXyMhnylccizm7bKIT41s=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.0/go.mod h1:xfdZLJxH2yDDWvA8M8vb8RlxFMdJ7VIORcSHPruWTNk=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.mongodb.org/mongo-driver v1.0.3/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
 go.mongodb.org/mongo-driver v1.1.1 h1:Sq1fR+0c58RME5EoqKdjkiQAmPjmfHlZOoRI6fTUOcs=
