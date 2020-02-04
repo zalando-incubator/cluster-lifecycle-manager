@@ -267,9 +267,11 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"amiID": func(imageName, imageOwner string) (string, error) {
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
-		"nodeCIDRMaxNodes": nodeCIDRMaxNodes,
-		"nodeCIDRMaxPods":  nodeCIDRMaxPods,
-		"parseInt64":       parseInt64,
+		"nodeCIDRMaxNodes":              nodeCIDRMaxNodes,
+		"nodeCIDRMaxPods":               nodeCIDRMaxPods,
+		"parseInt64":                    parseInt64,
+		"generateJWKSDocument":          generateJWKSDocument,
+		"generateOIDCDiscoveryDocument": generateOIDCDiscoveryDocument,
 	}
 
 	content, ok := context.fileData[file]
