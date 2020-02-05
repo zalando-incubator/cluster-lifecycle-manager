@@ -295,9 +295,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	// accounts.
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
-	err = createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName)
+	outputs, err := createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName)
 	if err != nil {
 		return err
+	}
+
+	for _, o := range outputs {
+		values[aws.StringValue(o.OutputKey)] = aws.StringValue(o.OutputValue)
 	}
 
 	if err = ctx.Err(); err != nil {
@@ -365,29 +369,35 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) error {
+func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) ([]*cloudformation.Output, error) {
 	template, err := config.StackManifest(clusterStackFileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = adapter.applyClusterStack(cluster.LocalID, rendered, cluster, bucketName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
 	err = adapter.waitForStack(ctx, waitTime, cluster.LocalID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	clusterStack, err := adapter.getStackByName(cluster.LocalID)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterStack.Outputs, nil
 }
 
 func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet, error) {
