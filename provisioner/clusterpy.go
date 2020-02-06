@@ -60,6 +60,7 @@ const (
 	updateStrategyCLC              = "clc"
 	defaultMaxRetryTime            = 5 * time.Minute
 	clcPollingInterval             = 10 * time.Second
+	clusterStackOutputKey          = "ClusterStackOutputs"
 )
 
 type clusterpyProvisioner struct {
@@ -299,10 +300,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	if err != nil {
 		return err
 	}
-
-	for _, o := range outputs {
-		values[aws.StringValue(o.OutputKey)] = aws.StringValue(o.OutputValue)
-	}
+	values[clusterStackOutputKey] = outputs
 
 	if err = ctx.Err(); err != nil {
 		return err
@@ -369,7 +367,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) ([]*cloudformation.Output, error) {
+func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) (map[string]string, error) {
 	template, err := config.StackManifest(clusterStackFileName)
 	if err != nil {
 		return nil, err
@@ -397,7 +395,12 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 		return nil, err
 	}
 
-	return clusterStack.Outputs, nil
+	outputs := map[string]string{}
+	for _, o := range clusterStack.Outputs {
+		outputs[aws.StringValue(o.OutputKey)] = aws.StringValue(o.OutputValue)
+	}
+
+	return outputs, nil
 }
 
 func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet, error) {
