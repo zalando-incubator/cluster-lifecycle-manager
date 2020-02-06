@@ -11,29 +11,25 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
-
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
-	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"gopkg.in/yaml.v2"
-
-	"golang.org/x/oauth2"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
+	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -362,6 +358,19 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	hostname, err := getHostname(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, hostname)
+	if err != nil {
+		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+	}
+	err = provisioner.Provision()
+	if err != nil {
+		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
+	}
+
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
@@ -470,6 +479,21 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
 	if err != nil {
 		return err
+	}
+
+	providerHostname, err := getHostname(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, providerHostname)
+	if err != nil {
+		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+	}
+
+	logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
+	err = provisioner.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete openid provider: %v", err)
 	}
 
 	// scale down kube-system deployments

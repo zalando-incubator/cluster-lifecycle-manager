@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -74,10 +75,6 @@ type autoscalingAPI interface {
 	TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
 }
 
-type iamAPI interface {
-	ListAccountAliases(input *iam.ListAccountAliasesInput) (*iam.ListAccountAliasesOutput, error)
-}
-
 type s3UploaderAPI interface {
 	Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
 }
@@ -88,7 +85,7 @@ type awsAdapter struct {
 	s3Client             s3API
 	s3Uploader           s3UploaderAPI
 	autoscalingClient    autoscalingAPI
-	iamClient            iamAPI
+	iamClient            iamiface.IAMAPI
 	ec2Client            ec2iface.EC2API
 	acmClient            acmiface.ACMAPI
 	region               string
