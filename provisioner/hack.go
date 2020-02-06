@@ -20,3 +20,11 @@ func getHostedZone(APIServerURL string) (string, error) {
 
 	return strings.Join(split[1:], "."), nil
 }
+
+func getHostname(input string) (string, error) {
+	url, err := url.Parse(input)
+	if err != nil {
+		return "", err
+	}
+	return url.Hostname(), nil
+}
