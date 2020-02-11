@@ -531,6 +531,9 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 	for i := 0; i < maxApplyRetries; i++ {
 		// delete all cluster infrastructure stacks
 		err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
+		if err == nil {
+			break
+		}
 	}
 	if err != nil {
 		return err
