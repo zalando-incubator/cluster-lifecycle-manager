@@ -524,8 +524,20 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 	// we don't support cancelling decommission operations yet
 	ctx := context.Background()
 
-	// delete all cluster infrastructure stacks
-	err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
+	// make E2E tests and deletions less flaky
+	// The problem is that we scale down kube-ingress-aws-controller deployment
+	// and just after that we delete CF stacks, but if the pod
+	// kube-ingress-aws-controller is running, then it breaks the CF deletion.
+	numberOfStacks := 1
+	for i := 0; i < maxApplyRetries && numberOfStacks != 0; i++ {
+		// delete all cluster infrastructure stacks
+		err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
+		cfstacks, err2 := p.listClusterStacks(ctx, awsAdapter, cluster)
+		if err2 != nil {
+			return err2
+		}
+		numberOfStacks = len(cfstacks)
+	}
 	if err != nil {
 		return err
 	}
@@ -830,8 +842,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 	return nil
 }
 
-// deleteClusterStacks deletes all stacks tagged by the cluster id.
-func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
+func (p *clusterpyProvisioner) listClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]*cloudformation.Stack, error) {
 	includeTags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}
@@ -839,11 +850,15 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 		mainStackTagKey: stackTagValueTrue,
 	}
 
-	stacks, err := adapter.ListStacks(includeTags, excludeTags)
+	return adapter.ListStacks(includeTags, excludeTags)
+}
+
+// deleteClusterStacks deletes all stacks tagged by the cluster id.
+func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
+	stacks, err := p.listClusterStacks(ctx, adapter, cluster)
 	if err != nil {
 		return err
 	}
-
 	errorsc := make(chan error, len(stacks))
 
 	for _, stack := range stacks {
