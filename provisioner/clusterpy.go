@@ -521,17 +521,17 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
 
+	// we don't support cancelling decommission operations yet
+	ctx := context.Background()
+
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
 	// and just after that we delete CF stacks, but if the pod
 	// kube-ingress-aws-controller is running, then it breaks the CF deletion.
-	time.Sleep(time.Minute)
-
-	// we don't support cancelling decommission operations yet
-	ctx := context.Background()
-
-	// delete all cluster infrastructure stacks
-	err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
+	for i := 0; i < maxApplyRetries; i++ {
+		// delete all cluster infrastructure stacks
+		err = p.deleteClusterStacks(ctx, awsAdapter, cluster)
+	}
 	if err != nil {
 		return err
 	}
