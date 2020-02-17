@@ -6,10 +6,10 @@ package client
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/clusters"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/config_items"
@@ -60,17 +60,11 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *ClusterReg
 
 	cli := new(ClusterRegistry)
 	cli.Transport = transport
-
 	cli.Clusters = clusters.New(transport, formats)
-
 	cli.ConfigItems = config_items.New(transport, formats)
-
 	cli.InfrastructureAccounts = infrastructure_accounts.New(transport, formats)
-
 	cli.NodePoolConfigItems = node_pool_config_items.New(transport, formats)
-
 	cli.NodePools = node_pools.New(transport, formats)
-
 	return cli
 }
 
@@ -115,15 +109,15 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // ClusterRegistry is a client for cluster registry
 type ClusterRegistry struct {
-	Clusters *clusters.Client
+	Clusters clusters.ClientService
 
-	ConfigItems *config_items.Client
+	ConfigItems config_items.ClientService
 
-	InfrastructureAccounts *infrastructure_accounts.Client
+	InfrastructureAccounts infrastructure_accounts.ClientService
 
-	NodePoolConfigItems *node_pool_config_items.Client
+	NodePoolConfigItems node_pool_config_items.ClientService
 
-	NodePools *node_pools.Client
+	NodePools node_pools.ClientService
 
 	Transport runtime.ClientTransport
 }
@@ -131,15 +125,9 @@ type ClusterRegistry struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *ClusterRegistry) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
-
 	c.Clusters.SetTransport(transport)
-
 	c.ConfigItems.SetTransport(transport)
-
 	c.InfrastructureAccounts.SetTransport(transport)
-
 	c.NodePoolConfigItems.SetTransport(transport)
-
 	c.NodePools.SetTransport(transport)
-
 }

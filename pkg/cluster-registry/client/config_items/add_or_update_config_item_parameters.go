@@ -16,7 +16,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	models "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 // NewAddOrUpdateConfigItemParams creates a new AddOrUpdateConfigItemParams object

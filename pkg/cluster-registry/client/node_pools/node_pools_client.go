@@ -9,12 +9,11 @@ import (
 	"fmt"
 
 	"github.com/go-openapi/runtime"
-
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new node pools API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) *Client {
+func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
@@ -26,10 +25,23 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-/*
-CreateOrUpdateNodePool creates update node pool
+// ClientService is the interface for Client methods
+type ClientService interface {
+	CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*CreateOrUpdateNodePoolOK, error)
 
-Create/update a node pool.
+	DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolNoContent, error)
+
+	ListNodePools(params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter) (*ListNodePoolsOK, error)
+
+	UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateNodePoolOK, error)
+
+	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+  CreateOrUpdateNodePool creates update node pool
+
+  Create/update a node pool.
 */
 func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*CreateOrUpdateNodePoolOK, error) {
 	// TODO: Validate the params before sending
@@ -64,9 +76,9 @@ func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, au
 }
 
 /*
-DeleteNodePool deletes node pool
+  DeleteNodePool deletes node pool
 
-Deletes node pool.
+  Deletes node pool.
 */
 func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolNoContent, error) {
 	// TODO: Validate the params before sending
@@ -101,9 +113,9 @@ func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.C
 }
 
 /*
-ListNodePools lists node pools
+  ListNodePools lists node pools
 
-List all node pools of a cluster.
+  List all node pools of a cluster.
 */
 func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter) (*ListNodePoolsOK, error) {
 	// TODO: Validate the params before sending
@@ -138,9 +150,9 @@ func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.Cli
 }
 
 /*
-UpdateNodePool updates node pool
+  UpdateNodePool updates node pool
 
-Update a node pool.
+  Update a node pool.
 */
 func (a *Client) UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateNodePoolOK, error) {
 	// TODO: Validate the params before sending

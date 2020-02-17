@@ -13,7 +13,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	models "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 // CreateClusterReader is a Reader for the CreateCluster structure.
