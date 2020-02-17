@@ -9,12 +9,11 @@ import (
 	"fmt"
 
 	"github.com/go-openapi/runtime"
-
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new config items API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) *Client {
+func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
@@ -26,10 +25,19 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-/*
-AddOrUpdateConfigItem adds update config item
+// ClientService is the interface for Client methods
+type ClientService interface {
+	AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateConfigItemOK, error)
 
-Add/update a configuration item unique to the cluster.
+	DeleteConfigItem(params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteConfigItemNoContent, error)
+
+	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+  AddOrUpdateConfigItem adds update config item
+
+  Add/update a configuration item unique to the cluster.
 */
 func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateConfigItemOK, error) {
 	// TODO: Validate the params before sending
@@ -64,9 +72,9 @@ func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, auth
 }
 
 /*
-DeleteConfigItem deletes config item
+  DeleteConfigItem deletes config item
 
-Deletes config item.
+  Deletes config item.
 */
 func (a *Client) DeleteConfigItem(params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteConfigItemNoContent, error) {
 	// TODO: Validate the params before sending

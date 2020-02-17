@@ -9,12 +9,11 @@ import (
 	"fmt"
 
 	"github.com/go-openapi/runtime"
-
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new node pool config items API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) *Client {
+func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
@@ -26,10 +25,19 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-/*
-AddOrUpdateNodePoolConfigItem adds update config item
+// ClientService is the interface for Client methods
+type ClientService interface {
+	AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateNodePoolConfigItemOK, error)
 
-Add/update a configuration item unique to the node pool.
+	DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolConfigItemNoContent, error)
+
+	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+  AddOrUpdateNodePoolConfigItem adds update config item
+
+  Add/update a configuration item unique to the node pool.
 */
 func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateNodePoolConfigItemOK, error) {
 	// TODO: Validate the params before sending
@@ -64,9 +72,9 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 }
 
 /*
-DeleteNodePoolConfigItem deletes config item
+  DeleteNodePoolConfigItem deletes config item
 
-Deletes config item.
+  Deletes config item.
 */
 func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolConfigItemNoContent, error) {
 	// TODO: Validate the params before sending

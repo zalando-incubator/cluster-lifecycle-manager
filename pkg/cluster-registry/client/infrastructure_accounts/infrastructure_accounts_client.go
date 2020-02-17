@@ -9,12 +9,11 @@ import (
 	"fmt"
 
 	"github.com/go-openapi/runtime"
-
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/strfmt"
 )
 
 // New creates a new infrastructure accounts API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) *Client {
+func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
@@ -26,10 +25,23 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
-/*
-CreateInfrastructureAccount creates infrastructure account
+// ClientService is the interface for Client methods
+type ClientService interface {
+	CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*CreateInfrastructureAccountCreated, error)
 
-Creates a new infrastructure account
+	GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*GetInfrastructureAccountOK, error)
+
+	ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter) (*ListInfrastructureAccountsOK, error)
+
+	UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateInfrastructureAccountOK, error)
+
+	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+  CreateInfrastructureAccount creates infrastructure account
+
+  Creates a new infrastructure account
 
 */
 func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*CreateInfrastructureAccountCreated, error) {
@@ -65,9 +77,9 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 }
 
 /*
-GetInfrastructureAccount gets single infrastructure account
+  GetInfrastructureAccount gets single infrastructure account
 
-Read information regarding the infrastructure account.
+  Read information regarding the infrastructure account.
 
 */
 func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*GetInfrastructureAccountOK, error) {
@@ -103,7 +115,7 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 }
 
 /*
-ListInfrastructureAccounts lists all registered infrastructure accounts
+  ListInfrastructureAccounts lists all registered infrastructure accounts
 */
 func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter) (*ListInfrastructureAccountsOK, error) {
 	// TODO: Validate the params before sending
@@ -138,9 +150,9 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 }
 
 /*
-UpdateInfrastructureAccount updates infrastructure account
+  UpdateInfrastructureAccount updates infrastructure account
 
-update an infrastructure account.
+  update an infrastructure account.
 */
 func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateInfrastructureAccountOK, error) {
 	// TODO: Validate the params before sending
