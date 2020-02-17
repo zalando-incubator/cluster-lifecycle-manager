@@ -272,6 +272,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"parseInt64":                    parseInt64,
 		"generateJWKSDocument":          generateJWKSDocument,
 		"generateOIDCDiscoveryDocument": generateOIDCDiscoveryDocument,
+		"kubernetesSizeToBytes":         kubernetesSizeToBytes,
 	}
 
 	content, ok := context.fileData[file]
@@ -607,4 +608,16 @@ func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
 		maxPods = 110
 	}
 	return maxPods, nil
+}
+
+func kubernetesSizeToBytes(quantity string, scale float64) (int, error) {
+	resource, err := k8sresource.ParseQuantity(quantity)
+	if err != nil {
+		return 0, err
+	}
+	val, converted := resource.AsInt64()
+	if !converted {
+		return 0, fmt.Errorf("unexpected size for quantity: %s", quantity)
+	}
+	return int(math.Ceil(float64(val) * scale)), nil
 }
