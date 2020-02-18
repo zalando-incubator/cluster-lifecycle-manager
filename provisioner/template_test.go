@@ -687,3 +687,33 @@ func TestParseInt64Error(t *testing.T) {
 	_, err := renderSingle(t, `{{ parseInt64 "foobar" }}`, nil)
 	require.Error(t, err)
 }
+
+func TestKubernetesSizeToBytes(t *testing.T) {
+	for _, tc := range []struct {
+		input  string
+		output int
+		scale  float64
+	}{
+		{
+			input:  "1Ki",
+			output: 1024,
+			scale:  1,
+		},
+		{
+			input:  "1Gi",
+			output: 536870912,
+			scale:  0.5,
+		},
+		{
+			input:  "4Gi",
+			output: 3435973837,
+			scale:  0.8,
+		},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			bytes, err := kubernetesSizeToBytes(tc.input, tc.scale)
+			require.NoError(t, err)
+			require.Equal(t, tc.output, bytes)
+		})
+	}
+}
