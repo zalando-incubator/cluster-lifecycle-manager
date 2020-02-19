@@ -691,27 +691,27 @@ func TestParseInt64Error(t *testing.T) {
 func TestKubernetesSizeToBytes(t *testing.T) {
 	for _, tc := range []struct {
 		input  string
-		output int
+		output string
 		scale  float64
 	}{
 		{
 			input:  "1Ki",
-			output: 1024,
+			output: "1KB",
 			scale:  1,
 		},
 		{
 			input:  "1Gi",
-			output: 536870912,
+			output: "524288KB",
 			scale:  0.5,
 		},
 		{
 			input:  "4Gi",
-			output: 3435973837,
+			output: "3355444KB",
 			scale:  0.8,
 		},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
-			bytes, err := kubernetesSizeToBytes(tc.input, tc.scale)
+			bytes, err := kubernetesSizeToKiloBytes(tc.input, tc.scale)
 			require.NoError(t, err)
 			require.Equal(t, tc.output, bytes)
 		})
