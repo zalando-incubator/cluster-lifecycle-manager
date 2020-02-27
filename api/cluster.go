@@ -5,7 +5,9 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
@@ -158,11 +160,17 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 	return result, nil
 }
 
-func (cluster *Cluster) Channels() []string {
-	var result []string
-	if override, ok := cluster.ConfigItems[overrideChannelConfigItem]; ok {
-		result = append(result, override)
+func (cluster *Cluster) ChannelOverrides() (map[string]string, error) {
+	result := map[string]string{}
+	if overrides, ok := cluster.ConfigItems[overrideChannelConfigItem]; ok {
+		channelOverrides := strings.Split(overrides, ",")
+		for _, override := range channelOverrides {
+			parts := strings.SplitN(override, "=", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("invalid override definition: %s", override)
+			}
+			result[parts[0]] = parts[1]
+		}
 	}
-	result = append(result, cluster.Channel)
-	return result
+	return result, nil
 }

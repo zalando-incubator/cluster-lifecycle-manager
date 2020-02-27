@@ -112,20 +112,16 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	return nil
 }
 
-func (g *Git) Version(channels []string) (ConfigVersion, error) {
-	for _, channel := range channels {
-		sha, err := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel).Output()
-		if err != nil {
-			continue
-		}
-
-		return &gitVersion{
-			git: g,
-			sha: strings.TrimSpace(string(sha)),
-		}, nil
+func (g *Git) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+	sha, err := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel).Output()
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("channels not found: %s", strings.Join(channels, ", "))
+	return &gitVersion{
+		git: g,
+		sha: strings.TrimSpace(string(sha)),
+	}, nil
 }
 
 // localClone duplicates a repo by cloning to temp location with unix time

@@ -114,9 +114,13 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 
 		var channelVersion channel.ConfigVersion
 		var nextVersion *api.ClusterVersion
+		var channelOverrides map[string]string
 		var nextError error
-		channelVersion, nextError = configSource.Version(cluster.Channels())
 
+		channelOverrides, nextError = cluster.ChannelOverrides()
+		if nextError == nil {
+			channelVersion, nextError = configSource.Version(cluster.Channel, channelOverrides)
+		}
 		if nextError == nil {
 			nextVersion, nextError = cluster.Version(channelVersion)
 		}

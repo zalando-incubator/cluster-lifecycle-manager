@@ -28,7 +28,7 @@ func (d *Directory) Update(ctx context.Context, logger *log.Entry) error {
 	return nil
 }
 
-func (d *Directory) Version(channels []string) (ConfigVersion, error) {
+func (d *Directory) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
 	return d, nil
 }
 
