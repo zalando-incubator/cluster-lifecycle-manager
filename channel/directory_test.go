@@ -23,7 +23,7 @@ func TestDirectoryChannel(t *testing.T) {
 	err = d.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	anyVersion, err := d.Version([]string{"foobar"})
+	anyVersion, err := d.Version("foobar", nil)
 	require.NoError(t, err)
 
 	config, err := anyVersion.Get(context.Background(), logger)

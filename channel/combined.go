@@ -53,10 +53,15 @@ func (c *CombinedSource) Update(ctx context.Context, logger *logrus.Entry) error
 	return nil
 }
 
-func (c *CombinedSource) Version(channels []string) (ConfigVersion, error) {
+func (c *CombinedSource) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
 	versions := make([]ConfigVersion, len(c.sources))
 	for i, source := range c.sources {
-		version, err := source.Version(channels)
+		sourceChannel := channel
+		if overrideChannel, ok := overrides[source.Name()]; ok {
+			sourceChannel = overrideChannel
+		}
+
+		version, err := source.Version(sourceChannel, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine version for source %s: %v", source.Name(), err)
 		}

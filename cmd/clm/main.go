@@ -163,7 +163,12 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		version, err := configSource.Version(cluster.Channels())
+		channelOverrides, err := cluster.ChannelOverrides()
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		version, err := configSource.Version(cluster.Channel, channelOverrides)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}

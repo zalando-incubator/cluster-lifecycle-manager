@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -107,9 +106,9 @@ func (r *mockChannelSource) Name() string {
 	return "mock"
 }
 
-func (r *mockChannelSource) Version(channels []string) (channel.ConfigVersion, error) {
+func (r *mockChannelSource) Version(channel string, overrides map[string]string) (channel.ConfigVersion, error) {
 	if r.failVersion {
-		return nil, fmt.Errorf("failed to get version %s", strings.Join(channels, ","))
+		return nil, fmt.Errorf("failed to get version %s (%s)", channel, overrides)
 	}
 	return &mockVersion{failGet: r.failGet}, nil
 }
