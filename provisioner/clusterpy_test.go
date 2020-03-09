@@ -3,6 +3,7 @@ package provisioner
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -250,4 +251,57 @@ func TestParseDeletions(t *testing.T) {
 	deletions, err := parseDeletions(cfg, exampleCluster, nil, nil)
 	require.NoError(t, err)
 	require.EqualValues(t, expected, deletions)
+}
+
+func TestRemarshalYAML(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		source   string
+		expected string
+	}{
+		{
+			name: "basic",
+			source: `
+foo: bar
+int: 1
+num: 1.111
+map:
+  a: b
+list:
+  - 1
+  - 2
+nil: ~
+`,
+			expected: `
+foo: bar
+int: 1
+list:
+- 1
+- 2
+map:
+  a: b
+nil: null
+num: 1.111
+`,
+		},
+		{
+			name: "references are inlined",
+			source: `
+value: &foo 123
+ref1: *foo
+ref2: *foo
+`,
+			expected: `
+ref1: 123
+ref2: 123
+value: 123
+`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			remarshaled, err := remarshalYAML(tc.source)
+			require.NoError(t, err)
+			require.Equal(t, strings.TrimPrefix(tc.expected, "\n"), remarshaled)
+		})
+	}
 }
