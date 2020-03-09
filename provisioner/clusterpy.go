@@ -71,6 +71,11 @@ type clusterpyProvisioner struct {
 	removeVolumes   bool
 }
 
+type manifestPackage struct {
+	name      string
+	manifests []string
+}
+
 // NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
 func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
 	provisioner := &clusterpyProvisioner{
@@ -1029,8 +1034,8 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	return result, nil
 }
 
-func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]string, error) {
-	var result []string
+func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]manifestPackage, error) {
+	var result []manifestPackage
 
 	components, err := config.Components()
 	if err != nil {
@@ -1044,6 +1049,8 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 		}
 		ctx := newTemplateContext(fileData, cluster, nil, values, adapter)
 
+		var renderedManifests []string
+
 		for _, manifest := range component.Manifests {
 			rendered, err := renderTemplate(ctx, manifest.Path)
 			if err != nil {
@@ -1056,7 +1063,14 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 				continue
 			}
 
-			result = append(result, rendered)
+			renderedManifests = append(renderedManifests, rendered)
+		}
+
+		if len(renderedManifests) > 0 {
+			result = append(result, manifestPackage{
+				name:      component.Name,
+				manifests: renderedManifests,
+			})
 		}
 	}
 
@@ -1064,7 +1078,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 }
 
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
-func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []string) error {
+func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []manifestPackage) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
 	err := p.Deletions(ctx, logger, cluster, deletions.PreApply)
 	if err != nil {
@@ -1084,6 +1098,8 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	}
 
 	for _, m := range renderedManifests {
+		logger := logger.WithField("module", m.name)
+
 		args := []string{
 			"kubectl",
 			"apply",
@@ -1105,13 +1121,13 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 		} else {
 			applyManifest := func() error {
 				cmd := newApplyCommand()
-				cmd.Stdin = strings.NewReader(m)
+				cmd.Stdin = strings.NewReader(strings.Join(m.manifests, "---\n"))
 				_, err := p.execManager.Run(ctx, logger, cmd)
 				return err
 			}
 			err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
 			if err != nil {
-				return errors.Wrapf(err, "run kubectl failed")
+				return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
 			}
 		}
 	}
