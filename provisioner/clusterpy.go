@@ -1034,6 +1034,21 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	return result, nil
 }
 
+func remarshalYAML(contents string) (string, error) {
+	var obj interface{}
+
+	err := yaml.UnmarshalStrict([]byte(contents), &obj)
+	if err != nil {
+		return "", err
+	}
+
+	result, err := yaml.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}
+
 func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]manifestPackage, error) {
 	var result []manifestPackage
 
@@ -1063,7 +1078,13 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 				continue
 			}
 
-			renderedManifests = append(renderedManifests, rendered)
+			// We remarshal the manifest here to get rid of references
+			remarshaled, err := remarshalYAML(rendered)
+			if err != nil {
+				return nil, fmt.Errorf("error remarshaling manifest %s: %v", manifest.Path, err)
+			}
+
+			renderedManifests = append(renderedManifests, remarshaled)
 		}
 
 		if len(renderedManifests) > 0 {
