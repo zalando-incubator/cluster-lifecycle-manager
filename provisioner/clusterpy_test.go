@@ -297,6 +297,20 @@ ref2: 123
 value: 123
 `,
 		},
+		{
+			name: "manifests with multiple documents are parsed correctly",
+			source: `
+first: 1
+---
+second: 2
+---
+`,
+			expected: `
+first: 1
+---
+second: 2
+`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			remarshaled, err := remarshalYAML(tc.source)
