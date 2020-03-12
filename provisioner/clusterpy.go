@@ -1,8 +1,10 @@
 package provisioner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -1035,18 +1037,30 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 }
 
 func remarshalYAML(contents string) (string, error) {
-	var obj interface{}
+	decoder := yaml.NewDecoder(strings.NewReader(contents))
+	result := &bytes.Buffer{}
+	encoder := yaml.NewEncoder(result)
 
-	err := yaml.UnmarshalStrict([]byte(contents), &obj)
-	if err != nil {
-		return "", err
+	for {
+		var obj interface{}
+		err := decoder.Decode(&obj)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		if obj == nil {
+			continue
+		}
+
+		err = encoder.Encode(obj)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	result, err := yaml.Marshal(obj)
-	if err != nil {
-		return "", err
-	}
-	return string(result), nil
+	return string(result.Bytes()), nil
 }
 
 func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]manifestPackage, error) {
