@@ -16,7 +16,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	models "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 // ListNodePoolsReader is a Reader for the ListNodePools structure.
