@@ -7,11 +7,11 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/errors v0.19.4
-	github.com/go-openapi/runtime v0.19.11
+	github.com/go-openapi/runtime v0.19.12
 	github.com/go-openapi/strfmt v0.19.5
-	github.com/go-openapi/swag v0.19.7
+	github.com/go-openapi/swag v0.19.8
 	github.com/go-openapi/validate v0.19.7
-	github.com/go-swagger/go-swagger v0.22.0
+	github.com/go-swagger/go-swagger v0.23.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.10.5
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
