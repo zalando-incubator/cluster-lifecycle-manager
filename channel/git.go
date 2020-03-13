@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -27,6 +28,7 @@ type Git struct {
 	repoDir           string
 	sshPrivateKeyFile string
 	mutex             *sync.Mutex
+	counter           uint64
 }
 
 type gitVersion struct {
@@ -130,7 +132,8 @@ func (g *Git) Version(channel string, overrides map[string]string) (ConfigVersio
 // own version of the checkout, such that they can run concurrently
 // without data races.
 func (g *Git) localClone(ctx context.Context, logger *log.Entry, channel string) (string, error) {
-	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d", g.repoName, channel, time.Now().UTC().UnixNano()))
+	i := atomic.AddUint64(&g.counter, 1)
+	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, channel, time.Now().UTC().UnixNano(), i))
 
 	srcRepoUrl := fmt.Sprintf("file://%s", g.repoDir)
 	err := g.cmd(ctx, logger, "clone", srcRepoUrl, repoDir)
