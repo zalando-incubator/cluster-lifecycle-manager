@@ -13,7 +13,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	models "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 // UpdateClusterReader is a Reader for the UpdateCluster structure.
