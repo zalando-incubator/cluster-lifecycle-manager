@@ -49,6 +49,8 @@ const (
 	etcdKMSKeyAlias             = "alias/etcd-cluster"
 	etcdScalyrAccountKey        = "etcd_scalyr_key"
 	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
+	applicationTagKey           = "application"
+	componentTagKey             = "component"
 )
 
 var (
@@ -496,7 +498,18 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		return err
 	}
 
-	err = a.applyStack(stackName, string(output), "", nil, false)
+	tags := []*cloudformation.Tag{
+		{
+			Key:   aws.String(applicationTagKey),
+			Value: aws.String("kubernetes-etcd"),
+		},
+		{
+			Key:   aws.String(componentTagKey),
+			Value: aws.String("etcd-cluster"),
+		},
+	}
+
+	err = a.applyStack(stackName, string(output), "", tags, false)
 	if err != nil {
 		return err
 	}
