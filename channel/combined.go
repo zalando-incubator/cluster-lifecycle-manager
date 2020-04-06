@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -150,7 +149,7 @@ func (c *combinedConfig) DeletionsManifests() ([]Manifest, error) {
 }
 
 func (c *combinedConfig) Components() ([]Component, error) {
-	allComponents := make(map[string]Component)
+	var result []Component
 
 	for i, config := range c.configs {
 		components, err := config.Components()
@@ -158,20 +157,13 @@ func (c *combinedConfig) Components() ([]Component, error) {
 			return nil, fmt.Errorf("unable to get components for source %s: %v", c.owner.sourceName(i), err)
 		}
 		for _, component := range components {
-			allComponents[component.Name] = component
+			result = append(result, Component{
+				Name:      fmt.Sprintf("%s/%s", c.owner.sourceName(i), component.Name),
+				Manifests: component.Manifests,
+			})
 		}
 	}
 
-	var keys []string
-	for key := range allComponents {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	var result []Component
-	for _, key := range keys {
-		result = append(result, allComponents[key])
-	}
 	return result, nil
 }
 

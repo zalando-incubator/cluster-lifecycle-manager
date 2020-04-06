@@ -107,24 +107,32 @@ func TestCombinedSource(t *testing.T) {
 	manifests, err := config.Components()
 	require.NoError(t, err)
 	expected := []Component{
-		// Overridden by secondary
+		// From main
 		{
-			Name: "example1",
+			Name: "main/example1",
 			Manifests: []Manifest{
-				expectedManifest("secondary", "cluster/manifests/example1/deployment.yaml", "example1-deployment-secondary"),
+				expectedManifest("main", "cluster/manifests/example1/config.yaml", "example1-config-main"),
+				expectedManifest("main", "cluster/manifests/example1/deployment.yaml", "example1-deployment-main"),
 			},
 		},
 		// From main
 		{
-			Name: "example2",
+			Name: "main/example2",
 			Manifests: []Manifest{
 				expectedManifest("main", "cluster/manifests/example2/config.yaml", "example2-config-main"),
 				expectedManifest("main", "cluster/manifests/example2/deployment.yaml", "example2-deployment-main"),
 			},
 		},
+		// From secondary, same name as in main
+		{
+			Name: "secondary/example1",
+			Manifests: []Manifest{
+				expectedManifest("secondary", "cluster/manifests/example1/deployment.yaml", "example1-deployment-secondary"),
+			},
+		},
 		// From secondary
 		{
-			Name: "example3",
+			Name: "secondary/example3",
 			Manifests: []Manifest{
 				expectedManifest("secondary", "cluster/manifests/example3/deployment.yaml", "example3-deployment-secondary"),
 			},
