@@ -44,13 +44,19 @@ const (
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
-	etcdInstanceTypeKey         = "etcd_instance_type"
-	etcdInstanceCountKey        = "etcd_instance_count"
 	etcdKMSKeyAlias             = "alias/etcd-cluster"
-	etcdScalyrAccountKey        = "etcd_scalyr_key"
-	etcdS3BackupBucketKey       = "etcd_s3_backup_bucket"
-	applicationTagKey           = "application"
-	componentTagKey             = "component"
+
+	etcdInstanceTypeConfigItem      = "etcd_instance_type"
+	etcdInstanceCountConfigItem     = "etcd_instance_count"
+	etcdScalyrKeyConfigItem         = "etcd_scalyr_key"
+	etcdBackupBucketConfigItem      = "etcd_s3_backup_bucket"
+	etcdClientCAConfigItem          = "etcd_client_ca_cert"
+	etcdClientKeyConfigItem         = "etcd_client_server_key"
+	etcdClientCertificateConfigItem = "etcd_client_server_cert"
+	etcdImageConfigItem             = "etcd_image"
+
+	applicationTagKey = "application"
+	componentTagKey   = "component"
 )
 
 var (
@@ -416,7 +422,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinition []byte, networkCIDR, vpcID string, cluster *api.Cluster) error {
 	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
 
-	if bucket, ok := cluster.ConfigItems[etcdS3BackupBucketKey]; ok {
+	if bucket, ok := cluster.ConfigItems[etcdBackupBucketConfigItem]; ok {
 		bucketName = bucket
 	}
 
@@ -443,7 +449,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		return err
 	}
 
-	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrAccountKey])
+	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrKeyConfigItem])
 	if err != nil {
 		return err
 	}
@@ -468,10 +474,32 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		fmt.Sprintf("EtcdS3Backup=%s", bucketName),
 		fmt.Sprintf("NetworkCIDR=%s", networkCIDR),
 		fmt.Sprintf("VpcID=%s", vpcID),
-		fmt.Sprintf("InstanceType=%s", cluster.ConfigItems[etcdInstanceTypeKey]),
-		fmt.Sprintf("InstanceCount=%s", cluster.ConfigItems[etcdInstanceCountKey]),
+		fmt.Sprintf("InstanceType=%s", cluster.ConfigItems[etcdInstanceTypeConfigItem]),
+		fmt.Sprintf("InstanceCount=%s", cluster.ConfigItems[etcdInstanceCountConfigItem]),
 		fmt.Sprintf("KMSKey=%s", kmsKeyARN),
 		fmt.Sprintf("ScalyrAccountKey=%s", encryptedScalyrKey),
+	}
+
+	for _, ci := range []struct {
+		configItem    string
+		senzaArgument string
+		encrypt       bool
+	}{
+		{configItem: etcdClientCAConfigItem, senzaArgument: "ClientCACertificate", encrypt: true},
+		{configItem: etcdClientKeyConfigItem, senzaArgument: "ClientKey", encrypt: true},
+		{configItem: etcdClientCertificateConfigItem, senzaArgument: "ClientCertificate", encrypt: true},
+		{configItem: etcdImageConfigItem, senzaArgument: "EtcdImage"},
+	} {
+		if value, ok := cluster.ConfigItems[ci.configItem]; ok {
+			if ci.encrypt {
+				encrypted, err := a.kmsEncryptForTaupage(kmsKeyARN, value)
+				if err != nil {
+					return err
+				}
+				value = encrypted
+			}
+			args = append(args, fmt.Sprintf("%s=%s", ci.senzaArgument, value))
+		}
 	}
 
 	cmd := exec.Command(
