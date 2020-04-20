@@ -314,6 +314,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
 github.com/mweagle/go-cloudformation v0.0.0-20190927125801-911e86284f4e h1:vCfcv5vk51DFFxdhCYS8w5SBhwaYaLDlcd81jEAdJQM=
 github.com/mweagle/go-cloudformation v0.0.0-20190927125801-911e86284f4e/go.mod h1:ZkuUgvDIuRW0sYTRfCz7VmL3IodhIufcb8HNdI6b6AI=
+github.com/mweagle/go-cloudformation v0.0.0-20200214045450-244753d8838e h1:M3ni6iSpkwiD1oxJjgUm2m1ssePtR4dcCiApW80Si+M=
+github.com/mweagle/go-cloudformation v0.0.0-20200214045450-244753d8838e/go.mod h1:ZkuUgvDIuRW0sYTRfCz7VmL3IodhIufcb8HNdI6b6AI=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/onsi/ginkgo v1.6.0 h1:Ix8l273rp3QzYgXSR+c8d1fTG7UPgYkOSELPhiY/YGw=
@@ -428,6 +430,8 @@ github.com/zalando-incubator/kube-ingress-aws-controller v0.10.5 h1:6qs/plnc/UBl
 github.com/zalando-incubator/kube-ingress-aws-controller v0.10.5/go.mod h1:xfdZLJxH2yDDWvA8M8vb8RlxFMdJ7VIORcSHPruWTNk=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.10.8 h1:LhRu6IG28anUvlaKqBs+OJSSQLbvKB4uk658NK3BRQY=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.10.8/go.mod h1:LeU/FIk2F4W171i1vb9lXoLFDwy3iwySR4iWo086QBc=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.11 h1:T7LQbiMba/3LrGjM6olX4yLiyYbzRhy6KXN9Tx4Fr2I=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.11/go.mod h1:doEkfHJgTekvQTuJyTjL4P1d0ETQCAOoao67SGEmARk=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.mongodb.org/mongo-driver v1.0.3/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
 go.mongodb.org/mongo-driver v1.1.1 h1:Sq1fR+0c58RME5EoqKdjkiQAmPjmfHlZOoRI6fTUOcs=
