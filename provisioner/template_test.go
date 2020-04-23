@@ -717,3 +717,35 @@ func TestKubernetesSizeToBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractEndpointHosts(t *testing.T) {
+	for _, tc := range []struct {
+		endpoints string
+		expected  string
+	}{
+		{
+			endpoints: "etcd-server.etcd.example.org:2379",
+			expected:  "etcd-server.etcd.example.org, ",
+		},
+		{
+			endpoints: "http://etcd-server.etcd.example.org:2379",
+			expected:  "etcd-server.etcd.example.org, ",
+		},
+		{
+			endpoints: "http://etcd-server.etcd.example.org:2379,zalan.do:2479",
+			expected:  "etcd-server.etcd.example.org, zalan.do, ",
+		},
+		{
+			endpoints: "http://etcd-server.etcd.example.org:2379,https://etcd-server.etcd.example.org:2479",
+			expected:  "etcd-server.etcd.example.org, ",
+		},
+	} {
+		t.Run(tc.endpoints, func(t *testing.T) {
+			result, err := renderSingle(t, `{{ range $elem := extractEndpointHosts .Values.data.endpoints }}{{ $elem }}, {{ end }}`, map[string]interface{}{
+				"endpoints": tc.endpoints,
+			})
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
