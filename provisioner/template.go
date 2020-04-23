@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/url"
 	"path"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -262,6 +264,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"accountID":                 accountID,
 		"portRanges":                portRanges,
 		"splitHostPort":             splitHostPort,
+		"extractEndpointHosts":      extractEndpointHosts,
 		"publicKey":                 publicKey,
 		"stupsNATSubnets":           stupsNATSubnets,
 		"amiID": func(imageName, imageOwner string) (string, error) {
@@ -621,4 +624,28 @@ func kubernetesSizeToKiloBytes(quantity string, scale float64) (string, error) {
 	}
 	kbs := int(math.Ceil(float64(val) / 1024 * scale))
 	return fmt.Sprintf("%dKB", kbs), nil
+}
+
+func extractEndpointHosts(endpoints string) ([]string, error) {
+	hostnames := map[string]bool{}
+	for _, endpoint := range strings.Split(endpoints, ",") {
+		if !strings.HasPrefix(endpoint, "http") {
+			endpoint = "http://" + endpoint
+		}
+
+		fmt.Println(endpoint)
+
+		parsed, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse endpoint '%s': %v", endpoint, err)
+		}
+		hostnames[parsed.Hostname()] = true
+	}
+
+	var result []string
+	for hostname := range hostnames {
+		result = append(result, hostname)
+	}
+	sort.Strings(result)
+	return result, nil
 }
