@@ -328,7 +328,7 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 }
 
 func (m *KubernetesNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) error {
-	return m.backend.SuspendAutoscaling(nodePool)
+	return m.backend.MarkForDecommission(nodePool)
 }
 
 // ScalePool scales a nodePool to the specified number of replicas.
@@ -341,7 +341,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 	// in case we are scaling down to 0 replicas, disable the autoscaler to
 	// not fight with it.
 	if replicas == 0 {
-		err := m.backend.SuspendAutoscaling(nodePool)
+		err := m.backend.MarkForDecommission(nodePool)
 		if err != nil {
 			return err
 		}

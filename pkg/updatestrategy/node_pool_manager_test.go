@@ -66,7 +66,7 @@ func (n *mockProviderNodePoolsBackend) UpdateSize(nodePool *api.NodePool) error 
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) SuspendAutoscaling(nodePool *api.NodePool) error {
+func (n *mockProviderNodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
 	return n.err
 }
 
