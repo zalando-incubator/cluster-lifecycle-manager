@@ -633,8 +633,6 @@ func extractEndpointHosts(endpoints string) ([]string, error) {
 			endpoint = "http://" + endpoint
 		}
 
-		fmt.Println(endpoint)
-
 		parsed, err := url.Parse(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse endpoint '%s': %v", endpoint, err)
