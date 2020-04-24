@@ -210,14 +210,39 @@ func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error 
 	return nil
 }
 
-// SuspendAutoscaling suspends autoscaling of the node pool if it was enabled.
-// The implementation assumes the kubernetes cluster-autoscaler is used so it
-// just removes a tag.
-func (n *ASGNodePoolsBackend) SuspendAutoscaling(nodePool *api.NodePool) error {
+// MarkForDecommission suspends autoscaling of the node pool if it was enabled and makes sure that the pool can be
+// scaled down to 0.
+// The implementation assumes the kubernetes cluster-autoscaler is used so it just removes a tag.
+func (n *ASGNodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
 	tags := map[string]string{
 		kubeAutoScalerEnabledTagKey: "",
 	}
-	return n.deleteTags(nodePool, tags)
+	err := n.deleteTags(nodePool, tags)
+	if err != nil {
+		return err
+	}
+
+	asgs, err := n.getNodePoolASGs(nodePool)
+	if err != nil {
+		return err
+	}
+
+	for _, asg := range asgs {
+		if aws.Int64Value(asg.MinSize) > 0 {
+			params := &autoscaling.UpdateAutoScalingGroupInput{
+				AutoScalingGroupName: asg.AutoScalingGroupName,
+				MinSize:              aws.Int64(0),
+			}
+
+			_, err := n.asgClient.UpdateAutoScalingGroup(params)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+
+	return nil
 }
 
 // deleteTags deletes the specified tags from the node pool ASGs.
