@@ -426,6 +426,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.10.11 h1:T7LQbiMba/3LrGjM6olX4yLiyYbzRhy6KXN9Tx4Fr2I=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.10.11/go.mod h1:doEkfHJgTekvQTuJyTjL4P1d0ETQCAOoao67SGEmARk=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.13 h1:V7sFN32fnU4PotwTiOIxeQOnF/wTHGzdxTcFgZhRKvE=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.10.13/go.mod h1:doEkfHJgTekvQTuJyTjL4P1d0ETQCAOoao67SGEmARk=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.mongodb.org/mongo-driver v1.0.3/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
 go.mongodb.org/mongo-driver v1.1.1 h1:Sq1fR+0c58RME5EoqKdjkiQAmPjmfHlZOoRI6fTUOcs=
