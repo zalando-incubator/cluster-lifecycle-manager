@@ -494,7 +494,11 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	} {
 		if value, ok := cluster.ConfigItems[ci.configItem]; ok {
 			if ci.encrypt {
-				encrypted, err := a.kmsEncryptForTaupage(kmsKeyARN, value)
+				decoded, err := base64.StdEncoding.DecodeString(value)
+				if err != nil {
+					return err
+				}
+				encrypted, err := a.kmsEncryptForTaupage(kmsKeyARN, string(decoded))
 				if err != nil {
 					return err
 				}
