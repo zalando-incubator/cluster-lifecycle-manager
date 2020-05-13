@@ -29,7 +29,7 @@ func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []
 	}
 
 	for _, pdb := range pdbs {
-		_, err := client.Policy().PodDisruptionBudgets(pdb.GetNamespace()).Create(pdb)
+		_, err := client.PolicyV1beta1().PodDisruptionBudgets(pdb.GetNamespace()).Create(pdb)
 		require.NoError(t, err)
 	}
 
