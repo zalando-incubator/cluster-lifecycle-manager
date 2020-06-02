@@ -25,8 +25,8 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.17.0
-	k8s.io/apimachinery v0.17.0
+	k8s.io/api v0.18.3
+	k8s.io/apimachinery v0.18.3
 	k8s.io/client-go v0.17.0
 )
 
