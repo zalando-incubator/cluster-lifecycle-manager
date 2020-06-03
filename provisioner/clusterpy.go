@@ -501,21 +501,6 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		return err
 	}
 
-	providerHostname, err := getHostname(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, providerHostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
-	}
-
-	logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
-	err = provisioner.Delete()
-	if err != nil {
-		return fmt.Errorf("failed to delete openid provider: %v", err)
-	}
-
 	// scale down kube-system deployments
 	// This is done to ensure controllers stop running so they don't
 	// recreate resources we delete in the next step
@@ -592,6 +577,21 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 		if err != nil {
 			return err
 		}
+	}
+
+	providerHostname, err := getHostname(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, providerHostname)
+	if err != nil {
+		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+	}
+
+	logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
+	err = provisioner.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete openid provider: %v", err)
 	}
 
 	return nil
