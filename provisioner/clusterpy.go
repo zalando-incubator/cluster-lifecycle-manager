@@ -309,6 +309,19 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	hostname, err := getHostname(cluster.APIServerURL)
+	if err != nil {
+		return err
+	}
+	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, hostname)
+	if err != nil {
+		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+	}
+	err = provisioner.Provision()
+	if err != nil {
+		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
+	}
+
 	// provision node pools
 	nodePoolProvisioner := &AWSNodePoolProvisioner{
 		awsAdapter:      awsAdapter,
@@ -365,19 +378,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	if err = ctx.Err(); err != nil {
 		return err
-	}
-
-	hostname, err := getHostname(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, hostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
-	}
-	err = provisioner.Provision()
-	if err != nil {
-		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
 	}
 
 	return p.apply(ctx, logger, cluster, deletions, manifests)
