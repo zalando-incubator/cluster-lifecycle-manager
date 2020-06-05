@@ -38,8 +38,8 @@ const (
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
 type NodePoolProvisioner interface {
-	Provision(values map[string]string) error
-	Reconcile() error
+	Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error
+	Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error
 }
 
 type remoteData struct {
@@ -65,7 +65,7 @@ type AWSNodePoolProvisioner struct {
 	logger          *log.Entry
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}, stackFileName string) (string, error) {
 	renderedUserData, err := p.prepareCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
@@ -81,7 +81,7 @@ func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.Nod
 }
 
 // Provision provisions node pools of the cluster.
-func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error {
+func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
 	// create S3 bucket if it doesn't exist
 	// the bucket is used for storing the ignition userdata for the node
 	// pools.
@@ -90,7 +90,6 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 		return err
 	}
 
-	nodePools := p.cluster.NodePools
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -106,7 +105,7 @@ func (p *AWSNodePoolProvisioner) Provision(values map[string]interface{}) error 
 		}
 
 		go func(nodePool api.NodePool, errorsc chan error) {
-			err := p.provisionNodePool(&nodePool, poolValues)
+			err := p.provisionNodePool(ctx, &nodePool, poolValues, stackFileName)
 			if err != nil {
 				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
 			}
@@ -139,7 +138,7 @@ func supportsT2Unlimited(instanceTypes []string) bool {
 }
 
 // provisionNodePool provisions a single node pool.
-func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, values map[string]interface{}) error {
+func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}, stackFileName string) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
 	instanceInfo, err := awsExt.SyntheticInstanceInfo(nodePool.InstanceTypes)
@@ -155,7 +154,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolStackTemplate(nodePool, values)
+	template, err := p.generateNodePoolStackTemplate(nodePool, values, stackFileName)
 	if err != nil {
 		return err
 	}
@@ -191,7 +190,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(nodePool *api.NodePool, value
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxWaitTimeout)
+	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
 	err = p.awsAdapter.waitForStack(ctx, waitTime, stackName)
 	if err != nil {

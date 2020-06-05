@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -334,38 +333,44 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	err = nodePoolProvisioner.Provision(values)
-	if err != nil {
-		return err
-	}
+	// group node pools based on their profile e.g. master or spot.io
+	nodePoolGroups := groupNodePools(
+		logger,
+		cluster,
+		updater,
+	)
 
-	// wait for API server to be ready
-	err = waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
-	if err != nil {
-		return err
-	}
+	for _, g := range nodePoolGroups {
+		err := nodePoolProvisioner.Provision(ctx, g.NodePools, values)
+		if err != nil {
+			return err
+		}
 
-	if err = ctx.Err(); err != nil {
-		return err
-	}
+		// custom function that checks if the node pools are "ready"
+		err = g.ReadyFn()
+		if err != nil {
+			return err
+		}
 
-	if !p.applyOnly {
-		switch cluster.LifecycleStatus {
-		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
-			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
-		default:
-			// update nodes
-			nodePools := cluster.NodePools
+		if err = ctx.Err(); err != nil {
+			return err
+		}
 
-			sort.Sort(api.NodePools(nodePools))
-			for _, nodePool := range nodePools {
-				err := updater.Update(ctx, nodePool)
-				if err != nil {
-					return err
-				}
+		if !p.applyOnly {
+			switch cluster.LifecycleStatus {
+			case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
+				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
+			default:
+				// update nodes
+				for _, nodePool := range g.NodePools {
+					err := g.Updater.Update(ctx, nodePool)
+					if err != nil {
+						return err
+					}
 
-				if err = ctx.Err(); err != nil {
-					return err
+					if err = ctx.Err(); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -1198,4 +1203,72 @@ func int32Value(v *int32) int32 {
 		return *v
 	}
 	return 0
+}
+
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrategy.UpdateStrategy) []nodePoolGroup {
+	var masters, workers, spotIOWorkers []*api.NodePool
+	var spotIOOceanWorker *api.NodePool
+	for _, nodePool := range cluster.NodePools {
+		if strings.HasPrefix(nodePool.Profile, "master") {
+			masters = append(masters, nodePool)
+			continue
+		}
+
+		if nodePool.Profile == "worker-spotio-ocean" {
+			spotIOOceanWorker = nodePool
+			continue
+		}
+
+		if nodePool.Profile == "worker-spotio" {
+			spotIOWorkers = append(spotIOWorkers, nodePool)
+			continue
+		}
+
+		workers = append(workers, nodePool)
+	}
+
+	return []nodePoolGroup{
+		{
+			NodePools: masters,
+			Updater:   updater,
+			ReadyFn: func() error {
+				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
+			},
+		},
+		{
+			NodePools: workers,
+			Updater:   updater,
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+		{
+			NodePools: []*api.NodePool{spotIOOceanWorker},
+			Updater:   spotIOUpdateStrategy{},
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+		{
+			NodePools: spotIOWorkers,
+			Updater:   spotIOUpdateStrategy{},
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+	}
+}
+
+type nodePoolGroup struct {
+	NodePools []*api.NodePool
+	Updater   updatestrategy.UpdateStrategy
+	ReadyFn   func() error
+}
+
+type spotIOUpdateStrategy struct {
+	updatestrategy.UpdateStrategy
+}
+
+func (s spotIOUpdateStrategy) Update(ctx context.Context, _ *api.NodePool) error {
+	return nil
 }
