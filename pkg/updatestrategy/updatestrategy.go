@@ -58,3 +58,55 @@ type Node struct {
 	VolumesAttached bool
 	Ready           bool
 }
+
+// ProfileNodePoolProvisioner is a NodePoolProvisioner which selects the
+// backend provisioner based on the node pool profile. It has a default
+// provisioner and a mapping of profile to provisioner for those profiles which
+// can't use the default provisioner.
+type ProfileNodePoolProvisioner struct {
+	defaultProvisioner ProviderNodePoolsBackend
+	profileMapping     map[string]ProviderNodePoolsBackend
+}
+
+// NewProfileNodePoolsBackend initializes a new ProfileNodePoolProvisioner.
+func NewProfileNodePoolsBackend(defaultProvisioner ProviderNodePoolsBackend, profileMapping map[string]ProviderNodePoolsBackend) *ProfileNodePoolProvisioner {
+	return &ProfileNodePoolProvisioner{
+		defaultProvisioner: defaultProvisioner,
+		profileMapping:     profileMapping,
+	}
+}
+
+// Get the specified node pool using the right node pool provisioner for the
+// profile.
+func (n *ProfileNodePoolProvisioner) Get(nodePool *api.NodePool) (*NodePool, error) {
+	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
+		return provisioner.Get(nodePool)
+	}
+
+	return n.defaultProvisioner.Get(nodePool)
+}
+
+// MarkForDecommission marks a node pool for decommissioning using the right
+// node pool provisioner for the profile.
+func (n *ProfileNodePoolProvisioner) MarkForDecommission(nodePool *api.NodePool) error {
+	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
+		return provisioner.MarkForDecommission(nodePool)
+	}
+
+	return n.defaultProvisioner.MarkForDecommission(nodePool)
+}
+
+// Scale scales a node pool  using the right node pool provisioner for the
+// profile.
+func (n *ProfileNodePoolProvisioner) Scale(nodePool *api.NodePool, replicas int) error {
+	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
+		return provisioner.Scale(nodePool, replicas)
+	}
+
+	return n.defaultProvisioner.Scale(nodePool, replicas)
+}
+
+// Terminate terminates a node pool using the default provisioner.
+func (n *ProfileNodePoolProvisioner) Terminate(node *Node, decrementDesired bool) error {
+	return n.defaultProvisioner.Terminate(node, decrementDesired)
+}

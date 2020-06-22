@@ -25,6 +25,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/spotio"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
@@ -58,6 +59,9 @@ const (
 	defaultMaxRetryTime                = 5 * time.Minute
 	clcPollingInterval                 = 10 * time.Second
 	clusterStackOutputKey              = "ClusterStackOutputs"
+	spotIOAccessTokenKey               = "spotio_access_token"
+	spotIOAccountIDKey                 = "spotio_account_id"
+	spotIONodePoolProfile              = "worker-spotio-ocean"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 )
 
@@ -759,7 +763,24 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		noScheduleTaint = true
 	}
 
-	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
+	spotIOToken := cluster.ConfigItems[spotIOAccessTokenKey]
+	spotIOAccountID := cluster.ConfigItems[spotIOAccountIDKey]
+
+	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
+	if spotIOToken != "" && spotIOAccountID != "" {
+		spotIOClient := spotio.NewClient(
+			spotIOAccountID,
+			oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: spotIOToken},
+			),
+		)
+
+		ec2Backend := updatestrategy.NewEC2NodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
+		additionalBackends[spotIONodePoolProfile] = ec2Backend
+	}
+
+	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
+	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
 	var updater updatestrategy.UpdateStrategy
@@ -1206,21 +1227,10 @@ func int32Value(v *int32) int32 {
 }
 
 func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrategy.UpdateStrategy) []nodePoolGroup {
-	var masters, workers, spotIOWorkers []*api.NodePool
-	var spotIOOceanWorker *api.NodePool
+	var masters, workers []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
 		if strings.HasPrefix(nodePool.Profile, "master") {
 			masters = append(masters, nodePool)
-			continue
-		}
-
-		if nodePool.Profile == "worker-spotio-ocean" {
-			spotIOOceanWorker = nodePool
-			continue
-		}
-
-		if nodePool.Profile == "worker-spotio" {
-			spotIOWorkers = append(spotIOWorkers, nodePool)
 			continue
 		}
 
@@ -1242,20 +1252,6 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrat
 				return nil
 			},
 		},
-		{
-			NodePools: []*api.NodePool{spotIOOceanWorker},
-			Updater:   spotIOUpdateStrategy{},
-			ReadyFn: func() error {
-				return nil
-			},
-		},
-		{
-			NodePools: spotIOWorkers,
-			Updater:   spotIOUpdateStrategy{},
-			ReadyFn: func() error {
-				return nil
-			},
-		},
 	}
 }
 
@@ -1263,12 +1259,4 @@ type nodePoolGroup struct {
 	NodePools []*api.NodePool
 	Updater   updatestrategy.UpdateStrategy
 	ReadyFn   func() error
-}
-
-type spotIOUpdateStrategy struct {
-	updatestrategy.UpdateStrategy
-}
-
-func (s spotIOUpdateStrategy) Update(ctx context.Context, _ *api.NodePool) error {
-	return nil
 }

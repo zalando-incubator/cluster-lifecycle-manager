@@ -120,7 +120,7 @@ func TestGet(tt *testing.T) {
 					{
 						Tags: []*autoscaling.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-							{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 						},
 						Instances: []*autoscaling.Instance{
 							{
@@ -184,7 +184,7 @@ func TestGet(tt *testing.T) {
 					{
 						Tags: []*autoscaling.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-							{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 						},
 						Instances: []*autoscaling.Instance{
 							{
@@ -619,7 +619,7 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 						{
 							Tags: []*autoscaling.TagDescription{
 								{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-								{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+								{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 							},
 							Instances:            tc.autoscalingInstances,
 							LaunchTemplate:       tc.autoscalingLaunchTemplate,
@@ -699,7 +699,7 @@ func TestScale(t *testing.T) {
 				{
 					Tags: []*autoscaling.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
 					Instances: []*autoscaling.Instance{
 						{},
@@ -709,7 +709,7 @@ func TestScale(t *testing.T) {
 				{
 					Tags: []*autoscaling.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
 					Instances: []*autoscaling.Instance{
 						{},
@@ -729,7 +729,7 @@ func TestScale(t *testing.T) {
 				{
 					Tags: []*autoscaling.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
 					Instances: []*autoscaling.Instance{
 						{},
@@ -739,7 +739,7 @@ func TestScale(t *testing.T) {
 				{
 					Tags: []*autoscaling.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-						{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
 					Instances: []*autoscaling.Instance{
 						{},
@@ -776,7 +776,7 @@ func TestDeleteTags(tt *testing.T) {
 					{
 						Tags: []*autoscaling.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
-							{Key: aws.String(nodePoolTag), Value: aws.String("test")},
+							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 							{Key: aws.String("tag-to-remove"), Value: aws.String("test")},
 						},
 						Instances: []*autoscaling.Instance{

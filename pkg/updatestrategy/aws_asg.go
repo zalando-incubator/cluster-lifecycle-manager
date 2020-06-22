@@ -25,7 +25,8 @@ const (
 	clusterIDTagPrefix               = "kubernetes.io/cluster/"
 	resourceLifecycleOwned           = "owned"
 	kubeAutoScalerEnabledTagKey      = "k8s.io/cluster-autoscaler/enabled"
-	nodePoolTag                      = "NodePool"
+	nodePoolTagLegacy                = "NodePool"
+	nodePoolTag                      = "node.kubernetes.io/node-pool"
 	instanceHealthStatusHealthy      = "Healthy"
 	ec2AutoscalingGroupTagKey        = "aws:autoscaling:groupName"
 	instanceTerminationRetryDuration = time.Duration(15) * time.Minute
@@ -434,7 +435,7 @@ func (n *ASGNodePoolsBackend) getNodePoolASGs(nodePool *api.NodePool) ([]*autosc
 			Value: aws.String(resourceLifecycleOwned),
 		},
 		{
-			Key:   aws.String(nodePoolTag),
+			Key:   aws.String(nodePoolTagLegacy),
 			Value: aws.String(nodePool.Name),
 		},
 	}
