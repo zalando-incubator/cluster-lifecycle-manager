@@ -35,30 +35,31 @@ import (
 )
 
 const (
-	providerID                     = "zalando-aws"
-	etcdStackFileName              = "etcd-cluster.yaml"
-	clusterStackFileName           = "cluster.yaml"
-	defaultNamespace               = "default"
-	kubectlNotFound                = "(NotFound)"
-	tagNameKubernetesClusterPrefix = "kubernetes.io/cluster/"
-	subnetELBRoleTagName           = "kubernetes.io/role/elb"
-	resourceLifecycleShared        = "shared"
-	resourceLifecycleOwned         = "owned"
-	mainStackTagKey                = "cluster-lifecycle-controller.zalando.org/main-stack"
-	stackTagValueTrue              = "true"
-	subnetsConfigItemKey           = "subnets"
-	subnetsValueKey                = "subnets"
-	availabilityZonesConfigItemKey = "availability_zones"
-	availabilityZonesValueKey      = "availability_zones"
-	vpcIDConfigItemKey             = "vpc_id"
-	subnetAllAZName                = "*"
-	maxApplyRetries                = 10
-	configKeyUpdateStrategy        = "update_strategy"
-	updateStrategyRolling          = "rolling"
-	updateStrategyCLC              = "clc"
-	defaultMaxRetryTime            = 5 * time.Minute
-	clcPollingInterval             = 10 * time.Second
-	clusterStackOutputKey          = "ClusterStackOutputs"
+	providerID                         = "zalando-aws"
+	etcdStackFileName                  = "etcd-cluster.yaml"
+	clusterStackFileName               = "cluster.yaml"
+	defaultNamespace                   = "default"
+	kubectlNotFound                    = "(NotFound)"
+	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
+	subnetELBRoleTagName               = "kubernetes.io/role/elb"
+	resourceLifecycleShared            = "shared"
+	resourceLifecycleOwned             = "owned"
+	mainStackTagKey                    = "cluster-lifecycle-controller.zalando.org/main-stack"
+	stackTagValueTrue                  = "true"
+	subnetsConfigItemKey               = "subnets"
+	subnetsValueKey                    = "subnets"
+	availabilityZonesConfigItemKey     = "availability_zones"
+	availabilityZonesValueKey          = "availability_zones"
+	vpcIDConfigItemKey                 = "vpc_id"
+	subnetAllAZName                    = "*"
+	maxApplyRetries                    = 10
+	configKeyUpdateStrategy            = "update_strategy"
+	updateStrategyRolling              = "rolling"
+	updateStrategyCLC                  = "clc"
+	defaultMaxRetryTime                = 5 * time.Minute
+	clcPollingInterval                 = 10 * time.Second
+	clusterStackOutputKey              = "ClusterStackOutputs"
+	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 )
 
 type clusterpyProvisioner struct {
@@ -748,8 +749,13 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		}
 	}
 
+	noScheduleTaint := false
+	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
+		noScheduleTaint = true
+	}
+
 	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
-	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig)
+	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
 	var updater updatestrategy.UpdateStrategy
 	switch updateStrategy {
