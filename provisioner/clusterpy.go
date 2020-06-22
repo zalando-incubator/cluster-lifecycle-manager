@@ -59,7 +59,7 @@ const (
 	defaultMaxRetryTime                = 5 * time.Minute
 	clcPollingInterval                 = 10 * time.Second
 	clusterStackOutputKey              = "ClusterStackOutputs"
-	decommissionNodeNoScheduleTaintKey = "clm_decommission_node_no_schedule_taint"
+	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 )
 
 type clusterpyProvisioner struct {
@@ -750,7 +750,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	}
 
 	noScheduleTaint := false
-	if v, ok := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; ok && v == "true" {
+	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
 
