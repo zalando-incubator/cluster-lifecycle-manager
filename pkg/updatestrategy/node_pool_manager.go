@@ -75,22 +75,24 @@ type DrainConfig struct {
 // KubernetesNodePoolManager defines a node pool manager which uses the
 // Kubernetes API along with a node pool provider backend to manage node pools.
 type KubernetesNodePoolManager struct {
-	kube        kubernetes.Interface
-	backend     ProviderNodePoolsBackend
-	logger      *log.Entry
-	drainConfig *DrainConfig
+	kube            kubernetes.Interface
+	backend         ProviderNodePoolsBackend
+	logger          *log.Entry
+	drainConfig     *DrainConfig
+	noScheduleTaint bool
 }
 
 // NewKubernetesNodePoolManager initializes a new Kubernetes NodePool manager
 // which can manage single node pools based on the nodes registered in the
 // Kubernetes API and the related NodePoolBackend for those nodes e.g.
 // ASGNodePool.
-func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Interface, poolBackend ProviderNodePoolsBackend, drainConfig *DrainConfig) *KubernetesNodePoolManager {
+func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Interface, poolBackend ProviderNodePoolsBackend, drainConfig *DrainConfig, noScheduleTaint bool) *KubernetesNodePoolManager {
 	return &KubernetesNodePoolManager{
-		kube:        kubeClient,
-		backend:     poolBackend,
-		logger:      logger,
-		drainConfig: drainConfig,
+		kube:            kubeClient,
+		backend:         poolBackend,
+		logger:          logger,
+		drainConfig:     drainConfig,
+		noScheduleTaint: noScheduleTaint,
 	}
 }
 
@@ -152,7 +154,11 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 }
 
 func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
-	err := m.taintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, v1.TaintEffectPreferNoSchedule)
+	taint := v1.TaintEffectPreferNoSchedule
+	if m.noScheduleTaint {
+		taint = v1.TaintEffectNoSchedule
+	}
+	err := m.taintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, taint)
 	if err != nil {
 		return err
 	}

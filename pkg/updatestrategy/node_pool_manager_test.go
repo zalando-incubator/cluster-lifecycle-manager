@@ -97,6 +97,7 @@ func TestGetPool(t *testing.T) {
 		setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
 		backend,
 		&DrainConfig{},
+		false,
 	)
 
 	// test getting nodes successfully
