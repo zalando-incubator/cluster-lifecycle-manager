@@ -776,8 +776,8 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		cfg := spotinst.DefaultConfig().WithCredentials(creds)
 		spotIOClient := spotio.New(spotiosession.New(cfg))
 
-		ec2Backend := updatestrategy.NewEC2NodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
-		additionalBackends[spotIONodePoolProfile] = ec2Backend
+		spotIOBackend := updatestrategy.NewSpotIONodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
+		additionalBackends[spotIONodePoolProfile] = spotIOBackend
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)

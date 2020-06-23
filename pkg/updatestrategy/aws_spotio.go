@@ -20,20 +20,20 @@ const (
 	spotIOOceanIDTagKey = "spot.io/ocean-id"
 )
 
-// EC2NodePoolsBackend defines a node pool consiting of externally managed EC2
-// instances
-type EC2NodePoolsBackend struct {
+// SpotIONodePoolsBackend defines a node pool consiting of externally managed
+// EC2 instances.
+type SpotIONodePoolsBackend struct {
 	ec2Client    ec2iface.EC2API
 	elbClient    elbiface.ELBAPI
 	cfClient     cloudformationiface.CloudFormationAPI
 	clusterID    string
-	spotIOClient spotio.Service // TODO: need another layer
+	spotIOClient spotio.Service
 }
 
-// NewEC2NodePoolsBackend initializes a new EC2NodePoolsBackend for the given clusterID and AWS
+// NewSpotIONodePoolsBackend initializes a new SpotIONodePoolsBackend for the given clusterID and AWS
 // session and.
-func NewEC2NodePoolsBackend(clusterID string, sess *session.Session, spotIOClient spotio.Service) *EC2NodePoolsBackend {
-	return &EC2NodePoolsBackend{
+func NewSpotIONodePoolsBackend(clusterID string, sess *session.Session, spotIOClient spotio.Service) *SpotIONodePoolsBackend {
+	return &SpotIONodePoolsBackend{
 		cfClient:     cloudformation.New(sess),
 		ec2Client:    ec2.New(sess),
 		elbClient:    elb.New(sess),
@@ -47,8 +47,8 @@ func NewEC2NodePoolsBackend(clusterID string, sess *session.Session, spotIOClien
 // The node generation is set to 'current' for nodes with up-to-date
 // userData,ImageID and tags and 'outdated' for nodes with an outdated
 // configuration.
-// TODO: the configuration is looked up in spot.io
-func (n *EC2NodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
+// The configuration is looked up in spot.io API.
+func (n *SpotIONodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -162,7 +162,7 @@ func instanceConfigEqual(current, desired *InstanceConfig) bool {
 	return true
 }
 
-func (n *EC2NodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, instance *ec2.Instance) (*InstanceConfig, error) {
+func (n *SpotIONodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, instance *ec2.Instance) (*InstanceConfig, error) {
 	var oceanID string
 
 	for _, tag := range instance.Tags {
@@ -203,14 +203,14 @@ func (n *EC2NodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, inst
 	}, nil
 }
 
-func (n *EC2NodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
+func (n *SpotIONodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
 	return nil
 }
 
-func (n *EC2NodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error {
+func (n *SpotIONodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error {
 	return nil
 }
 
-func (n *EC2NodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
+func (n *SpotIONodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
 	return nil
 }
