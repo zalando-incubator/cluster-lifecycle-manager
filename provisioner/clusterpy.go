@@ -344,7 +344,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	nodePoolGroups := groupNodePools(
 		logger,
 		cluster,
-		updater,
 	)
 
 	for _, g := range nodePoolGroups {
@@ -370,7 +369,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			default:
 				// update nodes
 				for _, nodePool := range g.NodePools {
-					err := g.Updater.Update(ctx, nodePool)
+					err := updater.Update(ctx, nodePool)
 					if err != nil {
 						return err
 					}
@@ -1228,10 +1227,10 @@ func int32Value(v *int32) int32 {
 	return 0
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrategy.UpdateStrategy) []nodePoolGroup {
+func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
 	var masters, workers []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
-		if strings.HasPrefix(nodePool.Profile, "master") {
+		if strings.Contains(nodePool.Profile, "master") {
 			masters = append(masters, nodePool)
 			continue
 		}
@@ -1242,14 +1241,12 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrat
 	return []nodePoolGroup{
 		{
 			NodePools: masters,
-			Updater:   updater,
 			ReadyFn: func() error {
 				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 			},
 		},
 		{
 			NodePools: workers,
-			Updater:   updater,
 			ReadyFn: func() error {
 				return nil
 			},
@@ -1259,6 +1256,5 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, updater updatestrat
 
 type nodePoolGroup struct {
 	NodePools []*api.NodePool
-	Updater   updatestrategy.UpdateStrategy
 	ReadyFn   func() error
 }
