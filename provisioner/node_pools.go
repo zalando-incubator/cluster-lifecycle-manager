@@ -65,7 +65,7 @@ type AWSNodePoolProvisioner struct {
 	logger          *log.Entry
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}, stackFileName string) (string, error) {
+func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
 	renderedUserData, err := p.prepareCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
@@ -105,7 +105,7 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 		}
 
 		go func(nodePool api.NodePool, errorsc chan error) {
-			err := p.provisionNodePool(ctx, &nodePool, poolValues, stackFileName)
+			err := p.provisionNodePool(ctx, &nodePool, poolValues)
 			if err != nil {
 				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
 			}
@@ -138,7 +138,7 @@ func supportsT2Unlimited(instanceTypes []string) bool {
 }
 
 // provisionNodePool provisions a single node pool.
-func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}, stackFileName string) error {
+func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
 	instanceInfo, err := awsExt.SyntheticInstanceInfo(nodePool.InstanceTypes)
@@ -154,7 +154,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolStackTemplate(nodePool, values, stackFileName)
+	template, err := p.generateNodePoolStackTemplate(nodePool, values)
 	if err != nil {
 		return err
 	}
