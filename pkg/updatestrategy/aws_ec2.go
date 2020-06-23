@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	spotio "github.com/spotinst/spotinst-sdk-go/service/ocean/providers/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/spotio"
 )
 
 const (
@@ -27,12 +27,12 @@ type EC2NodePoolsBackend struct {
 	elbClient    elbiface.ELBAPI
 	cfClient     cloudformationiface.CloudFormationAPI
 	clusterID    string
-	spotIOClient spotio.API // TODO: need another layer
+	spotIOClient spotio.Service // TODO: need another layer
 }
 
 // NewEC2NodePoolsBackend initializes a new EC2NodePoolsBackend for the given clusterID and AWS
 // session and.
-func NewEC2NodePoolsBackend(clusterID string, sess *session.Session, spotIOClient spotio.API) *EC2NodePoolsBackend {
+func NewEC2NodePoolsBackend(clusterID string, sess *session.Session, spotIOClient spotio.Service) *EC2NodePoolsBackend {
 	return &EC2NodePoolsBackend{
 		cfClient:     cloudformation.New(sess),
 		ec2Client:    ec2.New(sess),
@@ -67,7 +67,7 @@ func (n *EC2NodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 	}
 
 	instances := make([]*ec2.Instance, 0)
-	err := n.ec2Client.DescribeInstancesPagesWithContext(context.Background(), params, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	err := n.ec2Client.DescribeInstancesPagesWithContext(context.TODO(), params, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
 		for _, reservation := range output.Reservations {
 			for _, instance := range reservation.Instances {
 				switch aws.StringValue(instance.State.Name) {
@@ -98,7 +98,7 @@ func (n *EC2NodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 			Attribute:  aws.String("userData"),
 		}
 
-		resp, err := n.ec2Client.DescribeInstanceAttributeWithContext(context.Background(), params)
+		resp, err := n.ec2Client.DescribeInstanceAttributeWithContext(context.TODO(), params)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +113,7 @@ func (n *EC2NodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 			currentInstanceConfig.Tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 		}
 
-		desiredInstanceConfig, err := n.getDesiredInstanceConfig(instance)
+		desiredInstanceConfig, err := n.getDesiredInstanceConfig(context.TODO(), instance)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +162,7 @@ func instanceConfigEqual(current, desired *InstanceConfig) bool {
 	return true
 }
 
-func (n *EC2NodePoolsBackend) getDesiredInstanceConfig(instance *ec2.Instance) (*InstanceConfig, error) {
+func (n *EC2NodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, instance *ec2.Instance) (*InstanceConfig, error) {
 	var oceanID string
 
 	for _, tag := range instance.Tags {
@@ -176,25 +176,29 @@ func (n *EC2NodePoolsBackend) getDesiredInstanceConfig(instance *ec2.Instance) (
 		return nil, fmt.Errorf("no ocean-id found on instance '%s'", aws.StringValue(instance.InstanceId))
 	}
 
-	specs, err := n.spotIOClient.ListLaunchSpecs(oceanID)
+	params := &spotio.ListLaunchSpecsInput{
+		OceanID: aws.String(oceanID),
+	}
+
+	resp, err := n.spotIOClient.ListLaunchSpecs(ctx, params)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(specs) != 1 {
-		return nil, fmt.Errorf("Expectd to get 1 LaunchSpec for oceanID '%s', got %d", oceanID, len(specs))
+	if len(resp.LaunchSpecs) != 1 {
+		return nil, fmt.Errorf("Expectd to get 1 LaunchSpec for oceanID '%s', got %d", oceanID, len(resp.LaunchSpecs))
 	}
 
-	spec := specs[0]
+	spec := resp.LaunchSpecs[0]
 
 	tags := make(map[string]string, len(spec.Tags))
 	for _, tag := range spec.Tags {
-		tags[tag.Key] = tag.Value
+		tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 	}
 
 	return &InstanceConfig{
-		UserData: spec.UserData,
-		ImageID:  spec.ImageID,
+		UserData: aws.StringValue(spec.UserData),
+		ImageID:  aws.StringValue(spec.ImageID),
 		Tags:     tags,
 	}, nil
 }

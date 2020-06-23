@@ -18,6 +18,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	spotio "github.com/spotinst/spotinst-sdk-go/service/ocean/providers/aws"
+	"github.com/spotinst/spotinst-sdk-go/spotinst"
+	"github.com/spotinst/spotinst-sdk-go/spotinst/credentials"
+	spotiosession "github.com/spotinst/spotinst-sdk-go/spotinst/session"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -25,7 +29,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/spotio"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
@@ -768,12 +771,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
 	if spotIOToken != "" && spotIOAccountID != "" {
-		spotIOClient := spotio.NewClient(
-			spotIOAccountID,
-			oauth2.StaticTokenSource(
-				&oauth2.Token{AccessToken: spotIOToken},
-			),
+		creds := credentials.NewStaticCredentials(
+			spotIOToken, spotIOAccountID,
 		)
+		cfg := spotinst.DefaultConfig().WithCredentials(creds)
+		spotIOClient := spotio.New(spotiosession.New(cfg))
 
 		ec2Backend := updatestrategy.NewEC2NodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
 		additionalBackends[spotIONodePoolProfile] = ec2Backend
