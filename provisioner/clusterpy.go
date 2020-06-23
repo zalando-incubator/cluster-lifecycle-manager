@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -19,6 +18,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	spotio "github.com/spotinst/spotinst-sdk-go/service/ocean/providers/aws"
+	"github.com/spotinst/spotinst-sdk-go/spotinst"
+	"github.com/spotinst/spotinst-sdk-go/spotinst/credentials"
+	spotiosession "github.com/spotinst/spotinst-sdk-go/spotinst/session"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -59,6 +62,9 @@ const (
 	defaultMaxRetryTime                = 5 * time.Minute
 	clcPollingInterval                 = 10 * time.Second
 	clusterStackOutputKey              = "ClusterStackOutputs"
+	spotIOAccessTokenKey               = "spotio_access_token"
+	spotIOAccountIDKey                 = "spotio_account_id"
+	spotIONodePoolProfile              = "worker-spotio-ocean"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 )
 
@@ -334,38 +340,43 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	err = nodePoolProvisioner.Provision(values)
-	if err != nil {
-		return err
-	}
+	// group node pools based on their profile e.g. master or spot.io
+	nodePoolGroups := groupNodePools(
+		logger,
+		cluster,
+	)
 
-	// wait for API server to be ready
-	err = waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
-	if err != nil {
-		return err
-	}
+	for _, g := range nodePoolGroups {
+		err := nodePoolProvisioner.Provision(ctx, g.NodePools, values)
+		if err != nil {
+			return err
+		}
 
-	if err = ctx.Err(); err != nil {
-		return err
-	}
+		// custom function that checks if the node pools are "ready"
+		err = g.ReadyFn()
+		if err != nil {
+			return err
+		}
 
-	if !p.applyOnly {
-		switch cluster.LifecycleStatus {
-		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
-			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
-		default:
-			// update nodes
-			nodePools := cluster.NodePools
+		if err = ctx.Err(); err != nil {
+			return err
+		}
 
-			sort.Sort(api.NodePools(nodePools))
-			for _, nodePool := range nodePools {
-				err := updater.Update(ctx, nodePool)
-				if err != nil {
-					return err
-				}
+		if !p.applyOnly {
+			switch cluster.LifecycleStatus {
+			case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
+				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
+			default:
+				// update nodes
+				for _, nodePool := range g.NodePools {
+					err := updater.Update(ctx, nodePool)
+					if err != nil {
+						return err
+					}
 
-				if err = ctx.Err(); err != nil {
-					return err
+					if err = ctx.Err(); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -754,7 +765,23 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		noScheduleTaint = true
 	}
 
-	poolBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
+	spotIOToken := cluster.ConfigItems[spotIOAccessTokenKey]
+	spotIOAccountID := cluster.ConfigItems[spotIOAccountIDKey]
+
+	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
+	if spotIOToken != "" && spotIOAccountID != "" {
+		creds := credentials.NewStaticCredentials(
+			spotIOToken, spotIOAccountID,
+		)
+		cfg := spotinst.DefaultConfig().WithCredentials(creds)
+		spotIOClient := spotio.New(spotiosession.New(cfg))
+
+		spotIOBackend := updatestrategy.NewSpotIONodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
+		additionalBackends[spotIONodePoolProfile] = spotIOBackend
+	}
+
+	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
+	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
 	var updater updatestrategy.UpdateStrategy
@@ -1198,4 +1225,36 @@ func int32Value(v *int32) int32 {
 		return *v
 	}
 	return 0
+}
+
+func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
+	var masters, workers []*api.NodePool
+	for _, nodePool := range cluster.NodePools {
+		if strings.Contains(nodePool.Profile, "master") {
+			masters = append(masters, nodePool)
+			continue
+		}
+
+		workers = append(workers, nodePool)
+	}
+
+	return []nodePoolGroup{
+		{
+			NodePools: masters,
+			ReadyFn: func() error {
+				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
+			},
+		},
+		{
+			NodePools: workers,
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+	}
+}
+
+type nodePoolGroup struct {
+	NodePools []*api.NodePool
+	ReadyFn   func() error
 }

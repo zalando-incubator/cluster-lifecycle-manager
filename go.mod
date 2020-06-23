@@ -18,6 +18,7 @@ require (
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
+	github.com/spotinst/spotinst-sdk-go v1.52.1
 	github.com/stretchr/testify v1.6.0
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.10.14
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
