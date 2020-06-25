@@ -34,7 +34,13 @@ import (
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/restmapper"
 )
 
 const (
@@ -42,7 +48,6 @@ const (
 	etcdStackFileName                  = "etcd-cluster.yaml"
 	clusterStackFileName               = "cluster.yaml"
 	defaultNamespace                   = "default"
-	kubectlNotFound                    = "(NotFound)"
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
 	resourceLifecycleShared            = "shared"
@@ -732,7 +737,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		PollInterval:                   p.updateStrategy.PollInterval,
 	}
 
-	client, err := kubernetes.NewKubeClientWithTokenSource(cluster.APIServerURL, p.tokenSource)
+	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -856,12 +861,12 @@ func (p *clusterpyProvisioner) untagSubnets(awsAdapter *awsAdapter, vpcID string
 // downscaleDeployments scales down all deployments of a cluster in the
 // specified namespace.
 func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *api.Cluster, namespace string) error {
-	client, err := kubernetes.NewKubeClientWithTokenSource(cluster.APIServerURL, p.tokenSource)
+	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return err
 	}
 
-	deployments, err := client.AppsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
+	deployments, err := client.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -873,7 +878,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 
 		logger.Infof("Scaling down deployment %s/%s", namespace, deployment.Name)
 		deployment.Spec.Replicas = int32Ptr(0)
-		_, err := client.AppsV1beta1().Deployments(namespace).Update(&deployment)
+		_, err := client.AppsV1().Deployments(namespace).Update(&deployment)
 		if err != nil {
 			return err
 		}
@@ -976,52 +981,111 @@ type deletions struct {
 	PostApply []*resource `yaml:"post_apply"`
 }
 
-// Deletions uses kubectl delete to delete the provided kubernetes resources.
-func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
-	token, err := p.tokenSource.Token()
+func resolveKind(mapper meta.RESTMapper, kind string) (schema.GroupVersionResource, error) {
+	var gvr schema.GroupVersionResource
+	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(kind)
+
+	if fullySpecifiedGVR != nil {
+		gvr, _ = mapper.ResourceFor(*fullySpecifiedGVR)
+	}
+	if gvr.Empty() {
+		gvr, _ = mapper.ResourceFor(groupResource.WithVersion(""))
+	}
+	if gvr.Empty() {
+		return schema.GroupVersionResource{}, fmt.Errorf("unable to resolve kind %s (use either name or name.version.group)", kind)
+	}
+	return gvr, nil
+}
+
+// Deletions deletes the provided kubernetes resources from the cluster.
+func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
+	typedClient, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
-		return errors.Wrapf(err, "no valid token")
+		return err
 	}
 
+	dynamicClient, err := kubernetes.NewDynamicClient(cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return err
+	}
+
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(typedClient.Discovery()))
+
 	for _, deletion := range deletions {
-		args := []string{
-			"kubectl",
-			fmt.Sprintf("--server=%s", cluster.APIServerURL),
-			fmt.Sprintf("--token=%s", token.AccessToken),
-			fmt.Sprintf("--namespace=%s", deletion.Namespace),
-			"delete",
-			deletion.Kind,
+		fields := log.Fields{
+			"kind": deletion.Kind,
+		}
+		if deletion.Namespace != "" {
+			fields["namespace"] = deletion.Namespace
+		}
+		if len(deletion.Labels) > 0 {
+			fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: deletion.Labels})
 		}
 
-		// indentify the resource to be deleted either by name or
-		// labels. name AND labels cannot be defined at the same time,
-		// but one of them MUST be defined.
-		if deletion.Name != "" && len(deletion.Labels) > 0 {
-			return fmt.Errorf("only one of 'name' or 'labels' must be specified")
-		}
-
-		if deletion.Name != "" {
-			args = append(args, deletion.Name)
-		} else if len(deletion.Labels) > 0 {
-			args = append(args, fmt.Sprintf("--selector=%s", deletion.Labels))
-		} else {
-			return fmt.Errorf("either name or labels must be specified to identify a resource")
-		}
-
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Env = []string{}
-
-		out, err := p.execManager.Run(ctx, logger, cmd)
+		err := processDeletion(dynamicClient, mapper, logger.WithFields(fields), deletion)
 		if err != nil {
-			// if kubectl failed because the resource didn't
-			// exists, we don't treat it as an error since the
-			// resource was already deleted.
-			// We can only check this by inspecting the content of
-			// Stderr (which is provided in the err).
-			if strings.Contains(out, kubectlNotFound) {
-				continue
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, name string) error {
+	err := iface.Delete(name, &metav1.DeleteOptions{})
+	if err != nil && apierrors.IsNotFound(err) {
+		logger.Infof("Skipping deletion of %s: resource not found", name)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("unable to delete: %w", err)
+	}
+
+	logger.Infof("Resource %s deleted", name)
+	return nil
+}
+
+func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
+	// Figure out the GVR
+	gvr, err := resolveKind(mapper, deletion.Kind)
+	if err != nil {
+		return err
+	}
+
+	// identify the resource to be deleted either by name or
+	// labels. name AND labels cannot be defined at the same time,
+	// but one of them MUST be defined.
+	if deletion.Name != "" && len(deletion.Labels) > 0 {
+		return fmt.Errorf("only one of 'name' or 'labels' must be specified")
+	}
+
+	if deletion.Name == "" && len(deletion.Labels) == 0 {
+		return fmt.Errorf("either name or labels must be specified to identify a resource")
+	}
+
+	iface := client.Resource(gvr).Namespace(deletion.Namespace)
+
+	if deletion.Name != "" {
+		return deleteResource(iface, logger, deletion.Name)
+	} else if len(deletion.Labels) > 0 {
+		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(metav1.ListOptions{
+			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
+				MatchLabels: deletion.Labels,
+			}),
+		})
+		if err != nil {
+			return err
+		}
+
+		if len(items.Items) == 0 {
+			logger.Infof("No matching resources found")
+		}
+
+		for _, item := range items.Items {
+			err = deleteResource(iface, logger, item.GetName())
+			if err != nil {
+				return err
 			}
-			return errors.Wrap(err, "cannot run kubectl command")
 		}
 	}
 
@@ -1148,7 +1212,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
 func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []manifestPackage) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
-	err := p.Deletions(ctx, logger, cluster, deletions.PreApply)
+	err := p.Deletions(logger, cluster, deletions.PreApply)
 	if err != nil {
 		return err
 	}
@@ -1201,7 +1265,7 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
-	err = p.Deletions(ctx, logger, cluster, deletions.PostApply)
+	err = p.Deletions(logger, cluster, deletions.PostApply)
 	if err != nil {
 		return err
 	}
