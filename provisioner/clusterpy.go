@@ -33,7 +33,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1031,17 +1031,17 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 	return nil
 }
 
-func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, name string) error {
+func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
 	err := iface.Delete(name, &metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		logger.Infof("Skipping deletion of %s: resource not found", name)
+		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("unable to delete: %w", err)
 	}
 
-	logger.Infof("Resource %s deleted", name)
+	logger.Infof("%s %s deleted", kind, name)
 	return nil
 }
 
@@ -1066,7 +1066,7 @@ func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *l
 	iface := client.Resource(gvr).Namespace(deletion.Namespace)
 
 	if deletion.Name != "" {
-		return deleteResource(iface, logger, deletion.Name)
+		return deleteResource(iface, logger, deletion.Kind, deletion.Name)
 	} else if len(deletion.Labels) > 0 {
 		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(metav1.ListOptions{
 			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
@@ -1078,11 +1078,11 @@ func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *l
 		}
 
 		if len(items.Items) == 0 {
-			logger.Infof("No matching resources found")
+			logger.Infof("No matching %s resources found", deletion.Kind)
 		}
 
 		for _, item := range items.Items {
-			err = deleteResource(iface, logger, item.GetName())
+			err = deleteResource(iface, logger, deletion.Kind, item.GetName())
 			if err != nil {
 				return err
 			}
