@@ -96,7 +96,7 @@ const (
 
 // prop value enum
 func (m *InfrastructureAccountUpdate) validateLifecycleStatusEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, infrastructureAccountUpdateTypeLifecycleStatusPropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, infrastructureAccountUpdateTypeLifecycleStatusPropEnum, true); err != nil {
 		return err
 	}
 	return nil
