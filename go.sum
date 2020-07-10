@@ -550,6 +550,8 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.11.0 h1:f/GvrYLPznHQ/d9z2me3SSTMH/Z88xKPgHmRW+3a2Z4=
 github.com/zalando-incubator/kube-ingress-aws-controller v0.11.0/go.mod h1:doEkfHJgTekvQTuJyTjL4P1d0ETQCAOoao67SGEmARk=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.11.1 h1:gL2cgl9t78qMX/TO/SjJKibIpiRNtDI+rnMXHoBvHw0=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.11.1/go.mod h1:doEkfHJgTekvQTuJyTjL4P1d0ETQCAOoao67SGEmARk=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.mongodb.org/mongo-driver v1.0.3/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
 go.mongodb.org/mongo-driver v1.1.1 h1:Sq1fR+0c58RME5EoqKdjkiQAmPjmfHlZOoRI6fTUOcs=
