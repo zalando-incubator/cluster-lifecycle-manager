@@ -7,23 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
-
-func exampleCluster(pools []*api.NodePool) *api.Cluster {
-	return &api.Cluster{
-		ConfigItems: map[string]string{
-			"autoscaling_buffer_pools":           "worker",
-			"autoscaling_buffer_cpu_scale":       "0.75",
-			"autoscaling_buffer_memory_scale":    "0.75",
-			"autoscaling_buffer_cpu_reserved":    "1200m",
-			"autoscaling_buffer_memory_reserved": "3500Mi",
-		},
-		NodePools: pools,
-	}
-}
 
 func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
 	templateData := make(map[string][]byte, len(templates))
@@ -115,145 +101,6 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 		nil)
 
 	require.Error(t, err)
-}
-
-func renderAutoscaling(t *testing.T, cluster *api.Cluster) (string, error) {
-	return renderSingle(
-		t,
-		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
-		cluster)
-}
-
-func TestAutoscalingBufferExplicit(t *testing.T) {
-	cluster := exampleCluster([]*api.NodePool{})
-	cluster.ConfigItems["autoscaling_buffer_cpu"] = "111m"
-	cluster.ConfigItems["autoscaling_buffer_memory"] = "1500Mi"
-
-	result, err := renderAutoscaling(t, cluster)
-
-	require.NoError(t, err)
-	require.EqualValues(t, "111m 1500Mi", result)
-}
-
-func TestAutoscalingBufferExplicitOnlyOne(t *testing.T) {
-	cluster := exampleCluster([]*api.NodePool{})
-	cluster.ConfigItems["autoscaling_buffer_cpu"] = "111m"
-
-	_, err := renderAutoscaling(t, cluster)
-	require.Error(t, err)
-
-	delete(cluster.ConfigItems, "autoscaling_buffer_cpu")
-	cluster.ConfigItems["autoscaling_buffer_memory"] = "1500Mi"
-
-	_, err = renderAutoscaling(t, cluster)
-	require.Error(t, err)
-}
-
-func TestAutoscalingBufferPoolBasedScale(t *testing.T) {
-	result, err := renderSingle(
-		t,
-		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
-		exampleCluster([]*api.NodePool{
-			{
-				InstanceTypes: []string{"m4.xlarge"},
-				Name:          "master-default",
-			},
-			{
-				// 2 vcpu / 8gb
-				InstanceTypes: []string{"m4.large"},
-				Name:          "worker-default",
-			},
-			{
-				// 4 vcpu / 7.5gb
-				InstanceTypes: []string{"c4.xlarge"},
-				Name:          "worker-cpu",
-			},
-		}))
-
-	require.NoError(t, err)
-	require.EqualValues(t, "800m 4180Mi", result)
-}
-
-func TestAutoscalingBufferPoolBasedReserved(t *testing.T) {
-	result, err := renderSingle(
-		t,
-		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
-		exampleCluster([]*api.NodePool{
-			{
-				// 8 vcpu / 32gb
-				InstanceTypes: []string{"m4.2xlarge"},
-				Name:          "worker-default",
-			},
-		}))
-
-	require.NoError(t, err)
-	require.EqualValues(t, "6 24Gi", result)
-}
-
-func TestAutoscalingBufferPoolBasedNoPools(t *testing.T) {
-	_, err := renderSingle(
-		t,
-		`{{ with autoscalingBufferSettings .Values.data }}{{.CPU}} {{.Memory}}{{end}}`,
-		exampleCluster([]*api.NodePool{
-			{
-				InstanceTypes: []string{"m4.xlarge"},
-				Name:          "master-default",
-			},
-			{
-				InstanceTypes: []string{"m4.large"},
-				Name:          "testing-default",
-			},
-		}))
-
-	require.Error(t, err)
-}
-
-func TestAutoscalingBufferPoolBasedMismatchingType(t *testing.T) {
-	_, err := renderSingle(
-		t,
-		`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-		exampleCluster([]*api.NodePool{
-			{
-				InstanceTypes: []string{"r4.large"},
-				Name:          "worker-one",
-			},
-			{
-				InstanceTypes: []string{"c4.xlarge"},
-				Name:          "worker-two",
-			},
-		}))
-
-	require.Error(t, err)
-}
-
-func TestAutoscalingBufferPoolBasedInvalidSettings(t *testing.T) {
-	configSets := []map[string]string{
-		// missing
-		{"autoscaling_buffer_cpu_scale": "0.8", "autoscaling_buffer_memory_scale": "0.8"},
-		{"autoscaling_buffer_pools": "worker", "autoscaling_buffer_memory_scale": "0.8"},
-		{"autoscaling_buffer_pools": "worker", "autoscaling_buffer_cpu_scale": "0.8"},
-		// invalid
-		{"autoscaling_buffer_pools": "[(", "autoscaling_buffer_cpu_scale": "0.8", "autoscaling_buffer_memory_scale": "0.8"},
-		{"autoscaling_buffer_pools": "worker", "autoscaling_buffer_cpu_scale": "sdfsdfsdf", "autoscaling_buffer_memory_scale": "0.8"},
-		{"autoscaling_buffer_pools": "worker", "autoscaling_buffer_cpu_scale": "0.8", "autoscaling_buffer_memory_scale": "fgdfgdfg"},
-	}
-
-	for _, configItems := range configSets {
-		cluster := exampleCluster([]*api.NodePool{
-			{
-				InstanceTypes: []string{"m4.large"},
-				Name:          "worker",
-			},
-		})
-		cluster.ConfigItems = configItems
-
-		_, err := renderSingle(
-			t,
-			`{{ with autoscalingBufferSettings . }}{{.CPU}} {{.Memory}}{{end}}`,
-			cluster)
-
-		assert.Error(t, err, "configItems: %s", configItems)
-	}
 }
 
 func TestASGSize(t *testing.T) {

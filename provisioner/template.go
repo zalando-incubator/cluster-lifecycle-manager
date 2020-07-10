@@ -13,8 +13,6 @@ import (
 	"net"
 	"net/url"
 	"path"
-	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,22 +22,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
-	autoscalingBufferExplicitCPUConfigItem    = "autoscaling_buffer_cpu"
-	autoscalingBufferExplicitMemoryConfigItem = "autoscaling_buffer_memory"
-	autoscalingBufferCPUScaleConfigItem       = "autoscaling_buffer_cpu_scale"
-	autoscalingBufferMemoryScaleConfigItem    = "autoscaling_buffer_memory_scale"
-	autoscalingBufferCPUReservedConfigItem    = "autoscaling_buffer_cpu_reserved"
-	autoscalingBufferMemoryReservedConfigItem = "autoscaling_buffer_memory_reserved"
-	autoscalingBufferPoolsConfigItem          = "autoscaling_buffer_pools"
-	highestPossiblePort                       = 65535
-	lowestPossiblePort                        = 0
-	describeImageFilterNameName               = "name"
-	describeImageFilterNameOwner              = "owner-id"
+	highestPossiblePort          = 65535
+	lowestPossiblePort           = 0
+	describeImageFilterNameName  = "name"
+	describeImageFilterNameOwner = "owner-id"
 )
 
 type templateContext struct {
@@ -84,11 +74,6 @@ type templateData struct {
 	S3GeneratedFilesPath string
 }
 
-type podResources struct {
-	CPU    string
-	Memory string
-}
-
 func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) *templateContext {
 	return &templateContext{
 		fileData:     fileData,
@@ -105,168 +90,25 @@ func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodeP
 	return renderTemplate(ctx, manifest.Path)
 }
 
-func requiredConfigItem(cluster *api.Cluster, configItem string) (string, error) {
-	result, ok := cluster.ConfigItems[configItem]
-	if !ok {
-		return "", fmt.Errorf("missing config item: %s", configItem)
-	}
-	return result, nil
-}
-
-func requiredFloatConfigItem(cluster *api.Cluster, configItem string) (float64, error) {
-	strValue, err := requiredConfigItem(cluster, configItem)
-	if err != nil {
-		return math.NaN(), err
-	}
-	result, err := strconv.ParseFloat(strValue, 64)
-	if err != nil {
-		return math.NaN(), fmt.Errorf("unable to parse %s: %v", configItem, err)
-	}
-	return result, nil
-}
-
-func requiredResourceConfigItem(cluster *api.Cluster, configItem string, scale int32) (int64, error) {
-	strValue, err := requiredConfigItem(cluster, configItem)
-	if err != nil {
-		return 0, err
-	}
-
-	quantity, err := k8sresource.ParseQuantity(strValue)
-	if err != nil {
-		return 0, fmt.Errorf("unable to parse %s: %v", configItem, err)
-	}
-
-	return quantity.ScaledValue(k8sresource.Scale(scale)), nil
-}
-
-// matchingPools returns all node pools whose names patch poolNameRegex
-func matchingPools(cluster *api.Cluster, poolNameRegex string) ([]*api.NodePool, error) {
-	nameRegex, err := regexp.Compile(poolNameRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []*api.NodePool
-	for _, pool := range cluster.NodePools {
-		if nameRegex.FindStringIndex(pool.Name) != nil {
-			result = append(result, pool)
-		}
-	}
-	return result, nil
-}
-
-// autoscalingBufferSettings returns the CPU and memory resources for the autoscaling buffer pods based on various
-// config items. If autoscaling_buffer_cpu and autoscaling_buffer_memory are set, the values are used directly,
-// otherwise it finds the largest instance type from the node pools matching autoscaling_buffer_pools, scales
-// it using autoscaling_buffer_cpu_scale and autoscaling_buffer_memory_scale and then takes the minimum of
-// the scaled value or the node size minus autoscaling_buffer_{cpu|memory}_reserved
-// TODO use the proper type for the argument
-func autoscalingBufferSettings(clusterOrData interface{}) (*podResources, error) {
-	var cluster *api.Cluster
-
-	switch v := clusterOrData.(type) {
-	case *api.Cluster:
-		cluster = v
-	case *templateData:
-		cluster = v.Cluster
-	default:
-		return nil, fmt.Errorf("autoscalingBufferSettings: expected *api.Cluster or *templateData, got %s", reflect.TypeOf(clusterOrData))
-	}
-
-	explicitCPU, haveExplicitCPU := cluster.ConfigItems[autoscalingBufferExplicitCPUConfigItem]
-	explicitMemory, haveExplicitMemory := cluster.ConfigItems[autoscalingBufferExplicitMemoryConfigItem]
-
-	if haveExplicitCPU && haveExplicitMemory {
-		return &podResources{CPU: explicitCPU, Memory: explicitMemory}, nil
-	} else if haveExplicitCPU || haveExplicitMemory {
-		// avoid issues if the user overrides the CPU and then the resulting pod can't fit after node pool change
-		return nil, fmt.Errorf("autoscaling_buffer_cpu/autoscaling_buffer_memory must be used together or not at all")
-	}
-
-	poolNameRegex, err := requiredConfigItem(cluster, autoscalingBufferPoolsConfigItem)
-	if err != nil {
-		return nil, err
-	}
-	cpuScale, err := requiredFloatConfigItem(cluster, autoscalingBufferCPUScaleConfigItem)
-	if err != nil {
-		return nil, err
-	}
-	memoryScale, err := requiredFloatConfigItem(cluster, autoscalingBufferMemoryScaleConfigItem)
-	if err != nil {
-		return nil, err
-	}
-	cpuReserved, err := requiredResourceConfigItem(cluster, autoscalingBufferCPUReservedConfigItem, -3)
-	if err != nil {
-		return nil, err
-	}
-	memoryReserved, err := requiredResourceConfigItem(cluster, autoscalingBufferMemoryReservedConfigItem, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	pools, err := matchingPools(cluster, poolNameRegex)
-	if err != nil {
-		return nil, err
-	}
-	if len(pools) == 0 {
-		return nil, fmt.Errorf("no pools matching %s", poolNameRegex)
-	}
-
-	var currentBestFitVCPU, currentBestFitMemory int64
-
-	for _, pool := range pools {
-		for _, instanceType := range pool.InstanceTypes {
-			instanceInfo, err := aws.InstanceInfo(instanceType)
-			if err != nil {
-				return nil, err
-			}
-
-			if currentBestFitVCPU == 0 || instanceInfo.VCPU < currentBestFitVCPU {
-				currentBestFitVCPU = instanceInfo.VCPU
-			}
-
-			if currentBestFitMemory == 0 || instanceInfo.Memory < currentBestFitMemory {
-				currentBestFitMemory = instanceInfo.Memory
-			}
-		}
-	}
-
-	result := &podResources{
-		CPU:    k8sresource.NewMilliQuantity(effectiveQuantity(currentBestFitVCPU*1000, cpuScale, cpuReserved), k8sresource.DecimalSI).String(),
-		Memory: k8sresource.NewQuantity(effectiveQuantity(currentBestFitMemory, memoryScale, memoryReserved), k8sresource.BinarySI).String(),
-	}
-	return result, nil
-}
-
-func effectiveQuantity(instanceResource int64, scale float64, reservedResource int64) int64 {
-	scaledResource := int64(float64(instanceResource) * scale)
-	withoutReserved := instanceResource - reservedResource
-	if scaledResource < withoutReserved {
-		return scaledResource
-	}
-	return withoutReserved
-}
-
 // renderTemplate takes a fileName of a template in the context and the model to apply to it.
 // returns the transformed template or an error if not successful
 func renderTemplate(context *templateContext, file string) (string, error) {
 	funcMap := template.FuncMap{
-		"getAWSAccountID":           getAWSAccountID,
-		"base64":                    base64Encode,
-		"base64Decode":              base64Decode,
-		"manifestHash":              func(template string) (string, error) { return manifestHash(context, file, template) },
-		"autoscalingBufferSettings": autoscalingBufferSettings,
-		"asgSize":                   asgSize,
-		"azID":                      azID,
-		"azCount":                   azCount,
-		"split":                     split,
-		"mountUnitName":             mountUnitName,
-		"accountID":                 accountID,
-		"portRanges":                portRanges,
-		"splitHostPort":             splitHostPort,
-		"extractEndpointHosts":      extractEndpointHosts,
-		"publicKey":                 publicKey,
-		"stupsNATSubnets":           stupsNATSubnets,
+		"getAWSAccountID":      getAWSAccountID,
+		"base64":               base64Encode,
+		"base64Decode":         base64Decode,
+		"manifestHash":         func(template string) (string, error) { return manifestHash(context, file, template) },
+		"asgSize":              asgSize,
+		"azID":                 azID,
+		"azCount":              azCount,
+		"split":                split,
+		"mountUnitName":        mountUnitName,
+		"accountID":            accountID,
+		"portRanges":           portRanges,
+		"splitHostPort":        splitHostPort,
+		"extractEndpointHosts": extractEndpointHosts,
+		"publicKey":            publicKey,
+		"stupsNATSubnets":      stupsNATSubnets,
 		"amiID": func(imageName, imageOwner string) (string, error) {
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
