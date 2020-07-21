@@ -20,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spotinst/spotinst-sdk-go v1.53.1
 	github.com/stretchr/testify v1.6.1
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.0
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.1
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
