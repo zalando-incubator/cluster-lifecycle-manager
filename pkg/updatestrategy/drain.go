@@ -304,7 +304,7 @@ func isPDBViolation(err error) bool {
 }
 
 var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
-	err := client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{
+	err := client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{
 		GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
 	})
 	if err != nil {
@@ -339,7 +339,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 		"node": pod.Spec.NodeName,
 	})
 
-	updated, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+	updated, err := client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil
@@ -367,7 +367,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 		},
 	}
 
-	err = client.CoreV1().Pods(pod.Namespace).Evict(eviction)
+	err = client.CoreV1().Pods(pod.Namespace).Evict(context.TODO(), eviction)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil
@@ -401,7 +401,7 @@ func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
 	}
 
 	waitForTermination := func() error {
-		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 		if err != nil {
 			if apiErrors.IsNotFound(err) {
 				return nil
@@ -430,7 +430,7 @@ func (m *KubernetesNodePoolManager) evictablePods(nodeName string) ([]v1.Pod, er
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
 	}
 
-	podList, err := m.kube.CoreV1().Pods(v1.NamespaceAll).List(opts)
+	podList, err := m.kube.CoreV1().Pods(v1.NamespaceAll).List(context.TODO(), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -446,11 +446,11 @@ func (m *KubernetesNodePoolManager) evictablePods(nodeName string) ([]v1.Pod, er
 }
 
 func (m *KubernetesNodePoolManager) getPodsByNamespace(namespace string) (*v1.PodList, error) {
-	return m.kube.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	return m.kube.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 }
 
 func (m *KubernetesNodePoolManager) getPDBsByNamespace(namespace string) (*policy.PodDisruptionBudgetList, error) {
-	return m.kube.PolicyV1beta1().PodDisruptionBudgets(namespace).List(metav1.ListOptions{})
+	return m.kube.PolicyV1beta1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{})
 }
 
 // isEvictablePod detects whether it makes sense to evict a pod.

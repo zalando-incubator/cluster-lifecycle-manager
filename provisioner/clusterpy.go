@@ -866,7 +866,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 		return err
 	}
 
-	deployments, err := client.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
+	deployments, err := client.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -878,7 +878,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 
 		logger.Infof("Scaling down deployment %s/%s", namespace, deployment.Name)
 		deployment.Spec.Replicas = int32Ptr(0)
-		_, err := client.AppsV1().Deployments(namespace).Update(&deployment)
+		_, err := client.AppsV1().Deployments(namespace).Update(context.TODO(), &deployment, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -1032,7 +1032,7 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 }
 
 func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
-	err := iface.Delete(name, &metav1.DeleteOptions{})
+	err := iface.Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
 		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
 		return nil
@@ -1068,7 +1068,7 @@ func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *l
 	if deletion.Name != "" {
 		return deleteResource(iface, logger, deletion.Kind, deletion.Name)
 	} else if len(deletion.Labels) > 0 {
-		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(metav1.ListOptions{
+		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
 				MatchLabels: deletion.Labels,
 			}),
