@@ -197,7 +197,7 @@ func main() {
 			log.Infof("Provisioning done for cluster %s", cluster.ID)
 		case decommissionCmd.FullCommand():
 			log.Infof("Decommissioning cluster %s", cluster.ID)
-			err = p.Decommission(rootLogger, cluster)
+			err = p.Decommission(context.Background(), rootLogger, cluster)
 			if err != nil {
 				log.Fatalf("Fail to decommission: %v", err)
 			}

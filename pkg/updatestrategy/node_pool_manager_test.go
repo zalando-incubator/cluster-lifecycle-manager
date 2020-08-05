@@ -15,21 +15,21 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) kubernetes.Interface {
+func setupMockKubernetes(ctx context.Context, t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) kubernetes.Interface {
 	client := fake.NewSimpleClientset()
 
 	for _, node := range nodes {
-		_, err := client.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+		_, err := client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
 	for _, pod := range pods {
-		_, err := client.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+		_, err := client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
 	for _, pdb := range pdbs {
-		_, err := client.PolicyV1beta1().PodDisruptionBudgets(pdb.GetNamespace()).Create(context.TODO(), pdb, metav1.CreateOptions{})
+		_, err := client.PolicyV1beta1().PodDisruptionBudgets(pdb.GetNamespace()).Create(ctx, pdb, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
@@ -94,14 +94,14 @@ func TestGetPool(t *testing.T) {
 	}
 	mgr := NewKubernetesNodePoolManager(
 		logger,
-		setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 		backend,
 		&DrainConfig{},
 		false,
 	)
 
 	// test getting nodes successfully
-	nodePool, err := mgr.GetPool(&api.NodePool{Name: "test"})
+	nodePool, err := mgr.GetPool(context.Background(), &api.NodePool{Name: "test"})
 	assert.NoError(t, err)
 	assert.Len(t, nodePool.Nodes, 1)
 
@@ -109,8 +109,8 @@ func TestGetPool(t *testing.T) {
 	node.ObjectMeta.Labels = map[string]string{
 		lifecycleStatusLabel: lifecycleStatusDraining,
 	}
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, nil, nil)
-	nodePool, err = mgr.GetPool(&api.NodePool{Name: "test"})
+	mgr.kube = setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil)
+	nodePool, err = mgr.GetPool(context.Background(), &api.NodePool{Name: "test"})
 	assert.NoError(t, err)
 	assert.Len(t, nodePool.Nodes, 1)
 	assert.Equal(t, nodePool.Nodes[0].Labels[lifecycleStatusLabel], lifecycleStatusDraining)
@@ -124,20 +124,20 @@ func TestLabelNodes(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		kube: setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 	}
 
-	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
+	err := mgr.labelNode(context.Background(), &Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
 
-	err = mgr.labelNode(&Node{Name: node.Name}, "foo", "baz")
+	err = mgr.labelNode(context.Background(), &Node{Name: node.Name}, "foo", "baz")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "baz"})
 }
@@ -150,27 +150,27 @@ func TestCompareAndSetNodeLabel(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		kube: setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 	}
 
-	err := mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "bar")
+	err := mgr.compareAndSetNodeLabel(context.Background(), &Node{Name: node.Name}, "foo", "baz", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
 
-	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "quux")
+	err = mgr.compareAndSetNodeLabel(context.Background(), &Node{Name: node.Name}, "foo", "baz", "quux")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "bar"})
 
-	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "bar", "quux")
+	err = mgr.compareAndSetNodeLabel(context.Background(), &Node{Name: node.Name}, "foo", "bar", "quux")
 	assert.NoError(t, err)
 
-	updated3, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated3, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated3.Labels, map[string]string{"foo": "quux"})
 }
@@ -183,20 +183,20 @@ func TestAnnotateNodes(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		kube: setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 	}
 
-	err := mgr.annotateNode(&Node{Name: node.Name}, "foo", "bar")
+	err := mgr.annotateNode(context.Background(), &Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Annotations, map[string]string{"foo": "bar"})
 
-	err = mgr.annotateNode(&Node{Name: node.Name}, "foo", "baz")
+	err = mgr.annotateNode(context.Background(), &Node{Name: node.Name}, "foo", "baz")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Annotations, map[string]string{"foo": "baz"})
 }
@@ -209,14 +209,14 @@ func TestTaintNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		kube: setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 	}
 
 	// we can add a new taint
-	err := mgr.taintNode(&Node{Name: node.Name}, "foo", "bar", v1.TaintEffectNoSchedule)
+	err := mgr.taintNode(context.Background(), &Node{Name: node.Name}, "foo", "bar", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -227,10 +227,10 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// we can add another taint
-	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "quux", v1.TaintEffectNoExecute)
+	err = mgr.taintNode(context.Background(), &Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "quux", v1.TaintEffectNoExecute)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -242,10 +242,10 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// we can replace an existing taint
-	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
+	err = mgr.taintNode(context.Background(), &Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -257,10 +257,10 @@ func TestTaintNode(t *testing.T) {
 		updated.Spec.Taints)
 
 	// no-op updates should work
-	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
+	err = mgr.taintNode(context.Background(), &Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -280,15 +280,15 @@ func TestCordonNode(t *testing.T) {
 	}
 
 	mgr := &KubernetesNodePoolManager{
-		kube: setupMockKubernetes(t, []*v1.Node{node}, nil, nil),
+		kube: setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil),
 	}
 
-	err := mgr.CordonNode(&Node{Name: node.Name})
+	err := mgr.CordonNode(context.Background(), &Node{Name: node.Name})
 	assert.NoError(t, err)
 }
 
 func TestScalePool(tt *testing.T) {
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+	evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 		return nil
 	}
 
@@ -389,7 +389,7 @@ func TestScalePool(tt *testing.T) {
 		tt.Run(tc.msg, func(t *testing.T) {
 			mgr := &KubernetesNodePoolManager{
 				backend: tc.backend,
-				kube:    setupMockKubernetes(t, tc.nodes, nil, nil),
+				kube:    setupMockKubernetes(context.Background(), t, tc.nodes, nil, nil),
 				logger:  log.WithField("test", true),
 			}
 			assert.NoError(t, mgr.ScalePool(context.Background(), &api.NodePool{Name: "test"}, tc.replicas))

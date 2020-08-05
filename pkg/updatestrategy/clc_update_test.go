@@ -37,7 +37,7 @@ func (m *mockNodePoolManagerCLC) MarkPoolForDecommission(nodePool *api.NodePool)
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(node *Node) error {
+func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error {
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (m *mockNodePoolManagerCLC) advance() {
 	}
 }
 
-func (m *mockNodePoolManagerCLC) GetPool(nodePool *api.NodePool) (*NodePool, error) {
+func (m *mockNodePoolManagerCLC) GetPool(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
 	m.advance()
 
 	result := &NodePool{
@@ -108,7 +108,7 @@ func (m *mockNodePoolManagerCLC) findNode(nodeName string) (*mockNodeCLC, error)
 	return nil, fmt.Errorf("unknown node: %s", nodeName)
 }
 
-func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(node *Node) error {
+func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(ctx context.Context, node *Node) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(node *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(node *Node) error {
+func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(ctx context.Context, node *Node) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func (m *mockNodePoolManagerCLC) TerminateNode(ctx context.Context, node *Node, 
 	panic("should not be called")
 }
 
-func (m *mockNodePoolManagerCLC) CordonNode(node *Node) error {
+func (m *mockNodePoolManagerCLC) CordonNode(ctx context.Context, node *Node) error {
 	panic("should not be called")
 }
 

@@ -42,13 +42,13 @@ func timestampAnnotation(logger *log.Entry, node *Node, annotation string, fallb
 func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error {
 	m.logger.WithField("node", node.Name).Info("Draining node")
 
-	err := m.labelNode(node, lifecycleStatusLabel, lifecycleStatusDraining)
+	err := m.labelNode(ctx, node, lifecycleStatusLabel, lifecycleStatusDraining)
 	if err != nil {
 		return err
 	}
 
 	drainStart := timestampAnnotation(m.logger, node, drainStartAnnotation, time.Now())
-	err = m.annotateNode(node, drainStartAnnotation, drainStart.Format(time.RFC3339))
+	err = m.annotateNode(ctx, node, drainStartAnnotation, drainStart.Format(time.RFC3339))
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			return err
 		}
 
-		pods, err := m.evictablePods(node.Name)
+		pods, err := m.evictablePods(ctx, node.Name)
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 			return err
 		}
 
-		pods, err := m.evictablePods(node.Name)
+		pods, err := m.evictablePods(ctx, node.Name)
 		if err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ func (m *KubernetesNodePoolManager) drain(ctx context.Context, node *Node) error
 
 		if forceEvicted {
 			lastForcedTermination = time.Now()
-			err := m.annotateNode(node, lastForcedDrainAnnotation, lastForcedTermination.Format(time.RFC3339))
+			err := m.annotateNode(ctx, node, lastForcedDrainAnnotation, lastForcedTermination.Format(time.RFC3339))
 			if err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func (m *KubernetesNodePoolManager) evictParallel(ctx context.Context, pods []v1
 	for _, pod := range pods {
 		pod := pod
 		group.Go(func() error {
-			err := evictPod(m.kube, m.logger, pod)
+			err := evictPod(ctx, m.kube, m.logger, pod)
 			if err != nil {
 				if isPDBViolation(err) {
 					m.logPdbViolated(pod)
@@ -162,7 +162,7 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 		}
 
 		// try evicting normally
-		err = evictPod(m.kube, m.logger, pod)
+		err = evictPod(ctx, m.kube, m.logger, pod)
 		if err == nil {
 			return false, nil
 		}
@@ -173,9 +173,9 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 		// PDB violation, log and check if we can force terminate the pod
 		m.logPdbViolated(pod)
 
-		forceTerminate, _ := m.forceTerminationAllowed(pod, time.Now(), drainStart, lastForcedTermination)
+		forceTerminate, _ := m.forceTerminationAllowed(ctx, pod, time.Now(), drainStart, lastForcedTermination)
 		if forceTerminate {
-			err = deletePod(m.kube, m.podLogger(pod), pod)
+			err = deletePod(ctx, m.kube, m.podLogger(pod), pod)
 			if err != nil {
 				return false, err
 			}
@@ -186,7 +186,7 @@ func (m *KubernetesNodePoolManager) evictOrForceTerminatePod(ctx context.Context
 	return false, nil
 }
 
-func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, drainStart, lastForcedTermination time.Time) (bool, error) {
+func (m *KubernetesNodePoolManager) forceTerminationAllowed(ctx context.Context, pod v1.Pod, now, drainStart, lastForcedTermination time.Time) (bool, error) {
 	// too early to start force terminating
 	if now.Before(drainStart.Add(m.drainConfig.ForceEvictionGracePeriod)) {
 		m.podLogger(pod).Debug("Won't force terminate (node in grace period)")
@@ -206,11 +206,11 @@ func (m *KubernetesNodePoolManager) forceTerminationAllowed(pod v1.Pod, now, dra
 	}
 
 	// find all other pods matched by the same PDBs
-	allPods, err := m.getPodsByNamespace(pod.GetNamespace())
+	allPods, err := m.getPodsByNamespace(ctx, pod.GetNamespace())
 	if err != nil {
 		return false, err
 	}
-	allPdbs, err := m.getPDBsByNamespace(pod.GetNamespace())
+	allPdbs, err := m.getPDBsByNamespace(ctx, pod.GetNamespace())
 	if err != nil {
 		return false, err
 	}
@@ -303,8 +303,8 @@ func isPDBViolation(err error) bool {
 	return apiErrors.IsTooManyRequests(err) || strings.Contains(err.Error(), multiplePDBsErrMsg)
 }
 
-var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
-	err := client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{
+var deletePod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+	err := client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{
 		GracePeriodSeconds: pod.Spec.TerminationGracePeriodSeconds,
 	})
 	if err != nil {
@@ -316,7 +316,7 @@ var deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod)
 	}
 
 	// wait for pod to be terminated and gone from the node.
-	err = waitForPodTermination(client, pod)
+	err = waitForPodTermination(ctx, client, pod)
 	if err != nil {
 		logger.Warnf("Pod not terminated within grace period: %s", err)
 	}
@@ -332,14 +332,14 @@ func podTerminated(pod *v1.Pod) bool {
 
 // evictPod tries to evict a pod from a node.
 // Note: this is defined as a variable so it can be easily mocked in tests.
-var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+var evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 	localLogger := logger.WithFields(log.Fields{
 		"ns":   pod.Namespace,
 		"pod":  pod.Name,
 		"node": pod.Spec.NodeName,
 	})
 
-	updated, err := client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	updated, err := client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil
@@ -367,7 +367,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 		},
 	}
 
-	err = client.CoreV1().Pods(pod.Namespace).Evict(context.TODO(), eviction)
+	err = client.CoreV1().Pods(pod.Namespace).Evict(ctx, eviction)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			return nil
@@ -379,7 +379,7 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 	// wait for the pod to be actually evicted and gone from the node.
 	// It has TerminationGracePeriodSeconds time to clean up.
 	start := time.Now().UTC()
-	err = waitForPodTermination(client, pod)
+	err = waitForPodTermination(ctx, client, pod)
 	if err != nil {
 		localLogger.Warnf("Pod not terminated within grace period: %s", err)
 	}
@@ -394,14 +394,14 @@ var evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) 
 // an additional eviction head room.
 // This is to fully respect the termination expectations as described in:
 // https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
-func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
+func waitForPodTermination(ctx context.Context, client kubernetes.Interface, pod v1.Pod) error {
 	if pod.Spec.TerminationGracePeriodSeconds == nil {
 		// if no grace period is defined, we don't wait.
 		return nil
 	}
 
 	waitForTermination := func() error {
-		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+		newpod, err := client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 		if err != nil {
 			if apiErrors.IsNotFound(err) {
 				return nil
@@ -425,12 +425,12 @@ func waitForPodTermination(client kubernetes.Interface, pod v1.Pod) error {
 }
 
 // evictablePods returns all evictable pods currently scheduled to a node, regardless of their status.
-func (m *KubernetesNodePoolManager) evictablePods(nodeName string) ([]v1.Pod, error) {
+func (m *KubernetesNodePoolManager) evictablePods(ctx context.Context, nodeName string) ([]v1.Pod, error) {
 	opts := metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
 	}
 
-	podList, err := m.kube.CoreV1().Pods(v1.NamespaceAll).List(context.TODO(), opts)
+	podList, err := m.kube.CoreV1().Pods(v1.NamespaceAll).List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -445,12 +445,12 @@ func (m *KubernetesNodePoolManager) evictablePods(nodeName string) ([]v1.Pod, er
 	return result, nil
 }
 
-func (m *KubernetesNodePoolManager) getPodsByNamespace(namespace string) (*v1.PodList, error) {
-	return m.kube.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+func (m *KubernetesNodePoolManager) getPodsByNamespace(ctx context.Context, namespace string) (*v1.PodList, error) {
+	return m.kube.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 }
 
-func (m *KubernetesNodePoolManager) getPDBsByNamespace(namespace string) (*policy.PodDisruptionBudgetList, error) {
-	return m.kube.PolicyV1beta1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{})
+func (m *KubernetesNodePoolManager) getPDBsByNamespace(ctx context.Context, namespace string) (*policy.PodDisruptionBudgetList, error) {
+	return m.kube.PolicyV1beta1().PodDisruptionBudgets(namespace).List(ctx, metav1.ListOptions{})
 }
 
 // isEvictablePod detects whether it makes sense to evict a pod.

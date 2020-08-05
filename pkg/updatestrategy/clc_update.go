@@ -32,7 +32,7 @@ func (c *CLCUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.NodePo
 		if ctx.Err() == context.Canceled {
 			backoffCfg := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10)
 			err := backoff.Retry(func() error {
-				return c.rollbackUpdate(nodePoolDesc)
+				return c.rollbackUpdate(ctx, nodePoolDesc)
 			}, backoffCfg)
 			if err != nil {
 				c.logger.Errorf("Error while aborting the update for node pool '%s': %v", nodePoolDesc.Name, err)
@@ -49,7 +49,7 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 	c.logger.Infof("Preparing for removal of node pool '%s'", nodePoolDesc.Name)
 
 	for {
-		nodePool, err := c.nodePoolManager.GetPool(nodePoolDesc)
+		nodePool, err := c.nodePoolManager.GetPool(ctx, nodePoolDesc)
 		if err != nil {
 			return err
 		}
@@ -60,13 +60,13 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 		}
 
 		for _, node := range nodePool.Nodes {
-			err := c.nodePoolManager.DisableReplacementNodeProvisioning(node)
+			err := c.nodePoolManager.DisableReplacementNodeProvisioning(ctx, node)
 			if err != nil {
 				return err
 			}
 		}
 
-		nodes, err := c.markNodes(nodePool, func(_ *Node) bool {
+		nodes, err := c.markNodes(ctx, nodePool, func(_ *Node) bool {
 			return true
 		})
 		if err != nil {
@@ -88,15 +88,15 @@ func (c *CLCUpdateStrategy) PrepareForRemoval(ctx context.Context, nodePoolDesc 
 	}
 }
 
-func (c *CLCUpdateStrategy) rollbackUpdate(nodePoolDesc *api.NodePool) error {
-	nodePool, err := c.nodePoolManager.GetPool(nodePoolDesc)
+func (c *CLCUpdateStrategy) rollbackUpdate(ctx context.Context, nodePoolDesc *api.NodePool) error {
+	nodePool, err := c.nodePoolManager.GetPool(ctx, nodePoolDesc)
 	if err != nil {
 		return err
 	}
 
 	for _, node := range nodePool.Nodes {
 		if node.Generation != nodePool.Generation {
-			err := c.nodePoolManager.AbortNodeDecommissioning(node)
+			err := c.nodePoolManager.AbortNodeDecommissioning(ctx, node)
 			if err != nil {
 				return err
 			}
@@ -112,12 +112,12 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 			return err
 		}
 
-		nodePool, err := c.nodePoolManager.GetPool(nodePoolDesc)
+		nodePool, err := c.nodePoolManager.GetPool(ctx, nodePoolDesc)
 		if err != nil {
 			return err
 		}
 
-		oldNodes, err := c.markNodes(nodePool, func(node *Node) bool {
+		oldNodes, err := c.markNodes(ctx, nodePool, func(node *Node) bool {
 			return node.Generation != nodePool.Generation
 		})
 		if err != nil {
@@ -139,11 +139,11 @@ func (c *CLCUpdateStrategy) doUpdate(ctx context.Context, nodePoolDesc *api.Node
 	}
 }
 
-func (c *CLCUpdateStrategy) markNodes(nodePool *NodePool, predicate func(*Node) bool) (int, error) {
+func (c *CLCUpdateStrategy) markNodes(ctx context.Context, nodePool *NodePool, predicate func(*Node) bool) (int, error) {
 	marked := 0
 	for _, node := range nodePool.Nodes {
 		if predicate(node) {
-			err := c.nodePoolManager.MarkNodeForDecommission(node)
+			err := c.nodePoolManager.MarkNodeForDecommission(ctx, node)
 			marked++
 			if err != nil {
 				return 0, err
