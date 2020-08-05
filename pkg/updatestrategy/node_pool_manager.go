@@ -106,7 +106,7 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 
 	// TODO: labelselector based on nodePool name. Can't do it yet because of how we create node pools in CLM
 	// https://github.com/zalando-incubator/cluster-lifecycle-manager/issues/226
-	kubeNodes, err := m.kube.CoreV1().Nodes().List(metav1.ListOptions{})
+	kubeNodes, err := m.kube.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -190,13 +190,13 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 
 	taintNode := func() error {
 		// re-fetch the node since we're going to do an update
-		updatedNode, err := m.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+		updatedNode, err := m.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 		if err != nil {
 			return backoff.Permanent(err)
 		}
 
 		if patch(updatedNode) {
-			if _, err := m.kube.CoreV1().Nodes().Update(updatedNode); err != nil {
+			if _, err := m.kube.CoreV1().Nodes().Update(context.TODO(), updatedNode, metav1.UpdateOptions{}); err != nil {
 				// automatically retry if there was a conflicting update.
 				serr, ok := err.(*apiErrors.StatusError)
 				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
@@ -407,7 +407,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 // CordonNode marks a node unschedulable.
 func (m *KubernetesNodePoolManager) CordonNode(node *Node) error {
 	unschedulable := []byte(`{"spec": {"unschedulable": true}}`)
-	_, err := m.kube.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, unschedulable)
+	_, err := m.kube.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.StrategicMergePatchType, unschedulable, metav1.PatchOptions{})
 	return err
 }
 

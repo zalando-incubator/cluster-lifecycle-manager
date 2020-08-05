@@ -19,17 +19,17 @@ func setupMockKubernetes(t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []
 	client := fake.NewSimpleClientset()
 
 	for _, node := range nodes {
-		_, err := client.CoreV1().Nodes().Create(node)
+		_, err := client.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
 	for _, pod := range pods {
-		_, err := client.CoreV1().Pods(pod.Namespace).Create(pod)
+		_, err := client.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
 	for _, pdb := range pdbs {
-		_, err := client.PolicyV1beta1().PodDisruptionBudgets(pdb.GetNamespace()).Create(pdb)
+		_, err := client.PolicyV1beta1().PodDisruptionBudgets(pdb.GetNamespace()).Create(context.TODO(), pdb, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
@@ -130,14 +130,14 @@ func TestLabelNodes(t *testing.T) {
 	err := mgr.labelNode(&Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
 
 	err = mgr.labelNode(&Node{Name: node.Name}, "foo", "baz")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "baz"})
 }
@@ -156,21 +156,21 @@ func TestCompareAndSetNodeLabel(t *testing.T) {
 	err := mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Labels, map[string]string{"foo": "bar"})
 
 	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "baz", "quux")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Labels, map[string]string{"foo": "bar"})
 
 	err = mgr.compareAndSetNodeLabel(&Node{Name: node.Name}, "foo", "bar", "quux")
 	assert.NoError(t, err)
 
-	updated3, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated3, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated3.Labels, map[string]string{"foo": "quux"})
 }
@@ -189,14 +189,14 @@ func TestAnnotateNodes(t *testing.T) {
 	err := mgr.annotateNode(&Node{Name: node.Name}, "foo", "bar")
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated.Annotations, map[string]string{"foo": "bar"})
 
 	err = mgr.annotateNode(&Node{Name: node.Name}, "foo", "baz")
 	assert.NoError(t, err)
 
-	updated2, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated2, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, updated2.Annotations, map[string]string{"foo": "baz"})
 }
@@ -216,7 +216,7 @@ func TestTaintNode(t *testing.T) {
 	err := mgr.taintNode(&Node{Name: node.Name}, "foo", "bar", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err := mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err := mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -230,7 +230,7 @@ func TestTaintNode(t *testing.T) {
 	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "quux", v1.TaintEffectNoExecute)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -245,7 +245,7 @@ func TestTaintNode(t *testing.T) {
 	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
@@ -260,7 +260,7 @@ func TestTaintNode(t *testing.T) {
 	err = mgr.taintNode(&Node{Name: node.Name, Taints: updated.Spec.Taints}, "bar", "foo", v1.TaintEffectNoSchedule)
 	assert.NoError(t, err)
 
-	updated, err = mgr.kube.CoreV1().Nodes().Get(node.Name, metav1.GetOptions{})
+	updated, err = mgr.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	assert.EqualValues(
