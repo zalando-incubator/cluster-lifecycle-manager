@@ -32,10 +32,10 @@ func NewRollingUpdateStrategy(logger *log.Entry, nodePoolManager NodePoolManager
 	}
 }
 
-func (r *RollingUpdateStrategy) markOldNodes(nodePool *NodePool) error {
+func (r *RollingUpdateStrategy) markOldNodes(ctx context.Context, nodePool *NodePool) error {
 	for _, node := range nodePool.Nodes {
 		if node.Generation != nodePool.Generation {
-			err := r.nodePoolManager.MarkNodeForDecommission(node)
+			err := r.nodePoolManager.MarkNodeForDecommission(ctx, node)
 			if err != nil {
 				return err
 			}
@@ -77,10 +77,10 @@ func (r *RollingUpdateStrategy) terminateCordonedNodes(ctx context.Context, node
 }
 
 // cordonNodes cordons a list of nodes.
-func (r *RollingUpdateStrategy) cordonNodes(nodes []*Node) error {
+func (r *RollingUpdateStrategy) cordonNodes(ctx context.Context, nodes []*Node) error {
 	r.logger.Debugf("Found %d nodes to cordon", len(nodes))
 	for _, node := range nodes {
-		err := r.nodePoolManager.CordonNode(node)
+		err := r.nodePoolManager.CordonNode(ctx, node)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 			return err
 		}
 
-		err = r.markOldNodes(nodePool)
+		err = r.markOldNodes(ctx, nodePool)
 		if err != nil {
 			return err
 		}
@@ -183,7 +183,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 		}
 
 		// cordon the selected nodes
-		err = r.cordonNodes(toCordon)
+		err = r.cordonNodes(ctx, toCordon)
 		if err != nil {
 			return err
 		}

@@ -47,19 +47,19 @@ func (m *mockNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) er
 	return nil
 }
 
-func (m *mockNodePoolManager) DisableReplacementNodeProvisioning(node *Node) error {
+func (m *mockNodePoolManager) DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) GetPool(nodePool *api.NodePool) (*NodePool, error) {
+func (m *mockNodePoolManager) GetPool(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
 	return m.nodePool, nil
 }
 
-func (m *mockNodePoolManager) MarkNodeForDecommission(node *Node) error {
+func (m *mockNodePoolManager) MarkNodeForDecommission(ctx context.Context, node *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) AbortNodeDecommissioning(node *Node) error {
+func (m *mockNodePoolManager) AbortNodeDecommissioning(ctx context.Context, node *Node) error {
 	return nil
 }
 
@@ -104,7 +104,7 @@ func (m *mockNodePoolManager) TerminateNode(ctx context.Context, node *Node, dec
 	return nil
 }
 
-func (m *mockNodePoolManager) CordonNode(node *Node) error {
+func (m *mockNodePoolManager) CordonNode(ctx context.Context, node *Node) error {
 	for _, n := range m.nodePool.Nodes {
 		if n.ProviderID == node.ProviderID {
 			n.Cordoned = true
@@ -294,7 +294,7 @@ func TestUpdate(tt *testing.T) {
 				t.Error("expected failure")
 			}
 
-			nodePool, _ := tc.nodePoolManager.GetPool(np)
+			nodePool, _ := tc.nodePoolManager.GetPool(context.Background(), np)
 			if tc.success && !equalNodePool(nodePool, tc.expected) {
 				t.Errorf("final node pool nodePool did not match expected nodePool")
 			}

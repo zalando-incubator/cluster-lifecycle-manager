@@ -139,7 +139,7 @@ func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 
 // doProcessCluster checks if an action needs to be taken depending on the
 // cluster state and triggers the provisioner accordingly.
-func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Entry, clusterInfo *ClusterInfo) (rerr error) {
+func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, clusterInfo *ClusterInfo) (rerr error) {
 	cluster := clusterInfo.Cluster
 	if cluster.Status == nil {
 		cluster.Status = &api.ClusterStatus{}
@@ -150,7 +150,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		return clusterInfo.NextError
 	}
 
-	config, err := clusterInfo.ChannelVersion.Get(updateCtx, logger)
+	config, err := clusterInfo.ChannelVersion.Get(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 			}
 		}
 
-		err = c.provisioner.Provision(updateCtx, logger, cluster, config)
+		err = c.provisioner.Provision(ctx, logger, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func (c *Controller) doProcessCluster(updateCtx context.Context, logger *log.Ent
 		cluster.Status.NextVersion = ""
 		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
-		err = c.provisioner.Decommission(logger, cluster)
+		err = c.provisioner.Decommission(ctx, logger, cluster)
 		if err != nil {
 			return err
 		}

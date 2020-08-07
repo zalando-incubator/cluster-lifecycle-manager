@@ -22,13 +22,13 @@ const (
 	testNodeName = "test-node"
 )
 
-func removePod(client kubernetes.Interface, pod v1.Pod) error {
+func removePod(ctx context.Context, client kubernetes.Interface, pod v1.Pod) error {
 	var zero int64
-	_ = client.CoreV1().Pods(pod.GetNamespace()).Delete(context.TODO(), pod.GetName(), metav1.DeleteOptions{GracePeriodSeconds: &zero})
+	_ = client.CoreV1().Pods(pod.GetNamespace()).Delete(ctx, pod.GetName(), metav1.DeleteOptions{GracePeriodSeconds: &zero})
 	return nil
 }
 
-func evictPodFailPDB(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+func evictPodFailPDB(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 	return &errors.StatusError{
 		ErrStatus: metav1.Status{
 			Code: http.StatusTooManyRequests,
@@ -37,8 +37,8 @@ func evictPodFailPDB(client kubernetes.Interface, logger *log.Entry, pod v1.Pod)
 }
 
 func TestTerminateNode(t *testing.T) {
-	evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
-		return removePod(client, pod)
+	evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		return removePod(ctx, client, pod)
 	}
 
 	pods := []*v1.Pod{
@@ -100,7 +100,7 @@ func TestTerminateNode(t *testing.T) {
 	}
 	mgr := &KubernetesNodePoolManager{
 		logger:  logger,
-		kube:    setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
+		kube:    setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil),
 		backend: backend,
 		drainConfig: &DrainConfig{
 			PollInterval: time.Second,
@@ -113,7 +113,7 @@ func TestTerminateNode(t *testing.T) {
 	// test when evictPod returns 429
 	evictPod = evictPodFailPDB
 
-	mgr.kube = setupMockKubernetes(t, []*v1.Node{node}, pods, nil)
+	mgr.kube = setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil)
 	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 }
@@ -194,12 +194,12 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		mgr := &KubernetesNodePoolManager{
 			logger:      logger,
-			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
+			kube:        setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil),
 			backend:     backend,
 			drainConfig: &DrainConfig{},
 		}
 
-		evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&evictCount, 1)
 			return nil
 		}
@@ -222,18 +222,18 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		// evicted in parallel.
 		blockHelper.Add(2)
 
-		evictPod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			// unblock so we can be cancelled
 			blockHelper.Done()
 			// wait until we're unblocked
 			blockEviction.Wait()
 			atomic.AddInt32(&evictCount, 1)
-			return removePod(client, pod)
+			return removePod(ctx, client, pod)
 		}
 
 		mgr := &KubernetesNodePoolManager{
 			logger:      logger,
-			kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
+			kube:        setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil),
 			backend:     backend,
 			drainConfig: &DrainConfig{},
 		}
@@ -262,7 +262,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		mgr := &KubernetesNodePoolManager{
 			logger:  logger,
-			kube:    setupMockKubernetes(t, []*v1.Node{node}, pods, nil),
+			kube:    setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil),
 			backend: backend,
 			drainConfig: &DrainConfig{
 				ForceEvictionInterval: time.Minute,
@@ -271,7 +271,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		deletePod = func(client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		deletePod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&deleteCount, 1)
 			cancel()
 			return nil
@@ -314,12 +314,12 @@ func forceTerminationAllowed(t *testing.T, pods []*v1.Pod, pdbs []*policy.PodDis
 
 	mgr := &KubernetesNodePoolManager{
 		logger:      log.WithField("test", true),
-		kube:        setupMockKubernetes(t, []*v1.Node{node}, pods, pdbs),
+		kube:        setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, pdbs),
 		backend:     backend,
 		drainConfig: testDrainConfig,
 	}
 
-	return mgr.forceTerminationAllowed(*pods[0], now, drainStart, lastForcedTermination)
+	return mgr.forceTerminationAllowed(context.Background(), *pods[0], now, drainStart, lastForcedTermination)
 }
 
 var zeroTime = time.Unix(0, 0)

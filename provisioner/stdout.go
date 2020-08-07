@@ -28,7 +28,7 @@ func (p *stdoutProvisioner) Provision(ctx context.Context, logger *log.Entry, cl
 }
 
 // Decommission mocks decommissioning a cluster.
-func (p *stdoutProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
+func (p *stdoutProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
 	logger.Infof("stdout: Decommissioning cluster %s.", cluster.ID)
 
 	return nil

@@ -34,7 +34,7 @@ func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, clus
 	return nil
 }
 
-func (p *mockProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
+func (p *mockProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
 	return nil
 }
 
@@ -48,7 +48,7 @@ func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, c
 	return fmt.Errorf("failed to provision")
 }
 
-func (p *mockErrProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
+func (p *mockErrProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
 	return fmt.Errorf("failed to decommission")
 }
 

@@ -506,7 +506,7 @@ func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
-func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Cluster) error {
+func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
 	if cluster.Provider != providerID {
 		return ErrProviderNotSupported
 	}
@@ -523,15 +523,12 @@ func (p *clusterpyProvisioner) Decommission(logger *log.Entry, cluster *api.Clus
 	// recreate resources we delete in the next step
 	err = backoff.Retry(
 		func() error {
-			return p.downscaleDeployments(logger, cluster, "kube-system")
+			return p.downscaleDeployments(ctx, logger, cluster, "kube-system")
 		},
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(10*time.Second), 5))
 	if err != nil {
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
-
-	// we don't support cancelling decommission operations yet
-	ctx := context.Background()
 
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
@@ -860,13 +857,13 @@ func (p *clusterpyProvisioner) untagSubnets(awsAdapter *awsAdapter, vpcID string
 
 // downscaleDeployments scales down all deployments of a cluster in the
 // specified namespace.
-func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *api.Cluster, namespace string) error {
+func (p *clusterpyProvisioner) downscaleDeployments(ctx context.Context, logger *log.Entry, cluster *api.Cluster, namespace string) error {
 	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return err
 	}
 
-	deployments, err := client.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
+	deployments, err := client.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -878,7 +875,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(logger *log.Entry, cluster *
 
 		logger.Infof("Scaling down deployment %s/%s", namespace, deployment.Name)
 		deployment.Spec.Replicas = int32Ptr(0)
-		_, err := client.AppsV1().Deployments(namespace).Update(context.TODO(), &deployment, metav1.UpdateOptions{})
+		_, err := client.AppsV1().Deployments(namespace).Update(ctx, &deployment, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -998,7 +995,7 @@ func resolveKind(mapper meta.RESTMapper, kind string) (schema.GroupVersionResour
 }
 
 // Deletions deletes the provided kubernetes resources from the cluster.
-func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
+func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
 	typedClient, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return err
@@ -1022,7 +1019,7 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 			fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: deletion.Labels})
 		}
 
-		err := processDeletion(dynamicClient, mapper, logger.WithFields(fields), deletion)
+		err := processDeletion(ctx, dynamicClient, mapper, logger.WithFields(fields), deletion)
 		if err != nil {
 			return err
 		}
@@ -1031,8 +1028,8 @@ func (p *clusterpyProvisioner) Deletions(logger *log.Entry, cluster *api.Cluster
 	return nil
 }
 
-func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
-	err := iface.Delete(context.TODO(), name, metav1.DeleteOptions{})
+func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
+	err := iface.Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
 		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
 		return nil
@@ -1045,7 +1042,7 @@ func deleteResource(iface dynamic.ResourceInterface, logger *log.Entry, kind, na
 	return nil
 }
 
-func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
+func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
 	// Figure out the GVR
 	gvr, err := resolveKind(mapper, deletion.Kind)
 	if err != nil {
@@ -1066,9 +1063,9 @@ func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *l
 	iface := client.Resource(gvr).Namespace(deletion.Namespace)
 
 	if deletion.Name != "" {
-		return deleteResource(iface, logger, deletion.Kind, deletion.Name)
+		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name)
 	} else if len(deletion.Labels) > 0 {
-		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(context.TODO(), metav1.ListOptions{
+		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
 				MatchLabels: deletion.Labels,
 			}),
@@ -1082,7 +1079,7 @@ func processDeletion(client dynamic.Interface, mapper meta.RESTMapper, logger *l
 		}
 
 		for _, item := range items.Items {
-			err = deleteResource(iface, logger, deletion.Kind, item.GetName())
+			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName())
 			if err != nil {
 				return err
 			}
@@ -1212,7 +1209,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
 func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []manifestPackage) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
-	err := p.Deletions(logger, cluster, deletions.PreApply)
+	err := p.Deletions(ctx, logger, cluster, deletions.PreApply)
 	if err != nil {
 		return err
 	}
@@ -1265,7 +1262,7 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
-	err = p.Deletions(logger, cluster, deletions.PostApply)
+	err = p.Deletions(ctx, logger, cluster, deletions.PostApply)
 	if err != nil {
 		return err
 	}

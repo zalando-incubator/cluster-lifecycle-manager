@@ -41,14 +41,14 @@ const (
 // NodePoolManager defines an interface for managing node pools when performing
 // update operations.
 type NodePoolManager interface {
-	GetPool(nodePool *api.NodePool) (*NodePool, error)
-	MarkNodeForDecommission(node *Node) error
-	AbortNodeDecommissioning(node *Node) error
+	GetPool(ctx context.Context, nodePool *api.NodePool) (*NodePool, error)
+	MarkNodeForDecommission(ctx context.Context, node *Node) error
+	AbortNodeDecommissioning(ctx context.Context, node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
 	MarkPoolForDecommission(nodePool *api.NodePool) error
-	DisableReplacementNodeProvisioning(node *Node) error
-	CordonNode(node *Node) error
+	DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error
+	CordonNode(ctx context.Context, node *Node) error
 }
 
 // DrainConfig contains the various settings for the smart node draining algorithm
@@ -98,7 +98,7 @@ func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Inter
 
 // GetPool gets the current node Pool from the node pool backend and attaches
 // the Kubernetes node object name and labels to the corresponding nodes.
-func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePool, error) {
+func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *api.NodePool) (*NodePool, error) {
 	nodePool, err := m.backend.Get(nodePoolDesc)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 
 	// TODO: labelselector based on nodePool name. Can't do it yet because of how we create node pools in CLM
 	// https://github.com/zalando-incubator/cluster-lifecycle-manager/issues/226
-	kubeNodes, err := m.kube.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	kubeNodes, err := m.kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -153,36 +153,36 @@ func (m *KubernetesNodePoolManager) GetPool(nodePoolDesc *api.NodePool) (*NodePo
 	return nodePool, nil
 }
 
-func (m *KubernetesNodePoolManager) MarkNodeForDecommission(node *Node) error {
+func (m *KubernetesNodePoolManager) MarkNodeForDecommission(ctx context.Context, node *Node) error {
 	taint := v1.TaintEffectPreferNoSchedule
 	if m.noScheduleTaint {
 		taint = v1.TaintEffectNoSchedule
 	}
-	err := m.taintNode(node, decommissionPendingTaintKey, decommissionPendingTaintValue, taint)
+	err := m.taintNode(ctx, node, decommissionPendingTaintKey, decommissionPendingTaintValue, taint)
 	if err != nil {
 		return err
 	}
 
-	err = m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusReady, lifecycleStatusDecommissionPending)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(node *Node) error {
-	err := m.compareAndSetNodeLabel(node, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusReady)
+	err = m.compareAndSetNodeLabel(ctx, node, lifecycleStatusLabel, lifecycleStatusReady, lifecycleStatusDecommissionPending)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *KubernetesNodePoolManager) DisableReplacementNodeProvisioning(node *Node) error {
-	return m.labelNode(node, clcReplacementStrategyLabel, clcReplacementStrategyNone)
+func (m *KubernetesNodePoolManager) AbortNodeDecommissioning(ctx context.Context, node *Node) error {
+	err := m.compareAndSetNodeLabel(ctx, node, lifecycleStatusLabel, lifecycleStatusDecommissionPending, lifecycleStatusReady)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Node) bool, patch func(*v1.Node) bool) error {
+func (m *KubernetesNodePoolManager) DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error {
+	return m.labelNode(ctx, node, clcReplacementStrategyLabel, clcReplacementStrategyNone)
+}
+
+func (m *KubernetesNodePoolManager) updateNode(ctx context.Context, node *Node, needsUpdate func(*Node) bool, patch func(*v1.Node) bool) error {
 	// fast check: verify if already up-to-date
 	if !needsUpdate(node) {
 		return nil
@@ -190,13 +190,13 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 
 	taintNode := func() error {
 		// re-fetch the node since we're going to do an update
-		updatedNode, err := m.kube.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+		updatedNode, err := m.kube.CoreV1().Nodes().Get(ctx, node.Name, metav1.GetOptions{})
 		if err != nil {
 			return backoff.Permanent(err)
 		}
 
 		if patch(updatedNode) {
-			if _, err := m.kube.CoreV1().Nodes().Update(context.TODO(), updatedNode, metav1.UpdateOptions{}); err != nil {
+			if _, err := m.kube.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{}); err != nil {
 				// automatically retry if there was a conflicting update.
 				serr, ok := err.(*apiErrors.StatusError)
 				if ok && serr.Status().Reason == metav1.StatusReasonConflict {
@@ -216,8 +216,9 @@ func (m *KubernetesNodePoolManager) updateNode(node *Node, needsUpdate func(*Nod
 
 // annotateNode annotates a Kubernetes node object in case the annotation is not already
 // defined.
-func (m *KubernetesNodePoolManager) annotateNode(node *Node, annotationKey, annotationValue string) error {
+func (m *KubernetesNodePoolManager) annotateNode(ctx context.Context, node *Node, annotationKey, annotationValue string) error {
 	return m.updateNode(
+		ctx,
 		node,
 		func(node *Node) bool {
 			value, ok := node.Annotations[annotationKey]
@@ -235,8 +236,9 @@ func (m *KubernetesNodePoolManager) annotateNode(node *Node, annotationKey, anno
 
 // labelNode labels a Kubernetes node object in case the label is not already
 // defined.
-func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue string) error {
+func (m *KubernetesNodePoolManager) labelNode(ctx context.Context, node *Node, labelKey, labelValue string) error {
 	return m.updateNode(
+		ctx,
 		node,
 		func(node *Node) bool {
 			value, ok := node.Labels[labelKey]
@@ -254,8 +256,9 @@ func (m *KubernetesNodePoolManager) labelNode(node *Node, labelKey, labelValue s
 
 // compareAndSetNodeLabel updates a label of a Kubernetes node object if the current value is set to `expectedValue` or
 // not already defined.
-func (m *KubernetesNodePoolManager) compareAndSetNodeLabel(node *Node, labelKey, expectedValue, newValue string) error {
+func (m *KubernetesNodePoolManager) compareAndSetNodeLabel(ctx context.Context, node *Node, labelKey, expectedValue, newValue string) error {
 	return m.updateNode(
+		ctx,
 		node,
 		func(node *Node) bool {
 			value, ok := node.Labels[labelKey]
@@ -299,8 +302,9 @@ func updateTaint(node *v1.Node, taintKey, taintValue string, effect v1.TaintEffe
 }
 
 // TaintNode sets a taint on a Kubernetes node object with a specified value and effect.
-func (m *KubernetesNodePoolManager) taintNode(node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
+func (m *KubernetesNodePoolManager) taintNode(ctx context.Context, node *Node, taintKey, taintValue string, effect v1.TaintEffect) error {
 	return m.updateNode(
+		ctx,
 		node,
 		func(node *Node) bool {
 			for _, taint := range node.Taints {
@@ -366,7 +370,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 		// mark nodes to be removed
 		if replicas == 0 {
 			for _, node := range pool.Nodes {
-				err := m.MarkNodeForDecommission(node)
+				err := m.MarkNodeForDecommission(ctx, node)
 				if err != nil {
 					return err
 				}
@@ -388,7 +392,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 				node = cordonedNodes[0]
 			}
 
-			err := m.CordonNode(node)
+			err := m.CordonNode(ctx, node)
 			if err != nil {
 				return err
 			}
@@ -405,9 +409,9 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 }
 
 // CordonNode marks a node unschedulable.
-func (m *KubernetesNodePoolManager) CordonNode(node *Node) error {
+func (m *KubernetesNodePoolManager) CordonNode(ctx context.Context, node *Node) error {
 	unschedulable := []byte(`{"spec": {"unschedulable": true}}`)
-	_, err := m.kube.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.StrategicMergePatchType, unschedulable, metav1.PatchOptions{})
+	_, err := m.kube.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, unschedulable, metav1.PatchOptions{})
 	return err
 }
 
@@ -421,7 +425,7 @@ func WaitForDesiredNodes(ctx context.Context, logger *log.Entry, n NodePoolManag
 	var nodePool *NodePool
 
 	for {
-		nodePool, err = n.GetPool(nodePoolDesc)
+		nodePool, err = n.GetPool(ctx, nodePoolDesc)
 		if err != nil {
 			return nil, err
 		}
