@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/strfmt v0.19.5
 	github.com/go-openapi/swag v0.19.9
 	github.com/go-openapi/validate v0.19.10
-	github.com/go-swagger/go-swagger v0.24.0
+	github.com/go-swagger/go-swagger v0.25.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.3
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.3.0
