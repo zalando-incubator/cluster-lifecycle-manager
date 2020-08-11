@@ -190,6 +190,54 @@
     "storage": null
   },
   {
+    "instance_type": "c5a.12xlarge",
+    "vCPU": 48,
+    "memory": 96,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.16xlarge",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.24xlarge",
+    "vCPU": 96,
+    "memory": 192,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.2xlarge",
+    "vCPU": 8,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.4xlarge",
+    "vCPU": 16,
+    "memory": 32,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.8xlarge",
+    "vCPU": 32,
+    "memory": 64,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.large",
+    "vCPU": 2,
+    "memory": 4,
+    "storage": null
+  },
+  {
+    "instance_type": "c5a.xlarge",
+    "vCPU": 4,
+    "memory": 8,
+    "storage": null
+  },
+  {
     "instance_type": "c5d.12xlarge",
     "vCPU": 48,
     "memory": 96,
@@ -320,6 +368,150 @@
     "vCPU": 4,
     "memory": 10.5,
     "storage": null
+  },
+  {
+    "instance_type": "c6g.12xlarge",
+    "vCPU": 48,
+    "memory": 96,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.16xlarge",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.2xlarge",
+    "vCPU": 8,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.4xlarge",
+    "vCPU": 16,
+    "memory": 32,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.8xlarge",
+    "vCPU": 32,
+    "memory": 64,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.large",
+    "vCPU": 2,
+    "memory": 4,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.medium",
+    "vCPU": 1,
+    "memory": 2,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.metal",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": null
+  },
+  {
+    "instance_type": "c6g.xlarge",
+    "vCPU": 4,
+    "memory": 8,
+    "storage": null
+  },
+  {
+    "instance_type": "c6gd.12xlarge",
+    "vCPU": 48,
+    "memory": 96,
+    "storage": {
+      "devices": 2,
+      "size": 1425,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.16xlarge",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.2xlarge",
+    "vCPU": 8,
+    "memory": 16,
+    "storage": {
+      "devices": 1,
+      "size": 474,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.4xlarge",
+    "vCPU": 16,
+    "memory": 32,
+    "storage": {
+      "devices": 1,
+      "size": 950,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.8xlarge",
+    "vCPU": 32,
+    "memory": 64,
+    "storage": {
+      "devices": 1,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.large",
+    "vCPU": 2,
+    "memory": 4,
+    "storage": {
+      "devices": 1,
+      "size": 118,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.medium",
+    "vCPU": 1,
+    "memory": 2,
+    "storage": {
+      "devices": 1,
+      "size": 59,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.metal",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c6gd.xlarge",
+    "vCPU": 4,
+    "memory": 8,
+    "storage": {
+      "devices": 1,
+      "size": 237,
+      "nvme_ssd": true
+    }
   },
   {
     "instance_type": "cc2.8xlarge",
@@ -509,7 +701,11 @@
     "instance_type": "g4dn.metal",
     "vCPU": 96,
     "memory": 384,
-    "storage": null
+    "storage": {
+      "devices": 2,
+      "size": 900,
+      "nvme_ssd": true
+    }
   },
   {
     "instance_type": "g4dn.xlarge",
@@ -563,7 +759,7 @@
   },
   {
     "instance_type": "hs1.8xlarge",
-    "vCPU": 17,
+    "vCPU": 16,
     "memory": 117,
     "storage": {
       "devices": 24,
@@ -663,7 +859,7 @@
   },
   {
     "instance_type": "i3.metal",
-    "vCPU": 72,
+    "vCPU": 64,
     "memory": 512,
     "storage": {
       "devices": 8,
@@ -760,6 +956,30 @@
       "size": 2500,
       "nvme_ssd": true
     }
+  },
+  {
+    "instance_type": "inf1.24xlarge",
+    "vCPU": 96,
+    "memory": 192,
+    "storage": null
+  },
+  {
+    "instance_type": "inf1.2xlarge",
+    "vCPU": 8,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "inf1.6xlarge",
+    "vCPU": 24,
+    "memory": 48,
+    "storage": null
+  },
+  {
+    "instance_type": "inf1.xlarge",
+    "vCPU": 4,
+    "memory": 8,
+    "storage": null
   },
   {
     "instance_type": "m1.large",
@@ -1020,6 +1240,16 @@
     }
   },
   {
+    "instance_type": "m5ad.16xlarge",
+    "vCPU": 64,
+    "memory": 256,
+    "storage": {
+      "devices": 4,
+      "size": 600,
+      "nvme_ssd": true
+    }
+  },
+  {
     "instance_type": "m5ad.24xlarge",
     "vCPU": 96,
     "memory": 384,
@@ -1046,6 +1276,16 @@
     "storage": {
       "devices": 2,
       "size": 300,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m5ad.8xlarge",
+    "vCPU": 32,
+    "memory": 128,
+    "storage": {
+      "devices": 2,
+      "size": 600,
       "nvme_ssd": true
     }
   },
@@ -1300,9 +1540,153 @@
     "storage": null
   },
   {
+    "instance_type": "m6g.12xlarge",
+    "vCPU": 48,
+    "memory": 192,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.16xlarge",
+    "vCPU": 64,
+    "memory": 256,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.2xlarge",
+    "vCPU": 8,
+    "memory": 32,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.4xlarge",
+    "vCPU": 16,
+    "memory": 64,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.8xlarge",
+    "vCPU": 32,
+    "memory": 128,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.large",
+    "vCPU": 2,
+    "memory": 8,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.medium",
+    "vCPU": 1,
+    "memory": 4,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.metal",
+    "vCPU": 64,
+    "memory": 256,
+    "storage": null
+  },
+  {
+    "instance_type": "m6g.xlarge",
+    "vCPU": 4,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "m6gd.12xlarge",
+    "vCPU": 48,
+    "memory": 192,
+    "storage": {
+      "devices": 2,
+      "size": 1425,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.16xlarge",
+    "vCPU": 64,
+    "memory": 256,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.2xlarge",
+    "vCPU": 8,
+    "memory": 32,
+    "storage": {
+      "devices": 1,
+      "size": 474,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.4xlarge",
+    "vCPU": 16,
+    "memory": 64,
+    "storage": {
+      "devices": 1,
+      "size": 950,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.8xlarge",
+    "vCPU": 32,
+    "memory": 128,
+    "storage": {
+      "devices": 1,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.large",
+    "vCPU": 2,
+    "memory": 8,
+    "storage": {
+      "devices": 1,
+      "size": 118,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.medium",
+    "vCPU": 1,
+    "memory": 4,
+    "storage": {
+      "devices": 1,
+      "size": 59,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.metal",
+    "vCPU": 64,
+    "memory": 256,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "m6gd.xlarge",
+    "vCPU": 4,
+    "memory": 16,
+    "storage": {
+      "devices": 1,
+      "size": 237,
+      "nvme_ssd": true
+    }
+  },
+  {
     "instance_type": "p2.16xlarge",
     "vCPU": 64,
-    "memory": 768,
+    "memory": 732,
     "storage": null
   },
   {
@@ -1544,6 +1928,16 @@
     }
   },
   {
+    "instance_type": "r5ad.16xlarge",
+    "vCPU": 64,
+    "memory": 512,
+    "storage": {
+      "devices": 4,
+      "size": 600,
+      "nvme_ssd": true
+    }
+  },
+  {
     "instance_type": "r5ad.24xlarge",
     "vCPU": 96,
     "memory": 768,
@@ -1570,6 +1964,16 @@
     "storage": {
       "devices": 2,
       "size": 300,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r5ad.8xlarge",
+    "vCPU": 32,
+    "memory": 256,
+    "storage": {
+      "devices": 2,
+      "size": 600,
       "nvme_ssd": true
     }
   },
@@ -1822,6 +2226,150 @@
     "vCPU": 4,
     "memory": 32,
     "storage": null
+  },
+  {
+    "instance_type": "r6g.12xlarge",
+    "vCPU": 48,
+    "memory": 384,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.16xlarge",
+    "vCPU": 64,
+    "memory": 512,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.2xlarge",
+    "vCPU": 8,
+    "memory": 64,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.4xlarge",
+    "vCPU": 16,
+    "memory": 128,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.8xlarge",
+    "vCPU": 32,
+    "memory": 256,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.large",
+    "vCPU": 2,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.medium",
+    "vCPU": 1,
+    "memory": 8,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.metal",
+    "vCPU": 64,
+    "memory": 512,
+    "storage": null
+  },
+  {
+    "instance_type": "r6g.xlarge",
+    "vCPU": 4,
+    "memory": 32,
+    "storage": null
+  },
+  {
+    "instance_type": "r6gd.12xlarge",
+    "vCPU": 48,
+    "memory": 384,
+    "storage": {
+      "devices": 2,
+      "size": 1425,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.16xlarge",
+    "vCPU": 64,
+    "memory": 512,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.2xlarge",
+    "vCPU": 8,
+    "memory": 64,
+    "storage": {
+      "devices": 1,
+      "size": 474,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.4xlarge",
+    "vCPU": 16,
+    "memory": 128,
+    "storage": {
+      "devices": 1,
+      "size": 950,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.8xlarge",
+    "vCPU": 32,
+    "memory": 256,
+    "storage": {
+      "devices": 1,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.large",
+    "vCPU": 2,
+    "memory": 16,
+    "storage": {
+      "devices": 1,
+      "size": 118,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.medium",
+    "vCPU": 1,
+    "memory": 8,
+    "storage": {
+      "devices": 1,
+      "size": 59,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.metal",
+    "vCPU": 64,
+    "memory": 512,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "r6gd.xlarge",
+    "vCPU": 4,
+    "memory": 32,
+    "storage": {
+      "devices": 1,
+      "size": 237,
+      "nvme_ssd": true
+    }
   },
   {
     "instance_type": "t1.micro",
