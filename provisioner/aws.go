@@ -35,6 +35,7 @@ import (
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -164,28 +165,68 @@ func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster 
 		templateURL = result.Location
 	}
 
-	tags := []*cloudformation.Tag{
-		{
-			Key:   aws.String(tagNameKubernetesClusterPrefix + cluster.ID),
-			Value: aws.String(resourceLifecycleOwned),
-		},
-		{
-			Key:   aws.String(mainStackTagKey),
-			Value: aws.String(stackTagValueTrue),
-		},
+	stackTags := map[string]string{
+		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
+		mainStackTagKey: stackTagValueTrue,
 	}
 
-	return a.applyStack(stackName, stackTemplate, templateURL, tags, true)
+	return a.applyStack(stackName, stackTemplate, templateURL, stackTags, true)
+}
+
+func mergeTags(tags ...map[string]string) map[string]string {
+	mergedTags := make(map[string]string)
+	for _, tagMap := range tags {
+		for k, v := range tagMap {
+			mergedTags[k] = v
+		}
+	}
+	return mergedTags
+}
+
+func tagMapToCloudformationTags(tags map[string]string) []*cloudformation.Tag {
+	cfTags := make([]*cloudformation.Tag, 0, len(tags))
+	for k, v := range tags {
+		tag := &cloudformation.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		}
+		cfTags = append(cfTags, tag)
+	}
+	return cfTags
+}
+
+func tagsFromStackTemplate(template string) (map[string]string, error) {
+	var parsedTemplate struct {
+		Metadata struct {
+			Tags map[string]string `yaml:"Tags"`
+		} `yaml:"Metadata"`
+	}
+	err := yaml.Unmarshal([]byte(template), &parsedTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return parsedTemplate.Metadata.Tags, nil
 }
 
 // applyStack applies a cloudformation stack.
-func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags []*cloudformation.Tag, updateStack bool) error {
+// Optionally parses tags specified under the Tags key in the template and
+// merges those with the tags passed via the parameter.
+func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags map[string]string, updateStack bool) error {
+	// parse tags from stack template
+	stackTemplateTags, err := tagsFromStackTemplate(stackTemplate)
+	if err != nil {
+		return err
+	}
+
+	tags = mergeTags(stackTemplateTags, tags)
+	cfTags := tagMapToCloudformationTags(tags)
+
 	createParams := &cloudformation.CreateStackInput{
 		StackName:                   aws.String(stackName),
 		OnFailure:                   aws.String(cloudformation.OnFailureDelete),
 		Capabilities:                []*string{aws.String(cloudformation.CapabilityCapabilityNamedIam)},
 		EnableTerminationProtection: aws.Bool(true),
-		Tags:                        tags,
+		Tags:                        cfTags,
 	}
 
 	if stackTemplateURL != "" {
@@ -194,7 +235,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 		createParams.TemplateBody = aws.String(stackTemplate)
 	}
 
-	_, err := a.cloudformationClient.CreateStack(createParams)
+	_, err = a.cloudformationClient.CreateStack(createParams)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -218,7 +259,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 					updateParams := &cloudformation.UpdateStackInput{
 						StackName:    createParams.StackName,
 						Capabilities: createParams.Capabilities,
-						Tags:         tags,
+						Tags:         cfTags,
 					}
 
 					if stackTemplateURL != "" {
@@ -532,15 +573,9 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		return err
 	}
 
-	tags := []*cloudformation.Tag{
-		{
-			Key:   aws.String(applicationTagKey),
-			Value: aws.String("kubernetes-etcd"),
-		},
-		{
-			Key:   aws.String(componentTagKey),
-			Value: aws.String("etcd-cluster"),
-		},
+	tags := map[string]string{
+		applicationTagKey: "kubernetes-etcd",
+		componentTagKey:   "etcd-cluster",
 	}
 
 	err = a.applyStack(stackName, string(output), "", tags, false)

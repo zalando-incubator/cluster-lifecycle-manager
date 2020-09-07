@@ -162,27 +162,12 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	// TODO: stackname pattern
 	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.Replace(p.cluster.ID, ":", "-", -1))
 
-	tags := []*cloudformation.Tag{
-		{
-			Key:   aws.String(tagNameKubernetesClusterPrefix + p.cluster.ID),
-			Value: aws.String(resourceLifecycleOwned),
-		},
-		{
-			Key:   aws.String(nodePoolRoleTagKey),
-			Value: aws.String("true"),
-		},
-		{
-			Key:   aws.String(nodePoolTagKey),
-			Value: aws.String(nodePool.Name),
-		},
-		{
-			Key:   aws.String(nodePoolTagKeyLegacy),
-			Value: aws.String(nodePool.Name),
-		},
-		{
-			Key:   aws.String(nodePoolProfileTagKey),
-			Value: aws.String(nodePool.Profile),
-		},
+	tags := map[string]string{
+		tagNameKubernetesClusterPrefix + p.cluster.ID: resourceLifecycleOwned,
+		nodePoolRoleTagKey:                            "true",
+		nodePoolTagKey:                                nodePool.Name,
+		nodePoolTagKeyLegacy:                          nodePool.Name,
+		nodePoolProfileTagKey:                         nodePool.Profile,
 	}
 
 	err = p.awsAdapter.applyStack(stackName, template, "", tags, true)
