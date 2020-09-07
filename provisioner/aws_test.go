@@ -42,6 +42,7 @@ type cloudFormationAPIStub struct {
 	createErr           error
 	updateErr           error
 	deleteErr           error
+	onCreate            func(input *cloudformation.CreateStackInput)
 }
 
 func (c *cloudFormationAPIStub) DescribeStacks(input *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
@@ -54,6 +55,9 @@ func (c *cloudFormationAPIStub) DescribeStacks(input *cloudformation.DescribeSta
 }
 
 func (c *cloudFormationAPIStub) CreateStack(input *cloudformation.CreateStackInput) (*cloudformation.CreateStackOutput, error) {
+	if c.onCreate != nil {
+		c.onCreate(input)
+	}
 	return nil, c.createErr
 }
 
@@ -333,6 +337,25 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	}
 	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
+}
+
+func TestApplyStack(t *testing.T) {
+	awsAdapter := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+
+	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
+		onCreate: func(input *cloudformation.CreateStackInput) {
+			require.EqualValues(t, []*cloudformation.Tag{
+				{
+					Key:   aws.String("foo"),
+					Value: aws.String("bar"),
+				},
+			}, input.Tags)
+		},
+		statusMutex: &sync.Mutex{},
+	}
+
+	err := awsAdapter.applyStack("stack-name", `{"Metadata": {"Tags": {"foo":"bar"}}}`, "", nil, true)
+	require.NoError(t, err)
 }
 
 func TestIsStackDeleting(t *testing.T) {
