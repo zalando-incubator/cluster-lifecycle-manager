@@ -32,7 +32,7 @@ func (c *CLCUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.NodePo
 		if ctx.Err() == context.Canceled {
 			backoffCfg := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10)
 			err := backoff.Retry(func() error {
-				return c.rollbackUpdate(ctx, nodePoolDesc)
+				return c.rollbackUpdate(context.Background(), nodePoolDesc)
 			}, backoffCfg)
 			if err != nil {
 				c.logger.Errorf("Error while aborting the update for node pool '%s': %v", nodePoolDesc.Name, err)
