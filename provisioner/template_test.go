@@ -751,9 +751,6 @@ func TestExtractEndpointHosts(t *testing.T) {
 }
 
 func TestIndexedList(t *testing.T) {
-	// length not positive
-	// length 3
-
 	for _, tc := range []struct {
 		name          string
 		itemTemplate  string
