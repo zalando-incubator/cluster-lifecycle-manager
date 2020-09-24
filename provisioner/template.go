@@ -649,13 +649,13 @@ func extractEndpointHosts(endpoints string) ([]string, error) {
 	return result, nil
 }
 
-func indexedList(itemTemplate string, length int) (string, error) {
+func indexedList(itemTemplate string, length int64) (string, error) {
 	if length < 0 {
 		return "", fmt.Errorf("expecting non-negative integer, got: %d", length)
 	}
 
 	result := make([]string, length)
-	for i := 0; i < length; i++ {
+	for i := int64(0); i < length; i++ {
 		result[i] = strings.ReplaceAll(itemTemplate, "$", fmt.Sprint(i))
 	}
 

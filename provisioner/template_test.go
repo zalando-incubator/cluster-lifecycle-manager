@@ -754,40 +754,46 @@ func TestIndexedList(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		itemTemplate  string
-		length        int
+		length        string
 		expected      string
 		expectedError bool
 	}{{
 		name:     "empty template",
-		length:   3,
+		length:   "3",
 		expected: ",,",
 	}, {
 		name:         "no placeholder",
 		itemTemplate: "foo.bar.baz",
-		length:       3,
+		length:       "3",
 		expected:     "foo.bar.baz,foo.bar.baz,foo.bar.baz",
 	}, {
 		name:         "multiple placeholders",
 		itemTemplate: "foo$.bar$.baz$",
-		length:       3,
+		length:       "3",
 		expected:     "foo0.bar0.baz0,foo1.bar1.baz1,foo2.bar2.baz2",
 	}, {
 		name:          "negative length",
 		itemTemplate:  "foo$.bar$.baz$",
-		length:        -42,
+		length:        "-42",
 		expectedError: true,
 	}, {
 		name:         "zero length",
 		itemTemplate: "foo$.bar$.baz$",
+		length:       "0",
 		expected:     "",
+	}, {
+		name:          "invalid string",
+		itemTemplate:  "foo$.bar$.baz$",
+		length:        "qux",
+		expectedError: true,
 	}, {
 		name:         "common case",
 		itemTemplate: "foo.bar$.baz",
-		length:       3,
+		length:       "3",
 		expected:     "foo.bar0.baz,foo.bar1.baz,foo.bar2.baz",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			const template = "{{ indexedList .Values.data.item .Values.data.length }}"
+			const template = "{{ indexedList .Values.data.item (parseInt64 .Values.data.length) }}"
 			args := map[string]interface{}{"item": tc.itemTemplate, "length": tc.length}
 			result, err := renderSingle(t, template, args)
 			if tc.expectedError {
