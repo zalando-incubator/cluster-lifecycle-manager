@@ -238,6 +238,86 @@
     "storage": null
   },
   {
+    "instance_type": "c5ad.12xlarge",
+    "vCPU": 48,
+    "memory": 96,
+    "storage": {
+      "devices": 2,
+      "size": 900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.16xlarge",
+    "vCPU": 64,
+    "memory": 128,
+    "storage": {
+      "devices": 2,
+      "size": 1200,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.24xlarge",
+    "vCPU": 96,
+    "memory": 192,
+    "storage": {
+      "devices": 2,
+      "size": 1900,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.2xlarge",
+    "vCPU": 8,
+    "memory": 16,
+    "storage": {
+      "devices": 1,
+      "size": 300,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.4xlarge",
+    "vCPU": 16,
+    "memory": 32,
+    "storage": {
+      "devices": 2,
+      "size": 300,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.8xlarge",
+    "vCPU": 32,
+    "memory": 64,
+    "storage": {
+      "devices": 2,
+      "size": 600,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.large",
+    "vCPU": 2,
+    "memory": 4,
+    "storage": {
+      "devices": 1,
+      "size": 75,
+      "nvme_ssd": true
+    }
+  },
+  {
+    "instance_type": "c5ad.xlarge",
+    "vCPU": 4,
+    "memory": 8,
+    "storage": {
+      "devices": 1,
+      "size": 150,
+      "nvme_ssd": true
+    }
+  },
+  {
     "instance_type": "c5d.12xlarge",
     "vCPU": 48,
     "memory": 96,
@@ -2499,6 +2579,48 @@
   },
   {
     "instance_type": "t3a.xlarge",
+    "vCPU": 4,
+    "memory": 16,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.2xlarge",
+    "vCPU": 8,
+    "memory": 32,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.large",
+    "vCPU": 2,
+    "memory": 8,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.medium",
+    "vCPU": 2,
+    "memory": 4,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.micro",
+    "vCPU": 2,
+    "memory": 1,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.nano",
+    "vCPU": 2,
+    "memory": 0.5,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.small",
+    "vCPU": 2,
+    "memory": 2,
+    "storage": null
+  },
+  {
+    "instance_type": "t4g.xlarge",
     "vCPU": 4,
     "memory": 16,
     "storage": null
