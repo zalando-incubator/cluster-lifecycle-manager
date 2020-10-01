@@ -1,7 +1,7 @@
 module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
-	github.com/aws/aws-sdk-go v1.33.19
+	github.com/aws/aws-sdk-go v1.34.15
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/errors v0.19.6
@@ -18,7 +18,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spotinst/spotinst-sdk-go v1.57.0
 	github.com/stretchr/testify v1.6.1
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.3
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.7
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
