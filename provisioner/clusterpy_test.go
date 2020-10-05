@@ -21,13 +21,13 @@ pre_apply:
   namespace: kube-system
   kind: deployment
 - name: mate-pre
-  kind: deployment
+  kind: priorityclass
 post_apply:
 - name: secretary-post
   namespace: kube-system
   kind: deployment
 - name: mate-post
-  kind: deployment
+  kind: priorityclass
 `
 
 	deletionsContent2 = `
@@ -238,12 +238,12 @@ func TestParseDeletions(t *testing.T) {
 	expected := &deletions{
 		PreApply: []*resource{
 			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
-			{Name: "mate-pre", Namespace: "default", Kind: "deployment"},
+			{Name: "mate-pre", Namespace: "", Kind: "priorityclass"},
 			{Name: "foobar-pre", Namespace: "templated", Kind: "deployment"},
 		},
 		PostApply: []*resource{
 			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
-			{Name: "mate-post", Namespace: "default", Kind: "deployment"},
+			{Name: "mate-post", Namespace: "", Kind: "priorityclass"},
 			{Name: "foobar-post", Namespace: "templated", Kind: "deployment"},
 		},
 	}
