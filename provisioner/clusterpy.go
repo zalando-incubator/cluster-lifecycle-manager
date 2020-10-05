@@ -1060,12 +1060,15 @@ func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.
 		return fmt.Errorf("either name or labels must be specified to identify a resource")
 	}
 
-	iface := client.Resource(gvr).Namespace(deletion.Namespace)
+	var iface dynamic.ResourceInterface = client.Resource(gvr)
+	if deletion.Namespace != "" {
+		iface = client.Resource(gvr).Namespace(deletion.Namespace)
+	}
 
 	if deletion.Name != "" {
 		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name)
 	} else if len(deletion.Labels) > 0 {
-		items, err := client.Resource(gvr).Namespace(deletion.Namespace).List(ctx, metav1.ListOptions{
+		items, err := iface.List(ctx, metav1.ListOptions{
 			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
 				MatchLabels: deletion.Labels,
 			}),
@@ -1108,19 +1111,6 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 		err = yaml.Unmarshal([]byte(res), &deletions)
 		if err != nil {
 			return nil, err
-		}
-
-		// ensure namespace is set, default to 'kube-system' if empty.
-		for _, deletion := range deletions.PreApply {
-			if deletion.Namespace == "" {
-				deletion.Namespace = defaultNamespace
-			}
-		}
-
-		for _, deletion := range deletions.PostApply {
-			if deletion.Namespace == "" {
-				deletion.Namespace = defaultNamespace
-			}
 		}
 
 		result.PreApply = append(result.PreApply, deletions.PreApply...)
