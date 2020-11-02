@@ -14,7 +14,6 @@ require (
 	github.com/go-openapi/validate v0.19.12
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-swagger/go-swagger v0.25.0
-	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
@@ -37,9 +36,9 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.10
-	k8s.io/client-go v0.18.10
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
+	k8s.io/client-go v0.19.3
 )
 
 go 1.13
