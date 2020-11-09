@@ -119,6 +119,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"generateOIDCDiscoveryDocument": generateOIDCDiscoveryDocument,
 		"kubernetesSizeToKiloBytes":     kubernetesSizeToKiloBytes,
 		"indexedList":                   indexedList,
+		"azDistributedNodePoolGroups":   azDistributedNodePoolGroups,
 	}
 
 	content, ok := context.fileData[file]
@@ -502,4 +503,54 @@ func indexedList(itemTemplate string, length int64) (string, error) {
 	}
 
 	return strings.Join(result, ","), nil
+}
+
+func parseLabels(nodePool api.NodePool) map[string]string {
+	result := make(map[string]string)
+	for _, s := range strings.Split(nodePool.ConfigItems["labels"], ",") {
+		if items := strings.SplitN(s, "=", 2); len(items) == 2 {
+			result[items[0]] = items[1]
+		}
+	}
+	return result
+}
+
+func poolsDistributed(dedicated string, pools []api.NodePool) bool {
+	for _, pool := range pools {
+		if pool.ConfigItems["taints"] != fmt.Sprintf("dedicated=%s:NoSchedule", dedicated) {
+			return false
+		}
+		if _, ok := pool.ConfigItems["availability_zones"]; ok {
+			return false
+		}
+		if pool.Profile != "worker-splitaz" {
+			return false
+		}
+	}
+	return true
+}
+
+// azDistributedNodePoolGroups returns a list of node pool groups (using the dedicated label) that are safe to use
+// with even pod spreading. Currently this is the case iff all node pools with this dedicated label
+//  - are correctly configured with regards to the labels and taints
+//  - don't have AZ restrictions
+//  - use the worker-splitaz profile
+func azDistributedNodePoolGroups(nodePools []api.NodePool) string {
+	poolGroups := make(map[string][]api.NodePool)
+
+	for _, pool := range nodePools {
+		labels := parseLabels(pool)
+		if group, ok := labels["dedicated"]; ok {
+			poolGroups[group] = append(poolGroups[group], pool)
+		}
+	}
+
+	var result []string
+	for group, pools := range poolGroups {
+		if poolsDistributed(group, pools) {
+			result = append(result, group)
+		}
+	}
+	sort.Strings(result)
+	return strings.Join(result, ",")
 }

@@ -652,3 +652,89 @@ func TestIndexedList(t *testing.T) {
 		})
 	}
 }
+
+func TestAZDistributedNodePoolGroups(t *testing.T) {
+	nodePools := []api.NodePool{
+		// Non-dedicated pools are ignored
+		{
+			Name:    "default",
+			Profile: "worker-splitaz",
+		},
+		{
+			Name:        "default",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"taints": "dedicated=invalid:NoSchedule"},
+		},
+
+		// Both pools are OK
+		{
+			Name:        "valid-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid", "taints": "dedicated=valid:NoSchedule"},
+		},
+		{
+			Name:        "valid-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid", "taints": "dedicated=valid:NoSchedule"},
+		},
+
+		// Just one pool
+		{
+			Name:        "valid-single-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid-single", "taints": "dedicated=valid-single:NoSchedule"},
+		},
+
+		// Pools doesn't have the correct taints
+		{
+			Name:        "invalid-taint-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=invalid-taint", "taints": "dedicated=invalid-taint:NoSchedule"},
+		},
+		{
+			Name:        "invalid-taint-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=invalid-taint", "taints": "dedicated=invalid-taint:NoSchedule,another=value:NoSchedule"},
+		},
+
+		// Pool doesn't have a taint
+		{
+			Name:        "missing-taint-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=missing-taint", "taints": "dedicated=missing-taint:NoSchedule"},
+		},
+		{
+			Name:        "missing-taint-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=missing-taint"},
+		},
+
+		// Pool is limited to some AZs
+		{
+			Name:        "explicit-azs-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=explicit-azs", "taints": "dedicated=explicit-azs:NoSchedule"},
+		},
+		{
+			Name:        "explicit-azs-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=explicit-azs", "taints": "dedicated=explicit-azs:NoSchedule", "availability_zones": "1a,1b,1c"},
+		},
+
+		// Pool has the wrong profile
+		{
+			Name:        "wrong-profile-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=wrong-profile", "taints": "dedicated=wrong-profile:NoSchedule"},
+		},
+		{
+			Name:        "wrong-profile-2",
+			Profile:     "worker-default",
+			ConfigItems: map[string]string{"labels": "dedicated=wrong-profile", "taints": "dedicated=wrong-profile:NoSchedule"},
+		},
+	}
+
+	result, err := renderSingle(t, "{{ azDistributedNodePoolGroups .Values.data.pools }}", map[string]interface{}{"pools": nodePools})
+	require.NoError(t, err)
+	require.Equal(t, "valid,valid-single", result)
+}
