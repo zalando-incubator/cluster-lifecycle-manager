@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -649,6 +650,185 @@ func TestIndexedList(t *testing.T) {
 				require.NoError(t, err)
 				require.EqualValues(t, tc.expected, result)
 			}
+		})
+	}
+}
+
+func TestZoneDistributedNodePoolGroupsDedicated(t *testing.T) {
+	nodePools := []*api.NodePool{
+		// Master pools are ignored
+		{
+			Name:    "default-master",
+			Profile: "master-default",
+		},
+
+		// Non-dedicated pools are ignored
+		{
+			Name:    "default",
+			Profile: "worker-splitaz",
+		},
+		{
+			Name:        "default",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"taints": "dedicated=invalid:NoSchedule"},
+		},
+
+		// Both pools are OK
+		{
+			Name:        "valid-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid", "taints": "dedicated=valid:NoSchedule"},
+		},
+		{
+			Name:        "valid-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid", "taints": "dedicated=valid:NoSchedule"},
+		},
+
+		// Just one pool
+		{
+			Name:        "valid-single-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=valid-single", "taints": "dedicated=valid-single:NoSchedule"},
+		},
+
+		// Pools doesn't have the correct taints
+		{
+			Name:        "invalid-taint-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=invalid-taint", "taints": "dedicated=invalid-taint:NoSchedule"},
+		},
+		{
+			Name:        "invalid-taint-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=invalid-taint", "taints": "dedicated=invalid-taint:NoSchedule,another=value:NoSchedule"},
+		},
+
+		// Pool doesn't have a taint
+		{
+			Name:        "missing-taint-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=missing-taint", "taints": "dedicated=missing-taint:NoSchedule"},
+		},
+		{
+			Name:        "missing-taint-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=missing-taint"},
+		},
+
+		// Pool is limited to some AZs
+		{
+			Name:        "explicit-azs-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=explicit-azs", "taints": "dedicated=explicit-azs:NoSchedule"},
+		},
+		{
+			Name:        "explicit-azs-2",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=explicit-azs", "taints": "dedicated=explicit-azs:NoSchedule", "availability_zones": "1a,1b,1c"},
+		},
+
+		// Pool has the wrong profile
+		{
+			Name:        "wrong-profile-1",
+			Profile:     "worker-splitaz",
+			ConfigItems: map[string]string{"labels": "dedicated=wrong-profile", "taints": "dedicated=wrong-profile:NoSchedule"},
+		},
+		{
+			Name:        "wrong-profile-2",
+			Profile:     "worker-default",
+			ConfigItems: map[string]string{"labels": "dedicated=wrong-profile", "taints": "dedicated=wrong-profile:NoSchedule"},
+		},
+	}
+
+	result, err := renderSingle(t, `{{ range $k, $v := zoneDistributedNodePoolGroups .Values.data.pools }}{{ if ne $k "" }}{{ $k }};{{ end }}{{ end }}`, map[string]interface{}{"pools": nodePools})
+	require.NoError(t, err)
+	require.Equal(t, "valid;valid-single;", result)
+}
+
+func TestZoneDistributedNodePoolGroupsDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		pools    []*api.NodePool
+		expected bool
+	}{
+		{
+			name: "all pools match",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:    "default-2",
+					Profile: "worker-splitaz",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "pools with taints are ignored",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:        "default-2",
+					Profile:     "worker-default",
+					ConfigItems: map[string]string{"taints": "foo=bar:NoSchedule"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "master node pools are ignored",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:    "default-master",
+					Profile: "master-default",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "pools with AZ restrictions are not allowed",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:        "default-2",
+					Profile:     "worker-splitaz",
+					ConfigItems: map[string]string{"availability_zones": "1a,1b,1c"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "pools with non-splitaz profiles are not allowed",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:    "default-2",
+					Profile: "worker-default",
+				},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, `{{ index (zoneDistributedNodePoolGroups .Values.data.pools) "" }}`, map[string]interface{}{"pools": tc.pools})
+			require.NoError(t, err)
+			require.Equal(t, strconv.FormatBool(tc.expected), result)
 		})
 	}
 }

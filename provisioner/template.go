@@ -30,6 +30,10 @@ const (
 	lowestPossiblePort           = 0
 	describeImageFilterNameName  = "name"
 	describeImageFilterNameOwner = "owner-id"
+
+	labelsConfigItem = "labels"
+	taintsConfigItem = "taints"
+	dedicatedLabel   = "dedicated"
 )
 
 type templateContext struct {
@@ -119,6 +123,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"generateOIDCDiscoveryDocument": generateOIDCDiscoveryDocument,
 		"kubernetesSizeToKiloBytes":     kubernetesSizeToKiloBytes,
 		"indexedList":                   indexedList,
+		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
 	}
 
 	content, ok := context.fileData[file]
@@ -502,4 +507,69 @@ func indexedList(itemTemplate string, length int64) (string, error) {
 	}
 
 	return strings.Join(result, ","), nil
+}
+
+func parseLabels(nodePool *api.NodePool) map[string]string {
+	result := make(map[string]string)
+	for _, s := range strings.Split(nodePool.ConfigItems[labelsConfigItem], ",") {
+		if items := strings.SplitN(s, "=", 2); len(items) == 2 {
+			result[items[0]] = items[1]
+		}
+	}
+	return result
+}
+
+func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
+	if len(pools) == 0 {
+		return false
+	}
+
+	for _, pool := range pools {
+		// For dedicated pools, check that the taints are configured correctly
+		if dedicated != "" && pool.ConfigItems[taintsConfigItem] != fmt.Sprintf("dedicated=%s:NoSchedule", dedicated) {
+			return false
+		}
+
+		// Check if the pool is configured to run in specific AZs
+		if _, ok := pool.ConfigItems["availability_zones"]; ok {
+			return false
+		}
+
+		// Check if the pool is using the pool profile that's properly spread between AZs
+		if pool.Profile != "worker-splitaz" {
+			return false
+		}
+	}
+	return true
+}
+
+// azDistributedNodePoolGroups returns a list of node pool groups (using the dedicated label) that are safe to use
+// with even pod spreading. Currently this is the case iff all node pools with this dedicated label
+//  - are correctly configured with regards to the labels and taints
+//  - don't have AZ restrictions
+//  - use the worker-splitaz profile.
+// The default pool is represented with an empty string as the key.
+func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
+	poolGroups := make(map[string][]*api.NodePool)
+
+	for _, pool := range nodePools {
+		if strings.HasPrefix(pool.Profile, "master") {
+			continue
+		}
+
+		labels := parseLabels(pool)
+		if group, ok := labels[dedicatedLabel]; ok && group != "" {
+			poolGroups[group] = append(poolGroups[group], pool)
+		} else if _, ok := pool.ConfigItems[taintsConfigItem]; !ok {
+			poolGroups[""] = append(poolGroups[group], pool)
+		}
+	}
+
+	result := make(map[string]bool)
+	for group, pools := range poolGroups {
+		if poolsDistributed(group, pools) {
+			result[group] = true
+		}
+	}
+	return result
 }
