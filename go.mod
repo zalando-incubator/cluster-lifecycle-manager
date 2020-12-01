@@ -25,7 +25,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
-	github.com/spotinst/spotinst-sdk-go v1.68.0
+	github.com/spotinst/spotinst-sdk-go v1.71.0
 	github.com/stretchr/testify v1.6.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.7
 	golang.org/x/net v0.0.0-20201031054903-ff519b6c9102 // indirect
