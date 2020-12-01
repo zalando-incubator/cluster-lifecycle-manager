@@ -23,15 +23,13 @@ require (
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
 	github.com/mweagle/go-cloudformation v0.0.0-20200503000230-7b355618fec9 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spotinst/spotinst-sdk-go v1.68.0
 	github.com/stretchr/testify v1.6.1
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.7
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.10
 	golang.org/x/net v0.0.0-20201031054903-ff519b6c9102 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20201101102859-da207088b7d1 // indirect
 	golang.org/x/text v0.3.4 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
