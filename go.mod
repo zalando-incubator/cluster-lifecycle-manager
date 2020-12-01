@@ -7,7 +7,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/analysis v0.19.11 // indirect
 	github.com/go-openapi/errors v0.19.8
-	github.com/go-openapi/runtime v0.19.23
+	github.com/go-openapi/runtime v0.19.24
 	github.com/go-openapi/spec v0.19.12 // indirect
 	github.com/go-openapi/strfmt v0.19.8
 	github.com/go-openapi/swag v0.19.11
