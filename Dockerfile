@@ -1,4 +1,4 @@
-FROM registry.opensource.zalan.do/stups/alpine:latest as kubectl_download
+FROM registry.opensource.zalan.do/library/alpine-3.12:latest as kubectl_download
 
 RUN apk add --no-cache --update curl tar coreutils && \
     curl -L -s --fail https://dl.k8s.io/v1.18.8/kubernetes-client-linux-amd64.tar.gz -o kubernetes-client-linux-amd64.tar.gz && \
@@ -6,7 +6,7 @@ RUN apk add --no-cache --update curl tar coreutils && \
     tar xvf kubernetes-client-linux-amd64.tar.gz --strip-components 3 kubernetes/client/bin/ && \
     rm kubernetes-client-linux-amd64.tar.gz
 
-FROM registry.opensource.zalan.do/stups/alpine:latest
+FROM registry.opensource.zalan.do/library/alpine-3.12:latest
 LABEL maintainer="Team Teapot @ Zalando SE <team-teapot@zalando.de>"
 
 # install cluster.py dependencies
