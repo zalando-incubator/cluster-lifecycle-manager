@@ -25,7 +25,7 @@ clean:
 	rm -rf $(AWS_INSTANCE_DATA)
 
 test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
-	$(GO) test -v -race $(GOPKGS)
+	$(GO) test -v -race -coverprofile=profile.cov $(GOPKGS)
 	$(GO) vet -v $(GOPKGS)
 
 lint: $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
