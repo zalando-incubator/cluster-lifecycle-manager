@@ -21,7 +21,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
-	github.com/spotinst/spotinst-sdk-go v1.71.0
+	github.com/spotinst/spotinst-sdk-go v1.74.0
 	github.com/stretchr/testify v1.6.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.10
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
