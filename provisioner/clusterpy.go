@@ -69,7 +69,8 @@ const (
 	clusterStackOutputKey              = "ClusterStackOutputs"
 	spotIOAccessTokenKey               = "spotio_access_token"
 	spotIOAccountIDKey                 = "spotio_account_id"
-	spotIONodePoolProfile              = "worker-spotio-ocean"
+	spotIONodePoolProfileLegacy        = "worker-spotio-ocean"
+	spotIONodePoolProfile              = "worker-spotio"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 )
 
@@ -779,6 +780,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		spotIOClient := spotio.New(spotiosession.New(cfg))
 
 		spotIOBackend := updatestrategy.NewSpotIONodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
+		additionalBackends[spotIONodePoolProfileLegacy] = spotIOBackend
 		additionalBackends[spotIONodePoolProfile] = spotIOBackend
 	}
 
