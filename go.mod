@@ -2,7 +2,7 @@ module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
 	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
-	github.com/aws/aws-sdk-go v1.36.5
+	github.com/aws/aws-sdk-go v1.36.19
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/errors v0.19.9
@@ -21,7 +21,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
-	github.com/spotinst/spotinst-sdk-go v1.74.0
+	github.com/spotinst/spotinst-sdk-go v1.75.0
 	github.com/stretchr/testify v1.6.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.10
 	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11 // indirect
@@ -32,9 +32,9 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.10
-	k8s.io/client-go v0.18.10
+	k8s.io/api v0.18.14
+	k8s.io/apimachinery v0.18.14
+	k8s.io/client-go v0.18.14
 )
 
-go 1.13
+go 1.15
