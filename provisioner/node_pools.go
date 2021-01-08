@@ -34,6 +34,7 @@ const (
 
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
+	instanceInfoKey               = "InstanceInfo"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -145,7 +146,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	if err != nil {
 		return err
 	}
-	values["instance_info"] = instanceInfo
+	values[instanceInfoKey] = instanceInfo
 
 	// handle AZ overrides for the node pool
 	if azNames, ok := nodePool.ConfigItems[availabilityZonesConfigItemKey]; ok {

@@ -22,6 +22,13 @@ type Instance struct {
 	InstanceStorageDeviceSize int64
 }
 
+func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolumeSize int64, rootVolumeScaleFactor float64) float64 {
+	if i.InstanceStorageDevices == 0 {
+		return float64(rootVolumeSize) * rootVolumeScaleFactor
+	}
+	return instanceStorageScaleFactor * float64(i.InstanceStorageDevices*i.InstanceStorageDeviceSize)
+}
+
 type instanceInfo struct {
 	InstanceType string      `json:"instance_type"`
 	VCPU         interface{} `json:"vCPU"`

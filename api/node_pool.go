@@ -25,6 +25,7 @@ func (np NodePool) IsSpot() bool {
 // AvailableStorage returns the storage available on the instance for the user data based on the
 // instance type. If the nodes have instance storage devices, it returns the minimum of the total
 // size scaled by scaleFactor, otherwise it returns ebsSize.
+// Deprecated.
 func (np NodePool) AvailableStorage(ebsSize int64, scaleFactor float64) (int64, error) {
 	instanceInfo, err := aws.SyntheticInstanceInfo(np.InstanceTypes)
 	if err != nil {
