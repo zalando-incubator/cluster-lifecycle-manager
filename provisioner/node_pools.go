@@ -19,7 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	awsExt "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
@@ -60,6 +60,7 @@ type remoteData struct {
 // TODO: move AWS specific implementation to a separate file/package.
 type AWSNodePoolProvisioner struct {
 	awsAdapter      *awsAdapter
+	instanceTypes   *awsUtils.InstanceTypes
 	nodePoolManager updatestrategy.NodePoolManager
 	bucketName      string
 	config          channel.Config
@@ -145,7 +146,7 @@ func supportsT2Unlimited(instanceTypes []string) bool {
 func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
-	instanceInfo, err := awsExt.SyntheticInstanceInfo(nodePool.InstanceTypes)
+	instanceInfo, err := p.instanceTypes.SyntheticInstanceInfo(nodePool.InstanceTypes)
 	if err != nil {
 		return err
 	}

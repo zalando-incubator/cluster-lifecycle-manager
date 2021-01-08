@@ -2,7 +2,6 @@ package aws
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -30,32 +29,20 @@ func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolum
 	return int64(instanceStorageScaleFactor * float64(i.InstanceStorageDevices*i.InstanceStorageDeviceSize))
 }
 
-type instanceInfo struct {
-	InstanceType string      `json:"instance_type"`
-	VCPU         interface{} `json:"vCPU"`
-	Memory       float64     `json:"memory"`
-	EBSAsNVME    bool        `json:"ebs_as_nvme"`
-	Storage      struct {
-		Devices int64 `json:"devices"`
-		NVMESSD bool  `json:"nvme_ssd"`
-		Size    int64 `json:"size"`
-	} `json:"storage"`
-}
-
-var loadedInstances struct {
+type InstanceTypes struct {
 	instances map[string]Instance
-	lock      sync.RWMutex
 }
 
-func InitInstanceTypes(ec2client ec2iface.EC2API) error {
-	loadedInstances.lock.Lock()
-	defer loadedInstances.lock.Unlock()
-
-	if loadedInstances.instances != nil {
-		return fmt.Errorf("instance data already initialised")
+func NewInstanceTypes(instanceData []Instance) *InstanceTypes {
+	result := make(map[string]Instance)
+	for _, instanceType := range instanceData {
+		result[instanceType.InstanceType] = instanceType
 	}
+	return &InstanceTypes{instances: result}
+}
 
-	newInstances := make(map[string]Instance)
+func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) {
+	instances := make(map[string]Instance)
 
 	var innerErr error
 	err := ec2client.DescribeInstanceTypesPages(&ec2.DescribeInstanceTypesInput{}, func(output *ec2.DescribeInstanceTypesOutput, _ bool) bool {
@@ -86,27 +73,23 @@ func InitInstanceTypes(ec2client ec2iface.EC2API) error {
 				InstanceStorageDevices:    deviceCount,
 				InstanceStorageDeviceSize: deviceSize,
 			}
-			newInstances[info.InstanceType] = info
+			instances[info.InstanceType] = info
 		}
 		return true
 	})
 	if innerErr != nil {
-		return innerErr
+		return nil, innerErr
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	log.Infof("Loaded %d instance types from AWS", len(newInstances))
-	loadedInstances.instances = newInstances
-	return nil
+	log.Debugf("Loaded %d instance types from AWS", len(instances))
+	return &InstanceTypes{instances: instances}, nil
 }
 
-func InstanceInfo(instanceType string) (Instance, error) {
-	loadedInstances.lock.RLock()
-	defer loadedInstances.lock.RUnlock()
-
-	result, ok := loadedInstances.instances[instanceType]
+func (types *InstanceTypes) InstanceInfo(instanceType string) (Instance, error) {
+	result, ok := types.instances[instanceType]
 	if !ok {
 		return Instance{}, fmt.Errorf("unknown instance type: %s", instanceType)
 	}
@@ -114,20 +97,17 @@ func InstanceInfo(instanceType string) (Instance, error) {
 }
 
 // AllInstances returns information for all known AWS EC2 instances.
-func AllInstances() map[string]Instance {
-	loadedInstances.lock.RLock()
-	defer loadedInstances.lock.RUnlock()
-
-	return loadedInstances.instances
+func (types *InstanceTypes) AllInstances() map[string]Instance {
+	return types.instances
 }
 
-func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
+func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 	if len(instanceTypes) == 0 {
 		return Instance{}, fmt.Errorf("no instance types provided")
 	} else if len(instanceTypes) == 1 {
-		return InstanceInfo(instanceTypes[0])
+		return types.InstanceInfo(instanceTypes[0])
 	} else {
-		first, err := InstanceInfo(instanceTypes[0])
+		first, err := types.InstanceInfo(instanceTypes[0])
 		if err != nil {
 			return Instance{}, err
 		}
@@ -140,7 +120,7 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 			InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
 		}
 		for _, instanceType := range instanceTypes[1:] {
-			info, err := InstanceInfo(instanceType)
+			info, err := types.InstanceInfo(instanceType)
 			if err != nil {
 				return Instance{}, err
 			}

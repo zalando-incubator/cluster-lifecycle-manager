@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -150,14 +149,6 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 	return nil
 }
 
-func TestMain(m *testing.M) {
-	err := InitInstanceTypes(&mockEC2{})
-	if err != nil {
-		panic(err)
-	}
-	os.Exit(m.Run())
-}
-
 func TestAvailableStorage(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -193,7 +184,10 @@ func TestAvailableStorage(t *testing.T) {
 	}
 }
 
-func TestInstanceInfo(t *testing.T) {
+func TestInstanceInfoFromAWS(t *testing.T) {
+	instanceTypes, err := NewInstanceTypesFromAWS(&mockEC2{})
+	require.NoError(t, err)
+
 	for _, tc := range []Instance{
 		{
 			InstanceType: "m4.xlarge",
@@ -209,7 +203,7 @@ func TestInstanceInfo(t *testing.T) {
 		},
 	} {
 		t.Run(tc.InstanceType, func(t *testing.T) {
-			info, err := InstanceInfo(tc.InstanceType)
+			info, err := instanceTypes.InstanceInfo(tc.InstanceType)
 			require.NoError(t, err)
 			require.Equal(t, tc.InstanceType, info.InstanceType)
 			require.Equal(t, tc.VCPU, info.VCPU)
@@ -220,11 +214,64 @@ func TestInstanceInfo(t *testing.T) {
 }
 
 func TestInstanceInfoError(t *testing.T) {
-	_, err := InstanceInfo("invalid.type")
+	instanceTypes := NewInstanceTypes([]Instance{
+		{
+			InstanceType: "m4.xlarge",
+			VCPU:         4,
+			Memory:       17179869184,
+		},
+	})
+
+	_, err := instanceTypes.InstanceInfo("invalid.type")
 	require.Error(t, err)
 }
 
 func TestSyntheticInstanceInfo(t *testing.T) {
+	instanceTypes := NewInstanceTypes([]Instance{
+		{
+			InstanceType:              "m4.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    0,
+			InstanceStorageDeviceSize: 0,
+		},
+		{
+			InstanceType:              "m5.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    0,
+			InstanceStorageDeviceSize: 0,
+		},
+		{
+			InstanceType:              "m5d.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 161061273600,
+		},
+		{
+			InstanceType:              "m5d.4xlarge",
+			VCPU:                      16,
+			Memory:                    68719476736,
+			InstanceStorageDevices:    2,
+			InstanceStorageDeviceSize: 322122547200,
+		},
+		{
+			InstanceType:              "c5d.xlarge",
+			VCPU:                      4,
+			Memory:                    8589934592,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 107374182400,
+		},
+		{
+			InstanceType:              "r5d.large",
+			VCPU:                      2,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 80530636800,
+		},
+	})
+
 	for _, tc := range []struct {
 		name             string
 		instanceTypes    []string
@@ -293,7 +340,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := SyntheticInstanceInfo(tc.instanceTypes)
+			info, err := instanceTypes.SyntheticInstanceInfo(tc.instanceTypes)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
