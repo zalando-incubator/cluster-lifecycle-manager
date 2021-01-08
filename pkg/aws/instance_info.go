@@ -1,17 +1,18 @@
 package aws
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	gigabyte = 1024 * 1024 * 1024
+	megabyte = 1024 * 1024
+	gigabyte = 1024 * megabyte
 )
 
 type Instance struct {
@@ -42,12 +43,68 @@ type instanceInfo struct {
 }
 
 var loadedInstances struct {
-	once      sync.Once
 	instances map[string]Instance
+	lock      sync.RWMutex
+}
+
+func InitInstanceTypes(ec2client ec2iface.EC2API) error {
+	loadedInstances.lock.Lock()
+	defer loadedInstances.lock.Unlock()
+
+	if loadedInstances.instances != nil {
+		return fmt.Errorf("instance data already initialised")
+	}
+
+	newInstances := make(map[string]Instance)
+
+	var innerErr error
+	err := ec2client.DescribeInstanceTypesPages(&ec2.DescribeInstanceTypesInput{}, func(output *ec2.DescribeInstanceTypesOutput, _ bool) bool {
+		for _, instanceType := range output.InstanceTypes {
+			var (
+				deviceCount, deviceSize int64
+			)
+
+			if instanceType.InstanceStorageInfo != nil {
+				storageDisks := instanceType.InstanceStorageInfo.Disks
+				switch len(storageDisks) {
+				case 0:
+					// do nothing
+				case 1:
+					deviceCount = aws.Int64Value(storageDisks[0].Count)
+					deviceSize = aws.Int64Value(storageDisks[0].SizeInGB) * gigabyte
+				default:
+					// doesn't happen at the moment, raise an error so we can decide how to handle this
+					innerErr = fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), aws.StringValue(instanceType.InstanceType))
+					return false
+				}
+			}
+
+			info := Instance{
+				InstanceType:              aws.StringValue(instanceType.InstanceType),
+				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
+				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * megabyte,
+				InstanceStorageDevices:    deviceCount,
+				InstanceStorageDeviceSize: deviceSize,
+			}
+			newInstances[info.InstanceType] = info
+		}
+		return true
+	})
+	if innerErr != nil {
+		return innerErr
+	}
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Loaded %d instance types from AWS", len(newInstances))
+	loadedInstances.instances = newInstances
+	return nil
 }
 
 func InstanceInfo(instanceType string) (Instance, error) {
-	AllInstances()
+	loadedInstances.lock.RLock()
+	defer loadedInstances.lock.RUnlock()
 
 	result, ok := loadedInstances.instances[instanceType]
 	if !ok {
@@ -58,9 +115,8 @@ func InstanceInfo(instanceType string) (Instance, error) {
 
 // AllInstances returns information for all known AWS EC2 instances.
 func AllInstances() map[string]Instance {
-	loadedInstances.once.Do(func() {
-		loadedInstances.instances = loadInstanceInfo()
-	})
+	loadedInstances.lock.RLock()
+	defer loadedInstances.lock.RUnlock()
 
 	return loadedInstances.instances
 }
@@ -104,48 +160,4 @@ func min(a int64, b int64) int64 {
 		return a
 	}
 	return b
-}
-
-func loadInstanceInfo() map[string]Instance {
-	data := MustAsset("instances.json")
-
-	var instanceInfo []instanceInfo
-	err := json.Unmarshal(data, &instanceInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	result := make(map[string]Instance)
-
-	for _, instance := range instanceInfo {
-		var vCPU int64
-		switch v := instance.VCPU.(type) {
-		case float64:
-			vCPU = int64(v)
-		case string:
-			vCPU, err = strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				log.Warnf("Unable to determine vCPU count for %s: %s", instance.InstanceType, err)
-				continue
-			}
-		default:
-			log.Warnf("Unable to determine vCPU count for %s: %s", instance.InstanceType, reflect.TypeOf(instance.VCPU))
-			continue
-		}
-
-		instanceInfo := Instance{
-			InstanceType: instance.InstanceType,
-			VCPU:         vCPU,
-			Memory:       int64(instance.Memory * gigabyte),
-		}
-
-		if instance.Storage.NVMESSD {
-			instanceInfo.InstanceStorageDevices = instance.Storage.Devices
-			instanceInfo.InstanceStorageDeviceSize = gigabyte * instance.Storage.Size
-		}
-
-		result[instance.InstanceType] = instanceInfo
-	}
-
-	return result
 }

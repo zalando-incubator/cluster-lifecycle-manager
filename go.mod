@@ -16,7 +16,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.4 // indirect
-	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/copystructure v1.1.1
 	github.com/mweagle/go-cloudformation v0.0.0-20210117063902-00aa242fdc67 // indirect

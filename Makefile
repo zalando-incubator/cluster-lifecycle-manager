@@ -8,12 +8,9 @@ SOURCES              = $(shell find . -name '*.go')
 GO                   ?= go
 SPEC                 = docs/cluster-registry.yaml
 CR_CLIENT            = pkg/cluster-registry
-AWS_INSTANCE_DATA    = pkg/aws/bindata.go
-AWS_DATA_SRC         = awsdata/instances.json
 DOCKERFILE           ?= Dockerfile
 GOPKGS               = $(shell $(GO) list ./...)
 GO_SWAGGER           = ./build/swagger
-GO_BINDATA           = ./build/go-bindata
 BUILD_FLAGS          ?= -v
 LDFLAGS              ?= -X main.version=$(VERSION) -w -s
 
@@ -38,14 +35,6 @@ fmt:
 $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
 	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | {instance_type, vCPU, memory, storage: (if .storage == null then null else .storage | {devices, size, nvme_ssd} end)}] | sort_by(.instance_type)' > "$@"
-
-$(GO_BINDATA):
-	mkdir -p build
-	GOBIN=$(shell pwd)/build $(GO) install github.com/jteeuwen/go-bindata/go-bindata
-
-$(AWS_INSTANCE_DATA): $(GO_BINDATA) $(AWS_DATA_SRC)
-	$(GO_BINDATA) -pkg aws -o $(AWS_INSTANCE_DATA) --prefix $(dir $(AWS_DATA_SRC)) $(AWS_DATA_SRC)
-	echo '//lint:file-ignore ST1005 Ignore issues with generated code' >> $(AWS_INSTANCE_DATA)
 
 $(GO_SWAGGER):
 	mkdir -p build

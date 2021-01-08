@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -110,6 +111,12 @@ func main() {
 	secretDecrypter := decrypter.SecretDecrypter(map[string]decrypter.Decrypter{
 		decrypter.AWSKMSSecretPrefix: decrypter.NewAWSKMSDescrypter(sess),
 	})
+
+	// init AWS instance types
+	err = aws.InitInstanceTypes(ec2.New(sess))
+	if err != nil {
+		log.Fatalf("Failed to fetch AWS instance types: %v", err)
+	}
 
 	rootLogger := log.StandardLogger().WithFields(map[string]interface{}{})
 
