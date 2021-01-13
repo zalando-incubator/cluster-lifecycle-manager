@@ -3,6 +3,7 @@ package updatestrategy
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/cenkalti/backoff"
 	spotio "github.com/spotinst/spotinst-sdk-go/service/ocean/providers/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
@@ -180,9 +182,19 @@ func (n *SpotIONodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, i
 		OceanID: aws.String(oceanID),
 	}
 
-	resp, err := n.spotIOClient.ListLaunchSpecs(ctx, params)
+	var resp *spotio.ListLaunchSpecsOutput
+	err := backoff.Retry(
+		func() (e error) {
+			resp, e = n.spotIOClient.ListLaunchSpecs(ctx, params)
+			return
+		},
+		// Spot.io has a transient error on its API currently being
+		// investigated by their team. The following wraps the call on
+		// a backoff of 1 second with max 5 attempts.
+		backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5))
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to retrieve spot.io's launch specs: %s", err)
 	}
 
 	if len(resp.LaunchSpecs) != 1 {
