@@ -524,7 +524,11 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	// recreate resources we delete in the next step
 	err = backoff.Retry(
 		func() error {
-			return p.downscaleDeployments(ctx, logger, cluster, "kube-system")
+			err := p.downscaleDeployments(ctx, logger, cluster, "kube-system")
+			if err != nil {
+				logger.Debugf("Failed to downscale deployments, will retry: %s", err.Error())
+			}
+			return err
 		},
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(10*time.Second), 5))
 	if err != nil {
