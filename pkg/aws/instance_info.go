@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	megabyte = 1024 * 1024
-	gigabyte = 1024 * megabyte
+	mebibyte = 1024 * 1024
+
+	gigabyte = 1000 * 1000 * 1000
 )
 
 type Instance struct {
@@ -69,7 +70,7 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 			info := Instance{
 				InstanceType:              aws.StringValue(instanceType.InstanceType),
 				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
-				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * megabyte,
+				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
 				InstanceStorageDevices:    deviceCount,
 				InstanceStorageDeviceSize: deviceSize,
 			}

@@ -199,7 +199,7 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			VCPU:                      16,
 			Memory:                    130996502528,
 			InstanceStorageDevices:    2,
-			InstanceStorageDeviceSize: 1900 * gigabyte,
+			InstanceStorageDeviceSize: 1900 * 1000 * 1000 * 1000,
 		},
 	} {
 		t.Run(tc.InstanceType, func(t *testing.T) {
@@ -209,6 +209,7 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			require.Equal(t, tc.VCPU, info.VCPU)
 			require.Equal(t, tc.Memory, info.Memory)
 			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
+			require.Equal(t, tc.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
 		})
 	}
 }
@@ -315,7 +316,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      2,
 				Memory:                    8589934592,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 75 * 1024 * megabyte,
+				InstanceStorageDeviceSize: 75 * 1024 * mebibyte,
 			},
 		},
 		{
@@ -326,7 +327,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      4,
 				Memory:                    17179869184,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 150 * 1024 * megabyte,
+				InstanceStorageDeviceSize: 150 * 1024 * mebibyte,
 			},
 		},
 		{
