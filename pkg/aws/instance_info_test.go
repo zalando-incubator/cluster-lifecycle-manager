@@ -6,6 +6,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAvailableStorage(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		devices    int64
+		deviceSize int64
+		expected   int64
+	}{
+		{
+			name:       "ebs only",
+			devices:    0,
+			deviceSize: 0,
+			expected:   42949672960,
+		},
+		{
+			name:       "instance storage, 1 device",
+			devices:    1,
+			deviceSize: 107374182400,
+			expected:   102005473280,
+		},
+		{
+			name:       "instance storage, multiple devices",
+			devices:    4,
+			deviceSize: 107374182400,
+			expected:   408021893120,
+		},
+	} {
+		info := Instance{
+			InstanceType:              "test",
+			InstanceStorageDevices:    tc.devices,
+			InstanceStorageDeviceSize: tc.deviceSize,
+		}
+		require.Equal(t, tc.expected, info.AvailableStorage(0.95, 50*1024*1024*1024, 0.8))
+	}
+}
+
 func TestInstanceInfo(t *testing.T) {
 	for _, tc := range []Instance{
 		{
