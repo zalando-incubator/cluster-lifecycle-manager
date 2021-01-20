@@ -1,8 +1,8 @@
 FROM registry.opensource.zalan.do/library/alpine-3.12:latest as kubectl_download
 
 RUN apk add --no-cache --update curl tar coreutils && \
-    curl -L -s --fail https://dl.k8s.io/v1.18.8/kubernetes-client-linux-amd64.tar.gz -o kubernetes-client-linux-amd64.tar.gz && \
-    echo "041dd919f7bf530e6fb6881bc475dbd34cec340eae62193cba1174a0fa0b9d30435b74b0a130db4cdabf35dc59c1bf6bc255e4f91c8ec9a839fb541735e3861e kubernetes-client-linux-amd64.tar.gz" | sha512sum -c - && \
+    curl -L -s --fail https://dl.k8s.io/v1.19.7/kubernetes-client-linux-amd64.tar.gz -o kubernetes-client-linux-amd64.tar.gz && \
+    echo "8c9606088b91e02bcfe3dd2f26357cd3d2acd1d46b41301cf5247c7e8365e9acacfa3bfecc1865bc7459425beaeb38c8991365ae3c03d3522f1695c2b775ab20 kubernetes-client-linux-amd64.tar.gz" | sha512sum -c - && \
     tar xvf kubernetes-client-linux-amd64.tar.gz --strip-components 3 kubernetes/client/bin/ && \
     rm kubernetes-client-linux-amd64.tar.gz
 
