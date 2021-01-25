@@ -72,6 +72,7 @@ const (
 	spotIONodePoolProfileLegacy        = "worker-spotio-ocean"
 	spotIONodePoolProfile              = "worker-spotio"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
+	oidcAdditionalProvidersConfigItem  = "oidc_additional_providers"
 )
 
 type clusterpyProvisioner struct {
@@ -326,13 +327,22 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	if err != nil {
 		return err
 	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, hostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+
+	oidcHosts := []string{hostname}
+
+	if cluster.ConfigItems[oidcAdditionalProvidersConfigItem] != "" {
+		oidcHosts = append(oidcHosts, strings.Split(cluster.ConfigItems[oidcAdditionalProvidersConfigItem], ",")...)
 	}
-	err = provisioner.Provision()
-	if err != nil {
-		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
+
+	for _, host := range oidcHosts {
+		provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, host)
+		if err != nil {
+			return fmt.Errorf("failed to create oidc provisioner: %v", err)
+		}
+		err = provisioner.Provision()
+		if err != nil {
+			return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
+		}
 	}
 
 	// provision node pools
@@ -602,15 +612,24 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	if err != nil {
 		return err
 	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, providerHostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
+
+	oidcHosts := []string{providerHostname}
+
+	if cluster.ConfigItems[oidcAdditionalProvidersConfigItem] != "" {
+		oidcHosts = append(oidcHosts, strings.Split(cluster.ConfigItems[oidcAdditionalProvidersConfigItem], ",")...)
 	}
 
-	logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
-	err = provisioner.Delete()
-	if err != nil {
-		return fmt.Errorf("failed to delete openid provider: %v", err)
+	for _, host := range oidcHosts {
+		provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, host)
+		if err != nil {
+			return fmt.Errorf("failed to create oidc provisioner: %v", err)
+		}
+
+		logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
+		err = provisioner.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete openid provider: %v", err)
+		}
 	}
 
 	return nil

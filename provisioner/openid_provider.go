@@ -27,7 +27,7 @@ type OpenIDProviderProvisioner struct {
 func NewOpenIDProviderProvisioner(adapter *awsAdapter, providerHostname string) (*OpenIDProviderProvisioner, error) {
 	return &OpenIDProviderProvisioner{
 		awsAdapter:  adapter,
-		providerUrl: providerHostname,
+		providerUrl: strings.TrimSpace(providerHostname),
 		clientIDs:   []string{stsDomain},
 		thumbprints: []string{acmRootCAThumbprint},
 	}, nil
