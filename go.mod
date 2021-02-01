@@ -20,7 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
-	github.com/spotinst/spotinst-sdk-go v1.75.0
+	github.com/spotinst/spotinst-sdk-go v1.76.0
 	github.com/stretchr/testify v1.6.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.10
 	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11 // indirect
