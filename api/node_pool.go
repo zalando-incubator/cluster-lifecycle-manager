@@ -1,6 +1,8 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 )
 
@@ -20,6 +22,10 @@ type NodePool struct {
 
 func (np NodePool) IsSpot() bool {
 	return np.DiscountStrategy == "spot_max_price" || np.DiscountStrategy == "spot"
+}
+
+func (np NodePool) IsMaster() bool {
+	return strings.Contains(np.Profile, "master")
 }
 
 // AvailableStorage returns the storage available on the instance for the user data based on the

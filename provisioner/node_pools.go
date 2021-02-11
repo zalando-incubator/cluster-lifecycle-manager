@@ -30,7 +30,9 @@ const (
 	nodePoolTagKey        = "kubernetes.io/node-pool"
 	nodePoolRoleTagKey    = "kubernetes.io/role/node-pool"
 	nodePoolProfileTagKey = "kubernetes.io/node-pool/profile"
-	remoteFilesKMSKey     = "RemoteFilesEncryptionKey"
+
+	masterFilesKMSKey = "MasterFilesEncryptionKey"
+	workerFilesKMSKey = "WorkerFilesEncryptionKey"
 
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
@@ -285,17 +287,17 @@ func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userDataHash string, userDat
 	return fmt.Sprintf("s3://%s/%s", bucketName, userDataHash), nil
 }
 
-func getPKIKMSKey(adapter *awsAdapter, clusterID string) (string, error) {
+func getPKIKMSKey(adapter *awsAdapter, clusterID string, keyID string) (string, error) {
 	clusterStack, err := adapter.getStackByName(clusterID)
 	if err != nil {
 		return "", err
 	}
 	for _, o := range clusterStack.Outputs {
-		if *o.OutputKey == remoteFilesKMSKey {
+		if *o.OutputKey == keyID {
 			return *o.OutputValue, nil
 		}
 	}
-	return "", fmt.Errorf("failed to find the encryption key: %s", remoteFilesKMSKey)
+	return "", fmt.Errorf("failed to find the encryption key: %s", keyID)
 }
 
 // renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
@@ -309,7 +311,13 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePo
 	if err != nil {
 		return "", err
 	}
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID)
+	var keyID string
+	if nodePool.IsMaster() {
+		keyID = masterFilesKMSKey
+	} else {
+		keyID = workerFilesKMSKey
+	}
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyID)
 	if err != nil {
 		return "", err
 	}
