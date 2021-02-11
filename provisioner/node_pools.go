@@ -313,7 +313,7 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePo
 		return "", err
 	}
 	var (
-		keyName, poolKind string
+		keyName, poolKind, filename string
 	)
 	if nodePool.IsMaster() {
 		keyName = masterFilesKMSKey
@@ -334,7 +334,15 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePo
 	if err != nil {
 		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
 	}
-	filename := path.Join(p.cluster.LocalID, poolKind, userDataHash)
+
+	// Make it possible to migrate one channel at a time.
+	// TODO drop once all the clusters have migrated.
+	if p.cluster.ConfigItems["clm_new_userdata_path"] == "true" {
+		filename = path.Join(p.cluster.LocalID, poolKind, userDataHash)
+	} else {
+		filename = userDataHash
+	}
+
 	return p.uploadUserDataToS3(filename, archive, p.bucketName)
 }
 
