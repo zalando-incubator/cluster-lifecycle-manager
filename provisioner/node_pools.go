@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -274,30 +275,30 @@ func generateDataHash(userData []byte) (string, error) {
 
 // uploadUserDataToS3 uploads the provided userData to the specified S3 bucket.
 // The S3 object will be named by the sha512 hash of the data.
-func (p *AWSNodePoolProvisioner) uploadUserDataToS3(userDataHash string, userData []byte, bucketName string) (string, error) {
+func (p *AWSNodePoolProvisioner) uploadUserDataToS3(filename string, userData []byte, bucketName string) (string, error) {
 	// Upload the stack template to S3
 	_, err := p.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
-		Key:    aws.String(userDataHash),
+		Key:    aws.String(filename),
 		Body:   bytes.NewReader(userData),
 	})
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("s3://%s/%s", bucketName, userDataHash), nil
+	return fmt.Sprintf("s3://%s/%s", bucketName, filename), nil
 }
 
-func getPKIKMSKey(adapter *awsAdapter, clusterID string, keyID string) (string, error) {
+func getPKIKMSKey(adapter *awsAdapter, clusterID string, keyName string) (string, error) {
 	clusterStack, err := adapter.getStackByName(clusterID)
 	if err != nil {
 		return "", err
 	}
 	for _, o := range clusterStack.Outputs {
-		if *o.OutputKey == keyID {
+		if *o.OutputKey == keyName {
 			return *o.OutputValue, nil
 		}
 	}
-	return "", fmt.Errorf("failed to find the encryption key: %s", keyID)
+	return "", fmt.Errorf("failed to find the encryption key: %s", keyName)
 }
 
 // renderUploadGeneratedFiles renders a yaml file which is mapping of file names and it's contents. A gzipped tar archive of these
@@ -311,13 +312,17 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePo
 	if err != nil {
 		return "", err
 	}
-	var keyID string
+	var (
+		keyName, poolKind string
+	)
 	if nodePool.IsMaster() {
-		keyID = masterFilesKMSKey
+		keyName = masterFilesKMSKey
+		poolKind = "master"
 	} else {
-		keyID = workerFilesKMSKey
+		keyName = workerFilesKMSKey
+		poolKind = "worker"
 	}
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyID)
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyName)
 	if err != nil {
 		return "", err
 	}
@@ -329,7 +334,8 @@ func (p *AWSNodePoolProvisioner) renderUploadGeneratedFiles(nodePool *api.NodePo
 	if err != nil {
 		return "", fmt.Errorf("failed to generate hash of userdata: %v", err)
 	}
-	return p.uploadUserDataToS3(userDataHash, archive, p.bucketName)
+	filename := path.Join(p.cluster.LocalID, poolKind, userDataHash)
+	return p.uploadUserDataToS3(filename, archive, p.bucketName)
 }
 
 func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
