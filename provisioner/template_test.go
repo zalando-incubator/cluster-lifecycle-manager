@@ -245,6 +245,52 @@ func TestParsePortRanges(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestParseSGIngressRanges(t *testing.T) {
+	testTemplate := `{{- if index .Values.data.sgIngressRanges -}}
+{{- range $index, $element := sgIngressRanges .Values.data.sgIngressRanges -}}
+- CidrIp: {{ $element.CIDR }}
+  FromPort: {{ $element.FromPort }}
+  IpProtocol: tcp
+  ToPort: {{ $element.ToPort }}
+{{ end -}}
+{{- end -}}`
+
+	r, err := renderSingle(t, testTemplate, map[string]string{"sgIngressRanges": "10.0.0.0/8:0-100,0.0.0.0/0:300-400,127.0.0.1/32:500"})
+	require.NoError(t, err)
+	require.Equal(t, `- CidrIp: 10.0.0.0/8
+  FromPort: 0
+  IpProtocol: tcp
+  ToPort: 100
+- CidrIp: 0.0.0.0/0
+  FromPort: 300
+  IpProtocol: tcp
+  ToPort: 400
+- CidrIp: 127.0.0.1/32
+  FromPort: 500
+  IpProtocol: tcp
+  ToPort: 500
+`, r, "rendered template is incorrect")
+
+	r, err = renderSingle(t, testTemplate, map[string]string{"sgIngressRanges": ""})
+	require.NoError(t, err)
+	require.Equal(t, "", r, "rendered template is not empty")
+
+	_, err = renderSingle(t, `{{ sgIngressRanges "0.0.0.0/0:0-1-2 }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ sgIngressRanges "0.0.0.0/0:0-1,-2 }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ sgIngressRanges "0.0.0.0/0:30-20" }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ sgIngressRanges "0.0.0.0/0:0-200000" }}`, "")
+	require.Error(t, err)
+
+	_, err = renderSingle(t, `{{ sgIngressRanges "10.0.0:0-1" }}`, "")
+	require.Error(t, err)
+}
+
 func TestSplitHostPort(t *testing.T) {
 	result, err := renderSingle(
 		t,
