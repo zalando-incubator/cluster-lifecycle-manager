@@ -1287,7 +1287,7 @@ func int32Value(v *int32) int32 {
 func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
 	var masters, workers []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
-		if strings.Contains(nodePool.Profile, "master") {
+		if nodePool.IsMaster() {
 			masters = append(masters, nodePool)
 			continue
 		}
