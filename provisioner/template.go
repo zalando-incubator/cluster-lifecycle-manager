@@ -109,6 +109,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
+		"sgIngressRanges":      sgIngressRanges,
 		"splitHostPort":        splitHostPort,
 		"extractEndpointHosts": extractEndpointHosts,
 		"publicKey":            publicKey,
@@ -310,6 +311,60 @@ func portRanges(ranges string) ([]PortRange, error) {
 			return nil, fmt.Errorf("port range %d-%d is invalid", fromPort, toPort)
 		}
 		p[i] = PortRange{FromPort: fromPort, ToPort: toPort}
+	}
+	return p, nil
+}
+
+type SGIngressRange struct {
+	CIDR             string
+	FromPort, ToPort int
+}
+
+// sgIngressRanges parses a list of Security Group Ingress ranges.
+//
+// Example:
+//
+// "10.0.0.0/8:4180-4181,0.0.0.0/0:4190" would result in the ingress ranges:
+// [{CIDR: "10.0.0.0/8", FromPort: 4180, ToPort: 4181},{CIDR: "0.0.0.0/0", FromPort: 4190, ToPort: 4190}]
+func sgIngressRanges(ranges string) ([]SGIngressRange, error) {
+	rangesL := strings.Split(ranges, ",")
+	p := make([]SGIngressRange, len(rangesL))
+	for i, r := range rangesL {
+		splitCIDR := strings.Split(r, ":")
+		var cidr, portRange string
+		if len(splitCIDR) != 2 {
+			return nil, fmt.Errorf("invalid input for sgIngressRanges: %s", ranges)
+		}
+		cidr = splitCIDR[0]
+		portRange = splitCIDR[1]
+
+		_, cidrNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, err
+		}
+		splitR := strings.Split(portRange, "-")
+		var fromPortStr, toPortStr string
+		if len(splitR) == 1 {
+			fromPortStr = splitR[0]
+			toPortStr = fromPortStr
+		} else if len(splitR) == 2 {
+			fromPortStr = splitR[0]
+			toPortStr = splitR[1]
+		} else {
+			return nil, fmt.Errorf("invalid input for sgIngressRanges: %s", ranges)
+		}
+		fromPort, err := strconv.Atoi(fromPortStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start port: %s in input: %s", splitR[0], ranges)
+		}
+		toPort, err := strconv.Atoi(toPortStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end port: %s in input: %s", splitR[1], ranges)
+		}
+		if !validPortRange(fromPort, toPort) {
+			return nil, fmt.Errorf("port range %d-%d is invalid", fromPort, toPort)
+		}
+		p[i] = SGIngressRange{CIDR: cidrNet.String(), FromPort: fromPort, ToPort: toPort}
 	}
 	return p, nil
 }
