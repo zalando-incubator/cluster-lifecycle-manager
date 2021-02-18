@@ -24,6 +24,10 @@ func (np NodePool) IsSpot() bool {
 	return np.DiscountStrategy == "spot_max_price" || np.DiscountStrategy == "spot"
 }
 
+func (np NodePool) IsSpotIO() bool {
+	return np.Profile == "worker-spotio-ocean" || np.Profile == "worker-spotio"
+}
+
 func (np NodePool) IsMaster() bool {
 	return strings.Contains(np.Profile, "master")
 }

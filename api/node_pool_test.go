@@ -38,3 +38,8 @@ func TestAvailableStorage(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSpotIO(t *testing.T) {
+	pool := NodePool{Profile: "worker-spotio"}
+	require.True(t, pool.IsSpotIO())
+}
