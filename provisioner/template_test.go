@@ -878,3 +878,47 @@ func TestZoneDistributedNodePoolGroupsDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestSpotIONodePools(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		pools    []*api.NodePool
+		expected bool
+	}{
+		{
+			name: "one pool is spot.io",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-spotio",
+				},
+				{
+					Name:    "default-2",
+					Profile: "worker-splitaz",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "no pools are spot.io",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:        "default-2",
+					Profile:     "worker-default",
+					ConfigItems: map[string]string{"taints": "foo=bar:NoSchedule"},
+				},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, `{{ spotIONodePools .Values.data.pools }}`, map[string]interface{}{"pools": tc.pools})
+			require.NoError(t, err)
+			require.Equal(t, strconv.FormatBool(tc.expected), result)
+		})
+	}
+}
