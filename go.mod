@@ -5,7 +5,7 @@ require (
 	github.com/aws/aws-sdk-go v1.37.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/go-openapi/errors v0.19.9
+	github.com/go-openapi/errors v0.20.0
 	github.com/go-openapi/runtime v0.19.26
 	github.com/go-openapi/strfmt v0.20.0
 	github.com/go-openapi/swag v0.19.14
