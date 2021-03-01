@@ -16,59 +16,73 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewGetInfrastructureAccountParams creates a new GetInfrastructureAccountParams object
-// with the default values initialized.
+// NewGetInfrastructureAccountParams creates a new GetInfrastructureAccountParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewGetInfrastructureAccountParams() *GetInfrastructureAccountParams {
-	var ()
 	return &GetInfrastructureAccountParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewGetInfrastructureAccountParamsWithTimeout creates a new GetInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewGetInfrastructureAccountParamsWithTimeout(timeout time.Duration) *GetInfrastructureAccountParams {
-	var ()
 	return &GetInfrastructureAccountParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewGetInfrastructureAccountParamsWithContext creates a new GetInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewGetInfrastructureAccountParamsWithContext(ctx context.Context) *GetInfrastructureAccountParams {
-	var ()
 	return &GetInfrastructureAccountParams{
-
 		Context: ctx,
 	}
 }
 
 // NewGetInfrastructureAccountParamsWithHTTPClient creates a new GetInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewGetInfrastructureAccountParamsWithHTTPClient(client *http.Client) *GetInfrastructureAccountParams {
-	var ()
 	return &GetInfrastructureAccountParams{
 		HTTPClient: client,
 	}
 }
 
-/*GetInfrastructureAccountParams contains all the parameters to send to the API endpoint
-for the get infrastructure account operation typically these are written to a http.Request
+/* GetInfrastructureAccountParams contains all the parameters to send to the API endpoint
+   for the get infrastructure account operation.
+
+   Typically these are written to a http.Request.
 */
 type GetInfrastructureAccountParams struct {
 
-	/*AccountID
-	  ID of the infrastructure account.
+	/* AccountID.
 
+	   ID of the infrastructure account.
 	*/
 	AccountID string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the get infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *GetInfrastructureAccountParams) WithDefaults() *GetInfrastructureAccountParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the get infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *GetInfrastructureAccountParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the get infrastructure account params

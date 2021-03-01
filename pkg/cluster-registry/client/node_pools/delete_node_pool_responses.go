@@ -59,7 +59,6 @@ func (o *DeleteNodePoolReader) ReadResponse(response runtime.ClientResponse, con
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -70,7 +69,7 @@ func NewDeleteNodePoolNoContent() *DeleteNodePoolNoContent {
 	return &DeleteNodePoolNoContent{}
 }
 
-/*DeleteNodePoolNoContent handles this case with default header values.
+/* DeleteNodePoolNoContent describes a response with status code 204, with default header values.
 
 Node pool deleted.
 */
@@ -91,7 +90,7 @@ func NewDeleteNodePoolBadRequest() *DeleteNodePoolBadRequest {
 	return &DeleteNodePoolBadRequest{}
 }
 
-/*DeleteNodePoolBadRequest handles this case with default header values.
+/* DeleteNodePoolBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -102,7 +101,6 @@ type DeleteNodePoolBadRequest struct {
 func (o *DeleteNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *DeleteNodePoolBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -124,7 +122,7 @@ func NewDeleteNodePoolUnauthorized() *DeleteNodePoolUnauthorized {
 	return &DeleteNodePoolUnauthorized{}
 }
 
-/*DeleteNodePoolUnauthorized handles this case with default header values.
+/* DeleteNodePoolUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -145,7 +143,7 @@ func NewDeleteNodePoolForbidden() *DeleteNodePoolForbidden {
 	return &DeleteNodePoolForbidden{}
 }
 
-/*DeleteNodePoolForbidden handles this case with default header values.
+/* DeleteNodePoolForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -166,7 +164,7 @@ func NewDeleteNodePoolNotFound() *DeleteNodePoolNotFound {
 	return &DeleteNodePoolNotFound{}
 }
 
-/*DeleteNodePoolNotFound handles this case with default header values.
+/* DeleteNodePoolNotFound describes a response with status code 404, with default header values.
 
 Node pool not found
 */
@@ -187,7 +185,7 @@ func NewDeleteNodePoolInternalServerError() *DeleteNodePoolInternalServerError {
 	return &DeleteNodePoolInternalServerError{}
 }
 
-/*DeleteNodePoolInternalServerError handles this case with default header values.
+/* DeleteNodePoolInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -198,7 +196,6 @@ type DeleteNodePoolInternalServerError struct {
 func (o *DeleteNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *DeleteNodePoolInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

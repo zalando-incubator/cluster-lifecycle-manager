@@ -17,94 +17,117 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewListInfrastructureAccountsParams creates a new ListInfrastructureAccountsParams object
-// with the default values initialized.
+// NewListInfrastructureAccountsParams creates a new ListInfrastructureAccountsParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewListInfrastructureAccountsParams() *ListInfrastructureAccountsParams {
-	var ()
 	return &ListInfrastructureAccountsParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewListInfrastructureAccountsParamsWithTimeout creates a new ListInfrastructureAccountsParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewListInfrastructureAccountsParamsWithTimeout(timeout time.Duration) *ListInfrastructureAccountsParams {
-	var ()
 	return &ListInfrastructureAccountsParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewListInfrastructureAccountsParamsWithContext creates a new ListInfrastructureAccountsParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewListInfrastructureAccountsParamsWithContext(ctx context.Context) *ListInfrastructureAccountsParams {
-	var ()
 	return &ListInfrastructureAccountsParams{
-
 		Context: ctx,
 	}
 }
 
 // NewListInfrastructureAccountsParamsWithHTTPClient creates a new ListInfrastructureAccountsParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewListInfrastructureAccountsParamsWithHTTPClient(client *http.Client) *ListInfrastructureAccountsParams {
-	var ()
 	return &ListInfrastructureAccountsParams{
 		HTTPClient: client,
 	}
 }
 
-/*ListInfrastructureAccountsParams contains all the parameters to send to the API endpoint
-for the list infrastructure accounts operation typically these are written to a http.Request
+/* ListInfrastructureAccountsParams contains all the parameters to send to the API endpoint
+   for the list infrastructure accounts operation.
+
+   Typically these are written to a http.Request.
 */
 type ListInfrastructureAccountsParams struct {
 
-	/*CostCenter
-	  Filter on cost center number.
+	/* CostCenter.
 
+	   Filter on cost center number.
 	*/
 	CostCenter *string
-	/*CriticalityLevel
-	  Filter on criticality level.
 
+	/* CriticalityLevel.
+
+	   Filter on criticality level.
+
+	   Format: int32
 	*/
 	CriticalityLevel *int32
-	/*Environment
-	  Filter on environment.
 
+	/* Environment.
+
+	   Filter on environment.
 	*/
 	Environment *string
-	/*ExternalID
-	  Filter on external id.
 
+	/* ExternalID.
+
+	   Filter on external id.
 	*/
 	ExternalID *string
-	/*LifecycleStatus
-	  Filter on cluster lifecycle status.
 
+	/* LifecycleStatus.
+
+	   Filter on cluster lifecycle status.
 	*/
 	LifecycleStatus *string
-	/*Name
-	  Filter on name.
 
+	/* Name.
+
+	   Filter on name.
 	*/
 	Name *string
-	/*Owner
-	  Filter on owner.
 
+	/* Owner.
+
+	   Filter on owner.
 	*/
 	Owner *string
-	/*Type
-	  Filter on type.
 
+	/* Type.
+
+	   Filter on type.
 	*/
 	Type *string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the list infrastructure accounts params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *ListInfrastructureAccountsParams) WithDefaults() *ListInfrastructureAccountsParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the list infrastructure accounts params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *ListInfrastructureAccountsParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the list infrastructure accounts params
@@ -240,128 +263,136 @@ func (o *ListInfrastructureAccountsParams) WriteToRequest(r runtime.ClientReques
 
 		// query param cost_center
 		var qrCostCenter string
+
 		if o.CostCenter != nil {
 			qrCostCenter = *o.CostCenter
 		}
 		qCostCenter := qrCostCenter
 		if qCostCenter != "" {
+
 			if err := r.SetQueryParam("cost_center", qCostCenter); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.CriticalityLevel != nil {
 
 		// query param criticality_level
 		var qrCriticalityLevel int32
+
 		if o.CriticalityLevel != nil {
 			qrCriticalityLevel = *o.CriticalityLevel
 		}
 		qCriticalityLevel := swag.FormatInt32(qrCriticalityLevel)
 		if qCriticalityLevel != "" {
+
 			if err := r.SetQueryParam("criticality_level", qCriticalityLevel); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Environment != nil {
 
 		// query param environment
 		var qrEnvironment string
+
 		if o.Environment != nil {
 			qrEnvironment = *o.Environment
 		}
 		qEnvironment := qrEnvironment
 		if qEnvironment != "" {
+
 			if err := r.SetQueryParam("environment", qEnvironment); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.ExternalID != nil {
 
 		// query param external_id
 		var qrExternalID string
+
 		if o.ExternalID != nil {
 			qrExternalID = *o.ExternalID
 		}
 		qExternalID := qrExternalID
 		if qExternalID != "" {
+
 			if err := r.SetQueryParam("external_id", qExternalID); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.LifecycleStatus != nil {
 
 		// query param lifecycle_status
 		var qrLifecycleStatus string
+
 		if o.LifecycleStatus != nil {
 			qrLifecycleStatus = *o.LifecycleStatus
 		}
 		qLifecycleStatus := qrLifecycleStatus
 		if qLifecycleStatus != "" {
+
 			if err := r.SetQueryParam("lifecycle_status", qLifecycleStatus); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Name != nil {
 
 		// query param name
 		var qrName string
+
 		if o.Name != nil {
 			qrName = *o.Name
 		}
 		qName := qrName
 		if qName != "" {
+
 			if err := r.SetQueryParam("name", qName); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Owner != nil {
 
 		// query param owner
 		var qrOwner string
+
 		if o.Owner != nil {
 			qrOwner = *o.Owner
 		}
 		qOwner := qrOwner
 		if qOwner != "" {
+
 			if err := r.SetQueryParam("owner", qOwner); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Type != nil {
 
 		// query param type
 		var qrType string
+
 		if o.Type != nil {
 			qrType = *o.Type
 		}
 		qType := qrType
 		if qType != "" {
+
 			if err := r.SetQueryParam("type", qType); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if len(res) > 0 {

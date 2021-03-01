@@ -59,7 +59,6 @@ func (o *DeleteClusterReader) ReadResponse(response runtime.ClientResponse, cons
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -70,7 +69,7 @@ func NewDeleteClusterNoContent() *DeleteClusterNoContent {
 	return &DeleteClusterNoContent{}
 }
 
-/*DeleteClusterNoContent handles this case with default header values.
+/* DeleteClusterNoContent describes a response with status code 204, with default header values.
 
 Cluster deleted
 */
@@ -91,7 +90,7 @@ func NewDeleteClusterBadRequest() *DeleteClusterBadRequest {
 	return &DeleteClusterBadRequest{}
 }
 
-/*DeleteClusterBadRequest handles this case with default header values.
+/* DeleteClusterBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -102,7 +101,6 @@ type DeleteClusterBadRequest struct {
 func (o *DeleteClusterBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *DeleteClusterBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -124,7 +122,7 @@ func NewDeleteClusterUnauthorized() *DeleteClusterUnauthorized {
 	return &DeleteClusterUnauthorized{}
 }
 
-/*DeleteClusterUnauthorized handles this case with default header values.
+/* DeleteClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -145,7 +143,7 @@ func NewDeleteClusterForbidden() *DeleteClusterForbidden {
 	return &DeleteClusterForbidden{}
 }
 
-/*DeleteClusterForbidden handles this case with default header values.
+/* DeleteClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -156,7 +154,6 @@ type DeleteClusterForbidden struct {
 func (o *DeleteClusterForbidden) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
 }
-
 func (o *DeleteClusterForbidden) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -178,7 +175,7 @@ func NewDeleteClusterNotFound() *DeleteClusterNotFound {
 	return &DeleteClusterNotFound{}
 }
 
-/*DeleteClusterNotFound handles this case with default header values.
+/* DeleteClusterNotFound describes a response with status code 404, with default header values.
 
 Cluster not found
 */
@@ -199,7 +196,7 @@ func NewDeleteClusterInternalServerError() *DeleteClusterInternalServerError {
 	return &DeleteClusterInternalServerError{}
 }
 
-/*DeleteClusterInternalServerError handles this case with default header values.
+/* DeleteClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -210,7 +207,6 @@ type DeleteClusterInternalServerError struct {
 func (o *DeleteClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *DeleteClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

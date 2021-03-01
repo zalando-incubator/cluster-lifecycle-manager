@@ -53,7 +53,6 @@ func (o *UpdateInfrastructureAccountReader) ReadResponse(response runtime.Client
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewUpdateInfrastructureAccountOK() *UpdateInfrastructureAccountOK {
 	return &UpdateInfrastructureAccountOK{}
 }
 
-/*UpdateInfrastructureAccountOK handles this case with default header values.
+/* UpdateInfrastructureAccountOK describes a response with status code 200, with default header values.
 
 The infrastructure account update request is accepted
 */
@@ -75,7 +74,6 @@ type UpdateInfrastructureAccountOK struct {
 func (o *UpdateInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
 }
-
 func (o *UpdateInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewUpdateInfrastructureAccountUnauthorized() *UpdateInfrastructureAccountUn
 	return &UpdateInfrastructureAccountUnauthorized{}
 }
 
-/*UpdateInfrastructureAccountUnauthorized handles this case with default header values.
+/* UpdateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -118,7 +116,7 @@ func NewUpdateInfrastructureAccountForbidden() *UpdateInfrastructureAccountForbi
 	return &UpdateInfrastructureAccountForbidden{}
 }
 
-/*UpdateInfrastructureAccountForbidden handles this case with default header values.
+/* UpdateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -139,7 +137,7 @@ func NewUpdateInfrastructureAccountNotFound() *UpdateInfrastructureAccountNotFou
 	return &UpdateInfrastructureAccountNotFound{}
 }
 
-/*UpdateInfrastructureAccountNotFound handles this case with default header values.
+/* UpdateInfrastructureAccountNotFound describes a response with status code 404, with default header values.
 
 InfrastructureAccount not found
 */
@@ -160,7 +158,7 @@ func NewUpdateInfrastructureAccountInternalServerError() *UpdateInfrastructureAc
 	return &UpdateInfrastructureAccountInternalServerError{}
 }
 
-/*UpdateInfrastructureAccountInternalServerError handles this case with default header values.
+/* UpdateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -171,7 +169,6 @@ type UpdateInfrastructureAccountInternalServerError struct {
 func (o *UpdateInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *UpdateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

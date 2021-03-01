@@ -59,7 +59,6 @@ func (o *CreateClusterReader) ReadResponse(response runtime.ClientResponse, cons
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -70,7 +69,7 @@ func NewCreateClusterCreated() *CreateClusterCreated {
 	return &CreateClusterCreated{}
 }
 
-/*CreateClusterCreated handles this case with default header values.
+/* CreateClusterCreated describes a response with status code 201, with default header values.
 
 The cluster creation request is accepted
 */
@@ -81,7 +80,6 @@ type CreateClusterCreated struct {
 func (o *CreateClusterCreated) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
 }
-
 func (o *CreateClusterCreated) GetPayload() *models.Cluster {
 	return o.Payload
 }
@@ -103,7 +101,7 @@ func NewCreateClusterBadRequest() *CreateClusterBadRequest {
 	return &CreateClusterBadRequest{}
 }
 
-/*CreateClusterBadRequest handles this case with default header values.
+/* CreateClusterBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -114,7 +112,6 @@ type CreateClusterBadRequest struct {
 func (o *CreateClusterBadRequest) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *CreateClusterBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -136,7 +133,7 @@ func NewCreateClusterUnauthorized() *CreateClusterUnauthorized {
 	return &CreateClusterUnauthorized{}
 }
 
-/*CreateClusterUnauthorized handles this case with default header values.
+/* CreateClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -157,7 +154,7 @@ func NewCreateClusterForbidden() *CreateClusterForbidden {
 	return &CreateClusterForbidden{}
 }
 
-/*CreateClusterForbidden handles this case with default header values.
+/* CreateClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -178,7 +175,7 @@ func NewCreateClusterConflict() *CreateClusterConflict {
 	return &CreateClusterConflict{}
 }
 
-/*CreateClusterConflict handles this case with default header values.
+/* CreateClusterConflict describes a response with status code 409, with default header values.
 
 Conflict, already existing
 */
@@ -199,7 +196,7 @@ func NewCreateClusterInternalServerError() *CreateClusterInternalServerError {
 	return &CreateClusterInternalServerError{}
 }
 
-/*CreateClusterInternalServerError handles this case with default header values.
+/* CreateClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -210,7 +207,6 @@ type CreateClusterInternalServerError struct {
 func (o *CreateClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *CreateClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

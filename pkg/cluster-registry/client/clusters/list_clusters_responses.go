@@ -6,6 +6,7 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -50,7 +51,6 @@ func (o *ListClustersReader) ReadResponse(response runtime.ClientResponse, consu
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -61,7 +61,7 @@ func NewListClustersOK() *ListClustersOK {
 	return &ListClustersOK{}
 }
 
-/*ListClustersOK handles this case with default header values.
+/* ListClustersOK describes a response with status code 200, with default header values.
 
 List of all Kubernetes clusters.
 */
@@ -72,7 +72,6 @@ type ListClustersOK struct {
 func (o *ListClustersOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK  %+v", 200, o.Payload)
 }
-
 func (o *ListClustersOK) GetPayload() *ListClustersOKBody {
 	return o.Payload
 }
@@ -94,7 +93,7 @@ func NewListClustersUnauthorized() *ListClustersUnauthorized {
 	return &ListClustersUnauthorized{}
 }
 
-/*ListClustersUnauthorized handles this case with default header values.
+/* ListClustersUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -115,7 +114,7 @@ func NewListClustersForbidden() *ListClustersForbidden {
 	return &ListClustersForbidden{}
 }
 
-/*ListClustersForbidden handles this case with default header values.
+/* ListClustersForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -136,7 +135,7 @@ func NewListClustersInternalServerError() *ListClustersInternalServerError {
 	return &ListClustersInternalServerError{}
 }
 
-/*ListClustersInternalServerError handles this case with default header values.
+/* ListClustersInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -147,7 +146,6 @@ type ListClustersInternalServerError struct {
 func (o *ListClustersInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *ListClustersInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -188,7 +186,6 @@ func (o *ListClustersOKBody) Validate(formats strfmt.Registry) error {
 }
 
 func (o *ListClustersOKBody) validateItems(formats strfmt.Registry) error {
-
 	if swag.IsZero(o.Items) { // not required
 		return nil
 	}
@@ -200,6 +197,38 @@ func (o *ListClustersOKBody) validateItems(formats strfmt.Registry) error {
 
 		if o.Items[i] != nil {
 			if err := o.Items[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// ContextValidate validate this list clusters o k body based on the context it is used
+func (o *ListClustersOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.contextValidateItems(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *ListClustersOKBody) contextValidateItems(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(o.Items); i++ {
+
+		if o.Items[i] != nil {
+			if err := o.Items[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
 				}

@@ -53,7 +53,6 @@ func (o *GetInfrastructureAccountReader) ReadResponse(response runtime.ClientRes
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewGetInfrastructureAccountOK() *GetInfrastructureAccountOK {
 	return &GetInfrastructureAccountOK{}
 }
 
-/*GetInfrastructureAccountOK handles this case with default header values.
+/* GetInfrastructureAccountOK describes a response with status code 200, with default header values.
 
 Infrastructure account information.
 */
@@ -75,7 +74,6 @@ type GetInfrastructureAccountOK struct {
 func (o *GetInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
 }
-
 func (o *GetInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewGetInfrastructureAccountUnauthorized() *GetInfrastructureAccountUnauthor
 	return &GetInfrastructureAccountUnauthorized{}
 }
 
-/*GetInfrastructureAccountUnauthorized handles this case with default header values.
+/* GetInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -118,7 +116,7 @@ func NewGetInfrastructureAccountForbidden() *GetInfrastructureAccountForbidden {
 	return &GetInfrastructureAccountForbidden{}
 }
 
-/*GetInfrastructureAccountForbidden handles this case with default header values.
+/* GetInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -139,7 +137,7 @@ func NewGetInfrastructureAccountNotFound() *GetInfrastructureAccountNotFound {
 	return &GetInfrastructureAccountNotFound{}
 }
 
-/*GetInfrastructureAccountNotFound handles this case with default header values.
+/* GetInfrastructureAccountNotFound describes a response with status code 404, with default header values.
 
 InfrastructureAccount not found
 */
@@ -160,7 +158,7 @@ func NewGetInfrastructureAccountInternalServerError() *GetInfrastructureAccountI
 	return &GetInfrastructureAccountInternalServerError{}
 }
 
-/*GetInfrastructureAccountInternalServerError handles this case with default header values.
+/* GetInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -171,7 +169,6 @@ type GetInfrastructureAccountInternalServerError struct {
 func (o *GetInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *GetInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

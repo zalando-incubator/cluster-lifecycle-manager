@@ -25,17 +25,20 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
+// ClientOption is the option for Client methods
+type ClientOption func(*runtime.ClientOperation)
+
 // ClientService is the interface for Client methods
 type ClientService interface {
-	CreateCluster(params *CreateClusterParams, authInfo runtime.ClientAuthInfoWriter) (*CreateClusterCreated, error)
+	CreateCluster(params *CreateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateClusterCreated, error)
 
-	DeleteCluster(params *DeleteClusterParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteClusterNoContent, error)
+	DeleteCluster(params *DeleteClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteClusterNoContent, error)
 
-	GetCluster(params *GetClusterParams, authInfo runtime.ClientAuthInfoWriter) (*GetClusterOK, error)
+	GetCluster(params *GetClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetClusterOK, error)
 
-	ListClusters(params *ListClustersParams, authInfo runtime.ClientAuthInfoWriter) (*ListClustersOK, error)
+	ListClusters(params *ListClustersParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListClustersOK, error)
 
-	UpdateCluster(params *UpdateClusterParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateClusterOK, error)
+	UpdateCluster(params *UpdateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateClusterOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -45,13 +48,12 @@ type ClientService interface {
 
   Create a cluster.
 */
-func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.ClientAuthInfoWriter) (*CreateClusterCreated, error) {
+func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateClusterCreated, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewCreateClusterParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "createCluster",
 		Method:             "POST",
 		PathPattern:        "/kubernetes-clusters",
@@ -63,7 +65,12 @@ func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.Cli
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +90,12 @@ func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.Cli
   Cluster identified by the ID.
 
 */
-func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteClusterNoContent, error) {
+func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteClusterNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewDeleteClusterParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "deleteCluster",
 		Method:             "DELETE",
 		PathPattern:        "/kubernetes-clusters/{cluster_id}",
@@ -101,7 +107,12 @@ func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.Cli
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -120,13 +131,12 @@ func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.Cli
 
   Read the details of the cluster.
 */
-func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAuthInfoWriter) (*GetClusterOK, error) {
+func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetClusterOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewGetClusterParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "getCluster",
 		Method:             "GET",
 		PathPattern:        "/kubernetes-clusters/{cluster_id}",
@@ -138,7 +148,12 @@ func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAut
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -158,13 +173,12 @@ func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAut
   Returns the list of all Kubernetes clusters.
 
 */
-func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.ClientAuthInfoWriter) (*ListClustersOK, error) {
+func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListClustersOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListClustersParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "listClusters",
 		Method:             "GET",
 		PathPattern:        "/kubernetes-clusters",
@@ -176,7 +190,12 @@ func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.Clien
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +214,12 @@ func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.Clien
 
   update a cluster.
 */
-func (a *Client) UpdateCluster(params *UpdateClusterParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateClusterOK, error) {
+func (a *Client) UpdateCluster(params *UpdateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateClusterOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewUpdateClusterParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "updateCluster",
 		Method:             "PATCH",
 		PathPattern:        "/kubernetes-clusters/{cluster_id}",
@@ -213,7 +231,12 @@ func (a *Client) UpdateCluster(params *UpdateClusterParams, authInfo runtime.Cli
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}

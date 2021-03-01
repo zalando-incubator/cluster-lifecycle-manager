@@ -83,7 +83,7 @@ func instancesJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "instances.json", size: 46051, mode: os.FileMode(420), modTime: time.Unix(1601542743, 0)}
+	info := bindataFileInfo{name: "instances.json", size: 46051, mode: os.FileMode(420), modTime: time.Unix(1602437612, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

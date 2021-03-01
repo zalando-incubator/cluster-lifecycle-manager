@@ -53,7 +53,6 @@ func (o *GetClusterReader) ReadResponse(response runtime.ClientResponse, consume
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewGetClusterOK() *GetClusterOK {
 	return &GetClusterOK{}
 }
 
-/*GetClusterOK handles this case with default header values.
+/* GetClusterOK describes a response with status code 200, with default header values.
 
 Cluster information.
 */
@@ -75,7 +74,6 @@ type GetClusterOK struct {
 func (o *GetClusterOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK  %+v", 200, o.Payload)
 }
-
 func (o *GetClusterOK) GetPayload() *models.Cluster {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewGetClusterUnauthorized() *GetClusterUnauthorized {
 	return &GetClusterUnauthorized{}
 }
 
-/*GetClusterUnauthorized handles this case with default header values.
+/* GetClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -118,7 +116,7 @@ func NewGetClusterForbidden() *GetClusterForbidden {
 	return &GetClusterForbidden{}
 }
 
-/*GetClusterForbidden handles this case with default header values.
+/* GetClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -139,7 +137,7 @@ func NewGetClusterNotFound() *GetClusterNotFound {
 	return &GetClusterNotFound{}
 }
 
-/*GetClusterNotFound handles this case with default header values.
+/* GetClusterNotFound describes a response with status code 404, with default header values.
 
 Cluster not found
 */
@@ -160,7 +158,7 @@ func NewGetClusterInternalServerError() *GetClusterInternalServerError {
 	return &GetClusterInternalServerError{}
 }
 
-/*GetClusterInternalServerError handles this case with default header values.
+/* GetClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -171,7 +169,6 @@ type GetClusterInternalServerError struct {
 func (o *GetClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *GetClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

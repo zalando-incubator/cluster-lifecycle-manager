@@ -59,7 +59,6 @@ func (o *DeleteConfigItemReader) ReadResponse(response runtime.ClientResponse, c
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -70,7 +69,7 @@ func NewDeleteConfigItemNoContent() *DeleteConfigItemNoContent {
 	return &DeleteConfigItemNoContent{}
 }
 
-/*DeleteConfigItemNoContent handles this case with default header values.
+/* DeleteConfigItemNoContent describes a response with status code 204, with default header values.
 
 Config item deleted.
 */
@@ -91,7 +90,7 @@ func NewDeleteConfigItemBadRequest() *DeleteConfigItemBadRequest {
 	return &DeleteConfigItemBadRequest{}
 }
 
-/*DeleteConfigItemBadRequest handles this case with default header values.
+/* DeleteConfigItemBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -102,7 +101,6 @@ type DeleteConfigItemBadRequest struct {
 func (o *DeleteConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *DeleteConfigItemBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -124,7 +122,7 @@ func NewDeleteConfigItemUnauthorized() *DeleteConfigItemUnauthorized {
 	return &DeleteConfigItemUnauthorized{}
 }
 
-/*DeleteConfigItemUnauthorized handles this case with default header values.
+/* DeleteConfigItemUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -145,7 +143,7 @@ func NewDeleteConfigItemForbidden() *DeleteConfigItemForbidden {
 	return &DeleteConfigItemForbidden{}
 }
 
-/*DeleteConfigItemForbidden handles this case with default header values.
+/* DeleteConfigItemForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -166,7 +164,7 @@ func NewDeleteConfigItemNotFound() *DeleteConfigItemNotFound {
 	return &DeleteConfigItemNotFound{}
 }
 
-/*DeleteConfigItemNotFound handles this case with default header values.
+/* DeleteConfigItemNotFound describes a response with status code 404, with default header values.
 
 Config item not found
 */
@@ -187,7 +185,7 @@ func NewDeleteConfigItemInternalServerError() *DeleteConfigItemInternalServerErr
 	return &DeleteConfigItemInternalServerError{}
 }
 
-/*DeleteConfigItemInternalServerError handles this case with default header values.
+/* DeleteConfigItemInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -198,7 +196,6 @@ type DeleteConfigItemInternalServerError struct {
 func (o *DeleteConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *DeleteConfigItemInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

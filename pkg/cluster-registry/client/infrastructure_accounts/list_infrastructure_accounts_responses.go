@@ -6,6 +6,7 @@ package infrastructure_accounts
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -50,7 +51,6 @@ func (o *ListInfrastructureAccountsReader) ReadResponse(response runtime.ClientR
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -61,7 +61,7 @@ func NewListInfrastructureAccountsOK() *ListInfrastructureAccountsOK {
 	return &ListInfrastructureAccountsOK{}
 }
 
-/*ListInfrastructureAccountsOK handles this case with default header values.
+/* ListInfrastructureAccountsOK describes a response with status code 200, with default header values.
 
 List of all infrastructure accounts.
 */
@@ -72,7 +72,6 @@ type ListInfrastructureAccountsOK struct {
 func (o *ListInfrastructureAccountsOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
 }
-
 func (o *ListInfrastructureAccountsOK) GetPayload() *ListInfrastructureAccountsOKBody {
 	return o.Payload
 }
@@ -94,7 +93,7 @@ func NewListInfrastructureAccountsUnauthorized() *ListInfrastructureAccountsUnau
 	return &ListInfrastructureAccountsUnauthorized{}
 }
 
-/*ListInfrastructureAccountsUnauthorized handles this case with default header values.
+/* ListInfrastructureAccountsUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -115,7 +114,7 @@ func NewListInfrastructureAccountsForbidden() *ListInfrastructureAccountsForbidd
 	return &ListInfrastructureAccountsForbidden{}
 }
 
-/*ListInfrastructureAccountsForbidden handles this case with default header values.
+/* ListInfrastructureAccountsForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -136,7 +135,7 @@ func NewListInfrastructureAccountsInternalServerError() *ListInfrastructureAccou
 	return &ListInfrastructureAccountsInternalServerError{}
 }
 
-/*ListInfrastructureAccountsInternalServerError handles this case with default header values.
+/* ListInfrastructureAccountsInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -147,7 +146,6 @@ type ListInfrastructureAccountsInternalServerError struct {
 func (o *ListInfrastructureAccountsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *ListInfrastructureAccountsInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -188,7 +186,6 @@ func (o *ListInfrastructureAccountsOKBody) Validate(formats strfmt.Registry) err
 }
 
 func (o *ListInfrastructureAccountsOKBody) validateItems(formats strfmt.Registry) error {
-
 	if swag.IsZero(o.Items) { // not required
 		return nil
 	}
@@ -200,6 +197,38 @@ func (o *ListInfrastructureAccountsOKBody) validateItems(formats strfmt.Registry
 
 		if o.Items[i] != nil {
 			if err := o.Items[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("listInfrastructureAccountsOK" + "." + "items" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// ContextValidate validate this list infrastructure accounts o k body based on the context it is used
+func (o *ListInfrastructureAccountsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.contextValidateItems(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *ListInfrastructureAccountsOKBody) contextValidateItems(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(o.Items); i++ {
+
+		if o.Items[i] != nil {
+			if err := o.Items[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listInfrastructureAccountsOK" + "." + "items" + "." + strconv.Itoa(i))
 				}

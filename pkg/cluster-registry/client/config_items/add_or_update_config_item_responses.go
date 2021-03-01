@@ -53,7 +53,6 @@ func (o *AddOrUpdateConfigItemReader) ReadResponse(response runtime.ClientRespon
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewAddOrUpdateConfigItemOK() *AddOrUpdateConfigItemOK {
 	return &AddOrUpdateConfigItemOK{}
 }
 
-/*AddOrUpdateConfigItemOK handles this case with default header values.
+/* AddOrUpdateConfigItemOK describes a response with status code 200, with default header values.
 
 The config items add/update request is accepted.
 */
@@ -75,7 +74,6 @@ type AddOrUpdateConfigItemOK struct {
 func (o *AddOrUpdateConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
 }
-
 func (o *AddOrUpdateConfigItemOK) GetPayload() *models.ConfigValue {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewAddOrUpdateConfigItemBadRequest() *AddOrUpdateConfigItemBadRequest {
 	return &AddOrUpdateConfigItemBadRequest{}
 }
 
-/*AddOrUpdateConfigItemBadRequest handles this case with default header values.
+/* AddOrUpdateConfigItemBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -108,7 +106,6 @@ type AddOrUpdateConfigItemBadRequest struct {
 func (o *AddOrUpdateConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *AddOrUpdateConfigItemBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -130,7 +127,7 @@ func NewAddOrUpdateConfigItemUnauthorized() *AddOrUpdateConfigItemUnauthorized {
 	return &AddOrUpdateConfigItemUnauthorized{}
 }
 
-/*AddOrUpdateConfigItemUnauthorized handles this case with default header values.
+/* AddOrUpdateConfigItemUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -151,7 +148,7 @@ func NewAddOrUpdateConfigItemForbidden() *AddOrUpdateConfigItemForbidden {
 	return &AddOrUpdateConfigItemForbidden{}
 }
 
-/*AddOrUpdateConfigItemForbidden handles this case with default header values.
+/* AddOrUpdateConfigItemForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -172,7 +169,7 @@ func NewAddOrUpdateConfigItemInternalServerError() *AddOrUpdateConfigItemInterna
 	return &AddOrUpdateConfigItemInternalServerError{}
 }
 
-/*AddOrUpdateConfigItemInternalServerError handles this case with default header values.
+/* AddOrUpdateConfigItemInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -183,7 +180,6 @@ type AddOrUpdateConfigItemInternalServerError struct {
 func (o *AddOrUpdateConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *AddOrUpdateConfigItemInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

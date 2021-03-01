@@ -25,15 +25,18 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
+// ClientOption is the option for Client methods
+type ClientOption func(*runtime.ClientOperation)
+
 // ClientService is the interface for Client methods
 type ClientService interface {
-	CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*CreateInfrastructureAccountCreated, error)
+	CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error)
 
-	GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*GetInfrastructureAccountOK, error)
+	GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error)
 
-	ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter) (*ListInfrastructureAccountsOK, error)
+	ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error)
 
-	UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateInfrastructureAccountOK, error)
+	UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -44,13 +47,12 @@ type ClientService interface {
   Creates a new infrastructure account
 
 */
-func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*CreateInfrastructureAccountCreated, error) {
+func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewCreateInfrastructureAccountParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "createInfrastructureAccount",
 		Method:             "POST",
 		PathPattern:        "/infrastructure-accounts",
@@ -62,7 +64,12 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -82,13 +89,12 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
   Read information regarding the infrastructure account.
 
 */
-func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*GetInfrastructureAccountOK, error) {
+func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewGetInfrastructureAccountParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "getInfrastructureAccount",
 		Method:             "GET",
 		PathPattern:        "/infrastructure-accounts/{account_id}",
@@ -100,7 +106,12 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +128,12 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 /*
   ListInfrastructureAccounts lists all registered infrastructure accounts
 */
-func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter) (*ListInfrastructureAccountsOK, error) {
+func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListInfrastructureAccountsParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "listInfrastructureAccounts",
 		Method:             "GET",
 		PathPattern:        "/infrastructure-accounts",
@@ -135,7 +145,12 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +169,12 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 
   update an infrastructure account.
 */
-func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter) (*UpdateInfrastructureAccountOK, error) {
+func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewUpdateInfrastructureAccountParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "updateInfrastructureAccount",
 		Method:             "PATCH",
 		PathPattern:        "/infrastructure-accounts/{account_id}",
@@ -172,7 +186,12 @@ func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccount
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}

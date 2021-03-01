@@ -6,6 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
+
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -20,6 +22,7 @@ type NodePool struct {
 	// Configuration items unique to the node pool. E.g. custom volume
 	// configuration.
 	//
+	// Example: {"local_storage":"yes"}
 	ConfigItems map[string]string `json:"config_items,omitempty"`
 
 	// A discount strategy indicates the type of discount to be associated
@@ -27,6 +30,7 @@ type NodePool struct {
 	// the pools in case of preemptible or spot instances.  Possible values
 	// depend on the provider, the only common one is "none".
 	//
+	// Example: none
 	// Required: true
 	DiscountStrategy *string `json:"discount_strategy"`
 
@@ -37,14 +41,17 @@ type NodePool struct {
 	InstanceTypes []string `json:"instance_types"`
 
 	// Maximum size of the node pool
+	// Example: 20
 	// Required: true
 	MaxSize *int64 `json:"max_size"`
 
 	// Minimum size of the node pool
+	// Example: 3
 	// Required: true
 	MinSize *int64 `json:"min_size"`
 
 	// Name of the node pool
+	// Example: pool-1
 	// Required: true
 	Name *string `json:"name"`
 
@@ -52,6 +59,7 @@ type NodePool struct {
 	// "worker-database", "worker-gpu", "master". The "master" profile
 	// identifies the pool containing the cluster master
 	//
+	// Example: worker-default
 	// Required: true
 	Profile *string `json:"profile"`
 }
@@ -151,6 +159,11 @@ func (m *NodePool) validateProfile(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this node pool based on context it is used
+func (m *NodePool) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

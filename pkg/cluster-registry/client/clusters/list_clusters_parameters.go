@@ -17,126 +17,154 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewListClustersParams creates a new ListClustersParams object
-// with the default values initialized.
+// NewListClustersParams creates a new ListClustersParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewListClustersParams() *ListClustersParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &ListClustersParams{
-		Verbose: &verboseDefault,
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewListClustersParamsWithTimeout creates a new ListClustersParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewListClustersParamsWithTimeout(timeout time.Duration) *ListClustersParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &ListClustersParams{
-		Verbose: &verboseDefault,
-
 		timeout: timeout,
 	}
 }
 
 // NewListClustersParamsWithContext creates a new ListClustersParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewListClustersParamsWithContext(ctx context.Context) *ListClustersParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &ListClustersParams{
-		Verbose: &verboseDefault,
-
 		Context: ctx,
 	}
 }
 
 // NewListClustersParamsWithHTTPClient creates a new ListClustersParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewListClustersParamsWithHTTPClient(client *http.Client) *ListClustersParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &ListClustersParams{
-		Verbose:    &verboseDefault,
 		HTTPClient: client,
 	}
 }
 
-/*ListClustersParams contains all the parameters to send to the API endpoint
-for the list clusters operation typically these are written to a http.Request
+/* ListClustersParams contains all the parameters to send to the API endpoint
+   for the list clusters operation.
+
+   Typically these are written to a http.Request.
 */
 type ListClustersParams struct {
 
-	/*Alias
-	  Filter on cluster alias.
+	/* Alias.
 
+	   Filter on cluster alias.
 	*/
 	Alias *string
-	/*APIServerURL
-	  Filter on API server URL.
 
+	/* APIServerURL.
+
+	   Filter on API server URL.
 	*/
 	APIServerURL *string
-	/*Channel
-	  Filter on channel.
 
+	/* Channel.
+
+	   Filter on channel.
 	*/
 	Channel *string
-	/*CostCenter
-	  Filter on cost center number.
 
+	/* CostCenter.
+
+	   Filter on cost center number.
 	*/
 	CostCenter *string
-	/*CriticalityLevel
-	  Filter on criticality level.
 
+	/* CriticalityLevel.
+
+	   Filter on criticality level.
+
+	   Format: int32
 	*/
 	CriticalityLevel *int32
-	/*Environment
-	  Filter on environment.
 
+	/* Environment.
+
+	   Filter on environment.
 	*/
 	Environment *string
-	/*InfrastructureAccount
-	  Filter on infrastructure account.
 
+	/* InfrastructureAccount.
+
+	   Filter on infrastructure account.
 	*/
 	InfrastructureAccount *string
-	/*LifecycleStatus
-	  Filter on cluster lifecycle status.
 
+	/* LifecycleStatus.
+
+	   Filter on cluster lifecycle status.
 	*/
 	LifecycleStatus *string
-	/*LocalID
-	  Filter on local id.
 
+	/* LocalID.
+
+	   Filter on local id.
 	*/
 	LocalID *string
-	/*Provider
-	  Filter on provider.
 
+	/* Provider.
+
+	   Filter on provider.
 	*/
 	Provider *string
-	/*Region
-	  Filter on region.
 
+	/* Region.
+
+	   Filter on region.
 	*/
 	Region *string
-	/*Verbose
-	  Include technical data (config items, node pools) in the response, true by default
 
+	/* Verbose.
+
+	   Include technical data (config items, node pools) in the response, true by default
+
+	   Default: true
 	*/
 	Verbose *bool
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the list clusters params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *ListClustersParams) WithDefaults() *ListClustersParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the list clusters params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *ListClustersParams) SetDefaults() {
+	var (
+		verboseDefault = bool(true)
+	)
+
+	val := ListClustersParams{
+		Verbose: &verboseDefault,
+	}
+
+	val.timeout = o.timeout
+	val.Context = o.Context
+	val.HTTPClient = o.HTTPClient
+	*o = val
 }
 
 // WithTimeout adds the timeout to the list clusters params
@@ -316,192 +344,204 @@ func (o *ListClustersParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.
 
 		// query param alias
 		var qrAlias string
+
 		if o.Alias != nil {
 			qrAlias = *o.Alias
 		}
 		qAlias := qrAlias
 		if qAlias != "" {
+
 			if err := r.SetQueryParam("alias", qAlias); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.APIServerURL != nil {
 
 		// query param api_server_url
 		var qrAPIServerURL string
+
 		if o.APIServerURL != nil {
 			qrAPIServerURL = *o.APIServerURL
 		}
 		qAPIServerURL := qrAPIServerURL
 		if qAPIServerURL != "" {
+
 			if err := r.SetQueryParam("api_server_url", qAPIServerURL); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Channel != nil {
 
 		// query param channel
 		var qrChannel string
+
 		if o.Channel != nil {
 			qrChannel = *o.Channel
 		}
 		qChannel := qrChannel
 		if qChannel != "" {
+
 			if err := r.SetQueryParam("channel", qChannel); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.CostCenter != nil {
 
 		// query param cost_center
 		var qrCostCenter string
+
 		if o.CostCenter != nil {
 			qrCostCenter = *o.CostCenter
 		}
 		qCostCenter := qrCostCenter
 		if qCostCenter != "" {
+
 			if err := r.SetQueryParam("cost_center", qCostCenter); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.CriticalityLevel != nil {
 
 		// query param criticality_level
 		var qrCriticalityLevel int32
+
 		if o.CriticalityLevel != nil {
 			qrCriticalityLevel = *o.CriticalityLevel
 		}
 		qCriticalityLevel := swag.FormatInt32(qrCriticalityLevel)
 		if qCriticalityLevel != "" {
+
 			if err := r.SetQueryParam("criticality_level", qCriticalityLevel); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Environment != nil {
 
 		// query param environment
 		var qrEnvironment string
+
 		if o.Environment != nil {
 			qrEnvironment = *o.Environment
 		}
 		qEnvironment := qrEnvironment
 		if qEnvironment != "" {
+
 			if err := r.SetQueryParam("environment", qEnvironment); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.InfrastructureAccount != nil {
 
 		// query param infrastructure_account
 		var qrInfrastructureAccount string
+
 		if o.InfrastructureAccount != nil {
 			qrInfrastructureAccount = *o.InfrastructureAccount
 		}
 		qInfrastructureAccount := qrInfrastructureAccount
 		if qInfrastructureAccount != "" {
+
 			if err := r.SetQueryParam("infrastructure_account", qInfrastructureAccount); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.LifecycleStatus != nil {
 
 		// query param lifecycle_status
 		var qrLifecycleStatus string
+
 		if o.LifecycleStatus != nil {
 			qrLifecycleStatus = *o.LifecycleStatus
 		}
 		qLifecycleStatus := qrLifecycleStatus
 		if qLifecycleStatus != "" {
+
 			if err := r.SetQueryParam("lifecycle_status", qLifecycleStatus); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.LocalID != nil {
 
 		// query param local_id
 		var qrLocalID string
+
 		if o.LocalID != nil {
 			qrLocalID = *o.LocalID
 		}
 		qLocalID := qrLocalID
 		if qLocalID != "" {
+
 			if err := r.SetQueryParam("local_id", qLocalID); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Provider != nil {
 
 		// query param provider
 		var qrProvider string
+
 		if o.Provider != nil {
 			qrProvider = *o.Provider
 		}
 		qProvider := qrProvider
 		if qProvider != "" {
+
 			if err := r.SetQueryParam("provider", qProvider); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Region != nil {
 
 		// query param region
 		var qrRegion string
+
 		if o.Region != nil {
 			qrRegion = *o.Region
 		}
 		qRegion := qrRegion
 		if qRegion != "" {
+
 			if err := r.SetQueryParam("region", qRegion); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if o.Verbose != nil {
 
 		// query param verbose
 		var qrVerbose bool
+
 		if o.Verbose != nil {
 			qrVerbose = *o.Verbose
 		}
 		qVerbose := swag.FormatBool(qrVerbose)
 		if qVerbose != "" {
+
 			if err := r.SetQueryParam("verbose", qVerbose); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if len(res) > 0 {

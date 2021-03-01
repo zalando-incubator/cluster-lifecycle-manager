@@ -53,7 +53,6 @@ func (o *UpdateClusterReader) ReadResponse(response runtime.ClientResponse, cons
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewUpdateClusterOK() *UpdateClusterOK {
 	return &UpdateClusterOK{}
 }
 
-/*UpdateClusterOK handles this case with default header values.
+/* UpdateClusterOK describes a response with status code 200, with default header values.
 
 The cluster update request is performed and the updated cluster is returned.
 */
@@ -75,7 +74,6 @@ type UpdateClusterOK struct {
 func (o *UpdateClusterOK) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
 }
-
 func (o *UpdateClusterOK) GetPayload() *models.Cluster {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewUpdateClusterUnauthorized() *UpdateClusterUnauthorized {
 	return &UpdateClusterUnauthorized{}
 }
 
-/*UpdateClusterUnauthorized handles this case with default header values.
+/* UpdateClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -118,7 +116,7 @@ func NewUpdateClusterForbidden() *UpdateClusterForbidden {
 	return &UpdateClusterForbidden{}
 }
 
-/*UpdateClusterForbidden handles this case with default header values.
+/* UpdateClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -139,7 +137,7 @@ func NewUpdateClusterNotFound() *UpdateClusterNotFound {
 	return &UpdateClusterNotFound{}
 }
 
-/*UpdateClusterNotFound handles this case with default header values.
+/* UpdateClusterNotFound describes a response with status code 404, with default header values.
 
 Cluster not found
 */
@@ -160,7 +158,7 @@ func NewUpdateClusterInternalServerError() *UpdateClusterInternalServerError {
 	return &UpdateClusterInternalServerError{}
 }
 
-/*UpdateClusterInternalServerError handles this case with default header values.
+/* UpdateClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -171,7 +169,6 @@ type UpdateClusterInternalServerError struct {
 func (o *UpdateClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *UpdateClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
