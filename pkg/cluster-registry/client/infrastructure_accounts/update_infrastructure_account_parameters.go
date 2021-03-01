@@ -18,64 +18,79 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
-// NewUpdateInfrastructureAccountParams creates a new UpdateInfrastructureAccountParams object
-// with the default values initialized.
+// NewUpdateInfrastructureAccountParams creates a new UpdateInfrastructureAccountParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewUpdateInfrastructureAccountParams() *UpdateInfrastructureAccountParams {
-	var ()
 	return &UpdateInfrastructureAccountParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewUpdateInfrastructureAccountParamsWithTimeout creates a new UpdateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewUpdateInfrastructureAccountParamsWithTimeout(timeout time.Duration) *UpdateInfrastructureAccountParams {
-	var ()
 	return &UpdateInfrastructureAccountParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewUpdateInfrastructureAccountParamsWithContext creates a new UpdateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewUpdateInfrastructureAccountParamsWithContext(ctx context.Context) *UpdateInfrastructureAccountParams {
-	var ()
 	return &UpdateInfrastructureAccountParams{
-
 		Context: ctx,
 	}
 }
 
 // NewUpdateInfrastructureAccountParamsWithHTTPClient creates a new UpdateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewUpdateInfrastructureAccountParamsWithHTTPClient(client *http.Client) *UpdateInfrastructureAccountParams {
-	var ()
 	return &UpdateInfrastructureAccountParams{
 		HTTPClient: client,
 	}
 }
 
-/*UpdateInfrastructureAccountParams contains all the parameters to send to the API endpoint
-for the update infrastructure account operation typically these are written to a http.Request
+/* UpdateInfrastructureAccountParams contains all the parameters to send to the API endpoint
+   for the update infrastructure account operation.
+
+   Typically these are written to a http.Request.
 */
 type UpdateInfrastructureAccountParams struct {
 
-	/*AccountID
-	  ID of the infrastructure account.
+	/* AccountID.
 
+	   ID of the infrastructure account.
 	*/
 	AccountID string
-	/*InfrastructureAccount
-	  Infrastructure Account that will be updated.
 
+	/* InfrastructureAccount.
+
+	   Infrastructure Account that will be updated.
 	*/
 	InfrastructureAccount *models.InfrastructureAccountUpdate
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the update infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *UpdateInfrastructureAccountParams) WithDefaults() *UpdateInfrastructureAccountParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the update infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *UpdateInfrastructureAccountParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the update infrastructure account params
@@ -145,7 +160,6 @@ func (o *UpdateInfrastructureAccountParams) WriteToRequest(r runtime.ClientReque
 	if err := r.SetPathParam("account_id", o.AccountID); err != nil {
 		return err
 	}
-
 	if o.InfrastructureAccount != nil {
 		if err := r.SetBodyParam(o.InfrastructureAccount); err != nil {
 			return err

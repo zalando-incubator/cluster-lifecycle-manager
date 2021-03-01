@@ -6,6 +6,7 @@ package node_pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -50,7 +51,6 @@ func (o *ListNodePoolsReader) ReadResponse(response runtime.ClientResponse, cons
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -61,7 +61,7 @@ func NewListNodePoolsOK() *ListNodePoolsOK {
 	return &ListNodePoolsOK{}
 }
 
-/*ListNodePoolsOK handles this case with default header values.
+/* ListNodePoolsOK describes a response with status code 200, with default header values.
 
 List of node pools
 */
@@ -72,7 +72,6 @@ type ListNodePoolsOK struct {
 func (o *ListNodePoolsOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
 }
-
 func (o *ListNodePoolsOK) GetPayload() *ListNodePoolsOKBody {
 	return o.Payload
 }
@@ -94,7 +93,7 @@ func NewListNodePoolsUnauthorized() *ListNodePoolsUnauthorized {
 	return &ListNodePoolsUnauthorized{}
 }
 
-/*ListNodePoolsUnauthorized handles this case with default header values.
+/* ListNodePoolsUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -115,7 +114,7 @@ func NewListNodePoolsForbidden() *ListNodePoolsForbidden {
 	return &ListNodePoolsForbidden{}
 }
 
-/*ListNodePoolsForbidden handles this case with default header values.
+/* ListNodePoolsForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -136,7 +135,7 @@ func NewListNodePoolsInternalServerError() *ListNodePoolsInternalServerError {
 	return &ListNodePoolsInternalServerError{}
 }
 
-/*ListNodePoolsInternalServerError handles this case with default header values.
+/* ListNodePoolsInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -147,7 +146,6 @@ type ListNodePoolsInternalServerError struct {
 func (o *ListNodePoolsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *ListNodePoolsInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -188,7 +186,6 @@ func (o *ListNodePoolsOKBody) Validate(formats strfmt.Registry) error {
 }
 
 func (o *ListNodePoolsOKBody) validateItems(formats strfmt.Registry) error {
-
 	if swag.IsZero(o.Items) { // not required
 		return nil
 	}
@@ -200,6 +197,38 @@ func (o *ListNodePoolsOKBody) validateItems(formats strfmt.Registry) error {
 
 		if o.Items[i] != nil {
 			if err := o.Items[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("listNodePoolsOK" + "." + "items" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// ContextValidate validate this list node pools o k body based on the context it is used
+func (o *ListNodePoolsOKBody) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.contextValidateItems(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *ListNodePoolsOKBody) contextValidateItems(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(o.Items); i++ {
+
+		if o.Items[i] != nil {
+			if err := o.Items[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listNodePoolsOK" + "." + "items" + "." + strconv.Itoa(i))
 				}

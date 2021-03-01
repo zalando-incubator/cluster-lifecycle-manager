@@ -6,6 +6,7 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -22,47 +23,59 @@ type ClusterUpdate struct {
 	// Human readable alias for the Kubernetes cluster. The alias is unique
 	// but can be changed.
 	//
+	// Example: production-cluster
 	Alias string `json:"alias,omitempty"`
 
 	// URL of the Kubernetes API server endpoint
+	// Example: https://kube-1.foo.example.org/
 	APIServerURL string `json:"api_server_url,omitempty"`
 
 	// A version channel for the cluster. Possible values are "alpha", "stable"
+	// Example: alpha
 	Channel string `json:"channel,omitempty"`
 
 	// Configuration items unique to the cluster. E.g. custom API key used
 	// by one of the cluster services.
 	//
+	// Example: {"product_x_key":"abcde","product_y_key":"12345"}
 	ConfigItems map[string]string `json:"config_items,omitempty"`
 
 	// Level of criticality as defined by tech controlling. 1 is non
 	// critical, 2 is standard production, 3 is PCI.
 	//
+	// Example: 2
 	CriticalityLevel int32 `json:"criticality_level,omitempty"`
 
 	// The environment in which the cluster run.
 	//
+	// Example: production
 	Environment string `json:"environment,omitempty"`
 
 	// Globally unique ID of the Kubernetes cluster
+	// Example: aws:123456789012:eu-central-1:kube-1
 	ID string `json:"id,omitempty"`
 
 	// The identifier of the infrastructure account in which the cluster will
 	// live in
 	//
+	// Example: aws:123456789012
 	InfrastructureAccount string `json:"infrastructure_account,omitempty"`
 
 	// Status of the cluster.
+	// Example: ready
 	// Enum: [requested creating ready decommission-requested decommissioned]
 	LifecycleStatus string `json:"lifecycle_status,omitempty"`
 
 	// Cluster identifier which is local to the region
+	// Example: kube-1
 	LocalID string `json:"local_id,omitempty"`
 
 	// The provider of the cluster. Possible values are "zalando-aws", "GKE", ...
+	// Example: zalando-aws
 	Provider string `json:"provider,omitempty"`
 
 	// The region of the cluster
+	// Example: eu-central-1
 	Region string `json:"region,omitempty"`
 
 	// status
@@ -110,8 +123,8 @@ const (
 	// ClusterUpdateLifecycleStatusReady captures enum value "ready"
 	ClusterUpdateLifecycleStatusReady string = "ready"
 
-	// ClusterUpdateLifecycleStatusDecommissionRequested captures enum value "decommission-requested"
-	ClusterUpdateLifecycleStatusDecommissionRequested string = "decommission-requested"
+	// ClusterUpdateLifecycleStatusDecommissionDashRequested captures enum value "decommission-requested"
+	ClusterUpdateLifecycleStatusDecommissionDashRequested string = "decommission-requested"
 
 	// ClusterUpdateLifecycleStatusDecommissioned captures enum value "decommissioned"
 	ClusterUpdateLifecycleStatusDecommissioned string = "decommissioned"
@@ -126,7 +139,6 @@ func (m *ClusterUpdate) validateLifecycleStatusEnum(path, location string, value
 }
 
 func (m *ClusterUpdate) validateLifecycleStatus(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.LifecycleStatus) { // not required
 		return nil
 	}
@@ -140,13 +152,40 @@ func (m *ClusterUpdate) validateLifecycleStatus(formats strfmt.Registry) error {
 }
 
 func (m *ClusterUpdate) validateStatus(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.Status) { // not required
 		return nil
 	}
 
 	if m.Status != nil {
 		if err := m.Status.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("status")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this cluster update based on the context it is used
+func (m *ClusterUpdate) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateStatus(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *ClusterUpdate) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Status != nil {
+		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
 			}

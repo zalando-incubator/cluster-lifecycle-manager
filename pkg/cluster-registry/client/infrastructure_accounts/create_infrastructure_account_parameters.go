@@ -18,59 +18,73 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
-// NewCreateInfrastructureAccountParams creates a new CreateInfrastructureAccountParams object
-// with the default values initialized.
+// NewCreateInfrastructureAccountParams creates a new CreateInfrastructureAccountParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewCreateInfrastructureAccountParams() *CreateInfrastructureAccountParams {
-	var ()
 	return &CreateInfrastructureAccountParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewCreateInfrastructureAccountParamsWithTimeout creates a new CreateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewCreateInfrastructureAccountParamsWithTimeout(timeout time.Duration) *CreateInfrastructureAccountParams {
-	var ()
 	return &CreateInfrastructureAccountParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewCreateInfrastructureAccountParamsWithContext creates a new CreateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewCreateInfrastructureAccountParamsWithContext(ctx context.Context) *CreateInfrastructureAccountParams {
-	var ()
 	return &CreateInfrastructureAccountParams{
-
 		Context: ctx,
 	}
 }
 
 // NewCreateInfrastructureAccountParamsWithHTTPClient creates a new CreateInfrastructureAccountParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewCreateInfrastructureAccountParamsWithHTTPClient(client *http.Client) *CreateInfrastructureAccountParams {
-	var ()
 	return &CreateInfrastructureAccountParams{
 		HTTPClient: client,
 	}
 }
 
-/*CreateInfrastructureAccountParams contains all the parameters to send to the API endpoint
-for the create infrastructure account operation typically these are written to a http.Request
+/* CreateInfrastructureAccountParams contains all the parameters to send to the API endpoint
+   for the create infrastructure account operation.
+
+   Typically these are written to a http.Request.
 */
 type CreateInfrastructureAccountParams struct {
 
-	/*InfrastructureAccount
-	  Account that will be created.
+	/* InfrastructureAccount.
 
+	   Account that will be created.
 	*/
 	InfrastructureAccount *models.InfrastructureAccount
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the create infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *CreateInfrastructureAccountParams) WithDefaults() *CreateInfrastructureAccountParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the create infrastructure account params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *CreateInfrastructureAccountParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the create infrastructure account params
@@ -124,7 +138,6 @@ func (o *CreateInfrastructureAccountParams) WriteToRequest(r runtime.ClientReque
 		return err
 	}
 	var res []error
-
 	if o.InfrastructureAccount != nil {
 		if err := r.SetBodyParam(o.InfrastructureAccount); err != nil {
 			return err

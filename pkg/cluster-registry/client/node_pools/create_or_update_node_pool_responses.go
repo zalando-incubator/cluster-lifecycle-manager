@@ -53,7 +53,6 @@ func (o *CreateOrUpdateNodePoolReader) ReadResponse(response runtime.ClientRespo
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -64,7 +63,7 @@ func NewCreateOrUpdateNodePoolOK() *CreateOrUpdateNodePoolOK {
 	return &CreateOrUpdateNodePoolOK{}
 }
 
-/*CreateOrUpdateNodePoolOK handles this case with default header values.
+/* CreateOrUpdateNodePoolOK describes a response with status code 200, with default header values.
 
 The node pool create request is accepted.
 */
@@ -75,7 +74,6 @@ type CreateOrUpdateNodePoolOK struct {
 func (o *CreateOrUpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
 }
-
 func (o *CreateOrUpdateNodePoolOK) GetPayload() *models.NodePool {
 	return o.Payload
 }
@@ -97,7 +95,7 @@ func NewCreateOrUpdateNodePoolBadRequest() *CreateOrUpdateNodePoolBadRequest {
 	return &CreateOrUpdateNodePoolBadRequest{}
 }
 
-/*CreateOrUpdateNodePoolBadRequest handles this case with default header values.
+/* CreateOrUpdateNodePoolBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -108,7 +106,6 @@ type CreateOrUpdateNodePoolBadRequest struct {
 func (o *CreateOrUpdateNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
 }
-
 func (o *CreateOrUpdateNodePoolBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -130,7 +127,7 @@ func NewCreateOrUpdateNodePoolUnauthorized() *CreateOrUpdateNodePoolUnauthorized
 	return &CreateOrUpdateNodePoolUnauthorized{}
 }
 
-/*CreateOrUpdateNodePoolUnauthorized handles this case with default header values.
+/* CreateOrUpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -151,7 +148,7 @@ func NewCreateOrUpdateNodePoolForbidden() *CreateOrUpdateNodePoolForbidden {
 	return &CreateOrUpdateNodePoolForbidden{}
 }
 
-/*CreateOrUpdateNodePoolForbidden handles this case with default header values.
+/* CreateOrUpdateNodePoolForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -172,7 +169,7 @@ func NewCreateOrUpdateNodePoolInternalServerError() *CreateOrUpdateNodePoolInter
 	return &CreateOrUpdateNodePoolInternalServerError{}
 }
 
-/*CreateOrUpdateNodePoolInternalServerError handles this case with default header values.
+/* CreateOrUpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -183,7 +180,6 @@ type CreateOrUpdateNodePoolInternalServerError struct {
 func (o *CreateOrUpdateNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *CreateOrUpdateNodePoolInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

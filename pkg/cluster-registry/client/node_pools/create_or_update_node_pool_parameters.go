@@ -18,69 +18,85 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
-// NewCreateOrUpdateNodePoolParams creates a new CreateOrUpdateNodePoolParams object
-// with the default values initialized.
+// NewCreateOrUpdateNodePoolParams creates a new CreateOrUpdateNodePoolParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewCreateOrUpdateNodePoolParams() *CreateOrUpdateNodePoolParams {
-	var ()
 	return &CreateOrUpdateNodePoolParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewCreateOrUpdateNodePoolParamsWithTimeout creates a new CreateOrUpdateNodePoolParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewCreateOrUpdateNodePoolParamsWithTimeout(timeout time.Duration) *CreateOrUpdateNodePoolParams {
-	var ()
 	return &CreateOrUpdateNodePoolParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewCreateOrUpdateNodePoolParamsWithContext creates a new CreateOrUpdateNodePoolParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewCreateOrUpdateNodePoolParamsWithContext(ctx context.Context) *CreateOrUpdateNodePoolParams {
-	var ()
 	return &CreateOrUpdateNodePoolParams{
-
 		Context: ctx,
 	}
 }
 
 // NewCreateOrUpdateNodePoolParamsWithHTTPClient creates a new CreateOrUpdateNodePoolParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewCreateOrUpdateNodePoolParamsWithHTTPClient(client *http.Client) *CreateOrUpdateNodePoolParams {
-	var ()
 	return &CreateOrUpdateNodePoolParams{
 		HTTPClient: client,
 	}
 }
 
-/*CreateOrUpdateNodePoolParams contains all the parameters to send to the API endpoint
-for the create or update node pool operation typically these are written to a http.Request
+/* CreateOrUpdateNodePoolParams contains all the parameters to send to the API endpoint
+   for the create or update node pool operation.
+
+   Typically these are written to a http.Request.
 */
 type CreateOrUpdateNodePoolParams struct {
 
-	/*ClusterID
-	  ID of the cluster.
+	/* ClusterID.
 
+	   ID of the cluster.
 	*/
 	ClusterID string
-	/*NodePool
-	  Node pool to be created.
 
+	/* NodePool.
+
+	   Node pool to be created.
 	*/
 	NodePool *models.NodePool
-	/*NodePoolName
-	  Name of the node pool.
 
+	/* NodePoolName.
+
+	   Name of the node pool.
 	*/
 	NodePoolName string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the create or update node pool params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *CreateOrUpdateNodePoolParams) WithDefaults() *CreateOrUpdateNodePoolParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the create or update node pool params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *CreateOrUpdateNodePoolParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the create or update node pool params
@@ -161,7 +177,6 @@ func (o *CreateOrUpdateNodePoolParams) WriteToRequest(r runtime.ClientRequest, r
 	if err := r.SetPathParam("cluster_id", o.ClusterID); err != nil {
 		return err
 	}
-
 	if o.NodePool != nil {
 		if err := r.SetBodyParam(o.NodePool); err != nil {
 			return err

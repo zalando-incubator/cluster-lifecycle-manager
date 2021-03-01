@@ -59,7 +59,6 @@ func (o *CreateInfrastructureAccountReader) ReadResponse(response runtime.Client
 			return nil, err
 		}
 		return nil, result
-
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -70,7 +69,7 @@ func NewCreateInfrastructureAccountCreated() *CreateInfrastructureAccountCreated
 	return &CreateInfrastructureAccountCreated{}
 }
 
-/*CreateInfrastructureAccountCreated handles this case with default header values.
+/* CreateInfrastructureAccountCreated describes a response with status code 201, with default header values.
 
 Infrastructure account was scheduled for creation.
 */
@@ -81,7 +80,6 @@ type CreateInfrastructureAccountCreated struct {
 func (o *CreateInfrastructureAccountCreated) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
 }
-
 func (o *CreateInfrastructureAccountCreated) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -103,7 +101,7 @@ func NewCreateInfrastructureAccountBadRequest() *CreateInfrastructureAccountBadR
 	return &CreateInfrastructureAccountBadRequest{}
 }
 
-/*CreateInfrastructureAccountBadRequest handles this case with default header values.
+/* CreateInfrastructureAccountBadRequest describes a response with status code 400, with default header values.
 
 Invalid parameters
 */
@@ -124,7 +122,7 @@ func NewCreateInfrastructureAccountUnauthorized() *CreateInfrastructureAccountUn
 	return &CreateInfrastructureAccountUnauthorized{}
 }
 
-/*CreateInfrastructureAccountUnauthorized handles this case with default header values.
+/* CreateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
@@ -145,7 +143,7 @@ func NewCreateInfrastructureAccountForbidden() *CreateInfrastructureAccountForbi
 	return &CreateInfrastructureAccountForbidden{}
 }
 
-/*CreateInfrastructureAccountForbidden handles this case with default header values.
+/* CreateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -166,7 +164,7 @@ func NewCreateInfrastructureAccountConflict() *CreateInfrastructureAccountConfli
 	return &CreateInfrastructureAccountConflict{}
 }
 
-/*CreateInfrastructureAccountConflict handles this case with default header values.
+/* CreateInfrastructureAccountConflict describes a response with status code 409, with default header values.
 
 Conflict, already existing.
 */
@@ -187,7 +185,7 @@ func NewCreateInfrastructureAccountInternalServerError() *CreateInfrastructureAc
 	return &CreateInfrastructureAccountInternalServerError{}
 }
 
-/*CreateInfrastructureAccountInternalServerError handles this case with default header values.
+/* CreateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -198,7 +196,6 @@ type CreateInfrastructureAccountInternalServerError struct {
 func (o *CreateInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
 func (o *CreateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

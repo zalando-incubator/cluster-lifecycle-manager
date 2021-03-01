@@ -16,64 +16,79 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// NewDeleteNodePoolParams creates a new DeleteNodePoolParams object
-// with the default values initialized.
+// NewDeleteNodePoolParams creates a new DeleteNodePoolParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDeleteNodePoolParams() *DeleteNodePoolParams {
-	var ()
 	return &DeleteNodePoolParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewDeleteNodePoolParamsWithTimeout creates a new DeleteNodePoolParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewDeleteNodePoolParamsWithTimeout(timeout time.Duration) *DeleteNodePoolParams {
-	var ()
 	return &DeleteNodePoolParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewDeleteNodePoolParamsWithContext creates a new DeleteNodePoolParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewDeleteNodePoolParamsWithContext(ctx context.Context) *DeleteNodePoolParams {
-	var ()
 	return &DeleteNodePoolParams{
-
 		Context: ctx,
 	}
 }
 
 // NewDeleteNodePoolParamsWithHTTPClient creates a new DeleteNodePoolParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewDeleteNodePoolParamsWithHTTPClient(client *http.Client) *DeleteNodePoolParams {
-	var ()
 	return &DeleteNodePoolParams{
 		HTTPClient: client,
 	}
 }
 
-/*DeleteNodePoolParams contains all the parameters to send to the API endpoint
-for the delete node pool operation typically these are written to a http.Request
+/* DeleteNodePoolParams contains all the parameters to send to the API endpoint
+   for the delete node pool operation.
+
+   Typically these are written to a http.Request.
 */
 type DeleteNodePoolParams struct {
 
-	/*ClusterID
-	  ID of the cluster.
+	/* ClusterID.
 
+	   ID of the cluster.
 	*/
 	ClusterID string
-	/*NodePoolName
-	  Name of the node pool.
 
+	/* NodePoolName.
+
+	   Name of the node pool.
 	*/
 	NodePoolName string
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the delete node pool params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *DeleteNodePoolParams) WithDefaults() *DeleteNodePoolParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the delete node pool params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *DeleteNodePoolParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the delete node pool params

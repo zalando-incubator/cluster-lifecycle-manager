@@ -6,6 +6,7 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 
@@ -23,46 +24,56 @@ type Cluster struct {
 	// Human readable alias for the Kubernetes cluster. The alias is unique
 	// but can be changed.
 	//
+	// Example: production-cluster
 	// Required: true
 	// Pattern: ^[a-z][a-z0-9-]*[a-z0-9]$
 	Alias *string `json:"alias"`
 
 	// URL of the Kubernetes API server endpoint
+	// Example: https://kube-1.foo.example.org/
 	// Required: true
 	APIServerURL *string `json:"api_server_url"`
 
 	// A version channel for the cluster.
+	// Example: alpha
 	// Required: true
 	Channel *string `json:"channel"`
 
 	// Configuration items unique to the cluster. E.g. custom API key used
 	// by one of the cluster services.
 	//
+	// Example: {"product_x_key":"abcde","product_y_key":"12345"}
 	ConfigItems map[string]string `json:"config_items,omitempty"`
 
 	// Level of criticality as defined by tech controlling. 1 is non critical, 2 is standard production, 3 is PCI.
+	// Example: 2
 	// Required: true
 	CriticalityLevel *int32 `json:"criticality_level"`
 
 	// The environment in which the cluster run.
 	//
+	// Example: production
 	// Required: true
 	Environment *string `json:"environment"`
 
 	// Globally unique ID of the Kubernetes cluster
+	// Example: aws:123456789012:eu-central-1:kube-1
 	// Required: true
 	ID *string `json:"id"`
 
 	// The identifier of the infrastructure account in which the cluster will live in
+	// Example: aws:123456789012
 	// Required: true
 	InfrastructureAccount *string `json:"infrastructure_account"`
 
 	// Status of the cluster.
+	// Example: ready
 	// Required: true
 	// Enum: [requested creating ready decommission-requested decommissioned]
 	LifecycleStatus *string `json:"lifecycle_status"`
 
 	// Cluster identifier which is local to the region
+	// Example: kube-1
 	// Required: true
 	LocalID *string `json:"local_id"`
 
@@ -70,10 +81,12 @@ type Cluster struct {
 	NodePools []*NodePool `json:"node_pools"`
 
 	// The provider of the cluster. Possible values are "zalando-aws", "GKE", ...
+	// Example: zalando-aws
 	// Required: true
 	Provider *string `json:"provider"`
 
 	// The region of the cluster
+	// Example: eu-central-1
 	// Required: true
 	Region *string `json:"region"`
 
@@ -149,7 +162,7 @@ func (m *Cluster) validateAlias(formats strfmt.Registry) error {
 		return err
 	}
 
-	if err := validate.Pattern("alias", "body", string(*m.Alias), `^[a-z][a-z0-9-]*[a-z0-9]$`); err != nil {
+	if err := validate.Pattern("alias", "body", *m.Alias, `^[a-z][a-z0-9-]*[a-z0-9]$`); err != nil {
 		return err
 	}
 
@@ -233,8 +246,8 @@ const (
 	// ClusterLifecycleStatusReady captures enum value "ready"
 	ClusterLifecycleStatusReady string = "ready"
 
-	// ClusterLifecycleStatusDecommissionRequested captures enum value "decommission-requested"
-	ClusterLifecycleStatusDecommissionRequested string = "decommission-requested"
+	// ClusterLifecycleStatusDecommissionDashRequested captures enum value "decommission-requested"
+	ClusterLifecycleStatusDecommissionDashRequested string = "decommission-requested"
 
 	// ClusterLifecycleStatusDecommissioned captures enum value "decommissioned"
 	ClusterLifecycleStatusDecommissioned string = "decommissioned"
@@ -272,7 +285,6 @@ func (m *Cluster) validateLocalID(formats strfmt.Registry) error {
 }
 
 func (m *Cluster) validateNodePools(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.NodePools) { // not required
 		return nil
 	}
@@ -315,13 +327,62 @@ func (m *Cluster) validateRegion(formats strfmt.Registry) error {
 }
 
 func (m *Cluster) validateStatus(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.Status) { // not required
 		return nil
 	}
 
 	if m.Status != nil {
 		if err := m.Status.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("status")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this cluster based on the context it is used
+func (m *Cluster) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateNodePools(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateStatus(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *Cluster) contextValidateNodePools(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.NodePools); i++ {
+
+		if m.NodePools[i] != nil {
+			if err := m.NodePools[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("node_pools" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *Cluster) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Status != nil {
+		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
 			}

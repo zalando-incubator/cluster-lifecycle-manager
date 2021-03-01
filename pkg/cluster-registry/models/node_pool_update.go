@@ -6,6 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
+
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -20,6 +22,7 @@ type NodePoolUpdate struct {
 	// Configuration items unique to the node pool. E.g. custom volume
 	// configuration.
 	//
+	// Example: {"local_storage":"yes"}
 	ConfigItems map[string]string `json:"config_items,omitempty"`
 
 	// A discount strategy indicates the type of discount to be associated
@@ -27,6 +30,7 @@ type NodePoolUpdate struct {
 	// the pools in case of preemptible or spot instances.  Possible values
 	// depend on the provider, the only common one is "none".
 	//
+	// Example: none
 	DiscountStrategy string `json:"discount_strategy,omitempty"`
 
 	// instance types
@@ -35,18 +39,22 @@ type NodePoolUpdate struct {
 	InstanceTypes []string `json:"instance_types"`
 
 	// Maximum size of the node pool
+	// Example: 20
 	MaxSize int64 `json:"max_size,omitempty"`
 
 	// Minimum size of the node pool
+	// Example: 3
 	MinSize int64 `json:"min_size,omitempty"`
 
 	// Name of the node pool
+	// Example: pool-1
 	Name string `json:"name,omitempty"`
 
 	// Profile used for the node pool. Possible values are "worker-default",
 	// "worker-database", "worker-gpu", "master". The "master" profile
 	// identifies the pool containing the cluster master
 	//
+	// Example: worker-default
 	Profile string `json:"profile,omitempty"`
 }
 
@@ -65,7 +73,6 @@ func (m *NodePoolUpdate) Validate(formats strfmt.Registry) error {
 }
 
 func (m *NodePoolUpdate) validateInstanceTypes(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.InstanceTypes) { // not required
 		return nil
 	}
@@ -80,6 +87,11 @@ func (m *NodePoolUpdate) validateInstanceTypes(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this node pool update based on context it is used
+func (m *NodePoolUpdate) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

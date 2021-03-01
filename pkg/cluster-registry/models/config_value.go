@@ -6,6 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
+
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -18,6 +20,7 @@ import (
 type ConfigValue struct {
 
 	// Value of the Config value.
+	// Example: secret-key-id
 	// Required: true
 	Value *string `json:"value"`
 }
@@ -42,6 +45,11 @@ func (m *ConfigValue) validateValue(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this config value based on context it is used
+func (m *ConfigValue) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

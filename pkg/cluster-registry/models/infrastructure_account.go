@@ -6,6 +6,7 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -20,22 +21,27 @@ import (
 type InfrastructureAccount struct {
 
 	// Cost center of the Owner/infrastructure account
+	// Example: 0000001234
 	// Required: true
 	CostCenter *string `json:"cost_center"`
 
 	// Level of criticality as defined by tech controlling. 1 is non critical, 2 is standard production, 3 is PCI
+	// Example: 2
 	// Required: true
 	CriticalityLevel *int32 `json:"criticality_level"`
 
 	// Environment. possible values are "production" or "test".
+	// Example: production
 	// Required: true
 	Environment *string `json:"environment"`
 
 	// The external identifier of the account (i.e. AWS account ID)
+	// Example: 123456789012
 	// Required: true
 	ExternalID *string `json:"external_id"`
 
 	// Globally unique ID of the infrastructure account.
+	// Example: aws:123456789012
 	// Required: true
 	ID *string `json:"id"`
 
@@ -45,14 +51,17 @@ type InfrastructureAccount struct {
 	LifecycleStatus *string `json:"lifecycle_status"`
 
 	// Name of the infrastructure account
+	// Example: foo
 	// Required: true
 	Name *string `json:"name"`
 
 	// Owner of the infrastructure account (references an object in the organization service)
+	// Example: team/bar
 	// Required: true
 	Owner *string `json:"owner"`
 
 	// Type of the infrastructure account. Possible types are "aws", "gcp", "dc".
+	// Example: aws
 	// Required: true
 	Type *string `json:"type"`
 }
@@ -221,6 +230,11 @@ func (m *InfrastructureAccount) validateType(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this infrastructure account based on context it is used
+func (m *InfrastructureAccount) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

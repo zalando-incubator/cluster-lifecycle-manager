@@ -25,11 +25,14 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
+// ClientOption is the option for Client methods
+type ClientOption func(*runtime.ClientOperation)
+
 // ClientService is the interface for Client methods
 type ClientService interface {
-	AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateNodePoolConfigItemOK, error)
+	AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error)
 
-	DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolConfigItemNoContent, error)
+	DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -39,13 +42,12 @@ type ClientService interface {
 
   Add/update a configuration item unique to the node pool.
 */
-func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*AddOrUpdateNodePoolConfigItemOK, error) {
+func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewAddOrUpdateNodePoolConfigItemParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "addOrUpdateNodePoolConfigItem",
 		Method:             "PUT",
 		PathPattern:        "/kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}",
@@ -57,7 +59,12 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +83,12 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 
   Deletes config item.
 */
-func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter) (*DeleteNodePoolConfigItemNoContent, error) {
+func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewDeleteNodePoolConfigItemParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "deleteNodePoolConfigItem",
 		Method:             "DELETE",
 		PathPattern:        "/kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}",
@@ -94,7 +100,12 @@ func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}

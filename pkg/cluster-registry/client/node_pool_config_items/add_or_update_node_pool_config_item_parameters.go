@@ -18,74 +18,91 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
-// NewAddOrUpdateNodePoolConfigItemParams creates a new AddOrUpdateNodePoolConfigItemParams object
-// with the default values initialized.
+// NewAddOrUpdateNodePoolConfigItemParams creates a new AddOrUpdateNodePoolConfigItemParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewAddOrUpdateNodePoolConfigItemParams() *AddOrUpdateNodePoolConfigItemParams {
-	var ()
 	return &AddOrUpdateNodePoolConfigItemParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewAddOrUpdateNodePoolConfigItemParamsWithTimeout creates a new AddOrUpdateNodePoolConfigItemParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewAddOrUpdateNodePoolConfigItemParamsWithTimeout(timeout time.Duration) *AddOrUpdateNodePoolConfigItemParams {
-	var ()
 	return &AddOrUpdateNodePoolConfigItemParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewAddOrUpdateNodePoolConfigItemParamsWithContext creates a new AddOrUpdateNodePoolConfigItemParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewAddOrUpdateNodePoolConfigItemParamsWithContext(ctx context.Context) *AddOrUpdateNodePoolConfigItemParams {
-	var ()
 	return &AddOrUpdateNodePoolConfigItemParams{
-
 		Context: ctx,
 	}
 }
 
 // NewAddOrUpdateNodePoolConfigItemParamsWithHTTPClient creates a new AddOrUpdateNodePoolConfigItemParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewAddOrUpdateNodePoolConfigItemParamsWithHTTPClient(client *http.Client) *AddOrUpdateNodePoolConfigItemParams {
-	var ()
 	return &AddOrUpdateNodePoolConfigItemParams{
 		HTTPClient: client,
 	}
 }
 
-/*AddOrUpdateNodePoolConfigItemParams contains all the parameters to send to the API endpoint
-for the add or update node pool config item operation typically these are written to a http.Request
+/* AddOrUpdateNodePoolConfigItemParams contains all the parameters to send to the API endpoint
+   for the add or update node pool config item operation.
+
+   Typically these are written to a http.Request.
 */
 type AddOrUpdateNodePoolConfigItemParams struct {
 
-	/*ClusterID
-	  ID of the cluster.
+	/* ClusterID.
 
+	   ID of the cluster.
 	*/
 	ClusterID string
-	/*ConfigKey
-	  Key for the config value.
 
+	/* ConfigKey.
+
+	   Key for the config value.
 	*/
 	ConfigKey string
-	/*NodePoolName
-	  Name of the node pool.
 
+	/* NodePoolName.
+
+	   Name of the node pool.
 	*/
 	NodePoolName string
-	/*Value
-	  Config value.
 
+	/* Value.
+
+	   Config value.
 	*/
 	Value *models.ConfigValue
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the add or update node pool config item params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *AddOrUpdateNodePoolConfigItemParams) WithDefaults() *AddOrUpdateNodePoolConfigItemParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the add or update node pool config item params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *AddOrUpdateNodePoolConfigItemParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the add or update node pool config item params
@@ -187,7 +204,6 @@ func (o *AddOrUpdateNodePoolConfigItemParams) WriteToRequest(r runtime.ClientReq
 	if err := r.SetPathParam("node_pool_name", o.NodePoolName); err != nil {
 		return err
 	}
-
 	if o.Value != nil {
 		if err := r.SetBodyParam(o.Value); err != nil {
 			return err

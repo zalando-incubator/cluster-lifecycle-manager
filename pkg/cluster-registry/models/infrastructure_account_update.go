@@ -6,6 +6,7 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/go-openapi/errors"
@@ -20,21 +21,26 @@ import (
 type InfrastructureAccountUpdate struct {
 
 	// Cost center of the Owner/infrastructure account
+	// Example: 0000001234
 	CostCenter string `json:"cost_center,omitempty"`
 
 	// Level of criticality as defined by tech controlling. 1 is non
 	// critical, 2 is standard production, 3 is PCI
 	//
+	// Example: 2
 	CriticalityLevel int32 `json:"criticality_level,omitempty"`
 
 	// Environment. possible values are "production" or "test".
 	//
+	// Example: production
 	Environment string `json:"environment,omitempty"`
 
 	// The external identifier of the account (i.e. AWS account ID)
+	// Example: 123456789012
 	ExternalID string `json:"external_id,omitempty"`
 
 	// Globally unique ID of the infrastructure account.
+	// Example: aws:123456789012
 	ID string `json:"id,omitempty"`
 
 	// Lifecycle Status is used to describe the current status of the account.
@@ -42,14 +48,17 @@ type InfrastructureAccountUpdate struct {
 	LifecycleStatus string `json:"lifecycle_status,omitempty"`
 
 	// Name of the infrastructure account
+	// Example: foo
 	Name string `json:"name,omitempty"`
 
 	// Owner of the infrastructure account (references an object in the organization service)
+	// Example: team/bar
 	Owner string `json:"owner,omitempty"`
 
 	// Type of the infrastructure account. Possible types are "aws", "gcp",
 	// "dc".
 	//
+	// Example: aws
 	Type string `json:"type,omitempty"`
 }
 
@@ -103,7 +112,6 @@ func (m *InfrastructureAccountUpdate) validateLifecycleStatusEnum(path, location
 }
 
 func (m *InfrastructureAccountUpdate) validateLifecycleStatus(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.LifecycleStatus) { // not required
 		return nil
 	}
@@ -113,6 +121,11 @@ func (m *InfrastructureAccountUpdate) validateLifecycleStatus(formats strfmt.Reg
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this infrastructure account update based on context it is used
+func (m *InfrastructureAccountUpdate) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

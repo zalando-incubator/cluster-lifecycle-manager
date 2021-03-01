@@ -17,76 +17,92 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// NewGetClusterParams creates a new GetClusterParams object
-// with the default values initialized.
+// NewGetClusterParams creates a new GetClusterParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewGetClusterParams() *GetClusterParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &GetClusterParams{
-		Verbose: &verboseDefault,
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewGetClusterParamsWithTimeout creates a new GetClusterParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewGetClusterParamsWithTimeout(timeout time.Duration) *GetClusterParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &GetClusterParams{
-		Verbose: &verboseDefault,
-
 		timeout: timeout,
 	}
 }
 
 // NewGetClusterParamsWithContext creates a new GetClusterParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewGetClusterParamsWithContext(ctx context.Context) *GetClusterParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &GetClusterParams{
-		Verbose: &verboseDefault,
-
 		Context: ctx,
 	}
 }
 
 // NewGetClusterParamsWithHTTPClient creates a new GetClusterParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewGetClusterParamsWithHTTPClient(client *http.Client) *GetClusterParams {
-	var (
-		verboseDefault = bool(true)
-	)
 	return &GetClusterParams{
-		Verbose:    &verboseDefault,
 		HTTPClient: client,
 	}
 }
 
-/*GetClusterParams contains all the parameters to send to the API endpoint
-for the get cluster operation typically these are written to a http.Request
+/* GetClusterParams contains all the parameters to send to the API endpoint
+   for the get cluster operation.
+
+   Typically these are written to a http.Request.
 */
 type GetClusterParams struct {
 
-	/*ClusterID
-	  ID of the cluster.
+	/* ClusterID.
 
+	   ID of the cluster.
 	*/
 	ClusterID string
-	/*Verbose
-	  Include technical data (config items, node pools) in the response, true by default
 
+	/* Verbose.
+
+	   Include technical data (config items, node pools) in the response, true by default
+
+	   Default: true
 	*/
 	Verbose *bool
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the get cluster params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *GetClusterParams) WithDefaults() *GetClusterParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the get cluster params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *GetClusterParams) SetDefaults() {
+	var (
+		verboseDefault = bool(true)
+	)
+
+	val := GetClusterParams{
+		Verbose: &verboseDefault,
+	}
+
+	val.timeout = o.timeout
+	val.Context = o.Context
+	val.HTTPClient = o.HTTPClient
+	*o = val
 }
 
 // WithTimeout adds the timeout to the get cluster params
@@ -161,16 +177,17 @@ func (o *GetClusterParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Re
 
 		// query param verbose
 		var qrVerbose bool
+
 		if o.Verbose != nil {
 			qrVerbose = *o.Verbose
 		}
 		qVerbose := swag.FormatBool(qrVerbose)
 		if qVerbose != "" {
+
 			if err := r.SetQueryParam("verbose", qVerbose); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	if len(res) > 0 {
