@@ -12,7 +12,6 @@ require (
 	github.com/go-openapi/validate v0.20.2
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-swagger/go-swagger v0.26.0
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
@@ -23,7 +22,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spotinst/spotinst-sdk-go v1.76.0
 	github.com/stretchr/testify v1.7.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.15
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.20
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
