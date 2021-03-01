@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/swag v0.19.14
 	github.com/go-openapi/validate v0.20.2
 	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/go-swagger/go-swagger v0.26.0
+	github.com/go-swagger/go-swagger v0.26.1
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.1 // indirect
