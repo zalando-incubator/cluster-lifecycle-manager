@@ -25,7 +25,7 @@ func (np NodePool) IsSpot() bool {
 }
 
 func (np NodePool) IsSpotIO() bool {
-	return np.Profile == "worker-spotio-ocean" || np.Profile == "worker-spotio"
+	return np.Profile == "worker-spotio"
 }
 
 func (np NodePool) IsMaster() bool {

@@ -115,7 +115,7 @@ func (n *SpotIONodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) 
 			currentInstanceConfig.Tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 		}
 
-		desiredInstanceConfig, err := n.getDesiredInstanceConfig(context.TODO(), instance)
+		desiredInstanceConfig, err := n.getDesiredInstanceConfig(context.TODO(), instance, nodePool.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func instanceConfigEqual(current, desired *InstanceConfig) bool {
 	return true
 }
 
-func (n *SpotIONodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, instance *ec2.Instance) (*InstanceConfig, error) {
+func (n *SpotIONodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, instance *ec2.Instance, nodePoolName string) (*InstanceConfig, error) {
 	var oceanID string
 
 	for _, tag := range instance.Tags {
@@ -194,14 +194,21 @@ func (n *SpotIONodePoolsBackend) getDesiredInstanceConfig(ctx context.Context, i
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5))
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve spot.io's launch specs: %s", err)
+		return nil, fmt.Errorf("failed to retrieve spot.io's launch specs: %s", err)
 	}
 
-	if len(resp.LaunchSpecs) != 1 {
-		return nil, fmt.Errorf("Expectd to get 1 LaunchSpec for oceanID '%s', got %d", oceanID, len(resp.LaunchSpecs))
+	// find launchspec from node pool name
+	var spec *spotio.LaunchSpec
+	for _, ls := range resp.LaunchSpecs {
+		if aws.StringValue(ls.Name) == nodePoolName {
+			spec = ls
+			break
+		}
 	}
 
-	spec := resp.LaunchSpecs[0]
+	if spec == nil {
+		return nil, fmt.Errorf("failed get LaunchSpec '%s' for OceanID '%s'", nodePoolName, oceanID)
+	}
 
 	tags := make(map[string]string, len(spec.Tags))
 	for _, tag := range spec.Tags {
