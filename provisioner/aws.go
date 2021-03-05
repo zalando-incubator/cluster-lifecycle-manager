@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -549,6 +550,24 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		}
 	}
 
+	for configItem, senzaArg := range map[string]string{
+		etcdClientCAConfigItem:          "CertificateExpiryCA",
+		etcdClientCertificateConfigItem: "CertificateExpiryNode",
+	} {
+		if value, ok := cluster.ConfigItems[configItem]; ok && value != "" {
+			// We store our certificates base64-encoded
+			decoded, err := base64.StdEncoding.DecodeString(value)
+			if err != nil {
+				return err
+			}
+			expiry, err := certificateExpiry(string(decoded))
+			if err != nil {
+				return err
+			}
+			args = append(args, fmt.Sprintf("%s=%s", senzaArg, expiry.UTC().Format(time.RFC3339)))
+		}
+	}
+
 	cmd := exec.Command(
 		"senza",
 		args...,
@@ -591,6 +610,18 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	}
 
 	return nil
+}
+
+func certificateExpiry(certificate string) (time.Time, error) {
+	block, _ := pem.Decode([]byte(certificate))
+	if block == nil {
+		return time.Time{}, fmt.Errorf("no PEM data found")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return cert.NotAfter.UTC(), nil
 }
 
 // resolveKeyID resolved a local key ID (e.g. alias/etcd-cluster) into the ARN
