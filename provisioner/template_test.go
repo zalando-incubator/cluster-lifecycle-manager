@@ -250,12 +250,12 @@ func TestParseSGIngressRanges(t *testing.T) {
 {{- range $index, $element := sgIngressRanges .Values.data.sgIngressRanges -}}
 - CidrIp: {{ $element.CIDR }}
   FromPort: {{ $element.FromPort }}
-  IpProtocol: tcp
+  IpProtocol: {{ $element.Protocol }}
   ToPort: {{ $element.ToPort }}
 {{ end -}}
 {{- end -}}`
 
-	r, err := renderSingle(t, testTemplate, map[string]string{"sgIngressRanges": "10.0.0.0/8:0-100,0.0.0.0/0:300-400,127.0.0.1/32:500"})
+	r, err := renderSingle(t, testTemplate, map[string]string{"sgIngressRanges": "10.0.0.0/8:0-100,0.0.0.0/0:300-400,127.0.0.1/32:500,udp:0.0.0.0/0:53"})
 	require.NoError(t, err)
 	require.Equal(t, `- CidrIp: 10.0.0.0/8
   FromPort: 0
@@ -269,6 +269,10 @@ func TestParseSGIngressRanges(t *testing.T) {
   FromPort: 500
   IpProtocol: tcp
   ToPort: 500
+- CidrIp: 0.0.0.0/0
+  FromPort: 53
+  IpProtocol: udp
+  ToPort: 53
 `, r, "rendered template is incorrect")
 
 	r, err = renderSingle(t, testTemplate, map[string]string{"sgIngressRanges": ""})
