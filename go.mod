@@ -14,14 +14,13 @@ require (
 	github.com/go-swagger/go-swagger v0.26.1
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mitchellh/copystructure v0.0.0-20170525013902-d23ffcb85de3
 	github.com/mitchellh/reflectwalk v0.0.0-20170726202117-63d60e9d0dbc // indirect
 	github.com/mweagle/go-cloudformation v0.0.0-20210117063902-00aa242fdc67 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.18.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
-	github.com/sirupsen/logrus v1.8.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spotinst/spotinst-sdk-go v1.78.0
 	github.com/stretchr/testify v1.7.0
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.20
