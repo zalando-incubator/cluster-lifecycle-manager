@@ -21,12 +21,11 @@ require (
 	github.com/mitchellh/copystructure v1.1.1
 	github.com/mweagle/go-cloudformation v0.0.0-20210117063902-00aa242fdc67 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.10.0 // indirect
 	github.com/prometheus/common v0.20.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spotinst/spotinst-sdk-go v1.82.0
 	github.com/stretchr/testify v1.7.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.28
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.29
 	golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c // indirect
 	golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
