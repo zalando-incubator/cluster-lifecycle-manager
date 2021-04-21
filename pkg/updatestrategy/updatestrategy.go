@@ -57,6 +57,7 @@ type Node struct {
 	Generation      int
 	VolumesAttached bool
 	Ready           bool
+	Master          bool
 }
 
 // ProfileNodePoolProvisioner is a NodePoolProvisioner which selects the
