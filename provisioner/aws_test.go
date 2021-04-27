@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -28,7 +29,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ec2APIStub struct{}
+type ec2APIStub struct {
+	ec2iface.EC2API
+}
 
 func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
 	*ec2.DescribeVpcsOutput,
@@ -37,9 +40,6 @@ func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
 	return &ec2.DescribeVpcsOutput{
 		Vpcs: []*ec2.Vpc{&ec2.Vpc{IsDefault: aws.Bool(false)}},
 	}, nil
-}
-
-func (e *ec2APIStub) AcceptReservedInstancesiExchangeQuote(*ec2.DescribeVpcsInput) (
 }
 
 type s3APIStub struct{}
@@ -264,6 +264,14 @@ func TestGetStackByName(t *testing.T) {
 	}
 	if *s.StackName != "foobar" {
 		t.Fatalf("expected %s, found %s", "foobar", *s.StackName)
+	}
+}
+
+func TestGetDefaultVPC(t *testing.T) {
+	a := newAWSAdapterWithStubs("", "GroupName")
+	_, err := a.GetDefaultVPC()
+	if err != nil {
+		t.Fatalf("Fail: %v", err)
 	}
 }
 
