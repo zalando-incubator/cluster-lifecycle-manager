@@ -777,6 +777,10 @@ func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
 		return nil, err
 	}
 
+	if len(vpcResp.Vpcs) == 1 {
+		return vpcResp.Vpcs[0], nil
+	}
+
 	var defaultVpc *ec2.Vpc
 	for _, vpc := range vpcResp.Vpcs {
 		if aws.BoolValue(vpc.IsDefault) {
