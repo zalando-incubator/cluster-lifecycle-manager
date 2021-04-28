@@ -16,6 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -26,6 +28,19 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
+
+type ec2APIStub struct {
+	ec2iface.EC2API
+}
+
+func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
+	*ec2.DescribeVpcsOutput,
+	error,
+) {
+	return &ec2.DescribeVpcsOutput{
+		Vpcs: []*ec2.Vpc{&ec2.Vpc{IsDefault: aws.Bool(false)}},
+	}, nil
+}
 
 type s3APIStub struct{}
 
@@ -157,6 +172,7 @@ func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
 		session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
 		cloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(status)},
 		s3Client:             &s3APIStub{},
+		ec2Client:            &ec2APIStub{},
 		autoscalingClient:    &autoscalingAPIStub{groupName: groupName},
 		apiServer:            "",
 		dryRun:               false,
@@ -248,6 +264,18 @@ func TestGetStackByName(t *testing.T) {
 	}
 	if *s.StackName != "foobar" {
 		t.Fatalf("expected %s, found %s", "foobar", *s.StackName)
+	}
+}
+
+func TestGetDefaultVPC(t *testing.T) {
+	a := newAWSAdapterWithStubs("", "GroupName")
+	vpc, err := a.GetDefaultVPC()
+	if err != nil {
+		t.Fatalf("Fail: %v", err)
+	}
+
+	if vpc == nil {
+		t.Fatal("Fail: no VPC returned")
 	}
 }
 
