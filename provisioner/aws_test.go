@@ -269,9 +269,13 @@ func TestGetStackByName(t *testing.T) {
 
 func TestGetDefaultVPC(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
-	_, err := a.GetDefaultVPC()
+	vpc, err := a.GetDefaultVPC()
 	if err != nil {
 		t.Fatalf("Fail: %v", err)
+	}
+
+	if vpc == nil {
+		t.Fatal("Fail: no VPC returned")
 	}
 }
 
