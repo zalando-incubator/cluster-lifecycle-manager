@@ -2,7 +2,7 @@ module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
-	github.com/aws/aws-sdk-go v1.38.10
+	github.com/aws/aws-sdk-go v1.38.30
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-openapi/analysis v0.20.1 // indirect
