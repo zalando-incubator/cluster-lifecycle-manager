@@ -18,7 +18,7 @@ require (
 	github.com/googleapis/gnostic v0.5.4 // indirect
 	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/mitchellh/copystructure v1.1.1
+	github.com/mitchellh/copystructure v1.1.2
 	github.com/mweagle/go-cloudformation v0.0.0-20210117063902-00aa242fdc67 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.20.0 // indirect
