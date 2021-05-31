@@ -118,6 +118,8 @@ func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *a
 
 	nodes := make([]*Node, 0, len(instanceIDMap))
 
+	master := nodePoolDesc.IsMaster()
+
 	for _, npNode := range nodePool.Nodes {
 		if node, ok := instanceIDMap[npNode.ProviderID]; ok {
 			n := &Node{
@@ -131,6 +133,7 @@ func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *a
 				Taints:          node.Spec.Taints,
 				Cordoned:        node.Spec.Unschedulable,
 				VolumesAttached: len(node.Status.VolumesAttached) > 0,
+				Master:          master,
 			}
 
 			// TODO(mlarsen): Think about how this could be
@@ -155,7 +158,7 @@ func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *a
 
 func (m *KubernetesNodePoolManager) MarkNodeForDecommission(ctx context.Context, node *Node) error {
 	taint := v1.TaintEffectPreferNoSchedule
-	if m.noScheduleTaint {
+	if m.noScheduleTaint && !node.Master {
 		taint = v1.TaintEffectNoSchedule
 	}
 	err := m.taintNode(ctx, node, decommissionPendingTaintKey, decommissionPendingTaintValue, taint)

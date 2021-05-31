@@ -116,6 +116,86 @@ func TestGetPool(t *testing.T) {
 	assert.Equal(t, nodePool.Nodes[0].Labels[lifecycleStatusLabel], lifecycleStatusDraining)
 }
 
+func TestMarkForDecommission(t *testing.T) {
+	for _, tc := range []struct {
+		msg                 string
+		nodePoolProfile     string
+		noScheduleTaint     bool
+		expectedTaintEffect v1.TaintEffect
+	}{
+		{
+			msg:                 "master should always have PreferNoSchedule",
+			nodePoolProfile:     "master",
+			noScheduleTaint:     true,
+			expectedTaintEffect: v1.TaintEffectPreferNoSchedule,
+		},
+		{
+			msg:                 "worker should have NoSchedule if noScheduleTaint is true",
+			nodePoolProfile:     "worker",
+			noScheduleTaint:     true,
+			expectedTaintEffect: v1.TaintEffectNoSchedule,
+		},
+		{
+			msg:                 "worker should have PreferNoSchedule if noScheduleTaint is false",
+			nodePoolProfile:     "worker",
+			noScheduleTaint:     false,
+			expectedTaintEffect: v1.TaintEffectPreferNoSchedule,
+		},
+	} {
+		t.Run(tc.msg, func(t *testing.T) {
+			node := &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				Spec: v1.NodeSpec{
+					ProviderID: "provider-id",
+				},
+			}
+
+			logger := log.WithField("test", true)
+			backend := &mockProviderNodePoolsBackend{
+				nodePool: &NodePool{
+					Min:        1,
+					Max:        1,
+					Current:    1,
+					Desired:    1,
+					Generation: 1,
+					Nodes: []*Node{
+						{ProviderID: "provider-id", Ready: true},
+					},
+				},
+			}
+			kube := setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil)
+			mgr := NewKubernetesNodePoolManager(
+				logger,
+				kube,
+				backend,
+				&DrainConfig{},
+				tc.noScheduleTaint,
+			)
+
+			// test getting nodes successfully
+			nodePool, err := mgr.GetPool(context.Background(), &api.NodePool{Name: "test", Profile: tc.nodePoolProfile})
+			require.NoError(t, err)
+			require.Len(t, nodePool.Nodes, 1)
+
+			// mark node for decomissioning
+			err = mgr.MarkNodeForDecommission(context.Background(), nodePool.Nodes[0])
+			require.NoError(t, err)
+
+			updated, err := mgr.kube.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			require.EqualValues(
+				t,
+				[]v1.Taint{
+					{Key: decommissionPendingTaintKey, Value: decommissionPendingTaintValue, Effect: tc.expectedTaintEffect},
+				},
+				updated.Spec.Taints)
+		})
+	}
+}
+
 func TestLabelNodes(t *testing.T) {
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
