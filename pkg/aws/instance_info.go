@@ -1,17 +1,18 @@
 package aws
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
-	"sync"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	gigabyte = 1024 * 1024 * 1024
+	mebibyte = 1024 * 1024
+
+	gigabyte = 1000 * 1000 * 1000
 )
 
 type Instance struct {
@@ -29,27 +30,67 @@ func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolum
 	return int64(instanceStorageScaleFactor * float64(i.InstanceStorageDevices*i.InstanceStorageDeviceSize))
 }
 
-type instanceInfo struct {
-	InstanceType string      `json:"instance_type"`
-	VCPU         interface{} `json:"vCPU"`
-	Memory       float64     `json:"memory"`
-	EBSAsNVME    bool        `json:"ebs_as_nvme"`
-	Storage      struct {
-		Devices int64 `json:"devices"`
-		NVMESSD bool  `json:"nvme_ssd"`
-		Size    int64 `json:"size"`
-	} `json:"storage"`
-}
-
-var loadedInstances struct {
-	once      sync.Once
+type InstanceTypes struct {
 	instances map[string]Instance
 }
 
-func InstanceInfo(instanceType string) (Instance, error) {
-	AllInstances()
+func NewInstanceTypes(instanceData []Instance) *InstanceTypes {
+	result := make(map[string]Instance)
+	for _, instanceType := range instanceData {
+		result[instanceType.InstanceType] = instanceType
+	}
+	return &InstanceTypes{instances: result}
+}
 
-	result, ok := loadedInstances.instances[instanceType]
+func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) {
+	instances := make(map[string]Instance)
+
+	var innerErr error
+	err := ec2client.DescribeInstanceTypesPages(&ec2.DescribeInstanceTypesInput{}, func(output *ec2.DescribeInstanceTypesOutput, _ bool) bool {
+		for _, instanceType := range output.InstanceTypes {
+			var (
+				deviceCount, deviceSize int64
+			)
+
+			if instanceType.InstanceStorageInfo != nil {
+				storageDisks := instanceType.InstanceStorageInfo.Disks
+				switch len(storageDisks) {
+				case 0:
+					// do nothing
+				case 1:
+					deviceCount = aws.Int64Value(storageDisks[0].Count)
+					deviceSize = aws.Int64Value(storageDisks[0].SizeInGB) * gigabyte
+				default:
+					// doesn't happen at the moment, raise an error so we can decide how to handle this
+					innerErr = fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), aws.StringValue(instanceType.InstanceType))
+					return false
+				}
+			}
+
+			info := Instance{
+				InstanceType:              aws.StringValue(instanceType.InstanceType),
+				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
+				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
+				InstanceStorageDevices:    deviceCount,
+				InstanceStorageDeviceSize: deviceSize,
+			}
+			instances[info.InstanceType] = info
+		}
+		return true
+	})
+	if innerErr != nil {
+		return nil, innerErr
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Loaded %d instance types from AWS", len(instances))
+	return &InstanceTypes{instances: instances}, nil
+}
+
+func (types *InstanceTypes) InstanceInfo(instanceType string) (Instance, error) {
+	result, ok := types.instances[instanceType]
 	if !ok {
 		return Instance{}, fmt.Errorf("unknown instance type: %s", instanceType)
 	}
@@ -57,21 +98,17 @@ func InstanceInfo(instanceType string) (Instance, error) {
 }
 
 // AllInstances returns information for all known AWS EC2 instances.
-func AllInstances() map[string]Instance {
-	loadedInstances.once.Do(func() {
-		loadedInstances.instances = loadInstanceInfo()
-	})
-
-	return loadedInstances.instances
+func (types *InstanceTypes) AllInstances() map[string]Instance {
+	return types.instances
 }
 
-func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
+func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 	if len(instanceTypes) == 0 {
 		return Instance{}, fmt.Errorf("no instance types provided")
 	} else if len(instanceTypes) == 1 {
-		return InstanceInfo(instanceTypes[0])
+		return types.InstanceInfo(instanceTypes[0])
 	} else {
-		first, err := InstanceInfo(instanceTypes[0])
+		first, err := types.InstanceInfo(instanceTypes[0])
 		if err != nil {
 			return Instance{}, err
 		}
@@ -84,7 +121,7 @@ func SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
 			InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
 		}
 		for _, instanceType := range instanceTypes[1:] {
-			info, err := InstanceInfo(instanceType)
+			info, err := types.InstanceInfo(instanceType)
 			if err != nil {
 				return Instance{}, err
 			}
@@ -104,48 +141,4 @@ func min(a int64, b int64) int64 {
 		return a
 	}
 	return b
-}
-
-func loadInstanceInfo() map[string]Instance {
-	data := MustAsset("instances.json")
-
-	var instanceInfo []instanceInfo
-	err := json.Unmarshal(data, &instanceInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	result := make(map[string]Instance)
-
-	for _, instance := range instanceInfo {
-		var vCPU int64
-		switch v := instance.VCPU.(type) {
-		case float64:
-			vCPU = int64(v)
-		case string:
-			vCPU, err = strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				log.Warnf("Unable to determine vCPU count for %s: %s", instance.InstanceType, err)
-				continue
-			}
-		default:
-			log.Warnf("Unable to determine vCPU count for %s: %s", instance.InstanceType, reflect.TypeOf(instance.VCPU))
-			continue
-		}
-
-		instanceInfo := Instance{
-			InstanceType: instance.InstanceType,
-			VCPU:         vCPU,
-			Memory:       int64(instance.Memory * gigabyte),
-		}
-
-		if instance.Storage.NVMESSD {
-			instanceInfo.InstanceStorageDevices = instance.Storage.Devices
-			instanceInfo.InstanceStorageDeviceSize = gigabyte * instance.Storage.Size
-		}
-
-		result[instance.InstanceType] = instanceInfo
-	}
-
-	return result
 }

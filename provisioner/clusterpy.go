@@ -334,9 +334,15 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
 	}
 
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
+	if err != nil {
+		return fmt.Errorf("failed to fetch instance types from AWS")
+	}
+
 	// provision node pools
 	nodePoolProvisioner := &AWSNodePoolProvisioner{
 		awsAdapter:      awsAdapter,
+		instanceTypes:   instanceTypes,
 		nodePoolManager: nodePoolManager,
 		bucketName:      bucketName,
 		config:          channelConfig,

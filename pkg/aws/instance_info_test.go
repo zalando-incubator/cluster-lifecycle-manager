@@ -3,8 +3,151 @@ package aws
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/require"
 )
+
+type mockEC2 struct {
+	ec2iface.EC2API
+}
+
+func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInput, callback func(*ec2.DescribeInstanceTypesOutput, bool) bool) error {
+	if !callback(&ec2.DescribeInstanceTypesOutput{
+		InstanceTypes: []*ec2.InstanceTypeInfo{
+			{
+				InstanceType: aws.String("m4.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
+			},
+			{
+				InstanceType: aws.String("i3.4xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(16),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(124928),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(2),
+							SizeInGB: aws.Int64(1900),
+						},
+					},
+				},
+			},
+			{
+				InstanceType: aws.String("m5.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
+			},
+			{
+				InstanceType: aws.String("m5d.4xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(16),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(65536),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(2),
+							SizeInGB: aws.Int64(300),
+						},
+					},
+				},
+			},
+		},
+	}, false) {
+		return nil
+	}
+	callback(&ec2.DescribeInstanceTypesOutput{
+		InstanceTypes: []*ec2.InstanceTypeInfo{
+			{
+				InstanceType: aws.String("c5d.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(8192),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(1),
+							SizeInGB: aws.Int64(100),
+						},
+					},
+				},
+			},
+			{
+				InstanceType: aws.String("r5d.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(32768),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(1),
+							SizeInGB: aws.Int64(150),
+						},
+					},
+				},
+			},
+			{
+				InstanceType: aws.String("m5d.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(1),
+							SizeInGB: aws.Int64(150),
+						},
+					},
+				},
+			},
+			{
+				InstanceType: aws.String("r5d.large"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(2),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				InstanceStorageInfo: &ec2.InstanceStorageInfo{
+					Disks: []*ec2.DiskInfo{
+						{
+							Count:    aws.Int64(1),
+							SizeInGB: aws.Int64(75),
+						},
+					},
+				},
+			},
+		},
+	}, false)
+	return nil
+}
 
 func TestAvailableStorage(t *testing.T) {
 	for _, tc := range []struct {
@@ -41,7 +184,10 @@ func TestAvailableStorage(t *testing.T) {
 	}
 }
 
-func TestInstanceInfo(t *testing.T) {
+func TestInstanceInfoFromAWS(t *testing.T) {
+	instanceTypes, err := NewInstanceTypesFromAWS(&mockEC2{})
+	require.NoError(t, err)
+
 	for _, tc := range []Instance{
 		{
 			InstanceType: "m4.xlarge",
@@ -53,36 +199,80 @@ func TestInstanceInfo(t *testing.T) {
 			VCPU:                      16,
 			Memory:                    130996502528,
 			InstanceStorageDevices:    2,
-			InstanceStorageDeviceSize: 1900 * gigabyte,
-		},
-		{
-			InstanceType: "i2.2xlarge",
-			VCPU:         8,
-			Memory:       65498251264,
-		},
-		{
-			InstanceType: "r3.large",
-			VCPU:         2,
-			Memory:       16374562816,
+			InstanceStorageDeviceSize: 1900 * 1000 * 1000 * 1000,
 		},
 	} {
 		t.Run(tc.InstanceType, func(t *testing.T) {
-			info, err := InstanceInfo(tc.InstanceType)
+			info, err := instanceTypes.InstanceInfo(tc.InstanceType)
 			require.NoError(t, err)
 			require.Equal(t, tc.InstanceType, info.InstanceType)
 			require.Equal(t, tc.VCPU, info.VCPU)
 			require.Equal(t, tc.Memory, info.Memory)
 			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
+			require.Equal(t, tc.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
 		})
 	}
 }
 
 func TestInstanceInfoError(t *testing.T) {
-	_, err := InstanceInfo("invalid.type")
+	instanceTypes := NewInstanceTypes([]Instance{
+		{
+			InstanceType: "m4.xlarge",
+			VCPU:         4,
+			Memory:       17179869184,
+		},
+	})
+
+	_, err := instanceTypes.InstanceInfo("invalid.type")
 	require.Error(t, err)
 }
 
 func TestSyntheticInstanceInfo(t *testing.T) {
+	instanceTypes := NewInstanceTypes([]Instance{
+		{
+			InstanceType:              "m4.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    0,
+			InstanceStorageDeviceSize: 0,
+		},
+		{
+			InstanceType:              "m5.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    0,
+			InstanceStorageDeviceSize: 0,
+		},
+		{
+			InstanceType:              "m5d.xlarge",
+			VCPU:                      4,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 161061273600,
+		},
+		{
+			InstanceType:              "m5d.4xlarge",
+			VCPU:                      16,
+			Memory:                    68719476736,
+			InstanceStorageDevices:    2,
+			InstanceStorageDeviceSize: 322122547200,
+		},
+		{
+			InstanceType:              "c5d.xlarge",
+			VCPU:                      4,
+			Memory:                    8589934592,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 107374182400,
+		},
+		{
+			InstanceType:              "r5d.large",
+			VCPU:                      2,
+			Memory:                    17179869184,
+			InstanceStorageDevices:    1,
+			InstanceStorageDeviceSize: 80530636800,
+		},
+	})
+
 	for _, tc := range []struct {
 		name             string
 		instanceTypes    []string
@@ -126,7 +316,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      2,
 				Memory:                    8589934592,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 75 * gigabyte,
+				InstanceStorageDeviceSize: 75 * 1024 * mebibyte,
 			},
 		},
 		{
@@ -137,7 +327,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				VCPU:                      4,
 				Memory:                    17179869184,
 				InstanceStorageDevices:    1,
-				InstanceStorageDeviceSize: 150 * gigabyte,
+				InstanceStorageDeviceSize: 150 * 1024 * mebibyte,
 			},
 		},
 		{
@@ -151,7 +341,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			info, err := SyntheticInstanceInfo(tc.instanceTypes)
+			info, err := instanceTypes.SyntheticInstanceInfo(tc.instanceTypes)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {

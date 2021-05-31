@@ -2,8 +2,6 @@ package api
 
 import (
 	"strings"
-
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 )
 
 // NodePool describes a node pool in a kubernetes cluster.
@@ -30,21 +28,4 @@ func (np NodePool) IsSpotIO() bool {
 
 func (np NodePool) IsMaster() bool {
 	return strings.Contains(np.Profile, "master")
-}
-
-// AvailableStorage returns the storage available on the instance for the user data based on the
-// instance type. If the nodes have instance storage devices, it returns the minimum of the total
-// size scaled by scaleFactor, otherwise it returns ebsSize.
-// Deprecated.
-func (np NodePool) AvailableStorage(ebsSize int64, scaleFactor float64) (int64, error) {
-	instanceInfo, err := aws.SyntheticInstanceInfo(np.InstanceTypes)
-	if err != nil {
-		return 0, err
-	}
-
-	instanceStorageSize := scaleFactor * float64(instanceInfo.InstanceStorageDevices*instanceInfo.InstanceStorageDeviceSize)
-	if instanceStorageSize == 0 {
-		return ebsSize, nil
-	}
-	return int64(instanceStorageSize), nil
 }

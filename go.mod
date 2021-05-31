@@ -13,7 +13,6 @@ require (
 	github.com/go-swagger/go-swagger v0.27.0
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.4 // indirect
-	github.com/jteeuwen/go-bindata v3.0.8-0.20180305030458-6025e8de665b+incompatible
 	github.com/mitchellh/copystructure v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.23.0 // indirect
