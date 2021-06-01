@@ -25,16 +25,13 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210503080704-8803ae5d1324 // indirect
 	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6 // indirect
-	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.19.10
-	k8s.io/apimachinery v0.19.10
-	k8s.io/client-go v0.19.10
-	k8s.io/klog/v2 v2.8.0 // indirect
+	k8s.io/api v0.21.1
+	k8s.io/apimachinery v0.21.1
+	k8s.io/client-go v0.21.1
 	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.0 // indirect
 )
 
 go 1.16
