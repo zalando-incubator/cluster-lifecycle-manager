@@ -46,7 +46,6 @@ const (
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
-	etcdKMSKeyAlias             = "alias/etcd-cluster"
 
 	etcdInstanceTypeConfigItem      = "etcd_instance_type"
 	etcdInstanceCountConfigItem     = "etcd_instance_count"
@@ -462,7 +461,7 @@ func (a *awsAdapter) DeleteStack(parentCtx context.Context, stack *cloudformatio
 }
 
 // CreateOrUpdateEtcdStack creates or updates an etcd stack.
-func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinition []byte, networkCIDR, vpcID string, cluster *api.Cluster) error {
+func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackName string, stackDefinition []byte, kmsKeyARN, networkCIDR, vpcID string, cluster *api.Cluster) error {
 	bucketName := fmt.Sprintf("zalando-kubernetes-etcd-%s-%s", getAWSAccountID(cluster.InfrastructureAccount), cluster.Region)
 
 	if bucket, ok := cluster.ConfigItems[etcdBackupBucketConfigItem]; ok {
@@ -485,11 +484,6 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	// Ignore the error because the error indicates that the stack is missing
 	if err == nil && len(resp.Stacks) == 1 {
 		return nil
-	}
-
-	kmsKeyARN, err := a.resolveKeyID(etcdKMSKeyAlias)
-	if err != nil {
-		return err
 	}
 
 	encryptedScalyrKey, err := a.kmsEncryptForTaupage(kmsKeyARN, cluster.ConfigItems[etcdScalyrKeyConfigItem])
