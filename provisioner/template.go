@@ -125,6 +125,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"kubernetesSizeToKiloBytes":     kubernetesSizeToKiloBytes,
 		"indexedList":                   indexedList,
 		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
+		"encryptForTaupage": func(kmsKeyARN string, contents string) (string, error) {
+			return encryptForTaupage(context.awsAdapter, kmsKeyARN, contents)
+		},
 	}
 
 	content, ok := context.fileData[file]
@@ -660,4 +663,13 @@ func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 		}
 	}
 	return result
+}
+
+// encryptForTaupage encrypts the value of `contents` with the KMS key identified by `kmsKeyARN` with the scheme
+// compatible with Taupage (aws:kms:<encrypted>). If `contents` is empty, it'll return an empty string instead.
+func encryptForTaupage(adapter *awsAdapter, kmsKeyARN string, contents string) (string, error) {
+	if contents == "" {
+		return "", nil
+	}
+	return adapter.kmsEncryptForTaupage(kmsKeyARN, contents)
 }
