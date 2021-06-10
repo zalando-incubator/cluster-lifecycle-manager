@@ -175,7 +175,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		nodePoolProfileTagKey:                         nodePool.Profile,
 	}
 
-	err = p.awsAdapter.applyStack(stackName, template, "", tags, true)
+	err = p.awsAdapter.applyStack(stackName, template, "", tags, true, nil)
 	if err != nil {
 		return err
 	}

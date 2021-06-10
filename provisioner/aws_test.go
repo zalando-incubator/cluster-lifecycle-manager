@@ -382,7 +382,7 @@ func TestApplyStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 	}
 
-	err := awsAdapter.applyStack("stack-name", `{"Metadata": {"Tags": {"foo":"bar"}}}`, "", nil, true)
+	err := awsAdapter.applyStack("stack-name", `{"Metadata": {"Tags": {"foo":"bar"}}}`, "", nil, true, nil)
 	require.NoError(t, err)
 }
 

@@ -44,6 +44,7 @@ const (
 	senzaEtcdStackFileName             = "etcd-cluster.yaml"
 	etcdStackFileName                  = "etcd-stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
+	etcdStackName                      = "etcd-cluster-etcd"
 	defaultNamespace                   = "default"
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
@@ -429,14 +430,33 @@ func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster
 		return err
 	}
 
-	err = adapter.applyStack("etcd-cluster-etcd", rendered, "", nil, true)
+	err = adapter.applyStack(etcdStackName, rendered, "", nil, true, &stackPolicy{
+		Statements: []stackPolicyStatement{
+			{
+				Effect:    stackPolicyEffectAllow,
+				Action:    []stackPolicyAction{stackPolicyActionUpdateAll},
+				Principal: stackPolicyPrincipalAll,
+				Resource:  []string{"*"},
+			},
+			{
+				Effect:    stackPolicyEffectDeny,
+				Action:    []stackPolicyAction{stackPolicyActionUpdateReplace, stackPolicyActionUpdateDelete},
+				Principal: stackPolicyPrincipalAll,
+				Condition: &stackPolicyCondition{
+					StringEquals: stackPolicyConditionStringEquals{
+						ResourceType: []string{"AWS::AutoScaling::AutoScalingGroup", "AWS::S3::Bucket", "AWS::IAM::Role"},
+					},
+				},
+			},
+		},
+	})
 	if err != nil {
 		return err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
-	err = adapter.waitForStack(ctx, waitTime, cluster.LocalID)
+	err = adapter.waitForStack(ctx, waitTime, etcdStackName)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -170,7 +171,7 @@ func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster 
 		mainStackTagKey: stackTagValueTrue,
 	}
 
-	return a.applyStack(stackName, stackTemplate, templateURL, stackTags, true)
+	return a.applyStack(stackName, stackTemplate, templateURL, stackTags, true, nil)
 }
 
 func mergeTags(tags ...map[string]string) map[string]string {
@@ -211,7 +212,7 @@ func tagsFromStackTemplate(template string) (map[string]string, error) {
 // applyStack applies a cloudformation stack.
 // Optionally parses tags specified under the Tags key in the template and
 // merges those with the tags passed via the parameter.
-func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags map[string]string, updateStack bool) error {
+func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTemplateURL string, tags map[string]string, updateStack bool, updatePolicy *stackPolicy) error {
 	// parse tags from stack template
 	stackTemplateTags, err := tagsFromStackTemplate(stackTemplate)
 	if err != nil {
@@ -260,6 +261,14 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 						StackName:    createParams.StackName,
 						Capabilities: createParams.Capabilities,
 						Tags:         cfTags,
+					}
+
+					if updatePolicy != nil {
+						policyBody, err := json.Marshal(updatePolicy)
+						if err != nil {
+							return err
+						}
+						updateParams.StackPolicyDuringUpdateBody = aws.String(string(policyBody))
 					}
 
 					if stackTemplateURL != "" {
@@ -591,7 +600,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		componentTagKey:   "etcd-cluster",
 	}
 
-	err = a.applyStack(stackName, string(output), "", tags, false)
+	err = a.applyStack(stackName, string(output), "", tags, false, nil)
 	if err != nil {
 		return err
 	}
