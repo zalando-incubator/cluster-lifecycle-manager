@@ -563,7 +563,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 			if err != nil {
 				return err
 			}
-			expiry, err := certificateExpiry(string(decoded))
+			expiry, err := certificateExpiryTime(string(decoded))
 			if err != nil {
 				return err
 			}
@@ -615,7 +615,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	return nil
 }
 
-func certificateExpiry(certificate string) (time.Time, error) {
+func certificateExpiryTime(certificate string) (time.Time, error) {
 	block, _ := pem.Decode([]byte(certificate))
 	if block == nil {
 		return time.Time{}, fmt.Errorf("no PEM data found")

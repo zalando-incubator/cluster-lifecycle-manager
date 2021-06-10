@@ -591,27 +591,3 @@ func TestKMSKeyARN(t *testing.T) {
 		})
 	}
 }
-
-func TestCertificateExpiry(t *testing.T) {
-	certificate := strings.ReplaceAll(`-----BEGIN CERTIFICATE-----
-	MIICoDCCAYgCCQDLEipM91kVrzANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdl
-	eGFtcGxlMB4XDTIxMDMwNTExMTQzM1oXDTIyMDMwNTExMTQzM1owEjEQMA4GA1UE
-	AwwHZXhhbXBsZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL8sxsRl
-	2gSJUdtRwaG1ASdaVPsVAWJv/Z1UpBXg/1MMIZV7oB/BI2IlHyJpJdRTWMRgqo2N
-	lZ6NdkyTSusq5p85WceJatyEWB2PwQBd1Jrv5ReoMrts+i5SNoDLSz8WSdI8L66g
-	naHL6DJ5eyOCxGTV/DiCHke3tYSPlRBxGC7iRAtkRunYPxog3s9VUbd5wwF6bV/1
-	uh7h4s7RcevGiYxR2ciRXes6WhdwYVWJttm4iMewV9Hugt/5PngsNBQOZ9M/6dX+
-	tBIIpNhfiL7VpqOE/JK+K91uIvcmaiW0u25mDLZtsDTk1ozShCWiZp3zShkG9gQ5
-	s+aF11LacNoeVvMCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAdGnfl5bX1YvVabD4
-	/nS9GN6t8KKUUGd7S3njsay/V7Iv5fxKROotFj4BTNpIpFAhZEJndfHanv2lRwc1
-	zhcy0h+ArwXaoyw2DEC8B92FxLqBNEml+EjrgIsr6ZnfujauDyCxQXGSPrTiBYIs
-	zL14G1QW02UeUFZNQU8qOSjGLf8V957ktXDHTSP2LsOpiBJV8HhLHeur6EXMJTj0
-	7PngQHnkNqH6N2XBhNlZTbYHawh0GrTZYt1W/SYmkLWBDfHpZKfhCXbryRbg9grW
-	GN3xYrTHx/v3mF21rr1aq3ejplHTq7v0QOyPxvX4CxtCssxIyxu2Z9JC8CMSRm/p
-	2OzhXg==
-	-----END CERTIFICATE-----`, "\t", "")
-
-	exp, err := certificateExpiry(certificate)
-	require.NoError(t, err)
-	require.Equal(t, time.Date(2022, 3, 5, 11, 14, 33, 0, time.UTC), exp)
-}
