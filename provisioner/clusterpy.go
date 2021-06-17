@@ -81,6 +81,7 @@ type clusterpyProvisioner struct {
 	applyOnly       bool
 	updateStrategy  config.UpdateStrategy
 	removeVolumes   bool
+	manageEtcdStack bool
 }
 
 type manifestPackage struct {
@@ -103,6 +104,7 @@ func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth
 		provisioner.applyOnly = options.ApplyOnly
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
+		provisioner.manageEtcdStack = options.ManageEtcdStack
 	}
 
 	return provisioner
@@ -299,21 +301,23 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	// create etcd stack if needed.
-	etcdStackDefinition, err := channelConfig.StackManifest(senzaEtcdStackFileName)
-	if err != nil {
-		return err
-	}
+	// create or update the etcd stack
+	if p.manageEtcdStack {
+		if cluster.ConfigItems["experimental_new_etcd_stack"] == "true" {
+			err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
+			if err != nil {
+				return err
+			}
+		} else {
+			etcdStackDefinition, err := channelConfig.StackManifest(senzaEtcdStackFileName)
+			if err != nil {
+				return err
+			}
 
-	if cluster.ConfigItems["experimental_new_etcd_stack"] == "true" {
-		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, etcdKMSKeyARN, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
-		if err != nil {
-			return err
+			err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, etcdKMSKeyARN, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

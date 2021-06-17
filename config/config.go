@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -56,6 +56,7 @@ type LifecycleManagerConfig struct {
 	AwsMaxRetryInterval         time.Duration
 	UpdateStrategy              UpdateStrategy
 	RemoveVolumes               bool
+	ManageEtcdStack             bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -105,5 +106,6 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling", "clc")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
 	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
+	kingpin.Flag("manage-etcd-stack", "Enable creation/updates of the etcd stack (should be disabled for pet clusters)").BoolVar(&cfg.ManageEtcdStack)
 	return kingpin.Parse()
 }
