@@ -26,6 +26,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
@@ -305,7 +306,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	if cluster.ConfigItems["experimental_new_etcd_stack"] == "true" {
-		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, awsAdapter)
+		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
 		if err != nil {
 			return err
 		}
@@ -419,8 +420,14 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) error {
+func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, etcdKmsKeyARN string, adapter *awsAdapter) error {
 	template, err := config.StackManifest(etcdStackFileName)
+	if err != nil {
+		return err
+	}
+
+	values = util.CopyValues(values)
+	err = populateEncryptedEtcdValues(adapter, cluster, etcdKmsKeyARN, values)
 	if err != nil {
 		return err
 	}

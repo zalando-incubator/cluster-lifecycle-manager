@@ -15,12 +15,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/mitchellh/copystructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 
 const (
@@ -99,15 +99,7 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 
 	// provision node pools in parallel
 	for _, nodePool := range nodePools {
-		poolValuesCopy, err := copystructure.Copy(values)
-		if err != nil {
-			return err
-		}
-
-		poolValues, ok := poolValuesCopy.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unable to copy values for node pool %s", nodePool.Name)
-		}
+		poolValues := util.CopyValues(values)
 
 		go func(nodePool api.NodePool, errorsc chan error) {
 			err := p.provisionNodePool(ctx, &nodePool, poolValues)

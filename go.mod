@@ -13,7 +13,6 @@ require (
 	github.com/go-swagger/go-swagger v0.27.0
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.4 // indirect
-	github.com/mitchellh/copystructure v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.23.0 // indirect
 	github.com/sirupsen/logrus v1.8.1

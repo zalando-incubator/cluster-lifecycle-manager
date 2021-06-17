@@ -883,58 +883,6 @@ func TestZoneDistributedNodePoolGroupsDefault(t *testing.T) {
 	}
 }
 
-func TestEncryptForTaupage(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		payload  string
-		expected string
-		fail     bool
-	}{
-		{
-			name:     "encryption succeeds",
-			payload:  "test",
-			expected: "aws:kms:Zm9vYmFy",
-			fail:     false,
-		},
-		{
-			name:     "nothing to encrypt",
-			payload:  "",
-			expected: "",
-			fail:     false,
-		},
-		{
-			name:    "encryption fails",
-			payload: "test",
-			fail:    true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			adapter := &awsAdapter{
-				kmsClient: mockKMSAPI{
-					expectedKeyID: "key-id",
-					expectedValue: []byte("test"),
-					encryptResult: []byte("foobar"),
-					fail:          tc.fail,
-				},
-			}
-
-			result, err := render(
-				t,
-				map[string]string{"foo.yaml": `{{ encryptForTaupage "key-id" .Values.data.payload }}`},
-				"foo.yaml",
-				map[string]interface{}{"payload": tc.payload},
-				adapter)
-
-			if tc.fail {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, result)
-			}
-		})
-	}
-}
-
 func TestCertificateExpiry(t *testing.T) {
 	exampleCert := `-----BEGIN CERTIFICATE-----
 MIICoDCCAYgCCQCICOd8jmc77jANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdl
