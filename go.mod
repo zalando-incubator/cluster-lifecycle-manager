@@ -13,6 +13,7 @@ require (
 	github.com/go-swagger/go-swagger v0.27.0
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.4 // indirect
+	github.com/jonboulle/clockwork v0.1.0
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.23.0 // indirect
@@ -30,10 +31,17 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.19.10
 	k8s.io/apimachinery v0.19.10
+	k8s.io/cli-runtime v0.19.10
 	k8s.io/client-go v0.19.10
 	k8s.io/klog/v2 v2.8.0 // indirect
+	k8s.io/kubectl v0.19.10
 	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.0 // indirect
 )
 
 go 1.16
+
+// kubernetes maintainers and half of the go community can't figure out dependency management, news at 11.
+// see https://github.com/kubernetes-sigs/kustomize/tree/master/cmd/depprobcheck
+// this is a mirror of kustomize@v2.0.3 with the patch from PR 3730 applied manually
+replace sigs.k8s.io/kustomize => github.bus.zalan.do/teapot/kustomize-mirror v0.0.0-20210505180545-342a709d6726

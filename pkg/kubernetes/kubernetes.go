@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
+func NewConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
 	return &rest.Config{
 		Host: host,
 		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
@@ -25,11 +25,11 @@ func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
 // NewClient initializes a Kubernetes client with the
 // specified token source.
 func NewClient(host string, tokenSrc oauth2.TokenSource) (kubernetes.Interface, error) {
-	return kubernetes.NewForConfig(newConfig(host, tokenSrc))
+	return kubernetes.NewForConfig(NewConfig(host, tokenSrc))
 }
 
 // NewDynamicClient initializes a dynamic Kubernetes client with the
 // specified token source.
 func NewDynamicClient(host string, tokenSrc oauth2.TokenSource) (dynamic.Interface, error) {
-	return dynamic.NewForConfig(newConfig(host, tokenSrc))
+	return dynamic.NewForConfig(NewConfig(host, tokenSrc))
 }
