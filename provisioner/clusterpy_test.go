@@ -102,51 +102,94 @@ func TestHasTag(t *testing.T) {
 }
 
 func TestFilterSubnets(tt *testing.T) {
-	for _, tc := range []struct {
-		msg             string
-		subnets         []*ec2.Subnet
-		subnetIds       []string
-		expectedSubnets []*ec2.Subnet
-		err             bool
-	}{
+	tt.Run("configured IDs", func(tt *testing.T) {
+		for _, tc := range []struct {
+			msg             string
+			subnets         []*ec2.Subnet
+			subnetIds       []string
+			expectedSubnets []*ec2.Subnet
+		}{
 
-		{
-			msg: "test filtering out a single subnet",
-			subnets: []*ec2.Subnet{
-				{
-					SubnetId: aws.String("id-1"),
+			{
+				msg: "test filtering out a single subnet",
+				subnets: []*ec2.Subnet{
+					{
+						SubnetId: aws.String("id-1"),
+					},
+					{
+						SubnetId: aws.String("id-2"),
+					},
 				},
-				{
-					SubnetId: aws.String("id-2"),
-				},
-			},
-			subnetIds: []string{"id-1"},
-			expectedSubnets: []*ec2.Subnet{
-				{
-					SubnetId: aws.String("id-1"),
-				},
-			},
-		},
-		{
-			msg: "test filtering invalid subnets",
-			subnets: []*ec2.Subnet{
-				{
-					SubnetId: aws.String("id-1"),
+				subnetIds: []string{"id-1"},
+				expectedSubnets: []*ec2.Subnet{
+					{
+						SubnetId: aws.String("id-1"),
+					},
 				},
 			},
-			subnetIds:       []string{"id-2"},
-			expectedSubnets: nil,
-		},
-	} {
-		tt.Run(tc.msg, func(t *testing.T) {
-			subnets, err := filterSubnets(tc.subnets, tc.subnetIds)
-			if tc.err {
-				require.Error(t, err)
-			} else {
+			{
+				msg: "test filtering invalid subnets",
+				subnets: []*ec2.Subnet{
+					{
+						SubnetId: aws.String("id-1"),
+					},
+				},
+				subnetIds:       []string{"id-2"},
+				expectedSubnets: nil,
+			},
+		} {
+			tt.Run(tc.msg, func(t *testing.T) {
+				subnets := filterSubnets(tc.subnets, subnetIDIncluded(tc.subnetIds))
 				require.EqualValues(t, tc.expectedSubnets, subnets)
-			}
-		})
-	}
+			})
+		}
+	})
+
+	tt.Run("ignore custom", func(tt *testing.T) {
+		for _, test := range []struct {
+			msg                      string
+			subnets, expectedSubnets []*ec2.Subnet
+		}{{
+			msg: "has no custom",
+			subnets: []*ec2.Subnet{{
+				SubnetId: aws.String("id-1"),
+			}, {
+				SubnetId: aws.String("id-2"),
+			}, {
+				SubnetId: aws.String("id-3"),
+			}},
+			expectedSubnets: []*ec2.Subnet{{
+				SubnetId: aws.String("id-1"),
+			}, {
+				SubnetId: aws.String("id-2"),
+			}, {
+				SubnetId: aws.String("id-3"),
+			}},
+		}, {
+			msg: "has custom",
+			subnets: []*ec2.Subnet{{
+				SubnetId: aws.String("id-1"),
+			}, {
+				SubnetId: aws.String("id-2"),
+				Tags: []*ec2.Tag{{
+					Key:   aws.String(customSubnetTag),
+					Value: aws.String("foo"),
+				}},
+			}, {
+				SubnetId: aws.String("id-3"),
+			}},
+			expectedSubnets: []*ec2.Subnet{{
+				SubnetId: aws.String("id-1"),
+			}, {
+				SubnetId: aws.String("id-3"),
+			}},
+		}} {
+			tt.Run(test.msg, func(t *testing.T) {
+				subnets := filterSubnets(test.subnets, notCustomSubnet)
+				require.EqualValues(t, test.expectedSubnets, subnets)
+			})
+		}
+	})
 }
 
 func TestPropagateConfigItemsToNodePool(tt *testing.T) {
