@@ -669,8 +669,8 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
 github.com/spf13/viper v1.7.1 h1:pM5oEahlgWv/WnHXpgbKz7iLIxRf65tye2Ci+XFK5sk=
 github.com/spf13/viper v1.7.1/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
-github.com/spotinst/spotinst-sdk-go v1.88.0 h1:fN6xUPohKza9Rg+pnMw9Q/JCjMqgt+qLwZZqDo7UHm0=
-github.com/spotinst/spotinst-sdk-go v1.88.0/go.mod h1:RuKksd1/RyQogMCxKFI5B75NeFRcgl3W+26DVX6S4m0=
+github.com/spotinst/spotinst-sdk-go v1.93.0 h1:hYYvB8hRHEE1JElB4Cw+bAUlDGiyLD07YdpWJkMtyFM=
+github.com/spotinst/spotinst-sdk-go v1.93.0/go.mod h1:RuKksd1/RyQogMCxKFI5B75NeFRcgl3W+26DVX6S4m0=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
