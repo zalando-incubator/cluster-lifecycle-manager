@@ -30,11 +30,9 @@ require (
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.19.10
-	k8s.io/apimachinery v0.19.10
+	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.19.10
-	k8s.io/klog/v2 v2.8.0 // indirect
 	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.0 // indirect
 )
 
 go 1.16
