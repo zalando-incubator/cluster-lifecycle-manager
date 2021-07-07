@@ -229,7 +229,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	subnets = filterSubnets(subnets, notCustomSubnet)
+	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
 
 	// if subnets are defined in the config items, filter the subnet list
 	if subnetIds, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
@@ -469,14 +469,20 @@ func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
 	}
 }
 
-func notCustomSubnet(subnet *ec2.Subnet) bool {
+func isCustomSubnet(subnet *ec2.Subnet) bool {
 	for _, tag := range subnet.Tags {
 		if aws.StringValue(tag.Key) == customSubnetTag {
-			return false
+			return true
 		}
 	}
 
-	return true
+	return false
+}
+
+func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
+	return func(s *ec2.Subnet) bool {
+		return !predicate(s)
+	}
 }
 
 // selectSubnetIDs finds the best suiting subnets based on tags for each AZ.

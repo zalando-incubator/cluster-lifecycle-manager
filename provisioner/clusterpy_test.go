@@ -185,7 +185,7 @@ func TestFilterSubnets(tt *testing.T) {
 			}},
 		}} {
 			tt.Run(test.msg, func(t *testing.T) {
-				subnets := filterSubnets(test.subnets, notCustomSubnet)
+				subnets := filterSubnets(test.subnets, subnetNot(isCustomSubnet))
 				require.EqualValues(t, test.expectedSubnets, subnets)
 			})
 		}
