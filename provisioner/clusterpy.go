@@ -71,6 +71,7 @@ const (
 	spotIOAccountIDKey                 = "spotio_account_id"
 	spotIONodePoolProfile              = "worker-spotio"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
+	customSubnetTag                    = "zalando.org/custom-subnet"
 )
 
 type clusterpyProvisioner struct {
@@ -228,11 +229,14 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
+
 	// if subnets are defined in the config items, filter the subnet list
 	if subnetIds, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
-		subnets, err = filterSubnets(subnets, strings.Split(subnetIds, ","))
-		if err != nil {
-			return err
+		ids := strings.Split(subnetIds, ",")
+		subnets = filterSubnets(subnets, subnetIDIncluded(ids))
+		if len(subnets) != len(ids) {
+			return fmt.Errorf("invalid or unknown subnets; desired %v", ids)
 		}
 	}
 
@@ -442,28 +446,43 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 	return outputs, nil
 }
 
-func filterSubnets(allSubnets []*ec2.Subnet, subnetIds []string) ([]*ec2.Subnet, error) {
-	desiredSubnets := make(map[string]struct{})
-	for _, id := range subnetIds {
-		desiredSubnets[id] = struct{}{}
-	}
-
-	var result []*ec2.Subnet
-	for _, subnet := range allSubnets {
-		subnet := *subnet
-		subnetID := aws.StringValue(subnet.SubnetId)
-		_, ok := desiredSubnets[subnetID]
-		if ok {
-			result = append(result, &subnet)
-			delete(desiredSubnets, subnetID)
+func filterSubnets(subnets []*ec2.Subnet, filter func(*ec2.Subnet) bool) []*ec2.Subnet {
+	var filtered []*ec2.Subnet
+	for _, subnet := range subnets {
+		if filter(subnet) {
+			filtered = append(filtered, subnet)
 		}
 	}
 
-	if len(desiredSubnets) > 0 {
-		return nil, fmt.Errorf("invalid or unknown subnets: %s", desiredSubnets)
+	return filtered
+}
+
+func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool {
+		for _, id := range ids {
+			if aws.StringValue(subnet.SubnetId) == id {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+func isCustomSubnet(subnet *ec2.Subnet) bool {
+	for _, tag := range subnet.Tags {
+		if aws.StringValue(tag.Key) == customSubnetTag {
+			return true
+		}
 	}
 
-	return result, nil
+	return false
+}
+
+func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
+	return func(s *ec2.Subnet) bool {
+		return !predicate(s)
+	}
 }
 
 // selectSubnetIDs finds the best suiting subnets based on tags for each AZ.
