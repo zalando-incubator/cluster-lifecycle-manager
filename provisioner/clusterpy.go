@@ -18,10 +18,6 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	spotio "github.com/spotinst/spotinst-sdk-go/service/ocean/providers/aws"
-	"github.com/spotinst/spotinst-sdk-go/spotinst"
-	"github.com/spotinst/spotinst-sdk-go/spotinst/credentials"
-	spotiosession "github.com/spotinst/spotinst-sdk-go/spotinst/session"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -67,9 +63,6 @@ const (
 	defaultMaxRetryTime                = 5 * time.Minute
 	clcPollingInterval                 = 10 * time.Second
 	clusterStackOutputKey              = "ClusterStackOutputs"
-	spotIOAccessTokenKey               = "spotio_access_token"
-	spotIOAccountIDKey                 = "spotio_account_id"
-	spotIONodePoolProfile              = "worker-spotio"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 	customSubnetTag                    = "zalando.org/custom-subnet"
 )
@@ -355,7 +348,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		logger:          logger,
 	}
 
-	// group node pools based on their profile e.g. master or spot.io
+	// group node pools based on their profile e.g. master
 	nodePoolGroups := groupNodePools(
 		logger,
 		cluster,
@@ -796,20 +789,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		noScheduleTaint = true
 	}
 
-	spotIOToken := cluster.ConfigItems[spotIOAccessTokenKey]
-	spotIOAccountID := cluster.ConfigItems[spotIOAccountIDKey]
-
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
-	if spotIOToken != "" && spotIOAccountID != "" {
-		creds := credentials.NewStaticCredentials(
-			spotIOToken, spotIOAccountID,
-		)
-		cfg := spotinst.DefaultConfig().WithCredentials(creds)
-		spotIOClient := spotio.New(spotiosession.New(cfg))
-
-		spotIOBackend := updatestrategy.NewSpotIONodePoolsBackend(cluster.ID, adapter.session, spotIOClient)
-		additionalBackends[spotIONodePoolProfile] = spotIOBackend
-	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)

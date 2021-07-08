@@ -125,7 +125,6 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"kubernetesSizeToKiloBytes":     kubernetesSizeToKiloBytes,
 		"indexedList":                   indexedList,
 		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
-		"spotIONodePools":               spotIONodePools,
 	}
 
 	content, ok := context.fileData[file]
@@ -661,14 +660,4 @@ func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 		}
 	}
 	return result
-}
-
-// spotIONodePools returns true at least one node pool is a spot.io node pool.
-func spotIONodePools(nodePools []*api.NodePool) bool {
-	for _, pool := range nodePools {
-		if pool.IsSpotIO() {
-			return true
-		}
-	}
-	return false
 }
