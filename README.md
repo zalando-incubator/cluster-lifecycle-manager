@@ -108,13 +108,15 @@ clusters:
     profile: master-default
     min_size: 2
     max_size: 2
-    instance_type: m5.large
+    instance_types: 
+    - m5.large
     discount_strategy: none
   - name: worker-default
     profile: worker-default
     min_size: 3
     max_size: 20
-    instance_type: m5.large
+    instance_types: 
+    - m5.large
     discount_strategy: none
 ```
 
