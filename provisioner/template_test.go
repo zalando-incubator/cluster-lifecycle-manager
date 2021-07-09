@@ -882,3 +882,26 @@ func TestZoneDistributedNodePoolGroupsDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestCertificateExpiry(t *testing.T) {
+	exampleCert := `-----BEGIN CERTIFICATE-----
+MIICoDCCAYgCCQCICOd8jmc77jANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdl
+eGFtcGxlMB4XDTIxMDYxMDEwMDY0M1oXDTIyMDYxMDEwMDY0M1owEjEQMA4GA1UE
+AwwHZXhhbXBsZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMYr2Lsz
+Wm3I1GqxdqnuuXqT/SHWKv/CdGorE5nb1O6OBFibo0TJN8ztoooySqwF81Qh9Uwu
+mA5mkScdWJagqYlGsR+d1U3wuGmY9jSXdIn5VX0PUWD38MazT+s2kzZVg8Xu/CC8
+waBdQDZGKpJeO/z1LC8zoY9P3f3YuxmgQqzDfpJgzjSEaSqhgIDD7RCA3kngfzYP
+J3T+O54NpTNU5fZx437e7L643arZdB636yyV6dGz3ZV3WZw9TeLry6mf671BWvsN
+Ngkz0fmG1rNgzD7gwn6jTG29p5O9f3djX2oH2aHUb7ry+n40QmxVUM+JO3OgVg99
+ZV2jRxqfVNse61UCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAiLJJgKyP1aFJK+jL
+T3E9EZfiYzWE301DMzkhCDVcAEY8KNsugQPn/dNiAWcZB+JLEWby0LFyQcPVE5eu
+TLvNJLT6Iui7ITNC4bbrIqJxdKdeHX2Y/gj4j2mtHupiLHkJoLrahjAG8JrIDpMt
+MFsSQS6YJ87TjYgtlNlOLa+/k771rS9qG/uIK8+Ijx8Y3HYboS5zMVyMdELFufof
+0rjsnygpvicwVEyZU0d4sCVwyX3I9OtCUTI/CY/3UqqL2LhNEq3hYPNDFDJV9zXE
+T6qW9CgZFGg83VqV2Tz44pneTFzvbr7Kcvrhpe0Wr2Ed2zPsz5BSz194DopAdRYv
+CWeOoA==
+-----END CERTIFICATE-----`
+	res, err := renderSingle(t, `{{ certificateExpiry .Values.data.certificate }}`, map[string]interface{}{"certificate": exampleCert})
+	require.NoError(t, err)
+	require.Equal(t, "2022-06-10T10:06:43Z", res)
+}

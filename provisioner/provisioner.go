@@ -19,10 +19,11 @@ var (
 
 // Options is the options that can be passed to a provisioner when initialized.
 type Options struct {
-	DryRun         bool
-	ApplyOnly      bool
-	UpdateStrategy config.UpdateStrategy
-	RemoveVolumes  bool
+	DryRun          bool
+	ApplyOnly       bool
+	UpdateStrategy  config.UpdateStrategy
+	RemoveVolumes   bool
+	ManageEtcdStack bool
 }
 
 // Provisioner is an interface describing how to provision or decommission
