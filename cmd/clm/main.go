@@ -116,10 +116,11 @@ func main() {
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
 	p := provisioner.NewClusterpyProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
-		DryRun:         cfg.DryRun,
-		ApplyOnly:      cfg.ApplyOnly,
-		UpdateStrategy: cfg.UpdateStrategy,
-		RemoveVolumes:  cfg.RemoveVolumes,
+		DryRun:          cfg.DryRun,
+		ApplyOnly:       cfg.ApplyOnly,
+		UpdateStrategy:  cfg.UpdateStrategy,
+		RemoveVolumes:   cfg.RemoveVolumes,
+		ManageEtcdStack: cfg.ManageEtcdStack,
 	})
 
 	configSource, err := setupConfigSource(execManager, cfg)
