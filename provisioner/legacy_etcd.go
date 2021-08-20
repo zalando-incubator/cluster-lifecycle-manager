@@ -23,6 +23,26 @@ func populateEncryptedEtcdValues(adapter *awsAdapter, cluster *api.Cluster, etcd
 		return err
 	}
 
+	// Some config items are stored as encoded, some not. Since this whole thing is _very_ temporary, let's just manually
+	// convert them into the correct representation instead of coming up with weird template functions.
+	etcdConfigItems := map[string]string{}
+	for ci, encoded := range map[string]bool{
+		"etcd_scalyr_key":         false,
+		"etcd_client_server_cert": true,
+		"etcd_client_server_key":  true,
+		"etcd_client_ca_cert":     true,
+	} {
+		currentValue := cluster.ConfigItems[ci]
+		if encoded {
+			decoded, err := base64.StdEncoding.DecodeString(currentValue)
+			if err != nil {
+				return err
+			}
+			currentValue = string(decoded)
+		}
+		etcdConfigItems[ci] = currentValue
+	}
+
 	// Try to reload the values from the existing launch template
 	if stack != nil {
 		for _, output := range stack.Outputs {
@@ -71,7 +91,7 @@ func populateEncryptedEtcdValues(adapter *awsAdapter, cluster *api.Cluster, etcd
 							return err
 						}
 
-						if cluster.ConfigItems[k] == decrypted {
+						if etcdConfigItems[k] == decrypted {
 							// Keep the existing value
 							values[k] = v
 						}
@@ -87,7 +107,7 @@ func populateEncryptedEtcdValues(adapter *awsAdapter, cluster *api.Cluster, etcd
 			continue
 		}
 
-		encrypted, err := adapter.kmsEncryptForTaupage(etcdKMSKeyARN, cluster.ConfigItems[ci])
+		encrypted, err := adapter.kmsEncryptForTaupage(etcdKMSKeyARN, etcdConfigItems[ci])
 		if err != nil {
 			return err
 		}
