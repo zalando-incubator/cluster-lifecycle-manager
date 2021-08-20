@@ -26,6 +26,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
@@ -41,8 +42,10 @@ import (
 
 const (
 	providerID                         = "zalando-aws"
-	etcdStackFileName                  = "etcd-cluster.yaml"
+	senzaEtcdStackFileName             = "etcd-cluster.yaml"
+	etcdStackFileName                  = "etcd-stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
+	etcdStackName                      = "etcd-cluster-etcd"
 	defaultNamespace                   = "default"
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
@@ -65,6 +68,7 @@ const (
 	clusterStackOutputKey              = "ClusterStackOutputs"
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 	customSubnetTag                    = "zalando.org/custom-subnet"
+	etcdKMSKeyAlias                    = "alias/etcd-cluster"
 )
 
 type clusterpyProvisioner struct {
@@ -77,6 +81,7 @@ type clusterpyProvisioner struct {
 	applyOnly       bool
 	updateStrategy  config.UpdateStrategy
 	removeVolumes   bool
+	manageEtcdStack bool
 }
 
 type manifestPackage struct {
@@ -99,6 +104,7 @@ func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth
 		provisioner.applyOnly = options.ApplyOnly
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
+		provisioner.manageEtcdStack = options.ManageEtcdStack
 	}
 
 	return provisioner
@@ -267,6 +273,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	etcdKMSKeyARN, err := awsAdapter.resolveKeyID(etcdKMSKeyAlias)
+	if err != nil {
+		return err
+	}
+
 	values := map[string]interface{}{
 		// TODO(tech-debt): custom legacy value
 		"node_labels": fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
@@ -277,6 +288,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
+		"etcd_kms_key_arn":          etcdKMSKeyARN,
 	}
 
 	// render the manifests to find out if they're valid
@@ -289,15 +301,24 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	// create etcd stack if needed.
-	etcdStackDefinition, err := channelConfig.StackManifest(etcdStackFileName)
-	if err != nil {
-		return err
-	}
+	// create or update the etcd stack
+	if p.manageEtcdStack {
+		if cluster.ConfigItems["experimental_new_etcd_stack"] == "true" {
+			err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
+			if err != nil {
+				return err
+			}
+		} else {
+			etcdStackDefinition, err := channelConfig.StackManifest(senzaEtcdStackFileName)
+			if err != nil {
+				return err
+			}
 
-	err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
-	if err != nil {
-		return err
+			err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, etcdKMSKeyARN, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if err = ctx.Err(); err != nil {
@@ -401,6 +422,57 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	return p.apply(ctx, logger, cluster, deletions, manifests)
+}
+
+func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, etcdKmsKeyARN string, adapter *awsAdapter) error {
+	template, err := config.StackManifest(etcdStackFileName)
+	if err != nil {
+		return err
+	}
+
+	values = util.CopyValues(values)
+	err = populateEncryptedEtcdValues(adapter, cluster, etcdKmsKeyARN, values)
+	if err != nil {
+		return err
+	}
+
+	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
+	if err != nil {
+		return err
+	}
+
+	err = adapter.applyStack(etcdStackName, rendered, "", nil, true, &stackPolicy{
+		Statements: []stackPolicyStatement{
+			{
+				Effect:    stackPolicyEffectAllow,
+				Action:    []stackPolicyAction{stackPolicyActionUpdateAll},
+				Principal: stackPolicyPrincipalAll,
+				Resource:  []string{"*"},
+			},
+			{
+				Effect:    stackPolicyEffectDeny,
+				Action:    []stackPolicyAction{stackPolicyActionUpdateReplace, stackPolicyActionUpdateDelete},
+				Principal: stackPolicyPrincipalAll,
+				Condition: &stackPolicyCondition{
+					StringEquals: stackPolicyConditionStringEquals{
+						ResourceType: []string{"AWS::AutoScaling::AutoScalingGroup", "AWS::S3::Bucket", "AWS::IAM::Role"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
+	defer cancel()
+	err = adapter.waitForStack(ctx, waitTime, etcdStackName)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) (map[string]string, error) {
