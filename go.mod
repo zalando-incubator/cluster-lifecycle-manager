@@ -16,7 +16,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.35
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.11.37
 	golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6 // indirect
