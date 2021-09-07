@@ -441,7 +441,12 @@ func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster
 		return err
 	}
 
-	err = adapter.applyStack(etcdStackName, rendered, "", nil, true, &stackPolicy{
+	tags := map[string]string{
+		applicationTagKey: "kubernetes",
+		componentTagKey:   "etcd-cluster",
+	}
+
+	err = adapter.applyStack(etcdStackName, rendered, "", tags, true, &stackPolicy{
 		Statements: []stackPolicyStatement{
 			{
 				Effect:    stackPolicyEffectAllow,

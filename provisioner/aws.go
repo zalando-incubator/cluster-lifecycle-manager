@@ -596,7 +596,7 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 	}
 
 	tags := map[string]string{
-		applicationTagKey: "kubernetes-etcd",
+		applicationTagKey: "kubernetes",
 		componentTagKey:   "etcd-cluster",
 	}
 
