@@ -15,7 +15,6 @@ require (
 	github.com/go-swagger/go-swagger v0.27.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/googleapis/gnostic v0.5.4 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
@@ -33,9 +32,8 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.20.10
-	k8s.io/apimachinery v0.20.10
+	k8s.io/apimachinery v0.22.2
 	k8s.io/client-go v0.20.10
-	k8s.io/klog/v2 v2.8.0 // indirect
 	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10 // indirect
 )
 
