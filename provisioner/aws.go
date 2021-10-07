@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,6 +58,7 @@ const (
 	etcdClientCertificateConfigItem = "etcd_client_server_cert"
 	etcdClientTLSEnabledConfigItem  = "etcd_client_tls_enabled"
 	etcdImageConfigItem             = "etcd_image"
+	etcdStorageSizeGBConfigItem     = "etcd_storage_size_gb"
 
 	applicationTagKey = "application"
 	componentTagKey   = "component"
@@ -524,6 +526,19 @@ func (a *awsAdapter) CreateOrUpdateEtcdStack(parentCtx context.Context, stackNam
 		fmt.Sprintf("InstanceCount=%s", cluster.ConfigItems[etcdInstanceCountConfigItem]),
 		fmt.Sprintf("KMSKey=%s", kmsKeyARN),
 		fmt.Sprintf("ScalyrAccountKey=%s", encryptedScalyrKey),
+	}
+
+	if v, ok := cluster.ConfigItems[etcdStorageSizeGBConfigItem]; ok {
+		args = append(args, fmt.Sprintf("RamDiskSize=%sg", v))
+
+		size, err := strconv.Atoi(v)
+		if err != nil {
+			return err
+		}
+
+		backendBytes := size * 1024 * 1024 * 1024
+
+		args = append(args, fmt.Sprintf("QuotaBackendBytes=%d", backendBytes))
 	}
 
 	for _, ci := range []struct {
