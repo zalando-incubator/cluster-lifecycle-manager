@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/analysis v0.20.1 // indirect
 	github.com/go-openapi/errors v0.20.1
 	github.com/go-openapi/runtime v0.19.31
-	github.com/go-openapi/strfmt v0.20.2
+	github.com/go-openapi/strfmt v0.21.0
 	github.com/go-openapi/swag v0.19.15
 	github.com/go-openapi/validate v0.20.2
 	github.com/go-playground/universal-translator v0.18.0 // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.12.2
-	go.mongodb.org/mongo-driver v1.7.1 // indirect
+	go.mongodb.org/mongo-driver v1.7.3 // indirect
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
