@@ -649,8 +649,8 @@ github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.12.9 h1:jmtVb4KKBp3cUERMtkLNuVboNCxVQxYHqDSns1ytJYI=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.12.9/go.mod h1:rr4CKFpvnkoYVz+sjf54DT6TfQ1DfcZoqZNn4yTmd6k=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.12.12 h1:eOm85cSozxjHfjbT4cQ60Q5p+GEQ6/M+7PHnRUJ/V6o=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.12.12/go.mod h1:rr4CKFpvnkoYVz+sjf54DT6TfQ1DfcZoqZNn4yTmd6k=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=
 go.etcd.io/etcd/client/pkg/v3 v3.5.0/go.mod h1:IJHfcCEKxYu1Os13ZdwCwIUTUVGYTSAM3YSwc9/Ac1g=
 go.etcd.io/etcd/client/v2 v2.305.0/go.mod h1:h9puh54ZTgAKtEbut2oe9P4L/oqKCVB6xsXlzd7alYQ=
