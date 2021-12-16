@@ -101,14 +101,14 @@ func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Inter
 func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *api.NodePool) (*NodePool, error) {
 	nodePool, err := m.backend.Get(nodePoolDesc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get node pool details: %#v", err)
 	}
 
 	// TODO: labelselector based on nodePool name. Can't do it yet because of how we create node pools in CLM
 	// https://github.com/zalando-incubator/cluster-lifecycle-manager/issues/226
 	kubeNodes, err := m.kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list nodes: %#v", err)
 	}
 
 	instanceIDMap := make(map[string]v1.Node)
