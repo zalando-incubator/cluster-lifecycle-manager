@@ -199,6 +199,8 @@ func (o *ListClustersOKBody) validateItems(formats strfmt.Registry) error {
 			if err := o.Items[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -231,6 +233,8 @@ func (o *ListClustersOKBody) contextValidateItems(ctx context.Context, formats s
 			if err := o.Items[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("listClustersOK" + "." + "items" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
