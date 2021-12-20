@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -22,12 +23,20 @@ pre_apply:
   kind: deployment
 - name: mate-pre
   kind: priorityclass
+- name: options-pre
+  namespace: kube-system
+  kind: deployment
+  propagation_policy: Orphan
 post_apply:
 - name: secretary-post
   namespace: kube-system
   kind: deployment
 - name: mate-post
   kind: priorityclass
+- name: options-post
+  namespace: kube-system
+  kind: deployment
+  grace_period_seconds: 10
 `
 
 	deletionsContent2 = `
@@ -278,15 +287,19 @@ func TestParseDeletions(t *testing.T) {
 	exampleCluster := &api.Cluster{
 		Alias: "foobar",
 	}
+	orphan := metav1.DeletionPropagation("Orphan")
+	gps10 := int64(10)
 	expected := &deletions{
 		PreApply: []*resource{
 			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-pre", Namespace: "", Kind: "priorityclass"},
+			{Name: "options-pre", Namespace: "kube-system", Kind: "deployment", PropagationPolicy: &orphan},
 			{Name: "foobar-pre", Namespace: "templated", Kind: "deployment"},
 		},
 		PostApply: []*resource{
 			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-post", Namespace: "", Kind: "priorityclass"},
+			{Name: "options-post", Namespace: "kube-system", Kind: "deployment", GracePeriodSeconds: &gps10},
 			{Name: "foobar-post", Namespace: "templated", Kind: "deployment"},
 		},
 	}

@@ -1049,12 +1049,42 @@ func (l labels) String() string {
 	return strings.Join(labels, ",")
 }
 
-// resource defines a minimal difinition of a kubernetes resource.
+// resource defines a minimal definition of a kubernetes resource.
 type resource struct {
 	Name      string `yaml:"name"`
 	Namespace string `yaml:"namespace"`
 	Kind      string `yaml:"kind"`
 	Labels    labels `yaml:"labels"`
+
+	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#DeleteOptions
+	GracePeriodSeconds *int64                      `yaml:"grace_period_seconds"`
+	PropagationPolicy  *metav1.DeletionPropagation `yaml:"propagation_policy"`
+}
+
+func (r *resource) options() metav1.DeleteOptions {
+	return metav1.DeleteOptions{
+		GracePeriodSeconds: r.GracePeriodSeconds,
+		PropagationPolicy:  r.PropagationPolicy,
+	}
+}
+
+func (r *resource) logFields() log.Fields {
+	fields := log.Fields{
+		"kind": r.Kind,
+	}
+	if r.Namespace != "" {
+		fields["namespace"] = r.Namespace
+	}
+	if len(r.Labels) > 0 {
+		fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
+	}
+	if r.GracePeriodSeconds != nil {
+		fields["grace_period_seconds"] = fmt.Sprintf("%d", *r.GracePeriodSeconds)
+	}
+	if r.PropagationPolicy != nil {
+		fields["propagation_policy"] = *r.PropagationPolicy
+	}
+	return fields
 }
 
 // deletions defines two list of resources to be deleted. One before applying
@@ -1095,17 +1125,7 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(typedClient.Discovery()))
 
 	for _, deletion := range deletions {
-		fields := log.Fields{
-			"kind": deletion.Kind,
-		}
-		if deletion.Namespace != "" {
-			fields["namespace"] = deletion.Namespace
-		}
-		if len(deletion.Labels) > 0 {
-			fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: deletion.Labels})
-		}
-
-		err := processDeletion(ctx, dynamicClient, mapper, logger.WithFields(fields), deletion)
+		err := processDeletion(ctx, dynamicClient, mapper, logger, deletion)
 		if err != nil {
 			return err
 		}
@@ -1114,8 +1134,8 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 	return nil
 }
 
-func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
-	err := iface.Delete(ctx, name, metav1.DeleteOptions{})
+func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string, options metav1.DeleteOptions) error {
+	err := iface.Delete(ctx, name, options)
 	if err != nil && apierrors.IsNotFound(err) {
 		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
 		return nil
@@ -1129,6 +1149,8 @@ func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger
 }
 
 func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
+	logger = logger.WithFields(deletion.logFields())
+
 	// Figure out the GVR
 	gvr, err := resolveKind(mapper, deletion.Kind)
 	if err != nil {
@@ -1152,7 +1174,7 @@ func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.
 	}
 
 	if deletion.Name != "" {
-		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name)
+		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name, deletion.options())
 	} else if len(deletion.Labels) > 0 {
 		items, err := iface.List(ctx, metav1.ListOptions{
 			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
@@ -1168,7 +1190,7 @@ func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.
 		}
 
 		for _, item := range items.Items {
-			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName())
+			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName(), deletion.options())
 			if err != nil {
 				return err
 			}

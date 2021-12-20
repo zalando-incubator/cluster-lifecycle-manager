@@ -129,6 +129,11 @@ pre_apply: # everything defined under here will be deleted before applying the m
 - name: mate
   namespace: kube-system
   kind: deployment
+- name: with-options
+  namespace: kube-system
+  kind: deployment
+  propagation_policy: Orphan
+  grace_period_seconds: 10
 post_apply: # everything defined under here will be deleted after applying the manifests
 - namespace: kube-system
   kind: deployment
@@ -147,6 +152,10 @@ the `name` will be used. If none of them are defined, it's an error.
 `namespace` can be left out, in which case it will default to `kube-system`.
 
 `kind` must be one of the kinds defined in `kubectl get`.
+
+It is possible to specify deletion options via optional:
+- `propagation_policy` - one of "Orphan", "Background" or "Foreground" - corresponds to `kubectl delete --cascade` flag
+- `grace_period_seconds` - corresponds to `kubectl delete --grace-period` flag
 
 ## Configuration defaults
 
