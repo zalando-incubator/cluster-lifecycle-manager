@@ -298,6 +298,8 @@ func (m *Cluster) validateNodePools(formats strfmt.Registry) error {
 			if err := m.NodePools[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("node_pools" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("node_pools" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -335,6 +337,8 @@ func (m *Cluster) validateStatus(formats strfmt.Registry) error {
 		if err := m.Status.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("status")
 			}
 			return err
 		}
@@ -369,6 +373,8 @@ func (m *Cluster) contextValidateNodePools(ctx context.Context, formats strfmt.R
 			if err := m.NodePools[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("node_pools" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("node_pools" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -385,6 +391,8 @@ func (m *Cluster) contextValidateStatus(ctx context.Context, formats strfmt.Regi
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("status")
 			}
 			return err
 		}

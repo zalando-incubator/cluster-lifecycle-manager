@@ -74,6 +74,8 @@ func (m *ClusterStatus) validateProblems(formats strfmt.Registry) error {
 			if err := m.Problems[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("problems" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("problems" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -106,6 +108,8 @@ func (m *ClusterStatus) contextValidateProblems(ctx context.Context, formats str
 			if err := m.Problems[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("problems" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("problems" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
