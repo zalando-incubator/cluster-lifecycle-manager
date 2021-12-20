@@ -20,6 +20,7 @@ pipeline:
       make build.docker
   - desc: push
     cmd: |
+      git status
       if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
         IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
         VERSION=$(git describe --tags --always --dirty)
