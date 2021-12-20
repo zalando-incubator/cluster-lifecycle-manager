@@ -104,10 +104,18 @@ func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *a
 		return nil, fmt.Errorf("failed to get node pool details: %#v", err)
 	}
 
-	// TODO: labelselector based on nodePool name. Can't do it yet because of how we create node pools in CLM
-	// https://github.com/zalando-incubator/cluster-lifecycle-manager/issues/226
-	kubeNodes, err := m.kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
+	var (
+		kubeNodes *v1.NodeList
+		kubeErr   error
+	)
+
+	backoffCfg := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 60)
+	if err := backoff.Retry(func() error {
+		// TODO: labelselector based on nodePool name. Can't do it yet because of how we create node pools in CLM
+		// https://github.com/zalando-incubator/cluster-lifecycle-manager/issues/226
+		kubeNodes, kubeErr = m.kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+		return kubeErr
+	}, backoffCfg); err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %#v", err)
 	}
 
