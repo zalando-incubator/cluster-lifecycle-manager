@@ -339,19 +339,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	hostname, err := getHostname(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, hostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
-	}
-	err = provisioner.Provision()
-	if err != nil {
-		return fmt.Errorf("failed to reconcile openid-configuration: %v", err)
-	}
-
 	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
 	if err != nil {
 		return fmt.Errorf("failed to fetch instance types from AWS")
@@ -690,21 +677,6 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 		if err != nil {
 			return err
 		}
-	}
-
-	providerHostname, err := getHostname(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-	provisioner, err := NewOpenIDProviderProvisioner(awsAdapter, providerHostname)
-	if err != nil {
-		return fmt.Errorf("failed to create oidc provisioner: %v", err)
-	}
-
-	logger.Infof("Decommissioning openid connect providers: %s (%s)", cluster.Alias, cluster.ID)
-	err = provisioner.Delete()
-	if err != nil {
-		return fmt.Errorf("failed to delete openid provider: %v", err)
 	}
 
 	return nil
