@@ -210,15 +210,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	err = p.tagSubnets(awsAdapter, vpcID, cluster)
-	if err != nil {
-		return err
-	}
-
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-
 	subnets, err := awsAdapter.GetSubnets(vpcID)
 	if err != nil {
 		return err
@@ -657,28 +648,6 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 		return err
 	}
 
-	// get VPC information
-	var vpc *ec2.Vpc
-	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
-	if !ok { // if vpcID is not defined, autodiscover it
-		vpc, err = awsAdapter.GetDefaultVPC()
-		if err != nil {
-			return err
-		}
-		vpcID = aws.StringValue(vpc.VpcId)
-		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
-	} else {
-		vpc, err = awsAdapter.GetVPC(vpcID)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = p.untagSubnets(awsAdapter, aws.StringValue(vpc.VpcId), cluster)
-	if err != nil {
-		return err
-	}
-
 	if p.removeVolumes {
 		backoffCfg := backoff.NewExponentialBackOff()
 		backoffCfg.MaxElapsedTime = defaultMaxRetryTime
@@ -883,62 +852,6 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	}
 
 	return adapter, updater, poolManager, nil
-}
-
-// tagSubnets tags all subnets in the default VPC with the kubernetes cluster
-// id tag.
-func (p *clusterpyProvisioner) tagSubnets(awsAdapter *awsAdapter, vpcID string, cluster *api.Cluster) error {
-	subnets, err := awsAdapter.GetSubnets(vpcID)
-	if err != nil {
-		return err
-	}
-
-	tag := &ec2.Tag{
-		Key:   aws.String(tagNameKubernetesClusterPrefix + cluster.ID),
-		Value: aws.String(resourceLifecycleShared),
-	}
-
-	for _, subnet := range subnets {
-		if !hasTag(subnet.Tags, tag) {
-			err = awsAdapter.CreateTags(
-				aws.StringValue(subnet.SubnetId),
-				[]*ec2.Tag{tag},
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// untagSubnets removes the kubernetes cluster id tag from all subnets in the
-// default vpc.
-func (p *clusterpyProvisioner) untagSubnets(awsAdapter *awsAdapter, vpcID string, cluster *api.Cluster) error {
-	subnets, err := awsAdapter.GetSubnets(vpcID)
-	if err != nil {
-		return err
-	}
-
-	tag := &ec2.Tag{
-		Key:   aws.String(tagNameKubernetesClusterPrefix + cluster.ID),
-		Value: aws.String(resourceLifecycleShared),
-	}
-
-	for _, subnet := range subnets {
-		if hasTag(subnet.Tags, tag) {
-			err = awsAdapter.DeleteTags(
-				aws.StringValue(subnet.SubnetId),
-				[]*ec2.Tag{tag},
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // downscaleDeployments scales down all deployments of a cluster in the
