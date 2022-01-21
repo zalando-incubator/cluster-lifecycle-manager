@@ -512,8 +512,11 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to describe image with name %s and owner %s: %v", imageName, imageOwner, err)
 	}
-	if len(output.Images) != 1 {
+	if len(output.Images) > 1 {
 		return "", fmt.Errorf("more than one image found with name: %s and owner: %s", imageName, imageOwner)
+	}
+	if len(output.Images) == 0 {
+		return "", fmt.Errorf("no image found with name: %s and owner: %s", imageName, imageOwner)
 	}
 	return *output.Images[0].ImageId, nil
 }
