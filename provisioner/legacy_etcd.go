@@ -109,7 +109,7 @@ func populateEncryptedEtcdValues(adapter *awsAdapter, cluster *api.Cluster, etcd
 
 		encrypted, err := adapter.kmsEncryptForTaupage(etcdKMSKeyARN, etcdConfigItems[ci])
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to encrypt value for '%s': %w", ci, err)
 		}
 		values[ci] = encrypted
 	}
