@@ -34,6 +34,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
@@ -940,6 +941,7 @@ type resource struct {
 	Namespace string `yaml:"namespace"`
 	Kind      string `yaml:"kind"`
 	Labels    labels `yaml:"labels"`
+	HasOwner  *bool  `yaml:"has_owner"`
 
 	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#DeleteOptions
 	GracePeriodSeconds *int64                      `yaml:"grace_period_seconds"`
@@ -962,6 +964,9 @@ func (r *resource) logFields() log.Fields {
 	}
 	if len(r.Labels) > 0 {
 		fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
+	}
+	if r.HasOwner != nil {
+		fields["has_owner"] = fmt.Sprintf("%t", *r.HasOwner)
 	}
 	if r.GracePeriodSeconds != nil {
 		fields["grace_period_seconds"] = fmt.Sprintf("%d", *r.GracePeriodSeconds)
@@ -1019,6 +1024,29 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 	return nil
 }
 
+func listResources(ctx context.Context, iface dynamic.ResourceInterface, deletion *resource) ([]metav1unstructured.Unstructured, error) {
+	items, err := iface.List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
+			MatchLabels: deletion.Labels,
+		}),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if deletion.HasOwner != nil {
+		var result []metav1unstructured.Unstructured
+		for _, item := range items.Items {
+			itemHasOwner := len(item.GetOwnerReferences()) > 0
+			if *deletion.HasOwner == itemHasOwner {
+				result = append(result, item)
+			}
+		}
+		return result, nil
+	}
+	return items.Items, nil
+}
+
 func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string, options metav1.DeleteOptions) error {
 	err := iface.Delete(ctx, name, options)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -1034,13 +1062,16 @@ func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger
 }
 
 func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
-	logger = logger.WithFields(deletion.logFields())
-
 	// Figure out the GVR
 	gvr, err := resolveKind(mapper, deletion.Kind)
 	if err != nil {
 		return err
 	}
+	return performDeletion(ctx, logger, client, gvr, deletion)
+}
+
+func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Interface, gvr schema.GroupVersionResource, deletion *resource) error {
+	logger = logger.WithFields(deletion.logFields())
 
 	// identify the resource to be deleted either by name or
 	// labels. name AND labels cannot be defined at the same time,
@@ -1053,28 +1084,30 @@ func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.
 		return fmt.Errorf("either name or labels must be specified to identify a resource")
 	}
 
-	var iface dynamic.ResourceInterface = client.Resource(gvr)
+	if deletion.HasOwner != nil && len(deletion.Labels) == 0 {
+		return fmt.Errorf("'has_owner' requires 'labels' to be specified")
+	}
+
+	var iface dynamic.ResourceInterface
 	if deletion.Namespace != "" {
 		iface = client.Resource(gvr).Namespace(deletion.Namespace)
+	} else {
+		iface = client.Resource(gvr)
 	}
 
 	if deletion.Name != "" {
 		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name, deletion.options())
 	} else if len(deletion.Labels) > 0 {
-		items, err := iface.List(ctx, metav1.ListOptions{
-			LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-				MatchLabels: deletion.Labels,
-			}),
-		})
+		items, err := listResources(ctx, iface, deletion)
 		if err != nil {
 			return err
 		}
 
-		if len(items.Items) == 0 {
+		if len(items) == 0 {
 			logger.Infof("No matching %s resources found", deletion.Kind)
 		}
 
-		for _, item := range items.Items {
+		for _, item := range items {
 			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName(), deletion.options())
 			if err != nil {
 				return err

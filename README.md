@@ -134,6 +134,12 @@ pre_apply: # everything defined under here will be deleted before applying the m
   kind: deployment
   propagation_policy: Orphan
   grace_period_seconds: 10
+- name: orphan-replicasets
+  namespace: kube-system
+  kind: ReplicaSet
+  labels:
+    foo: bar
+  has_owner: false
 post_apply: # everything defined under here will be deleted after applying the manifests
 - namespace: kube-system
   kind: deployment
@@ -146,12 +152,16 @@ Whatever is defined in this file will be deleted pre/post applying the other
 manifest files, if the resource exists. If the resource has already been
 deleted previously it's treated as a no-op.
 
-A resource can be identified either by `name` or `labels` if both are defined
-the `name` will be used. If none of them are defined, it's an error.
+A resource can be identified either by `name` or `labels`.
+It is an error if both or none of them are defined.
 
 `namespace` can be left out, in which case it will default to `kube-system`.
 
 `kind` must be one of the kinds defined in `kubectl get`.
+
+An optional boolean `has_owner` may be specified to narrow down resources identified by the `labels`:
+- `has_owner: true` selects resources with non-empty `metadata.ownerReferences`
+- `has_owner: false` selects resources with empty `metadata.ownerReferences`
 
 It is possible to specify deletion options via optional:
 - `propagation_policy` - one of "Orphan", "Background" or "Foreground" - corresponds to `kubectl delete --cascade` flag

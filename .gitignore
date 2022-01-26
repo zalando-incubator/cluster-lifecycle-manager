@@ -2,3 +2,4 @@ build/
 vendor/
 .kube
 profile.cov
+.idea/
