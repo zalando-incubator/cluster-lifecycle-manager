@@ -43,7 +43,6 @@ import (
 
 const (
 	providerID                         = "zalando-aws"
-	senzaEtcdStackFileName             = "etcd-cluster.yaml"
 	etcdStackFileName                  = "etcd-stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
 	etcdStackName                      = "etcd-cluster-etcd"
@@ -295,21 +294,9 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	// create or update the etcd stack
 	if p.manageEtcdStack {
-		if cluster.ConfigItems["experimental_new_etcd_stack"] == "true" {
-			err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
-			if err != nil {
-				return err
-			}
-		} else {
-			etcdStackDefinition, err := channelConfig.StackManifest(senzaEtcdStackFileName)
-			if err != nil {
-				return err
-			}
-
-			err = awsAdapter.CreateOrUpdateEtcdStack(ctx, "etcd-cluster-etcd", etcdStackDefinition.Contents, etcdKMSKeyARN, aws.StringValue(vpc.CidrBlock), aws.StringValue(vpc.VpcId), cluster)
-			if err != nil {
-				return err
-			}
+		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
+		if err != nil {
+			return err
 		}
 	}
 
