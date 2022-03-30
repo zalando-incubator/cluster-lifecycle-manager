@@ -1,4 +1,4 @@
-FROM registry.opensource.zalan.do/library/alpine-3.12:latest as kubectl_download
+FROM registry.opensource.zalan.do/library/alpine-3.13:latest as kubectl_download
 
 RUN apk add --no-cache --update curl tar coreutils && \
     curl -L -s --fail https://dl.k8s.io/v1.21.5/kubernetes-client-linux-amd64.tar.gz -o kubernetes-client-linux-amd64.tar.gz && \
@@ -6,14 +6,11 @@ RUN apk add --no-cache --update curl tar coreutils && \
     tar xvf kubernetes-client-linux-amd64.tar.gz --strip-components 3 kubernetes/client/bin/ && \
     rm kubernetes-client-linux-amd64.tar.gz
 
-FROM registry.opensource.zalan.do/library/alpine-3.12:latest
+FROM registry.opensource.zalan.do/library/alpine-3.13:latest
 LABEL maintainer="Team Teapot @ Zalando SE <team-teapot@zalando.de>"
 
-# install cluster.py dependencies
-RUN apk add --no-cache python3 ca-certificates openssl git openssh-client && \
-    python3 -m ensurepip && \
-    rm -r /usr/lib/python*/ensurepip && \
-    pip3 install --upgrade stups-senza && \
+# install dependencies
+RUN apk add --no-cache ca-certificates openssl git openssh-client && \
     rm -rf /var/cache/apk/* /root/.cache /tmp/*
 
 COPY --from=kubectl_download /kubectl /usr/local/bin/
