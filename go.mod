@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/common v0.33.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.12.25
 	go.mongodb.org/mongo-driver v1.8.4 // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
