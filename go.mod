@@ -1,7 +1,7 @@
 module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
-	github.com/aws/aws-sdk-go v1.43.28
+	github.com/aws/aws-sdk-go v1.43.32
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/go-openapi/analysis v0.21.2 // indirect
@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/common v0.33.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.12.25
 	go.mongodb.org/mongo-driver v1.8.4 // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
@@ -117,4 +117,4 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.21.9
 )
 
-go 1.17
+go 1.18
