@@ -700,7 +700,9 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 		roleArn = fmt.Sprintf("arn:aws:iam::%s:role/%s", infrastructureAccount[1], p.assumedRole)
 	}
 
-	sess, err := awsUtils.Session(p.awsConfig, roleArn)
+	awsConfig := p.awsConfig.Copy()
+	awsConfig.Region = aws.String(cluster.Region)
+	sess, err := awsUtils.Session(awsConfig, roleArn)
 	if err != nil {
 		return nil, err
 	}
