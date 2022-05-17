@@ -61,6 +61,7 @@ const (
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 	customSubnetTag                    = "zalando.org/custom-subnet"
 	etcdKMSKeyAlias                    = "alias/etcd-cluster"
+	karpenterNodePoolProfile           = "worker-karpenter"
 )
 
 type clusterpyProvisioner struct {
@@ -320,7 +321,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// provision node pools
-	nodePoolProvisioner := &AWSNodePoolProvisioner{
+	caNodePoolProvisioner := &AWSNodePoolProvisioner{
 		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
 			awsAdapter:     awsAdapter,
 			config:         channelConfig,
@@ -333,11 +334,26 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		azInfo:        azInfo,
 	}
 
+	karpenterProvisioner, err := NewKarpenterNodePoolProvisioner(
+		NodePoolTemplateRenderer{
+			awsAdapter:     awsAdapter,
+			config:         channelConfig,
+			cluster:        cluster,
+			bucketName:     bucketName,
+			logger:         logger,
+			encodeUserData: false,
+		}, p.execManager, p.tokenSource,
+	)
+	if err != nil {
+		return err
+	}
+
 	// group node pools based on their profile e.g. master
 	nodePoolGroups := groupNodePools(
 		logger,
 		cluster,
-		nodePoolProvisioner,
+		caNodePoolProvisioner,
+		karpenterProvisioner,
 	)
 
 	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
@@ -345,8 +361,15 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	if err = ctx.Err(); err != nil {
-		return err
+	//if err = ctx.Err(); err != nil {
+	//	return err
+	//}
+
+	if karpenterProvisioner.isKarpenterEnabled() {
+		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
@@ -354,17 +377,30 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	if err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly); err != nil {
+		return err
+	}
+
 	// clean up removed node pools
-	err = nodePoolProvisioner.Reconcile(ctx, updater)
+	err = caNodePoolProvisioner.Reconcile(ctx, updater)
+	if err != nil {
+		return err
+	}
+	err = karpenterProvisioner.Reconcile(ctx, updater)
 	if err != nil {
 		return err
 	}
 
-	if err = ctx.Err(); err != nil {
-		return err
+	//if err = ctx.Err(); err != nil {
+	//	return err
+	//}
+	if !karpenterProvisioner.isKarpenterEnabled() {
+		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		if err != nil {
+			return err
+		}
 	}
-
-	return p.apply(ctx, logger, cluster, deletions, manifests)
+	return nil
 }
 
 func createOrUpdateEtcdStack(
@@ -598,6 +634,18 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
 
+	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
+	for _, nodePool := range cluster.NodePools {
+		if nodePool.Profile == karpenterNodePoolProfile {
+			logger.Infof("Decommissioning Node Pool: %s (profile: %s)", nodePool.Name, nodePool.Profile)
+			nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+			err := nodePoolBackend.Decommission(ctx, nodePool)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
 	// and just after that we delete CF stacks, but if the pod
@@ -800,7 +848,9 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		noScheduleTaint = true
 	}
 
-	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
+	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session),
+	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
@@ -1101,12 +1151,16 @@ type nodePoolGroup struct {
 	ReadyFn     func() error
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner) map[string]*nodePoolGroup {
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
 
-	var masters, workers []*api.NodePool
+	var masters, workers, karpenterPools []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
 		if nodePool.IsMaster() {
 			masters = append(masters, nodePool)
+			continue
+		}
+		if nodePool.IsKarpenter() {
+			karpenterPools = append(karpenterPools, nodePool)
 			continue
 		}
 
@@ -1124,6 +1178,13 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 		"workers": {
 			NodePools:   workers,
 			Provisioner: caProvisioner,
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+		"karpenterPools": {
+			NodePools:   karpenterPools,
+			Provisioner: karProvisioner,
 			ReadyFn: func() error {
 				return nil
 			},

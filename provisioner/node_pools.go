@@ -7,23 +7,28 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"golang.org/x/oauth2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
+	provisionersFileName  = "provisioners.yaml"
 	filesTemplateName     = "files.yaml"
 	nodePoolTagKeyLegacy  = "NodePool"
 	nodePoolTagKey        = "kubernetes.io/node-pool"
@@ -36,6 +41,10 @@ const (
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 	instanceInfoKey               = "InstanceInfo"
+
+	karpenterProvisionerResource     = "provisioners.karpenter.sh"
+	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
+	crd                              = "CustomResourceDefinition"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -156,6 +165,110 @@ type AWSNodePoolProvisioner struct {
 	templateContext *templateContext
 }
 
+type KarpenterNodePoolProvisioner struct {
+	NodePoolTemplateRenderer
+	*kubernetes.KubeCTLRunner
+	k8sClients *kubernetes.ClientsCollection
+}
+
+func NewKarpenterNodePoolProvisioner(n NodePoolTemplateRenderer, e *command.ExecManager, ts oauth2.TokenSource) (*KarpenterNodePoolProvisioner, error) {
+	c, err := kubernetes.NewClientsCollection(n.cluster.APIServerURL, ts)
+	if err != nil {
+		return nil, err
+	}
+	k := kubernetes.NewKubeCTLRunner(e, ts, n.logger, n.cluster.APIServerURL, maxApplyRetries)
+	return &KarpenterNodePoolProvisioner{
+		NodePoolTemplateRenderer: n,
+		k8sClients:               c,
+		KubeCTLRunner:            k,
+	}, nil
+}
+
+func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
+	if !p.isKarpenterEnabled() {
+		// skip
+		return nil
+	}
+
+	errorsc := make(chan error, len(nodePools))
+
+	// provision node pools in parallel
+	for _, nodePool := range nodePools {
+		poolValues := util.CopyValues(values)
+
+		go func(nodePool api.NodePool, errorsc chan error) {
+			err := p.provisionNodePool(ctx, &nodePool, poolValues)
+			if err != nil {
+				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
+			}
+			errorsc <- err
+		}(*nodePool, errorsc)
+	}
+
+	errorStrs := make([]string, 0, len(nodePools))
+	for i := 0; i < len(nodePools); i++ {
+		err := <-errorsc
+		if err != nil {
+			errorStrs = append(errorStrs, err.Error())
+		}
+	}
+
+	if len(errorStrs) > 0 {
+		return errors.New(strings.Join(errorStrs, ", "))
+	}
+
+	return nil
+}
+
+func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
+	template, err := p.generateNodePoolTemplate(nodePool, values, provisionersFileName)
+	if err != nil {
+		return err
+	}
+	if template == "" {
+		return nil
+	}
+	_, err = p.KubectlExecute(ctx, []string{"apply"}, template, false)
+	if err != nil {
+		return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)
+	}
+	return nil
+}
+
+func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
+	if v, found := p.cluster.ConfigItems["karpenter_pools_enabled"]; found && v == "true" {
+		return true
+	}
+	return false
+}
+
+func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
+	karpenterPools := p.cluster.KarpenterPools()
+	if !p.isKarpenterEnabled() {
+		// skip
+		return nil
+	}
+
+	existingProvisioners, err := p.k8sClients.List(ctx, karpenterProvisionerResource, "default", metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pr := range existingProvisioners.Items {
+		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
+			err := p.k8sClients.Delete(ctx, karpenterProvisionerResource, "default", pr.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			err = p.k8sClients.Delete(ctx, karpenterAWSNodeTemplateResource, "default", pr.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // Provision provisions node pools of the cluster.
 func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
 	errorsc := make(chan error, len(nodePools))
@@ -251,7 +364,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	// find orphaned by comparing node pool stacks to node pools defined for cluster
-	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.NodePools)
+	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.ASGBackedPools())
 
 	if len(orphaned) > 0 {
 		p.logger.Infof("Found %d node pool stacks to decommission", len(orphaned))

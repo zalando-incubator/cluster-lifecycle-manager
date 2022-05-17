@@ -174,3 +174,23 @@ func (cluster *Cluster) ChannelOverrides() (map[string]string, error) {
 	}
 	return result, nil
 }
+
+func (cluster *Cluster) KarpenterPools() []*NodePool {
+	var kp []*NodePool
+	for _, n := range cluster.NodePools {
+		if n.IsKarpenter() {
+			kp = append(kp, n)
+		}
+	}
+	return kp
+}
+
+func (cluster *Cluster) ASGBackedPools() []*NodePool {
+	var cp []*NodePool
+	for _, n := range cluster.NodePools {
+		if !n.IsKarpenter() {
+			cp = append(cp, n)
+		}
+	}
+	return cp
+}
