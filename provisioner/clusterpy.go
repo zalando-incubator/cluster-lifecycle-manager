@@ -69,6 +69,7 @@ const (
 	decommissionNodeNoScheduleTaintKey = "decommission_node_no_schedule_taint"
 	customSubnetTag                    = "zalando.org/custom-subnet"
 	etcdKMSKeyAlias                    = "alias/etcd-cluster"
+	karpenterNodePoolProfile           = "worker-karpenter"
 )
 
 type clusterpyProvisioner struct {
@@ -595,6 +596,21 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
 
+	// decommission each node pool
+	// TODO: for now only karpenter pools are supported. Other pools are
+	// decommissioned by the stack deletion logic below.
+	// Would be cleaner to have a per node pool decommissioning logic.
+	for _, nodePool := range cluster.NodePools {
+		if nodePool.Profile == karpenterNodePoolProfile {
+			logger.Infof("Decommissioning Node Pool: %s (profile: %s)", nodePool.Name, nodePool.Profile)
+			nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+			err := nodePoolBackend.Decommission(ctx, nodePool)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
 	// and just after that we delete CF stacks, but if the pod
@@ -797,7 +813,9 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		noScheduleTaint = true
 	}
 
-	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{}
+	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session),
+	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)

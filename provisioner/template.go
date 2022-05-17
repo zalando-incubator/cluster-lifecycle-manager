@@ -128,6 +128,8 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
 		"certificateExpiry":             certificateExpiry,
 		"sumQuantities":                 sumQuantities,
+		"awsValidID":                    awsValidID,
+		"karpenterNodePools":            karpenterNodePools,
 	}
 
 	content, ok := context.fileData[file]
@@ -688,4 +690,19 @@ func sumQuantities(quantities ...string) (string, error) {
 	}
 
 	return result.String(), nil
+}
+
+func awsValidID(id string) string {
+	return strings.Replace(id, ":", "__", -1)
+}
+
+// karpenterNodePools returns true if at least one node pool is a karpenter
+// managed node pool.
+func karpenterNodePools(nodePools []*api.NodePool) bool {
+	for _, pool := range nodePools {
+		if pool.IsKarpenter() {
+			return true
+		}
+	}
+	return false
 }

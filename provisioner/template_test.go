@@ -955,3 +955,53 @@ func TestSubQuantity(t *testing.T) {
 		})
 	}
 }
+
+func TestAWSValidID(t *testing.T) {
+	result, err := renderSingle(t, `{{ .Values.data.id | awsValidID }}`, map[string]interface{}{"id": "aws:12345678910:eu-central-1:kube-1"})
+	require.NoError(t, err)
+	require.Equal(t, "aws__12345678910__eu-central-1__kube-1", result)
+}
+
+func TestKarpenterNodePools(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		pools    []*api.NodePool
+		expected bool
+	}{
+		{
+			name: "one pool is karpenter",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-karpenter",
+				},
+				{
+					Name:    "default-2",
+					Profile: "worker-splitaz",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "no pools are karpenter",
+			pools: []*api.NodePool{
+				{
+					Name:    "default",
+					Profile: "worker-splitaz",
+				},
+				{
+					Name:        "default-2",
+					Profile:     "worker-default",
+					ConfigItems: map[string]string{"taints": "foo=bar:NoSchedule"},
+				},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, `{{ karpenterNodePools .Values.data.pools }}`, map[string]interface{}{"pools": tc.pools})
+			require.NoError(t, err)
+			require.Equal(t, strconv.FormatBool(tc.expected), result)
+		})
+	}
+}

@@ -25,3 +25,7 @@ func (np NodePool) IsSpot() bool {
 func (np NodePool) IsMaster() bool {
 	return strings.Contains(np.Profile, "master")
 }
+
+func (np NodePool) IsKarpenter() bool {
+	return np.Profile == "worker-karpenter"
+}
