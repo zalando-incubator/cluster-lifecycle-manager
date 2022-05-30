@@ -130,6 +130,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"sumQuantities":                 sumQuantities,
 		"awsValidID":                    awsValidID,
 		"karpenterNodePools":            karpenterNodePools,
+		"capacityTypes": func() []string {
+			return []string{"spot", "on-demand"}
+		},
 	}
 
 	content, ok := context.fileData[file]
@@ -632,7 +635,9 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 		}
 
 		// Check if the pool is using the pool profile that's properly spread between AZs
-		if pool.Profile != "worker-splitaz" {
+		switch pool.Profile {
+		case "worker-splitaz", "worker-karpenter":
+		default:
 			return false
 		}
 	}
@@ -644,6 +649,7 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 //  - are correctly configured with regards to the labels and taints
 //  - don't have AZ restrictions
 //  - use the worker-splitaz profile.
+//  - use the worker-karpenter profile.
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 	poolGroups := make(map[string][]*api.NodePool)

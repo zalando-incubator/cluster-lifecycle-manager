@@ -204,6 +204,10 @@ func (n *EC2NodePoolBackend) Decommission(ctx context.Context, nodePool *api.Nod
 		return fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
 
+	if len(instances) == 0 {
+		return nil
+	}
+
 	instanceIds := make([]*string, 0, len(instances))
 	for _, instance := range instances {
 		instanceIds = append(instanceIds, instance.InstanceId)

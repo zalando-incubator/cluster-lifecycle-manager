@@ -735,6 +735,18 @@ func TestZoneDistributedNodePoolGroupsDedicated(t *testing.T) {
 			ConfigItems: map[string]string{"labels": "dedicated=valid", "taints": "dedicated=valid:NoSchedule"},
 		},
 
+		// Both karpenter pools are OK
+		{
+			Name:        "valid-1",
+			Profile:     "worker-karpenter",
+			ConfigItems: map[string]string{"labels": "dedicated=valid-karpenter", "taints": "dedicated=valid-karpenter:NoSchedule"},
+		},
+		{
+			Name:        "valid-2",
+			Profile:     "worker-karpenter",
+			ConfigItems: map[string]string{"labels": "dedicated=valid-karpenter", "taints": "dedicated=valid-karpenter:NoSchedule"},
+		},
+
 		// Just one pool
 		{
 			Name:        "valid-single-1",
@@ -793,7 +805,7 @@ func TestZoneDistributedNodePoolGroupsDedicated(t *testing.T) {
 
 	result, err := renderSingle(t, `{{ range $k, $v := zoneDistributedNodePoolGroups .Values.data.pools }}{{ if ne $k "" }}{{ $k }};{{ end }}{{ end }}`, map[string]interface{}{"pools": nodePools})
 	require.NoError(t, err)
-	require.Equal(t, "valid;valid-single;", result)
+	require.Equal(t, "valid;valid-karpenter;valid-single;", result)
 }
 
 func TestZoneDistributedNodePoolGroupsDefault(t *testing.T) {
