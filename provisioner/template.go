@@ -118,6 +118,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"amiID": func(imageName, imageOwner string) (string, error) {
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
+		"amiIDWithArch": func(architecture, imageName, imageOwner string) (string, error) {
+			return amiID(context.awsAdapter, strings.ReplaceAll(imageName, "$ARCH", architecture), imageOwner)
+		},
 		"nodeCIDRMaxNodes":              nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":               nodeCIDRMaxPods,
 		"parseInt64":                    parseInt64,
