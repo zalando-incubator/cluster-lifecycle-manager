@@ -25,6 +25,10 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 					SizeInMiB: aws.Int64(16384),
 				},
 				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					// Test that unsupported architectures are correctly ignored.
+					SupportedArchitectures: []*string{aws.String("x86_64_mac"), aws.String("i386"), aws.String("x86_64")},
+				},
 			},
 			{
 				InstanceType: aws.String("i3.4xlarge"),
@@ -42,6 +46,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 						},
 					},
 				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
+				},
 			},
 			{
 				InstanceType: aws.String("m5.xlarge"),
@@ -52,6 +59,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 					SizeInMiB: aws.Int64(16384),
 				},
 				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
+				},
 			},
 			{
 				InstanceType: aws.String("m5d.4xlarge"),
@@ -68,6 +78,21 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 							SizeInGB: aws.Int64(300),
 						},
 					},
+				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
+				},
+			},
+			{
+				InstanceType: aws.String("m6g.xlarge"),
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("arm64")},
 				},
 			},
 		},
@@ -92,6 +117,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 						},
 					},
 				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
+				},
 			},
 			{
 				InstanceType: aws.String("r5d.xlarge"),
@@ -108,6 +136,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 							SizeInGB: aws.Int64(150),
 						},
 					},
+				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
 				},
 			},
 			{
@@ -126,6 +157,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 						},
 					},
 				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
+				},
 			},
 			{
 				InstanceType: aws.String("r5d.large"),
@@ -142,6 +176,9 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 							SizeInGB: aws.Int64(75),
 						},
 					},
+				},
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: []*string{aws.String("x86_64")},
 				},
 			},
 		},
@@ -193,6 +230,7 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			InstanceType: "m4.xlarge",
 			VCPU:         4,
 			Memory:       17179869184,
+			Architecture: "amd64",
 		},
 		{
 			InstanceType:              "i3.4xlarge",
@@ -200,6 +238,13 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			Memory:                    130996502528,
 			InstanceStorageDevices:    2,
 			InstanceStorageDeviceSize: 1900 * 1000 * 1000 * 1000,
+			Architecture:              "amd64",
+		},
+		{
+			InstanceType: "m6g.xlarge",
+			VCPU:         4,
+			Memory:       17179869184,
+			Architecture: "arm64",
 		},
 	} {
 		t.Run(tc.InstanceType, func(t *testing.T) {
@@ -210,6 +255,7 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			require.Equal(t, tc.Memory, info.Memory)
 			require.Equal(t, tc.InstanceStorageDevices, info.InstanceStorageDevices)
 			require.Equal(t, tc.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
+			require.Equal(t, tc.Architecture, info.Architecture)
 		})
 	}
 }
@@ -235,6 +281,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    17179869184,
 			InstanceStorageDevices:    0,
 			InstanceStorageDeviceSize: 0,
+			Architecture:              "amd64",
 		},
 		{
 			InstanceType:              "m5.xlarge",
@@ -242,6 +289,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    17179869184,
 			InstanceStorageDevices:    0,
 			InstanceStorageDeviceSize: 0,
+			Architecture:              "amd64",
 		},
 		{
 			InstanceType:              "m5d.xlarge",
@@ -249,6 +297,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    17179869184,
 			InstanceStorageDevices:    1,
 			InstanceStorageDeviceSize: 161061273600,
+			Architecture:              "amd64",
 		},
 		{
 			InstanceType:              "m5d.4xlarge",
@@ -256,6 +305,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    68719476736,
 			InstanceStorageDevices:    2,
 			InstanceStorageDeviceSize: 322122547200,
+			Architecture:              "amd64",
 		},
 		{
 			InstanceType:              "c5d.xlarge",
@@ -263,6 +313,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    8589934592,
 			InstanceStorageDevices:    1,
 			InstanceStorageDeviceSize: 107374182400,
+			Architecture:              "amd64",
 		},
 		{
 			InstanceType:              "r5d.large",
@@ -270,6 +321,13 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			Memory:                    17179869184,
 			InstanceStorageDevices:    1,
 			InstanceStorageDeviceSize: 80530636800,
+			Architecture:              "amd64",
+		},
+		{
+			InstanceType: "m6g.xlarge",
+			VCPU:         4,
+			Memory:       17179869184,
+			Architecture: "arm64",
 		},
 	})
 
@@ -286,6 +344,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				InstanceType: "m4.xlarge",
 				VCPU:         4,
 				Memory:       17179869184,
+				Architecture: "amd64",
 			},
 		},
 		{
@@ -317,6 +376,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				Memory:                    8589934592,
 				InstanceStorageDevices:    1,
 				InstanceStorageDeviceSize: 75 * 1024 * mebibyte,
+				Architecture:              "amd64",
 			},
 		},
 		{
@@ -328,6 +388,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				Memory:                    17179869184,
 				InstanceStorageDevices:    1,
 				InstanceStorageDeviceSize: 150 * 1024 * mebibyte,
+				Architecture:              "amd64",
 			},
 		},
 		{
@@ -337,6 +398,37 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				InstanceType: "<multiple>",
 				VCPU:         4,
 				Memory:       17179869184,
+				Architecture: "amd64",
+			},
+		},
+		{
+			name:          "one type with arm64",
+			instanceTypes: []string{"m6g.xlarge"},
+			expectedInstance: Instance{
+				InstanceType: "m6g.xlarge",
+				VCPU:         4,
+				Memory:       17179869184,
+				Architecture: "arm64",
+			},
+		},
+		{
+			name:          "multiple types, different architectures, amd64 architecture first",
+			instanceTypes: []string{"m5.xlarge", "m6g.xlarge"},
+			expectedInstance: Instance{
+				InstanceType: "<multiple>",
+				VCPU:         4,
+				Memory:       17179869184,
+				Architecture: "amd64",
+			},
+		},
+		{
+			name:          "multiple types, different architectures, arm64 architecture first",
+			instanceTypes: []string{"m6g.xlarge", "m5.xlarge"},
+			expectedInstance: Instance{
+				InstanceType: "<multiple>",
+				VCPU:         4,
+				Memory:       17179869184,
+				Architecture: "arm64",
 			},
 		},
 	} {
@@ -351,6 +443,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 				require.Equal(t, tc.expectedInstance.Memory, info.Memory)
 				require.Equal(t, tc.expectedInstance.InstanceStorageDevices, info.InstanceStorageDevices)
 				require.Equal(t, tc.expectedInstance.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
+				require.Equal(t, tc.expectedInstance.Architecture, info.Architecture)
 			}
 		})
 	}

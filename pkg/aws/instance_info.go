@@ -13,6 +13,10 @@ const (
 	mebibyte = 1024 * 1024
 
 	gigabyte = 1000 * 1000 * 1000
+
+	archX86_64 = "x86_64"
+	archAMD64  = "amd64"
+	archARM64  = "arm64"
 )
 
 type Instance struct {
@@ -21,6 +25,7 @@ type Instance struct {
 	Memory                    int64
 	InstanceStorageDevices    int64
 	InstanceStorageDeviceSize int64
+	Architecture              string
 }
 
 func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolumeSize int64, rootVolumeScaleFactor float64) int64 {
@@ -67,12 +72,20 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 				}
 			}
 
+			cpuArch, err := getCompatibleCPUArchitecture(instanceType)
+			if err != nil {
+				// Let's skip any instance types that we don't support.
+				log.Debug(err.Error())
+				continue
+			}
+
 			info := Instance{
 				InstanceType:              aws.StringValue(instanceType.InstanceType),
 				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
 				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
 				InstanceStorageDevices:    deviceCount,
 				InstanceStorageDeviceSize: deviceSize,
+				Architecture:              cpuArch,
 			}
 			instances[info.InstanceType] = info
 		}
@@ -119,6 +132,7 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 			Memory:                    first.Memory,
 			InstanceStorageDevices:    first.InstanceStorageDevices,
 			InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
+			Architecture:              first.Architecture,
 		}
 		for _, instanceType := range instanceTypes[1:] {
 			info, err := types.InstanceInfo(instanceType)
@@ -136,9 +150,33 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 	}
 }
 
+// getCompatibleCPUArchitecture returns a single compatible CPU architecture. It's either `amd64` or `arm64`.
+// Other intance types might return 32-bit or macos specific types which will be ignored.
+func getCompatibleCPUArchitecture(instanceType *ec2.InstanceTypeInfo) (string, error) {
+	supportedArchitectures := aws.StringValueSlice(instanceType.ProcessorInfo.SupportedArchitectures)
+
+	if contains(supportedArchitectures, archX86_64) {
+		return archAMD64, nil
+	}
+	if contains(supportedArchitectures, archARM64) {
+		return archARM64, nil
+	}
+
+	return "", fmt.Errorf("didn't find compatible cpu architecture within '%v'", supportedArchitectures)
+}
+
 func min(a int64, b int64) int64 {
 	if a < b {
 		return a
 	}
 	return b
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
