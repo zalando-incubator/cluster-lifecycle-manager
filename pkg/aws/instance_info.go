@@ -155,12 +155,11 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 func getCompatibleCPUArchitecture(instanceType *ec2.InstanceTypeInfo) (string, error) {
 	supportedArchitectures := aws.StringValueSlice(instanceType.ProcessorInfo.SupportedArchitectures)
 
-	if contains(supportedArchitectures, archARM64) {
-		return archARM64, nil
-	}
-
 	if contains(supportedArchitectures, archX86_64) {
 		return archAMD64, nil
+	}
+	if contains(supportedArchitectures, archARM64) {
+		return archARM64, nil
 	}
 
 	return "", fmt.Errorf("didn't find compatible cpu architecture within '%v'", supportedArchitectures)

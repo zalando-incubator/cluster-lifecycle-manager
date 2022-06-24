@@ -26,7 +26,8 @@ func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInpu
 				},
 				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
 				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+					// Test that unsupported architectures are correctly ignored.
+					SupportedArchitectures: []*string{aws.String("x86_64_mac"), aws.String("i386"), aws.String("x86_64")},
 				},
 			},
 			{
@@ -405,6 +406,26 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 			instanceTypes: []string{"m6g.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "m6g.xlarge",
+				VCPU:         4,
+				Memory:       17179869184,
+				Architecture: "arm64",
+			},
+		},
+		{
+			name:          "multiple types, different architectures, amd64 architecture first",
+			instanceTypes: []string{"m5.xlarge", "m6g.xlarge"},
+			expectedInstance: Instance{
+				InstanceType: "<multiple>",
+				VCPU:         4,
+				Memory:       17179869184,
+				Architecture: "amd64",
+			},
+		},
+		{
+			name:          "multiple types, different architectures, arm64 architecture first",
+			instanceTypes: []string{"m6g.xlarge", "m5.xlarge"},
+			expectedInstance: Instance{
+				InstanceType: "<multiple>",
 				VCPU:         4,
 				Memory:       17179869184,
 				Architecture: "arm64",
