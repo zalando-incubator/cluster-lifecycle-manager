@@ -127,6 +127,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"indexedList":                   indexedList,
 		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
 		"certificateExpiry":             certificateExpiry,
+		"sumQuantities":                 sumQuantities,
 	}
 
 	content, ok := context.fileData[file]
@@ -674,4 +675,17 @@ func certificateExpiry(certificate string) (string, error) {
 		return "", err
 	}
 	return expiry.UTC().Format(time.RFC3339), nil
+}
+
+func sumQuantities(quantities ...string) (string, error) {
+	var result k8sresource.Quantity
+	for _, quantity := range quantities {
+		q, err := k8sresource.ParseQuantity(quantity)
+		if err != nil {
+			return "", err
+		}
+		result.Add(q)
+	}
+
+	return result.String(), nil
 }

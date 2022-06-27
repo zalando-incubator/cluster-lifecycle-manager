@@ -905,3 +905,53 @@ CWeOoA==
 	require.NoError(t, err)
 	require.Equal(t, "2022-06-10T10:06:43Z", res)
 }
+
+func TestSubQuantity(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			name:     "whole CPU add fraction",
+			template: `{{ sumQuantities "2" "256m" }}`,
+			expected: "2256m",
+		},
+		{
+			name:     "whole CPU add fraction sub whole",
+			template: `{{ sumQuantities "2" "256m" "-1" }}`,
+			expected: "1256m",
+		},
+		{
+			name:     "whole CPU add fraction add whole",
+			template: `{{ sumQuantities "2" "256m" "1" }}`,
+			expected: "3256m",
+		},
+		{
+			name:     "whole CPU sub fraction",
+			template: `{{ sumQuantities "2" "-256m" }}`,
+			expected: "1744m",
+		},
+		{
+			name:     "whole CPU sub fraction sub whole CPU",
+			template: `{{ sumQuantities "2" "-256m" "-1" }}`,
+			expected: "744m",
+		},
+		{
+			name:     "Gi sub Mi",
+			template: `{{ sumQuantities "2Gi" "-512Mi" }}`,
+			expected: "1536Mi",
+		},
+		{
+			name:     "Gi sub Ki",
+			template: `{{ sumQuantities "2Gi" "-1024Ki" }}`,
+			expected: "2047Mi",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, nil)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
+}
