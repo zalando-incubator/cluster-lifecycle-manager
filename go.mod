@@ -19,13 +19,13 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.34.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.7.1
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.13.0
 	go.mongodb.org/mongo-driver v1.9.1 // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
