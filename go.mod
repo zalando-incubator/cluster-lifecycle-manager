@@ -21,7 +21,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.13.0
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.13.4
 	go.mongodb.org/mongo-driver v1.9.1 // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
@@ -32,9 +32,9 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.22.0
-	k8s.io/apimachinery v0.22.0
-	k8s.io/client-go v0.22.0
+	k8s.io/api v0.22.5
+	k8s.io/apimachinery v0.22.5
+	k8s.io/client-go v0.22.5
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 )
