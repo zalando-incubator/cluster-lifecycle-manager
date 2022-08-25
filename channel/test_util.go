@@ -1,7 +1,6 @@
 package channel
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -10,7 +9,7 @@ import (
 )
 
 func createTempDir(t *testing.T) string {
-	res, err := ioutil.TempDir("", t.Name())
+	res, err := os.MkdirTemp("", t.Name())
 	require.NoError(t, err)
 	return res
 }
@@ -37,7 +36,7 @@ func setupConfig(t *testing.T, baseDir string, manifests map[string]string) {
 		err := os.MkdirAll(path.Dir(fullpath), 0755)
 		require.NoError(t, err)
 
-		err = ioutil.WriteFile(fullpath, []byte(contents), 0644)
+		err = os.WriteFile(fullpath, []byte(contents), 0644)
 		require.NoError(t, err)
 	}
 }
