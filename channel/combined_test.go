@@ -58,7 +58,7 @@ func TestCombinedSource(t *testing.T) {
 			"cluster/manifests/example2/deployment.yaml": "example2-deployment-main",
 			"cluster/manifests/deletions.yaml":           "deletions",
 			"cluster/node-pools/example/main.yaml":       "node-pool",
-			"cluster/etcd/stack.yaml":       			  "etcd",
+			"cluster/etcd/stack.yaml":                    "etcd",
 			"cluster/config-defaults.yaml":               "defaults",
 			"cluster/stack.yaml":                         "stack",
 		})
