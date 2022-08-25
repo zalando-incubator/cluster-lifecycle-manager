@@ -58,6 +58,7 @@ func TestCombinedSource(t *testing.T) {
 			"cluster/manifests/example2/deployment.yaml": "example2-deployment-main",
 			"cluster/manifests/deletions.yaml":           "deletions",
 			"cluster/node-pools/example/main.yaml":       "node-pool",
+			"cluster/etcd/stack.yaml":       			  "etcd",
 			"cluster/config-defaults.yaml":               "defaults",
 			"cluster/stack.yaml":                         "stack",
 		})
@@ -85,6 +86,10 @@ func TestCombinedSource(t *testing.T) {
 	stack, err := config.StackManifest("stack.yaml")
 	require.NoError(t, err)
 	require.Equal(t, expectedManifest("main", "cluster/stack.yaml", "stack"), stack)
+
+	etcdStack, err := config.EtcdManifest("stack.yaml")
+	require.NoError(t, err)
+	require.Equal(t, expectedManifest("main", "cluster/etcd/stack.yaml", "etcd"), etcdStack)
 
 	pool, err := config.NodePoolManifest("example", "main.yaml")
 	require.NoError(t, err)
