@@ -40,6 +40,7 @@ type Component struct {
 
 type Config interface {
 	StackManifest(manifestName string) (Manifest, error)
+	EtcdManifest(manifestName string) (Manifest, error)
 	NodePoolManifest(profileName string, manifestName string) (Manifest, error)
 	DefaultsManifests() ([]Manifest, error)
 	DeletionsManifests() ([]Manifest, error)

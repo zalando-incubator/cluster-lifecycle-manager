@@ -144,6 +144,10 @@ func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error
 	return c.mockManifest, nil
 }
 
+func (c *mockConfig) EtcdManifest(manifestName string) (channel.Manifest, error) {
+	return c.mockManifest, nil
+}
+
 func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }

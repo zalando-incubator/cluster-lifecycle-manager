@@ -11,6 +11,7 @@ import (
 const (
 	configRoot    = "cluster"
 	poolConfigDir = "node-pools"
+	etcdConfigDir = "etcd"
 	defaultsFile  = "config-defaults.yaml"
 	manifestsDir  = "manifests"
 	deletionsFile = "deletions.yaml"
@@ -48,6 +49,10 @@ func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Mani
 
 func (c *SimpleConfig) StackManifest(manifestName string) (Manifest, error) {
 	return c.readManifest(configRoot, manifestName)
+}
+
+func (c *SimpleConfig) EtcdManifest(manifestName string) (Manifest, error) {
+	return c.readManifest(path.Join(configRoot, etcdConfigDir), manifestName)
 }
 
 func (c *SimpleConfig) NodePoolManifest(profileName string, manifestName string) (Manifest, error) {
