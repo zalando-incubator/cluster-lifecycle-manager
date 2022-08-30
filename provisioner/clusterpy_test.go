@@ -282,6 +282,10 @@ func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error
 	return channel.Manifest{}, errors.New("unsupported: StackManifest")
 }
 
+func (c *mockConfig) EtcdManifest(manifestName string) (channel.Manifest, error) {
+	return channel.Manifest{}, errors.New("unsupported: EtcdManifest")
+}
+
 func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: NodePoolManifest")
 }

@@ -2,7 +2,7 @@ package platformiam
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"time"
 
@@ -43,7 +43,7 @@ type tokenSource source
 type clientCredentialsSource source
 
 func readFileContent(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}

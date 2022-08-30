@@ -43,7 +43,7 @@ import (
 
 const (
 	providerID                         = "zalando-aws"
-	etcdStackFileName                  = "etcd-stack.yaml"
+	etcdStackFileName                  = "stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
 	etcdStackName                      = "etcd-cluster-etcd"
 	defaultNamespace                   = "default"
@@ -391,7 +391,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 }
 
 func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, etcdKmsKeyARN string, adapter *awsAdapter) error {
-	template, err := config.StackManifest(etcdStackFileName)
+	template, err := config.EtcdManifest(etcdStackFileName)
 	if err != nil {
 		return err
 	}

@@ -116,6 +116,14 @@ func (c *combinedConfig) StackManifest(manifestName string) (Manifest, error) {
 	return mainConfig.StackManifest(manifestName)
 }
 
+func (c *combinedConfig) EtcdManifest(manifestName string) (Manifest, error) {
+	mainConfig, err := c.mainConfig()
+	if err != nil {
+		return Manifest{}, err
+	}
+	return mainConfig.EtcdManifest(manifestName)
+}
+
 func (c *combinedConfig) NodePoolManifest(profileName string, manifestName string) (Manifest, error) {
 	mainConfig, err := c.mainConfig()
 	if err != nil {
