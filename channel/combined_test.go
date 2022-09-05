@@ -36,10 +36,10 @@ func TestCombinedSourceOverrides(t *testing.T) {
 func TestCombinedSource(t *testing.T) {
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	mainDir := createTempDir(t)
+	mainDir := CreateTempDir(t)
 	defer os.RemoveAll(mainDir)
 
-	secondaryDir := createTempDir(t)
+	secondaryDir := CreateTempDir(t)
 	defer os.RemoveAll(secondaryDir)
 
 	mainSrc, err := NewDirectory("main", mainDir)
@@ -48,7 +48,7 @@ func TestCombinedSource(t *testing.T) {
 	secondarySrc, err := NewDirectory("secondary", secondaryDir)
 	require.NoError(t, err)
 
-	setupConfig(
+	SetupConfig(
 		t, mainDir,
 		map[string]string{
 			"cluster/manifests/example1/config.yaml":     "example1-config-main",
@@ -63,7 +63,7 @@ func TestCombinedSource(t *testing.T) {
 			"cluster/stack.yaml":                         "stack",
 		})
 
-	setupConfig(
+	SetupConfig(
 		t, secondaryDir,
 		map[string]string{
 			"cluster/manifests/example1/deployment.yaml": "example1-deployment-secondary",

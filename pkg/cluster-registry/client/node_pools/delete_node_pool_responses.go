@@ -69,14 +69,44 @@ func NewDeleteNodePoolNoContent() *DeleteNodePoolNoContent {
 	return &DeleteNodePoolNoContent{}
 }
 
-/* DeleteNodePoolNoContent describes a response with status code 204, with default header values.
+/*
+DeleteNodePoolNoContent describes a response with status code 204, with default header values.
 
 Node pool deleted.
 */
 type DeleteNodePoolNoContent struct {
 }
 
+// IsSuccess returns true when this delete node pool no content response has a 2xx status code
+func (o *DeleteNodePoolNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this delete node pool no content response has a 3xx status code
+func (o *DeleteNodePoolNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool no content response has a 4xx status code
+func (o *DeleteNodePoolNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this delete node pool no content response has a 5xx status code
+func (o *DeleteNodePoolNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete node pool no content response a status code equal to that given
+func (o *DeleteNodePoolNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
 func (o *DeleteNodePoolNoContent) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent ", 204)
+}
+
+func (o *DeleteNodePoolNoContent) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent ", 204)
 }
 
@@ -90,7 +120,8 @@ func NewDeleteNodePoolBadRequest() *DeleteNodePoolBadRequest {
 	return &DeleteNodePoolBadRequest{}
 }
 
-/* DeleteNodePoolBadRequest describes a response with status code 400, with default header values.
+/*
+DeleteNodePoolBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -98,9 +129,39 @@ type DeleteNodePoolBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this delete node pool bad request response has a 2xx status code
+func (o *DeleteNodePoolBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete node pool bad request response has a 3xx status code
+func (o *DeleteNodePoolBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool bad request response has a 4xx status code
+func (o *DeleteNodePoolBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete node pool bad request response has a 5xx status code
+func (o *DeleteNodePoolBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete node pool bad request response a status code equal to that given
+func (o *DeleteNodePoolBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
 func (o *DeleteNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
 }
+
+func (o *DeleteNodePoolBadRequest) String() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
+}
+
 func (o *DeleteNodePoolBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -122,14 +183,44 @@ func NewDeleteNodePoolUnauthorized() *DeleteNodePoolUnauthorized {
 	return &DeleteNodePoolUnauthorized{}
 }
 
-/* DeleteNodePoolUnauthorized describes a response with status code 401, with default header values.
+/*
+DeleteNodePoolUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type DeleteNodePoolUnauthorized struct {
 }
 
+// IsSuccess returns true when this delete node pool unauthorized response has a 2xx status code
+func (o *DeleteNodePoolUnauthorized) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete node pool unauthorized response has a 3xx status code
+func (o *DeleteNodePoolUnauthorized) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool unauthorized response has a 4xx status code
+func (o *DeleteNodePoolUnauthorized) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete node pool unauthorized response has a 5xx status code
+func (o *DeleteNodePoolUnauthorized) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete node pool unauthorized response a status code equal to that given
+func (o *DeleteNodePoolUnauthorized) IsCode(code int) bool {
+	return code == 401
+}
+
 func (o *DeleteNodePoolUnauthorized) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized ", 401)
+}
+
+func (o *DeleteNodePoolUnauthorized) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized ", 401)
 }
 
@@ -143,14 +234,44 @@ func NewDeleteNodePoolForbidden() *DeleteNodePoolForbidden {
 	return &DeleteNodePoolForbidden{}
 }
 
-/* DeleteNodePoolForbidden describes a response with status code 403, with default header values.
+/*
+DeleteNodePoolForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type DeleteNodePoolForbidden struct {
 }
 
+// IsSuccess returns true when this delete node pool forbidden response has a 2xx status code
+func (o *DeleteNodePoolForbidden) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete node pool forbidden response has a 3xx status code
+func (o *DeleteNodePoolForbidden) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool forbidden response has a 4xx status code
+func (o *DeleteNodePoolForbidden) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete node pool forbidden response has a 5xx status code
+func (o *DeleteNodePoolForbidden) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete node pool forbidden response a status code equal to that given
+func (o *DeleteNodePoolForbidden) IsCode(code int) bool {
+	return code == 403
+}
+
 func (o *DeleteNodePoolForbidden) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden ", 403)
+}
+
+func (o *DeleteNodePoolForbidden) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden ", 403)
 }
 
@@ -164,14 +285,44 @@ func NewDeleteNodePoolNotFound() *DeleteNodePoolNotFound {
 	return &DeleteNodePoolNotFound{}
 }
 
-/* DeleteNodePoolNotFound describes a response with status code 404, with default header values.
+/*
+DeleteNodePoolNotFound describes a response with status code 404, with default header values.
 
 Node pool not found
 */
 type DeleteNodePoolNotFound struct {
 }
 
+// IsSuccess returns true when this delete node pool not found response has a 2xx status code
+func (o *DeleteNodePoolNotFound) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete node pool not found response has a 3xx status code
+func (o *DeleteNodePoolNotFound) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool not found response has a 4xx status code
+func (o *DeleteNodePoolNotFound) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete node pool not found response has a 5xx status code
+func (o *DeleteNodePoolNotFound) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete node pool not found response a status code equal to that given
+func (o *DeleteNodePoolNotFound) IsCode(code int) bool {
+	return code == 404
+}
+
 func (o *DeleteNodePoolNotFound) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound ", 404)
+}
+
+func (o *DeleteNodePoolNotFound) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound ", 404)
 }
 
@@ -185,7 +336,8 @@ func NewDeleteNodePoolInternalServerError() *DeleteNodePoolInternalServerError {
 	return &DeleteNodePoolInternalServerError{}
 }
 
-/* DeleteNodePoolInternalServerError describes a response with status code 500, with default header values.
+/*
+DeleteNodePoolInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -193,9 +345,39 @@ type DeleteNodePoolInternalServerError struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this delete node pool internal server error response has a 2xx status code
+func (o *DeleteNodePoolInternalServerError) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete node pool internal server error response has a 3xx status code
+func (o *DeleteNodePoolInternalServerError) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete node pool internal server error response has a 4xx status code
+func (o *DeleteNodePoolInternalServerError) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this delete node pool internal server error response has a 5xx status code
+func (o *DeleteNodePoolInternalServerError) IsServerError() bool {
+	return true
+}
+
+// IsCode returns true when this delete node pool internal server error response a status code equal to that given
+func (o *DeleteNodePoolInternalServerError) IsCode(code int) bool {
+	return code == 500
+}
+
 func (o *DeleteNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
 }
+
+func (o *DeleteNodePoolInternalServerError) String() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
+}
+
 func (o *DeleteNodePoolInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

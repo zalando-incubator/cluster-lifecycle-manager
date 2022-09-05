@@ -8,7 +8,7 @@ linters:
   enable:
     - staticcheck
     - ineffassign
-    - golint
+    - revive
     - goimports
     - errcheck
 issues:

@@ -54,10 +54,12 @@ func NewUpdateClusterParamsWithHTTPClient(client *http.Client) *UpdateClusterPar
 	}
 }
 
-/* UpdateClusterParams contains all the parameters to send to the API endpoint
-   for the update cluster operation.
+/*
+UpdateClusterParams contains all the parameters to send to the API endpoint
 
-   Typically these are written to a http.Request.
+	for the update cluster operation.
+
+	Typically these are written to a http.Request.
 */
 type UpdateClusterParams struct {
 

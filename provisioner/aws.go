@@ -123,14 +123,14 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 	}, nil
 }
 
-func (a *awsAdapter) VerifyAccount(accountId string) error {
+func (a *awsAdapter) VerifyAccount(accountID string) error {
 	stsService := sts.New(a.session)
 	response, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		return err
 	}
 	effectiveAccount := aws.StringValue(response.Account)
-	expectedAccount := getAWSAccountID(accountId)
+	expectedAccount := getAWSAccountID(accountID)
 	if effectiveAccount != expectedAccount {
 		return fmt.Errorf("invalid AWS account, expected %s, found %s", expectedAccount, effectiveAccount)
 	}

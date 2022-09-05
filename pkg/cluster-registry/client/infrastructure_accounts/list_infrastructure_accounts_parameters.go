@@ -53,10 +53,12 @@ func NewListInfrastructureAccountsParamsWithHTTPClient(client *http.Client) *Lis
 	}
 }
 
-/* ListInfrastructureAccountsParams contains all the parameters to send to the API endpoint
-   for the list infrastructure accounts operation.
+/*
+ListInfrastructureAccountsParams contains all the parameters to send to the API endpoint
 
-   Typically these are written to a http.Request.
+	for the list infrastructure accounts operation.
+
+	Typically these are written to a http.Request.
 */
 type ListInfrastructureAccountsParams struct {
 

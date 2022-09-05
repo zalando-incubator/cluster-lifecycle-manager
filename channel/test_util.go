@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTempDir(t *testing.T) string {
+func CreateTempDir(t *testing.T) string {
 	res, err := os.MkdirTemp("", t.Name())
 	require.NoError(t, err)
 	return res
 }
 
 func setupExampleConfig(t *testing.T, baseDir string, mainStack string) {
-	setupConfig(
+	SetupConfig(
 		t, baseDir,
 		map[string]string{
 			"cluster/manifests/example1/main.yaml":   "example1-main",
@@ -25,11 +25,12 @@ func setupExampleConfig(t *testing.T, baseDir string, mainStack string) {
 			"cluster/manifests/deletions.yaml":       "deletions",
 			"cluster/node-pools/example/main.yaml":   "node-pool",
 			"cluster/config-defaults.yaml":           "defaults",
+			"cluster/etcd/files.yaml":                "etcd-files",
 			"cluster/stack.yaml":                     mainStack,
 		})
 }
 
-func setupConfig(t *testing.T, baseDir string, manifests map[string]string) {
+func SetupConfig(t *testing.T, baseDir string, manifests map[string]string) {
 	for manifestPath, contents := range manifests {
 		fullpath := path.Join(baseDir, manifestPath)
 

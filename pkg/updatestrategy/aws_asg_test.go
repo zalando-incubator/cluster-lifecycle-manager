@@ -272,14 +272,14 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		}
 	}
 	ec2Instance := func(id string, instanceType string, spot bool) *ec2.Instance {
-		var spotRequestId *string
+		var spotRequestID *string
 		if spot {
-			spotRequestId = aws.String(fmt.Sprintf("spot-%s", id))
+			spotRequestID = aws.String(fmt.Sprintf("spot-%s", id))
 		}
 		return &ec2.Instance{
 			InstanceId:            aws.String(id),
 			InstanceType:          aws.String(instanceType),
-			SpotInstanceRequestId: spotRequestId,
+			SpotInstanceRequestId: spotRequestID,
 		}
 	}
 

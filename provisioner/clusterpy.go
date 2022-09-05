@@ -298,7 +298,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	// create or update the etcd stack
 	if p.manageEtcdStack {
-		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName)
+		err = createOrUpdateEtcdStack(ctx, logger, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName)
 		if err != nil {
 			return err
 		}
@@ -392,6 +392,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 func createOrUpdateEtcdStack(
 	ctx context.Context,
+	logger *log.Entry,
 	config channel.Config,
 	cluster *api.Cluster,
 	values map[string]interface{},
@@ -424,6 +425,7 @@ func createOrUpdateEtcdStack(
 		return err
 	}
 
+	logger.Debugf("Uploaded generated files to %s", s3Path)
 	values[s3GeneratedFilesPathValuesKey] = s3Path
 
 	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)

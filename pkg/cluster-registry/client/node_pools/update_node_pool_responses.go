@@ -63,7 +63,8 @@ func NewUpdateNodePoolOK() *UpdateNodePoolOK {
 	return &UpdateNodePoolOK{}
 }
 
-/* UpdateNodePoolOK describes a response with status code 200, with default header values.
+/*
+UpdateNodePoolOK describes a response with status code 200, with default header values.
 
 The node pool update request is accepted.
 */
@@ -71,9 +72,39 @@ type UpdateNodePoolOK struct {
 	Payload *models.NodePool
 }
 
+// IsSuccess returns true when this update node pool o k response has a 2xx status code
+func (o *UpdateNodePoolOK) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this update node pool o k response has a 3xx status code
+func (o *UpdateNodePoolOK) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this update node pool o k response has a 4xx status code
+func (o *UpdateNodePoolOK) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this update node pool o k response has a 5xx status code
+func (o *UpdateNodePoolOK) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this update node pool o k response a status code equal to that given
+func (o *UpdateNodePoolOK) IsCode(code int) bool {
+	return code == 200
+}
+
 func (o *UpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK  %+v", 200, o.Payload)
 }
+
+func (o *UpdateNodePoolOK) String() string {
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK  %+v", 200, o.Payload)
+}
+
 func (o *UpdateNodePoolOK) GetPayload() *models.NodePool {
 	return o.Payload
 }
@@ -95,7 +126,8 @@ func NewUpdateNodePoolBadRequest() *UpdateNodePoolBadRequest {
 	return &UpdateNodePoolBadRequest{}
 }
 
-/* UpdateNodePoolBadRequest describes a response with status code 400, with default header values.
+/*
+UpdateNodePoolBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -103,9 +135,39 @@ type UpdateNodePoolBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this update node pool bad request response has a 2xx status code
+func (o *UpdateNodePoolBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this update node pool bad request response has a 3xx status code
+func (o *UpdateNodePoolBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this update node pool bad request response has a 4xx status code
+func (o *UpdateNodePoolBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this update node pool bad request response has a 5xx status code
+func (o *UpdateNodePoolBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this update node pool bad request response a status code equal to that given
+func (o *UpdateNodePoolBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
 func (o *UpdateNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest  %+v", 400, o.Payload)
 }
+
+func (o *UpdateNodePoolBadRequest) String() string {
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest  %+v", 400, o.Payload)
+}
+
 func (o *UpdateNodePoolBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -127,14 +189,44 @@ func NewUpdateNodePoolUnauthorized() *UpdateNodePoolUnauthorized {
 	return &UpdateNodePoolUnauthorized{}
 }
 
-/* UpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
+/*
+UpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type UpdateNodePoolUnauthorized struct {
 }
 
+// IsSuccess returns true when this update node pool unauthorized response has a 2xx status code
+func (o *UpdateNodePoolUnauthorized) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this update node pool unauthorized response has a 3xx status code
+func (o *UpdateNodePoolUnauthorized) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this update node pool unauthorized response has a 4xx status code
+func (o *UpdateNodePoolUnauthorized) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this update node pool unauthorized response has a 5xx status code
+func (o *UpdateNodePoolUnauthorized) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this update node pool unauthorized response a status code equal to that given
+func (o *UpdateNodePoolUnauthorized) IsCode(code int) bool {
+	return code == 401
+}
+
 func (o *UpdateNodePoolUnauthorized) Error() string {
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized ", 401)
+}
+
+func (o *UpdateNodePoolUnauthorized) String() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized ", 401)
 }
 
@@ -148,14 +240,44 @@ func NewUpdateNodePoolForbidden() *UpdateNodePoolForbidden {
 	return &UpdateNodePoolForbidden{}
 }
 
-/* UpdateNodePoolForbidden describes a response with status code 403, with default header values.
+/*
+UpdateNodePoolForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type UpdateNodePoolForbidden struct {
 }
 
+// IsSuccess returns true when this update node pool forbidden response has a 2xx status code
+func (o *UpdateNodePoolForbidden) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this update node pool forbidden response has a 3xx status code
+func (o *UpdateNodePoolForbidden) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this update node pool forbidden response has a 4xx status code
+func (o *UpdateNodePoolForbidden) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this update node pool forbidden response has a 5xx status code
+func (o *UpdateNodePoolForbidden) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this update node pool forbidden response a status code equal to that given
+func (o *UpdateNodePoolForbidden) IsCode(code int) bool {
+	return code == 403
+}
+
 func (o *UpdateNodePoolForbidden) Error() string {
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden ", 403)
+}
+
+func (o *UpdateNodePoolForbidden) String() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden ", 403)
 }
 
@@ -169,7 +291,8 @@ func NewUpdateNodePoolInternalServerError() *UpdateNodePoolInternalServerError {
 	return &UpdateNodePoolInternalServerError{}
 }
 
-/* UpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
+/*
+UpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -177,9 +300,39 @@ type UpdateNodePoolInternalServerError struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this update node pool internal server error response has a 2xx status code
+func (o *UpdateNodePoolInternalServerError) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this update node pool internal server error response has a 3xx status code
+func (o *UpdateNodePoolInternalServerError) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this update node pool internal server error response has a 4xx status code
+func (o *UpdateNodePoolInternalServerError) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this update node pool internal server error response has a 5xx status code
+func (o *UpdateNodePoolInternalServerError) IsServerError() bool {
+	return true
+}
+
+// IsCode returns true when this update node pool internal server error response a status code equal to that given
+func (o *UpdateNodePoolInternalServerError) IsCode(code int) bool {
+	return code == 500
+}
+
 func (o *UpdateNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError  %+v", 500, o.Payload)
 }
+
+func (o *UpdateNodePoolInternalServerError) String() string {
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError  %+v", 500, o.Payload)
+}
+
 func (o *UpdateNodePoolInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

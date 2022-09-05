@@ -52,10 +52,12 @@ func NewDeleteNodePoolConfigItemParamsWithHTTPClient(client *http.Client) *Delet
 	}
 }
 
-/* DeleteNodePoolConfigItemParams contains all the parameters to send to the API endpoint
-   for the delete node pool config item operation.
+/*
+DeleteNodePoolConfigItemParams contains all the parameters to send to the API endpoint
 
-   Typically these are written to a http.Request.
+	for the delete node pool config item operation.
+
+	Typically these are written to a http.Request.
 */
 type DeleteNodePoolConfigItemParams struct {
 

@@ -69,14 +69,44 @@ func NewDeleteClusterNoContent() *DeleteClusterNoContent {
 	return &DeleteClusterNoContent{}
 }
 
-/* DeleteClusterNoContent describes a response with status code 204, with default header values.
+/*
+DeleteClusterNoContent describes a response with status code 204, with default header values.
 
 Cluster deleted
 */
 type DeleteClusterNoContent struct {
 }
 
+// IsSuccess returns true when this delete cluster no content response has a 2xx status code
+func (o *DeleteClusterNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this delete cluster no content response has a 3xx status code
+func (o *DeleteClusterNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster no content response has a 4xx status code
+func (o *DeleteClusterNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this delete cluster no content response has a 5xx status code
+func (o *DeleteClusterNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete cluster no content response a status code equal to that given
+func (o *DeleteClusterNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
 func (o *DeleteClusterNoContent) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent ", 204)
+}
+
+func (o *DeleteClusterNoContent) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent ", 204)
 }
 
@@ -90,7 +120,8 @@ func NewDeleteClusterBadRequest() *DeleteClusterBadRequest {
 	return &DeleteClusterBadRequest{}
 }
 
-/* DeleteClusterBadRequest describes a response with status code 400, with default header values.
+/*
+DeleteClusterBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -98,9 +129,39 @@ type DeleteClusterBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this delete cluster bad request response has a 2xx status code
+func (o *DeleteClusterBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete cluster bad request response has a 3xx status code
+func (o *DeleteClusterBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster bad request response has a 4xx status code
+func (o *DeleteClusterBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete cluster bad request response has a 5xx status code
+func (o *DeleteClusterBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete cluster bad request response a status code equal to that given
+func (o *DeleteClusterBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
 func (o *DeleteClusterBadRequest) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
 }
+
+func (o *DeleteClusterBadRequest) String() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
+}
+
 func (o *DeleteClusterBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -122,14 +183,44 @@ func NewDeleteClusterUnauthorized() *DeleteClusterUnauthorized {
 	return &DeleteClusterUnauthorized{}
 }
 
-/* DeleteClusterUnauthorized describes a response with status code 401, with default header values.
+/*
+DeleteClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type DeleteClusterUnauthorized struct {
 }
 
+// IsSuccess returns true when this delete cluster unauthorized response has a 2xx status code
+func (o *DeleteClusterUnauthorized) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete cluster unauthorized response has a 3xx status code
+func (o *DeleteClusterUnauthorized) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster unauthorized response has a 4xx status code
+func (o *DeleteClusterUnauthorized) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete cluster unauthorized response has a 5xx status code
+func (o *DeleteClusterUnauthorized) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete cluster unauthorized response a status code equal to that given
+func (o *DeleteClusterUnauthorized) IsCode(code int) bool {
+	return code == 401
+}
+
 func (o *DeleteClusterUnauthorized) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized ", 401)
+}
+
+func (o *DeleteClusterUnauthorized) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized ", 401)
 }
 
@@ -143,7 +234,8 @@ func NewDeleteClusterForbidden() *DeleteClusterForbidden {
 	return &DeleteClusterForbidden{}
 }
 
-/* DeleteClusterForbidden describes a response with status code 403, with default header values.
+/*
+DeleteClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
@@ -151,9 +243,39 @@ type DeleteClusterForbidden struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this delete cluster forbidden response has a 2xx status code
+func (o *DeleteClusterForbidden) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete cluster forbidden response has a 3xx status code
+func (o *DeleteClusterForbidden) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster forbidden response has a 4xx status code
+func (o *DeleteClusterForbidden) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete cluster forbidden response has a 5xx status code
+func (o *DeleteClusterForbidden) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete cluster forbidden response a status code equal to that given
+func (o *DeleteClusterForbidden) IsCode(code int) bool {
+	return code == 403
+}
+
 func (o *DeleteClusterForbidden) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
 }
+
+func (o *DeleteClusterForbidden) String() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
+}
+
 func (o *DeleteClusterForbidden) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -175,14 +297,44 @@ func NewDeleteClusterNotFound() *DeleteClusterNotFound {
 	return &DeleteClusterNotFound{}
 }
 
-/* DeleteClusterNotFound describes a response with status code 404, with default header values.
+/*
+DeleteClusterNotFound describes a response with status code 404, with default header values.
 
 Cluster not found
 */
 type DeleteClusterNotFound struct {
 }
 
+// IsSuccess returns true when this delete cluster not found response has a 2xx status code
+func (o *DeleteClusterNotFound) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete cluster not found response has a 3xx status code
+func (o *DeleteClusterNotFound) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster not found response has a 4xx status code
+func (o *DeleteClusterNotFound) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this delete cluster not found response has a 5xx status code
+func (o *DeleteClusterNotFound) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this delete cluster not found response a status code equal to that given
+func (o *DeleteClusterNotFound) IsCode(code int) bool {
+	return code == 404
+}
+
 func (o *DeleteClusterNotFound) Error() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound ", 404)
+}
+
+func (o *DeleteClusterNotFound) String() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound ", 404)
 }
 
@@ -196,7 +348,8 @@ func NewDeleteClusterInternalServerError() *DeleteClusterInternalServerError {
 	return &DeleteClusterInternalServerError{}
 }
 
-/* DeleteClusterInternalServerError describes a response with status code 500, with default header values.
+/*
+DeleteClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -204,9 +357,39 @@ type DeleteClusterInternalServerError struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this delete cluster internal server error response has a 2xx status code
+func (o *DeleteClusterInternalServerError) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this delete cluster internal server error response has a 3xx status code
+func (o *DeleteClusterInternalServerError) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this delete cluster internal server error response has a 4xx status code
+func (o *DeleteClusterInternalServerError) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this delete cluster internal server error response has a 5xx status code
+func (o *DeleteClusterInternalServerError) IsServerError() bool {
+	return true
+}
+
+// IsCode returns true when this delete cluster internal server error response a status code equal to that given
+func (o *DeleteClusterInternalServerError) IsCode(code int) bool {
+	return code == 500
+}
+
 func (o *DeleteClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
 }
+
+func (o *DeleteClusterInternalServerError) String() string {
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
+}
+
 func (o *DeleteClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
