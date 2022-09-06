@@ -38,9 +38,9 @@ type ClientService interface {
 }
 
 /*
-AddOrUpdateConfigItem adds update config item
+  AddOrUpdateConfigItem adds update config item
 
-Add/update a configuration item unique to the cluster.
+  Add/update a configuration item unique to the cluster.
 */
 func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateConfigItemOK, error) {
 	// TODO: Validate the params before sending
@@ -79,9 +79,9 @@ func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, auth
 }
 
 /*
-DeleteConfigItem deletes config item
+  DeleteConfigItem deletes config item
 
-Deletes config item.
+  Deletes config item.
 */
 func (a *Client) DeleteConfigItem(params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteConfigItemNoContent, error) {
 	// TODO: Validate the params before sending

@@ -54,12 +54,10 @@ func NewCreateOrUpdateNodePoolParamsWithHTTPClient(client *http.Client) *CreateO
 	}
 }
 
-/*
-CreateOrUpdateNodePoolParams contains all the parameters to send to the API endpoint
+/* CreateOrUpdateNodePoolParams contains all the parameters to send to the API endpoint
+   for the create or update node pool operation.
 
-	for the create or update node pool operation.
-
-	Typically these are written to a http.Request.
+   Typically these are written to a http.Request.
 */
 type CreateOrUpdateNodePoolParams struct {
 

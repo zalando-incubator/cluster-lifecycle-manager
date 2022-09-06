@@ -61,8 +61,7 @@ func NewListNodePoolsOK() *ListNodePoolsOK {
 	return &ListNodePoolsOK{}
 }
 
-/*
-ListNodePoolsOK describes a response with status code 200, with default header values.
+/* ListNodePoolsOK describes a response with status code 200, with default header values.
 
 List of node pools
 */
@@ -70,39 +69,9 @@ type ListNodePoolsOK struct {
 	Payload *ListNodePoolsOKBody
 }
 
-// IsSuccess returns true when this list node pools o k response has a 2xx status code
-func (o *ListNodePoolsOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this list node pools o k response has a 3xx status code
-func (o *ListNodePoolsOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this list node pools o k response has a 4xx status code
-func (o *ListNodePoolsOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this list node pools o k response has a 5xx status code
-func (o *ListNodePoolsOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this list node pools o k response a status code equal to that given
-func (o *ListNodePoolsOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *ListNodePoolsOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
 }
-
-func (o *ListNodePoolsOK) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
-}
-
 func (o *ListNodePoolsOK) GetPayload() *ListNodePoolsOKBody {
 	return o.Payload
 }
@@ -124,44 +93,14 @@ func NewListNodePoolsUnauthorized() *ListNodePoolsUnauthorized {
 	return &ListNodePoolsUnauthorized{}
 }
 
-/*
-ListNodePoolsUnauthorized describes a response with status code 401, with default header values.
+/* ListNodePoolsUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type ListNodePoolsUnauthorized struct {
 }
 
-// IsSuccess returns true when this list node pools unauthorized response has a 2xx status code
-func (o *ListNodePoolsUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this list node pools unauthorized response has a 3xx status code
-func (o *ListNodePoolsUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this list node pools unauthorized response has a 4xx status code
-func (o *ListNodePoolsUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this list node pools unauthorized response has a 5xx status code
-func (o *ListNodePoolsUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this list node pools unauthorized response a status code equal to that given
-func (o *ListNodePoolsUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *ListNodePoolsUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized ", 401)
-}
-
-func (o *ListNodePoolsUnauthorized) String() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized ", 401)
 }
 
@@ -175,44 +114,14 @@ func NewListNodePoolsForbidden() *ListNodePoolsForbidden {
 	return &ListNodePoolsForbidden{}
 }
 
-/*
-ListNodePoolsForbidden describes a response with status code 403, with default header values.
+/* ListNodePoolsForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type ListNodePoolsForbidden struct {
 }
 
-// IsSuccess returns true when this list node pools forbidden response has a 2xx status code
-func (o *ListNodePoolsForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this list node pools forbidden response has a 3xx status code
-func (o *ListNodePoolsForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this list node pools forbidden response has a 4xx status code
-func (o *ListNodePoolsForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this list node pools forbidden response has a 5xx status code
-func (o *ListNodePoolsForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this list node pools forbidden response a status code equal to that given
-func (o *ListNodePoolsForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *ListNodePoolsForbidden) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden ", 403)
-}
-
-func (o *ListNodePoolsForbidden) String() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden ", 403)
 }
 
@@ -226,8 +135,7 @@ func NewListNodePoolsInternalServerError() *ListNodePoolsInternalServerError {
 	return &ListNodePoolsInternalServerError{}
 }
 
-/*
-ListNodePoolsInternalServerError describes a response with status code 500, with default header values.
+/* ListNodePoolsInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -235,39 +143,9 @@ type ListNodePoolsInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this list node pools internal server error response has a 2xx status code
-func (o *ListNodePoolsInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this list node pools internal server error response has a 3xx status code
-func (o *ListNodePoolsInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this list node pools internal server error response has a 4xx status code
-func (o *ListNodePoolsInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this list node pools internal server error response has a 5xx status code
-func (o *ListNodePoolsInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this list node pools internal server error response a status code equal to that given
-func (o *ListNodePoolsInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *ListNodePoolsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *ListNodePoolsInternalServerError) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *ListNodePoolsInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -284,8 +162,7 @@ func (o *ListNodePoolsInternalServerError) readResponse(response runtime.ClientR
 	return nil
 }
 
-/*
-ListNodePoolsOKBody list node pools o k body
+/*ListNodePoolsOKBody list node pools o k body
 swagger:model ListNodePoolsOKBody
 */
 type ListNodePoolsOKBody struct {

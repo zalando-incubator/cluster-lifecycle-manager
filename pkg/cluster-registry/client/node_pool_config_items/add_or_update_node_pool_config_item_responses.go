@@ -63,8 +63,7 @@ func NewAddOrUpdateNodePoolConfigItemOK() *AddOrUpdateNodePoolConfigItemOK {
 	return &AddOrUpdateNodePoolConfigItemOK{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemOK describes a response with status code 200, with default header values.
+/* AddOrUpdateNodePoolConfigItemOK describes a response with status code 200, with default header values.
 
 The config items add/update request is accepted.
 */
@@ -72,39 +71,9 @@ type AddOrUpdateNodePoolConfigItemOK struct {
 	Payload *models.ConfigValue
 }
 
-// IsSuccess returns true when this add or update node pool config item o k response has a 2xx status code
-func (o *AddOrUpdateNodePoolConfigItemOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this add or update node pool config item o k response has a 3xx status code
-func (o *AddOrUpdateNodePoolConfigItemOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update node pool config item o k response has a 4xx status code
-func (o *AddOrUpdateNodePoolConfigItemOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this add or update node pool config item o k response has a 5xx status code
-func (o *AddOrUpdateNodePoolConfigItemOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update node pool config item o k response a status code equal to that given
-func (o *AddOrUpdateNodePoolConfigItemOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *AddOrUpdateNodePoolConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
 }
-
-func (o *AddOrUpdateNodePoolConfigItemOK) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
-}
-
 func (o *AddOrUpdateNodePoolConfigItemOK) GetPayload() *models.ConfigValue {
 	return o.Payload
 }
@@ -126,8 +95,7 @@ func NewAddOrUpdateNodePoolConfigItemBadRequest() *AddOrUpdateNodePoolConfigItem
 	return &AddOrUpdateNodePoolConfigItemBadRequest{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
+/* AddOrUpdateNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -135,39 +103,9 @@ type AddOrUpdateNodePoolConfigItemBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this add or update node pool config item bad request response has a 2xx status code
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update node pool config item bad request response has a 3xx status code
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update node pool config item bad request response has a 4xx status code
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update node pool config item bad request response has a 5xx status code
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update node pool config item bad request response a status code equal to that given
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
 }
-
-func (o *AddOrUpdateNodePoolConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
-}
-
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -189,44 +127,14 @@ func NewAddOrUpdateNodePoolConfigItemUnauthorized() *AddOrUpdateNodePoolConfigIt
 	return &AddOrUpdateNodePoolConfigItemUnauthorized{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
+/* AddOrUpdateNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type AddOrUpdateNodePoolConfigItemUnauthorized struct {
 }
 
-// IsSuccess returns true when this add or update node pool config item unauthorized response has a 2xx status code
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update node pool config item unauthorized response has a 3xx status code
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update node pool config item unauthorized response has a 4xx status code
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update node pool config item unauthorized response has a 5xx status code
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update node pool config item unauthorized response a status code equal to that given
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *AddOrUpdateNodePoolConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized ", 401)
-}
-
-func (o *AddOrUpdateNodePoolConfigItemUnauthorized) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized ", 401)
 }
 
@@ -240,44 +148,14 @@ func NewAddOrUpdateNodePoolConfigItemForbidden() *AddOrUpdateNodePoolConfigItemF
 	return &AddOrUpdateNodePoolConfigItemForbidden{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
+/* AddOrUpdateNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type AddOrUpdateNodePoolConfigItemForbidden struct {
 }
 
-// IsSuccess returns true when this add or update node pool config item forbidden response has a 2xx status code
-func (o *AddOrUpdateNodePoolConfigItemForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update node pool config item forbidden response has a 3xx status code
-func (o *AddOrUpdateNodePoolConfigItemForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update node pool config item forbidden response has a 4xx status code
-func (o *AddOrUpdateNodePoolConfigItemForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update node pool config item forbidden response has a 5xx status code
-func (o *AddOrUpdateNodePoolConfigItemForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update node pool config item forbidden response a status code equal to that given
-func (o *AddOrUpdateNodePoolConfigItemForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *AddOrUpdateNodePoolConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden ", 403)
-}
-
-func (o *AddOrUpdateNodePoolConfigItemForbidden) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden ", 403)
 }
 
@@ -291,8 +169,7 @@ func NewAddOrUpdateNodePoolConfigItemInternalServerError() *AddOrUpdateNodePoolC
 	return &AddOrUpdateNodePoolConfigItemInternalServerError{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
+/* AddOrUpdateNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -300,39 +177,9 @@ type AddOrUpdateNodePoolConfigItemInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this add or update node pool config item internal server error response has a 2xx status code
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update node pool config item internal server error response has a 3xx status code
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update node pool config item internal server error response has a 4xx status code
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this add or update node pool config item internal server error response has a 5xx status code
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this add or update node pool config item internal server error response a status code equal to that given
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *AddOrUpdateNodePoolConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

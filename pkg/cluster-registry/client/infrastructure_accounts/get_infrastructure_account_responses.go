@@ -63,8 +63,7 @@ func NewGetInfrastructureAccountOK() *GetInfrastructureAccountOK {
 	return &GetInfrastructureAccountOK{}
 }
 
-/*
-GetInfrastructureAccountOK describes a response with status code 200, with default header values.
+/* GetInfrastructureAccountOK describes a response with status code 200, with default header values.
 
 Infrastructure account information.
 */
@@ -72,39 +71,9 @@ type GetInfrastructureAccountOK struct {
 	Payload *models.InfrastructureAccount
 }
 
-// IsSuccess returns true when this get infrastructure account o k response has a 2xx status code
-func (o *GetInfrastructureAccountOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this get infrastructure account o k response has a 3xx status code
-func (o *GetInfrastructureAccountOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get infrastructure account o k response has a 4xx status code
-func (o *GetInfrastructureAccountOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this get infrastructure account o k response has a 5xx status code
-func (o *GetInfrastructureAccountOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get infrastructure account o k response a status code equal to that given
-func (o *GetInfrastructureAccountOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *GetInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
 }
-
-func (o *GetInfrastructureAccountOK) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
-}
-
 func (o *GetInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -126,44 +95,14 @@ func NewGetInfrastructureAccountUnauthorized() *GetInfrastructureAccountUnauthor
 	return &GetInfrastructureAccountUnauthorized{}
 }
 
-/*
-GetInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
+/* GetInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type GetInfrastructureAccountUnauthorized struct {
 }
 
-// IsSuccess returns true when this get infrastructure account unauthorized response has a 2xx status code
-func (o *GetInfrastructureAccountUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get infrastructure account unauthorized response has a 3xx status code
-func (o *GetInfrastructureAccountUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get infrastructure account unauthorized response has a 4xx status code
-func (o *GetInfrastructureAccountUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get infrastructure account unauthorized response has a 5xx status code
-func (o *GetInfrastructureAccountUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get infrastructure account unauthorized response a status code equal to that given
-func (o *GetInfrastructureAccountUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *GetInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized ", 401)
-}
-
-func (o *GetInfrastructureAccountUnauthorized) String() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized ", 401)
 }
 
@@ -177,44 +116,14 @@ func NewGetInfrastructureAccountForbidden() *GetInfrastructureAccountForbidden {
 	return &GetInfrastructureAccountForbidden{}
 }
 
-/*
-GetInfrastructureAccountForbidden describes a response with status code 403, with default header values.
+/* GetInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type GetInfrastructureAccountForbidden struct {
 }
 
-// IsSuccess returns true when this get infrastructure account forbidden response has a 2xx status code
-func (o *GetInfrastructureAccountForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get infrastructure account forbidden response has a 3xx status code
-func (o *GetInfrastructureAccountForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get infrastructure account forbidden response has a 4xx status code
-func (o *GetInfrastructureAccountForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get infrastructure account forbidden response has a 5xx status code
-func (o *GetInfrastructureAccountForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get infrastructure account forbidden response a status code equal to that given
-func (o *GetInfrastructureAccountForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *GetInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden ", 403)
-}
-
-func (o *GetInfrastructureAccountForbidden) String() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden ", 403)
 }
 
@@ -228,44 +137,14 @@ func NewGetInfrastructureAccountNotFound() *GetInfrastructureAccountNotFound {
 	return &GetInfrastructureAccountNotFound{}
 }
 
-/*
-GetInfrastructureAccountNotFound describes a response with status code 404, with default header values.
+/* GetInfrastructureAccountNotFound describes a response with status code 404, with default header values.
 
 InfrastructureAccount not found
 */
 type GetInfrastructureAccountNotFound struct {
 }
 
-// IsSuccess returns true when this get infrastructure account not found response has a 2xx status code
-func (o *GetInfrastructureAccountNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get infrastructure account not found response has a 3xx status code
-func (o *GetInfrastructureAccountNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get infrastructure account not found response has a 4xx status code
-func (o *GetInfrastructureAccountNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this get infrastructure account not found response has a 5xx status code
-func (o *GetInfrastructureAccountNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this get infrastructure account not found response a status code equal to that given
-func (o *GetInfrastructureAccountNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
 func (o *GetInfrastructureAccountNotFound) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound ", 404)
-}
-
-func (o *GetInfrastructureAccountNotFound) String() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound ", 404)
 }
 
@@ -279,8 +158,7 @@ func NewGetInfrastructureAccountInternalServerError() *GetInfrastructureAccountI
 	return &GetInfrastructureAccountInternalServerError{}
 }
 
-/*
-GetInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
+/* GetInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -288,39 +166,9 @@ type GetInfrastructureAccountInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this get infrastructure account internal server error response has a 2xx status code
-func (o *GetInfrastructureAccountInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this get infrastructure account internal server error response has a 3xx status code
-func (o *GetInfrastructureAccountInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this get infrastructure account internal server error response has a 4xx status code
-func (o *GetInfrastructureAccountInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this get infrastructure account internal server error response has a 5xx status code
-func (o *GetInfrastructureAccountInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this get infrastructure account internal server error response a status code equal to that given
-func (o *GetInfrastructureAccountInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *GetInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *GetInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *GetInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

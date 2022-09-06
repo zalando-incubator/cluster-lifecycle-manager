@@ -69,8 +69,7 @@ func NewCreateInfrastructureAccountCreated() *CreateInfrastructureAccountCreated
 	return &CreateInfrastructureAccountCreated{}
 }
 
-/*
-CreateInfrastructureAccountCreated describes a response with status code 201, with default header values.
+/* CreateInfrastructureAccountCreated describes a response with status code 201, with default header values.
 
 Infrastructure account was scheduled for creation.
 */
@@ -78,39 +77,9 @@ type CreateInfrastructureAccountCreated struct {
 	Payload *models.InfrastructureAccount
 }
 
-// IsSuccess returns true when this create infrastructure account created response has a 2xx status code
-func (o *CreateInfrastructureAccountCreated) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this create infrastructure account created response has a 3xx status code
-func (o *CreateInfrastructureAccountCreated) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account created response has a 4xx status code
-func (o *CreateInfrastructureAccountCreated) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this create infrastructure account created response has a 5xx status code
-func (o *CreateInfrastructureAccountCreated) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create infrastructure account created response a status code equal to that given
-func (o *CreateInfrastructureAccountCreated) IsCode(code int) bool {
-	return code == 201
-}
-
 func (o *CreateInfrastructureAccountCreated) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
 }
-
-func (o *CreateInfrastructureAccountCreated) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
-}
-
 func (o *CreateInfrastructureAccountCreated) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -132,44 +101,14 @@ func NewCreateInfrastructureAccountBadRequest() *CreateInfrastructureAccountBadR
 	return &CreateInfrastructureAccountBadRequest{}
 }
 
-/*
-CreateInfrastructureAccountBadRequest describes a response with status code 400, with default header values.
+/* CreateInfrastructureAccountBadRequest describes a response with status code 400, with default header values.
 
 Invalid parameters
 */
 type CreateInfrastructureAccountBadRequest struct {
 }
 
-// IsSuccess returns true when this create infrastructure account bad request response has a 2xx status code
-func (o *CreateInfrastructureAccountBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create infrastructure account bad request response has a 3xx status code
-func (o *CreateInfrastructureAccountBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account bad request response has a 4xx status code
-func (o *CreateInfrastructureAccountBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create infrastructure account bad request response has a 5xx status code
-func (o *CreateInfrastructureAccountBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create infrastructure account bad request response a status code equal to that given
-func (o *CreateInfrastructureAccountBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
 func (o *CreateInfrastructureAccountBadRequest) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest ", 400)
-}
-
-func (o *CreateInfrastructureAccountBadRequest) String() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest ", 400)
 }
 
@@ -183,44 +122,14 @@ func NewCreateInfrastructureAccountUnauthorized() *CreateInfrastructureAccountUn
 	return &CreateInfrastructureAccountUnauthorized{}
 }
 
-/*
-CreateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
+/* CreateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type CreateInfrastructureAccountUnauthorized struct {
 }
 
-// IsSuccess returns true when this create infrastructure account unauthorized response has a 2xx status code
-func (o *CreateInfrastructureAccountUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create infrastructure account unauthorized response has a 3xx status code
-func (o *CreateInfrastructureAccountUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account unauthorized response has a 4xx status code
-func (o *CreateInfrastructureAccountUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create infrastructure account unauthorized response has a 5xx status code
-func (o *CreateInfrastructureAccountUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create infrastructure account unauthorized response a status code equal to that given
-func (o *CreateInfrastructureAccountUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *CreateInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized ", 401)
-}
-
-func (o *CreateInfrastructureAccountUnauthorized) String() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized ", 401)
 }
 
@@ -234,44 +143,14 @@ func NewCreateInfrastructureAccountForbidden() *CreateInfrastructureAccountForbi
 	return &CreateInfrastructureAccountForbidden{}
 }
 
-/*
-CreateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
+/* CreateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type CreateInfrastructureAccountForbidden struct {
 }
 
-// IsSuccess returns true when this create infrastructure account forbidden response has a 2xx status code
-func (o *CreateInfrastructureAccountForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create infrastructure account forbidden response has a 3xx status code
-func (o *CreateInfrastructureAccountForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account forbidden response has a 4xx status code
-func (o *CreateInfrastructureAccountForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create infrastructure account forbidden response has a 5xx status code
-func (o *CreateInfrastructureAccountForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create infrastructure account forbidden response a status code equal to that given
-func (o *CreateInfrastructureAccountForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *CreateInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden ", 403)
-}
-
-func (o *CreateInfrastructureAccountForbidden) String() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden ", 403)
 }
 
@@ -285,44 +164,14 @@ func NewCreateInfrastructureAccountConflict() *CreateInfrastructureAccountConfli
 	return &CreateInfrastructureAccountConflict{}
 }
 
-/*
-CreateInfrastructureAccountConflict describes a response with status code 409, with default header values.
+/* CreateInfrastructureAccountConflict describes a response with status code 409, with default header values.
 
 Conflict, already existing.
 */
 type CreateInfrastructureAccountConflict struct {
 }
 
-// IsSuccess returns true when this create infrastructure account conflict response has a 2xx status code
-func (o *CreateInfrastructureAccountConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create infrastructure account conflict response has a 3xx status code
-func (o *CreateInfrastructureAccountConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account conflict response has a 4xx status code
-func (o *CreateInfrastructureAccountConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create infrastructure account conflict response has a 5xx status code
-func (o *CreateInfrastructureAccountConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create infrastructure account conflict response a status code equal to that given
-func (o *CreateInfrastructureAccountConflict) IsCode(code int) bool {
-	return code == 409
-}
-
 func (o *CreateInfrastructureAccountConflict) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict ", 409)
-}
-
-func (o *CreateInfrastructureAccountConflict) String() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict ", 409)
 }
 
@@ -336,8 +185,7 @@ func NewCreateInfrastructureAccountInternalServerError() *CreateInfrastructureAc
 	return &CreateInfrastructureAccountInternalServerError{}
 }
 
-/*
-CreateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
+/* CreateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -345,39 +193,9 @@ type CreateInfrastructureAccountInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this create infrastructure account internal server error response has a 2xx status code
-func (o *CreateInfrastructureAccountInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create infrastructure account internal server error response has a 3xx status code
-func (o *CreateInfrastructureAccountInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create infrastructure account internal server error response has a 4xx status code
-func (o *CreateInfrastructureAccountInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this create infrastructure account internal server error response has a 5xx status code
-func (o *CreateInfrastructureAccountInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this create infrastructure account internal server error response a status code equal to that given
-func (o *CreateInfrastructureAccountInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *CreateInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *CreateInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *CreateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

@@ -69,8 +69,7 @@ func NewCreateClusterCreated() *CreateClusterCreated {
 	return &CreateClusterCreated{}
 }
 
-/*
-CreateClusterCreated describes a response with status code 201, with default header values.
+/* CreateClusterCreated describes a response with status code 201, with default header values.
 
 The cluster creation request is accepted
 */
@@ -78,39 +77,9 @@ type CreateClusterCreated struct {
 	Payload *models.Cluster
 }
 
-// IsSuccess returns true when this create cluster created response has a 2xx status code
-func (o *CreateClusterCreated) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this create cluster created response has a 3xx status code
-func (o *CreateClusterCreated) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster created response has a 4xx status code
-func (o *CreateClusterCreated) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this create cluster created response has a 5xx status code
-func (o *CreateClusterCreated) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create cluster created response a status code equal to that given
-func (o *CreateClusterCreated) IsCode(code int) bool {
-	return code == 201
-}
-
 func (o *CreateClusterCreated) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
 }
-
-func (o *CreateClusterCreated) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
-}
-
 func (o *CreateClusterCreated) GetPayload() *models.Cluster {
 	return o.Payload
 }
@@ -132,8 +101,7 @@ func NewCreateClusterBadRequest() *CreateClusterBadRequest {
 	return &CreateClusterBadRequest{}
 }
 
-/*
-CreateClusterBadRequest describes a response with status code 400, with default header values.
+/* CreateClusterBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -141,39 +109,9 @@ type CreateClusterBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this create cluster bad request response has a 2xx status code
-func (o *CreateClusterBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create cluster bad request response has a 3xx status code
-func (o *CreateClusterBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster bad request response has a 4xx status code
-func (o *CreateClusterBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create cluster bad request response has a 5xx status code
-func (o *CreateClusterBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create cluster bad request response a status code equal to that given
-func (o *CreateClusterBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
 func (o *CreateClusterBadRequest) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
 }
-
-func (o *CreateClusterBadRequest) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
-}
-
 func (o *CreateClusterBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -195,44 +133,14 @@ func NewCreateClusterUnauthorized() *CreateClusterUnauthorized {
 	return &CreateClusterUnauthorized{}
 }
 
-/*
-CreateClusterUnauthorized describes a response with status code 401, with default header values.
+/* CreateClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type CreateClusterUnauthorized struct {
 }
 
-// IsSuccess returns true when this create cluster unauthorized response has a 2xx status code
-func (o *CreateClusterUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create cluster unauthorized response has a 3xx status code
-func (o *CreateClusterUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster unauthorized response has a 4xx status code
-func (o *CreateClusterUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create cluster unauthorized response has a 5xx status code
-func (o *CreateClusterUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create cluster unauthorized response a status code equal to that given
-func (o *CreateClusterUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *CreateClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized ", 401)
-}
-
-func (o *CreateClusterUnauthorized) String() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized ", 401)
 }
 
@@ -246,44 +154,14 @@ func NewCreateClusterForbidden() *CreateClusterForbidden {
 	return &CreateClusterForbidden{}
 }
 
-/*
-CreateClusterForbidden describes a response with status code 403, with default header values.
+/* CreateClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type CreateClusterForbidden struct {
 }
 
-// IsSuccess returns true when this create cluster forbidden response has a 2xx status code
-func (o *CreateClusterForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create cluster forbidden response has a 3xx status code
-func (o *CreateClusterForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster forbidden response has a 4xx status code
-func (o *CreateClusterForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create cluster forbidden response has a 5xx status code
-func (o *CreateClusterForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create cluster forbidden response a status code equal to that given
-func (o *CreateClusterForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *CreateClusterForbidden) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden ", 403)
-}
-
-func (o *CreateClusterForbidden) String() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden ", 403)
 }
 
@@ -297,44 +175,14 @@ func NewCreateClusterConflict() *CreateClusterConflict {
 	return &CreateClusterConflict{}
 }
 
-/*
-CreateClusterConflict describes a response with status code 409, with default header values.
+/* CreateClusterConflict describes a response with status code 409, with default header values.
 
 Conflict, already existing
 */
 type CreateClusterConflict struct {
 }
 
-// IsSuccess returns true when this create cluster conflict response has a 2xx status code
-func (o *CreateClusterConflict) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create cluster conflict response has a 3xx status code
-func (o *CreateClusterConflict) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster conflict response has a 4xx status code
-func (o *CreateClusterConflict) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this create cluster conflict response has a 5xx status code
-func (o *CreateClusterConflict) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this create cluster conflict response a status code equal to that given
-func (o *CreateClusterConflict) IsCode(code int) bool {
-	return code == 409
-}
-
 func (o *CreateClusterConflict) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict ", 409)
-}
-
-func (o *CreateClusterConflict) String() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict ", 409)
 }
 
@@ -348,8 +196,7 @@ func NewCreateClusterInternalServerError() *CreateClusterInternalServerError {
 	return &CreateClusterInternalServerError{}
 }
 
-/*
-CreateClusterInternalServerError describes a response with status code 500, with default header values.
+/* CreateClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -357,39 +204,9 @@ type CreateClusterInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this create cluster internal server error response has a 2xx status code
-func (o *CreateClusterInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this create cluster internal server error response has a 3xx status code
-func (o *CreateClusterInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this create cluster internal server error response has a 4xx status code
-func (o *CreateClusterInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this create cluster internal server error response has a 5xx status code
-func (o *CreateClusterInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this create cluster internal server error response a status code equal to that given
-func (o *CreateClusterInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *CreateClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *CreateClusterInternalServerError) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *CreateClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
