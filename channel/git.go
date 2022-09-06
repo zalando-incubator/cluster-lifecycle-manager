@@ -135,8 +135,8 @@ func (g *Git) localClone(ctx context.Context, logger *log.Entry, channel string)
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, channel, time.Now().UTC().UnixNano(), i))
 
-	srcRepoURL := fmt.Sprintf("file://%s", g.repoDir)
-	err := g.cmd(ctx, logger, "clone", srcRepoURL, repoDir)
+	srcRepoUrl := fmt.Sprintf("file://%s", g.repoDir)
+	err := g.cmd(ctx, logger, "clone", srcRepoUrl, repoDir)
 	if err != nil {
 		return "", err
 	}

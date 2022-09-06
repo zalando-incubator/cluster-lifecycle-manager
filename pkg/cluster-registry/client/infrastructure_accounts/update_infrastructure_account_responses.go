@@ -63,8 +63,7 @@ func NewUpdateInfrastructureAccountOK() *UpdateInfrastructureAccountOK {
 	return &UpdateInfrastructureAccountOK{}
 }
 
-/*
-UpdateInfrastructureAccountOK describes a response with status code 200, with default header values.
+/* UpdateInfrastructureAccountOK describes a response with status code 200, with default header values.
 
 The infrastructure account update request is accepted
 */
@@ -72,39 +71,9 @@ type UpdateInfrastructureAccountOK struct {
 	Payload *models.InfrastructureAccount
 }
 
-// IsSuccess returns true when this update infrastructure account o k response has a 2xx status code
-func (o *UpdateInfrastructureAccountOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this update infrastructure account o k response has a 3xx status code
-func (o *UpdateInfrastructureAccountOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update infrastructure account o k response has a 4xx status code
-func (o *UpdateInfrastructureAccountOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this update infrastructure account o k response has a 5xx status code
-func (o *UpdateInfrastructureAccountOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update infrastructure account o k response a status code equal to that given
-func (o *UpdateInfrastructureAccountOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *UpdateInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
 }
-
-func (o *UpdateInfrastructureAccountOK) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
-}
-
 func (o *UpdateInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
 	return o.Payload
 }
@@ -126,44 +95,14 @@ func NewUpdateInfrastructureAccountUnauthorized() *UpdateInfrastructureAccountUn
 	return &UpdateInfrastructureAccountUnauthorized{}
 }
 
-/*
-UpdateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
+/* UpdateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type UpdateInfrastructureAccountUnauthorized struct {
 }
 
-// IsSuccess returns true when this update infrastructure account unauthorized response has a 2xx status code
-func (o *UpdateInfrastructureAccountUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update infrastructure account unauthorized response has a 3xx status code
-func (o *UpdateInfrastructureAccountUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update infrastructure account unauthorized response has a 4xx status code
-func (o *UpdateInfrastructureAccountUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update infrastructure account unauthorized response has a 5xx status code
-func (o *UpdateInfrastructureAccountUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update infrastructure account unauthorized response a status code equal to that given
-func (o *UpdateInfrastructureAccountUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *UpdateInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized ", 401)
-}
-
-func (o *UpdateInfrastructureAccountUnauthorized) String() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized ", 401)
 }
 
@@ -177,44 +116,14 @@ func NewUpdateInfrastructureAccountForbidden() *UpdateInfrastructureAccountForbi
 	return &UpdateInfrastructureAccountForbidden{}
 }
 
-/*
-UpdateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
+/* UpdateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type UpdateInfrastructureAccountForbidden struct {
 }
 
-// IsSuccess returns true when this update infrastructure account forbidden response has a 2xx status code
-func (o *UpdateInfrastructureAccountForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update infrastructure account forbidden response has a 3xx status code
-func (o *UpdateInfrastructureAccountForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update infrastructure account forbidden response has a 4xx status code
-func (o *UpdateInfrastructureAccountForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update infrastructure account forbidden response has a 5xx status code
-func (o *UpdateInfrastructureAccountForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update infrastructure account forbidden response a status code equal to that given
-func (o *UpdateInfrastructureAccountForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *UpdateInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden ", 403)
-}
-
-func (o *UpdateInfrastructureAccountForbidden) String() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden ", 403)
 }
 
@@ -228,44 +137,14 @@ func NewUpdateInfrastructureAccountNotFound() *UpdateInfrastructureAccountNotFou
 	return &UpdateInfrastructureAccountNotFound{}
 }
 
-/*
-UpdateInfrastructureAccountNotFound describes a response with status code 404, with default header values.
+/* UpdateInfrastructureAccountNotFound describes a response with status code 404, with default header values.
 
 InfrastructureAccount not found
 */
 type UpdateInfrastructureAccountNotFound struct {
 }
 
-// IsSuccess returns true when this update infrastructure account not found response has a 2xx status code
-func (o *UpdateInfrastructureAccountNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update infrastructure account not found response has a 3xx status code
-func (o *UpdateInfrastructureAccountNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update infrastructure account not found response has a 4xx status code
-func (o *UpdateInfrastructureAccountNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update infrastructure account not found response has a 5xx status code
-func (o *UpdateInfrastructureAccountNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update infrastructure account not found response a status code equal to that given
-func (o *UpdateInfrastructureAccountNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
 func (o *UpdateInfrastructureAccountNotFound) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound ", 404)
-}
-
-func (o *UpdateInfrastructureAccountNotFound) String() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound ", 404)
 }
 
@@ -279,8 +158,7 @@ func NewUpdateInfrastructureAccountInternalServerError() *UpdateInfrastructureAc
 	return &UpdateInfrastructureAccountInternalServerError{}
 }
 
-/*
-UpdateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
+/* UpdateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -288,39 +166,9 @@ type UpdateInfrastructureAccountInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this update infrastructure account internal server error response has a 2xx status code
-func (o *UpdateInfrastructureAccountInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update infrastructure account internal server error response has a 3xx status code
-func (o *UpdateInfrastructureAccountInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update infrastructure account internal server error response has a 4xx status code
-func (o *UpdateInfrastructureAccountInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this update infrastructure account internal server error response has a 5xx status code
-func (o *UpdateInfrastructureAccountInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this update infrastructure account internal server error response a status code equal to that given
-func (o *UpdateInfrastructureAccountInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *UpdateInfrastructureAccountInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *UpdateInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *UpdateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

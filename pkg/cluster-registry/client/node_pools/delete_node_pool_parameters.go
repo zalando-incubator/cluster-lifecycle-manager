@@ -52,12 +52,10 @@ func NewDeleteNodePoolParamsWithHTTPClient(client *http.Client) *DeleteNodePoolP
 	}
 }
 
-/*
-DeleteNodePoolParams contains all the parameters to send to the API endpoint
+/* DeleteNodePoolParams contains all the parameters to send to the API endpoint
+   for the delete node pool operation.
 
-	for the delete node pool operation.
-
-	Typically these are written to a http.Request.
+   Typically these are written to a http.Request.
 */
 type DeleteNodePoolParams struct {
 

@@ -38,9 +38,9 @@ type ClientService interface {
 }
 
 /*
-AddOrUpdateNodePoolConfigItem adds update config item
+  AddOrUpdateNodePoolConfigItem adds update config item
 
-Add/update a configuration item unique to the node pool.
+  Add/update a configuration item unique to the node pool.
 */
 func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error) {
 	// TODO: Validate the params before sending
@@ -79,9 +79,9 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 }
 
 /*
-DeleteNodePoolConfigItem deletes config item
+  DeleteNodePoolConfigItem deletes config item
 
-Deletes config item.
+  Deletes config item.
 */
 func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error) {
 	// TODO: Validate the params before sending

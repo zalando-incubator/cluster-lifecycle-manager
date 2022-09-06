@@ -42,9 +42,10 @@ type ClientService interface {
 }
 
 /*
-CreateInfrastructureAccount creates infrastructure account
+  CreateInfrastructureAccount creates infrastructure account
 
-Creates a new infrastructure account
+  Creates a new infrastructure account
+
 */
 func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error) {
 	// TODO: Validate the params before sending
@@ -83,9 +84,10 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 }
 
 /*
-GetInfrastructureAccount gets single infrastructure account
+  GetInfrastructureAccount gets single infrastructure account
 
-Read information regarding the infrastructure account.
+  Read information regarding the infrastructure account.
+
 */
 func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error) {
 	// TODO: Validate the params before sending
@@ -124,7 +126,7 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 }
 
 /*
-ListInfrastructureAccounts lists all registered infrastructure accounts
+  ListInfrastructureAccounts lists all registered infrastructure accounts
 */
 func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error) {
 	// TODO: Validate the params before sending
@@ -163,9 +165,9 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 }
 
 /*
-UpdateInfrastructureAccount updates infrastructure account
+  UpdateInfrastructureAccount updates infrastructure account
 
-update an infrastructure account.
+  update an infrastructure account.
 */
 func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error) {
 	// TODO: Validate the params before sending

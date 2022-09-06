@@ -48,14 +48,6 @@ func (s *s3APIStub) CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketO
 	return nil, nil
 }
 
-type s3UploaderAPIStub struct {
-	err error
-}
-
-func (s *s3UploaderAPIStub) Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
-	return &s3manager.UploadOutput{Location: "url"}, s.err
-}
-
 type cloudFormationAPIStub struct {
 	cloudformationiface.CloudFormationAPI
 	statusMutex         *sync.Mutex
@@ -165,6 +157,14 @@ func (a *autoscalingAPIStub) TerminateInstanceInAutoScalingGroup(*autoscaling.Te
 	return nil, nil
 }
 
+type s3UploaderAPIStub struct {
+	err error
+}
+
+func (s *s3UploaderAPIStub) Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
+	return &s3manager.UploadOutput{Location: "url"}, s.err
+}
+
 func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
 	logger := log.WithField("cluster", "foobar")
 
@@ -172,7 +172,6 @@ func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
 		session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
 		cloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(status)},
 		s3Client:             &s3APIStub{},
-		s3Uploader:           &s3UploaderAPIStub{},
 		ec2Client:            &ec2APIStub{},
 		autoscalingClient:    &autoscalingAPIStub{groupName: groupName},
 		apiServer:            "",

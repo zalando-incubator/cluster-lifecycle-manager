@@ -44,9 +44,9 @@ type ClientService interface {
 }
 
 /*
-CreateCluster creates cluster
+  CreateCluster creates cluster
 
-Create a cluster.
+  Create a cluster.
 */
 func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateClusterCreated, error) {
 	// TODO: Validate the params before sending
@@ -85,9 +85,10 @@ func (a *Client) CreateCluster(params *CreateClusterParams, authInfo runtime.Cli
 }
 
 /*
-DeleteCluster deletes cluster
+  DeleteCluster deletes cluster
 
-Cluster identified by the ID.
+  Cluster identified by the ID.
+
 */
 func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteClusterNoContent, error) {
 	// TODO: Validate the params before sending
@@ -126,9 +127,9 @@ func (a *Client) DeleteCluster(params *DeleteClusterParams, authInfo runtime.Cli
 }
 
 /*
-GetCluster gets single cluster
+  GetCluster gets single cluster
 
-Read the details of the cluster.
+  Read the details of the cluster.
 */
 func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetClusterOK, error) {
 	// TODO: Validate the params before sending
@@ -167,9 +168,10 @@ func (a *Client) GetCluster(params *GetClusterParams, authInfo runtime.ClientAut
 }
 
 /*
-ListClusters lists all kubernetes clusters
+  ListClusters lists all kubernetes clusters
 
-Returns the list of all Kubernetes clusters.
+  Returns the list of all Kubernetes clusters.
+
 */
 func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListClustersOK, error) {
 	// TODO: Validate the params before sending
@@ -208,9 +210,9 @@ func (a *Client) ListClusters(params *ListClustersParams, authInfo runtime.Clien
 }
 
 /*
-UpdateCluster updates cluster
+  UpdateCluster updates cluster
 
-update a cluster.
+  update a cluster.
 */
 func (a *Client) UpdateCluster(params *UpdateClusterParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateClusterOK, error) {
 	// TODO: Validate the params before sending

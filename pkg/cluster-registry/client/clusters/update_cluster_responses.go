@@ -63,8 +63,7 @@ func NewUpdateClusterOK() *UpdateClusterOK {
 	return &UpdateClusterOK{}
 }
 
-/*
-UpdateClusterOK describes a response with status code 200, with default header values.
+/* UpdateClusterOK describes a response with status code 200, with default header values.
 
 The cluster update request is performed and the updated cluster is returned.
 */
@@ -72,39 +71,9 @@ type UpdateClusterOK struct {
 	Payload *models.Cluster
 }
 
-// IsSuccess returns true when this update cluster o k response has a 2xx status code
-func (o *UpdateClusterOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this update cluster o k response has a 3xx status code
-func (o *UpdateClusterOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update cluster o k response has a 4xx status code
-func (o *UpdateClusterOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this update cluster o k response has a 5xx status code
-func (o *UpdateClusterOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update cluster o k response a status code equal to that given
-func (o *UpdateClusterOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *UpdateClusterOK) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
 }
-
-func (o *UpdateClusterOK) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
-}
-
 func (o *UpdateClusterOK) GetPayload() *models.Cluster {
 	return o.Payload
 }
@@ -126,44 +95,14 @@ func NewUpdateClusterUnauthorized() *UpdateClusterUnauthorized {
 	return &UpdateClusterUnauthorized{}
 }
 
-/*
-UpdateClusterUnauthorized describes a response with status code 401, with default header values.
+/* UpdateClusterUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type UpdateClusterUnauthorized struct {
 }
 
-// IsSuccess returns true when this update cluster unauthorized response has a 2xx status code
-func (o *UpdateClusterUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update cluster unauthorized response has a 3xx status code
-func (o *UpdateClusterUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update cluster unauthorized response has a 4xx status code
-func (o *UpdateClusterUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update cluster unauthorized response has a 5xx status code
-func (o *UpdateClusterUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update cluster unauthorized response a status code equal to that given
-func (o *UpdateClusterUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *UpdateClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized ", 401)
-}
-
-func (o *UpdateClusterUnauthorized) String() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized ", 401)
 }
 
@@ -177,44 +116,14 @@ func NewUpdateClusterForbidden() *UpdateClusterForbidden {
 	return &UpdateClusterForbidden{}
 }
 
-/*
-UpdateClusterForbidden describes a response with status code 403, with default header values.
+/* UpdateClusterForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type UpdateClusterForbidden struct {
 }
 
-// IsSuccess returns true when this update cluster forbidden response has a 2xx status code
-func (o *UpdateClusterForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update cluster forbidden response has a 3xx status code
-func (o *UpdateClusterForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update cluster forbidden response has a 4xx status code
-func (o *UpdateClusterForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update cluster forbidden response has a 5xx status code
-func (o *UpdateClusterForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update cluster forbidden response a status code equal to that given
-func (o *UpdateClusterForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *UpdateClusterForbidden) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden ", 403)
-}
-
-func (o *UpdateClusterForbidden) String() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden ", 403)
 }
 
@@ -228,44 +137,14 @@ func NewUpdateClusterNotFound() *UpdateClusterNotFound {
 	return &UpdateClusterNotFound{}
 }
 
-/*
-UpdateClusterNotFound describes a response with status code 404, with default header values.
+/* UpdateClusterNotFound describes a response with status code 404, with default header values.
 
 Cluster not found
 */
 type UpdateClusterNotFound struct {
 }
 
-// IsSuccess returns true when this update cluster not found response has a 2xx status code
-func (o *UpdateClusterNotFound) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update cluster not found response has a 3xx status code
-func (o *UpdateClusterNotFound) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update cluster not found response has a 4xx status code
-func (o *UpdateClusterNotFound) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this update cluster not found response has a 5xx status code
-func (o *UpdateClusterNotFound) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this update cluster not found response a status code equal to that given
-func (o *UpdateClusterNotFound) IsCode(code int) bool {
-	return code == 404
-}
-
 func (o *UpdateClusterNotFound) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound ", 404)
-}
-
-func (o *UpdateClusterNotFound) String() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound ", 404)
 }
 
@@ -279,8 +158,7 @@ func NewUpdateClusterInternalServerError() *UpdateClusterInternalServerError {
 	return &UpdateClusterInternalServerError{}
 }
 
-/*
-UpdateClusterInternalServerError describes a response with status code 500, with default header values.
+/* UpdateClusterInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -288,39 +166,9 @@ type UpdateClusterInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this update cluster internal server error response has a 2xx status code
-func (o *UpdateClusterInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this update cluster internal server error response has a 3xx status code
-func (o *UpdateClusterInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this update cluster internal server error response has a 4xx status code
-func (o *UpdateClusterInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this update cluster internal server error response has a 5xx status code
-func (o *UpdateClusterInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this update cluster internal server error response a status code equal to that given
-func (o *UpdateClusterInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *UpdateClusterInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *UpdateClusterInternalServerError) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *UpdateClusterInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

@@ -42,9 +42,9 @@ type ClientService interface {
 }
 
 /*
-CreateOrUpdateNodePool creates update node pool
+  CreateOrUpdateNodePool creates update node pool
 
-Create/update a node pool.
+  Create/update a node pool.
 */
 func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrUpdateNodePoolOK, error) {
 	// TODO: Validate the params before sending
@@ -83,9 +83,9 @@ func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, au
 }
 
 /*
-DeleteNodePool deletes node pool
+  DeleteNodePool deletes node pool
 
-Deletes node pool.
+  Deletes node pool.
 */
 func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolNoContent, error) {
 	// TODO: Validate the params before sending
@@ -124,9 +124,9 @@ func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.C
 }
 
 /*
-ListNodePools lists node pools
+  ListNodePools lists node pools
 
-List all node pools of a cluster.
+  List all node pools of a cluster.
 */
 func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListNodePoolsOK, error) {
 	// TODO: Validate the params before sending
@@ -165,9 +165,9 @@ func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.Cli
 }
 
 /*
-UpdateNodePool updates node pool
+  UpdateNodePool updates node pool
 
-Update a node pool.
+  Update a node pool.
 */
 func (a *Client) UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateNodePoolOK, error) {
 	// TODO: Validate the params before sending

@@ -63,8 +63,7 @@ func NewAddOrUpdateConfigItemOK() *AddOrUpdateConfigItemOK {
 	return &AddOrUpdateConfigItemOK{}
 }
 
-/*
-AddOrUpdateConfigItemOK describes a response with status code 200, with default header values.
+/* AddOrUpdateConfigItemOK describes a response with status code 200, with default header values.
 
 The config items add/update request is accepted.
 */
@@ -72,39 +71,9 @@ type AddOrUpdateConfigItemOK struct {
 	Payload *models.ConfigValue
 }
 
-// IsSuccess returns true when this add or update config item o k response has a 2xx status code
-func (o *AddOrUpdateConfigItemOK) IsSuccess() bool {
-	return true
-}
-
-// IsRedirect returns true when this add or update config item o k response has a 3xx status code
-func (o *AddOrUpdateConfigItemOK) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update config item o k response has a 4xx status code
-func (o *AddOrUpdateConfigItemOK) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this add or update config item o k response has a 5xx status code
-func (o *AddOrUpdateConfigItemOK) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update config item o k response a status code equal to that given
-func (o *AddOrUpdateConfigItemOK) IsCode(code int) bool {
-	return code == 200
-}
-
 func (o *AddOrUpdateConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
 }
-
-func (o *AddOrUpdateConfigItemOK) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
-}
-
 func (o *AddOrUpdateConfigItemOK) GetPayload() *models.ConfigValue {
 	return o.Payload
 }
@@ -126,8 +95,7 @@ func NewAddOrUpdateConfigItemBadRequest() *AddOrUpdateConfigItemBadRequest {
 	return &AddOrUpdateConfigItemBadRequest{}
 }
 
-/*
-AddOrUpdateConfigItemBadRequest describes a response with status code 400, with default header values.
+/* AddOrUpdateConfigItemBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -135,39 +103,9 @@ type AddOrUpdateConfigItemBadRequest struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this add or update config item bad request response has a 2xx status code
-func (o *AddOrUpdateConfigItemBadRequest) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update config item bad request response has a 3xx status code
-func (o *AddOrUpdateConfigItemBadRequest) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update config item bad request response has a 4xx status code
-func (o *AddOrUpdateConfigItemBadRequest) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update config item bad request response has a 5xx status code
-func (o *AddOrUpdateConfigItemBadRequest) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update config item bad request response a status code equal to that given
-func (o *AddOrUpdateConfigItemBadRequest) IsCode(code int) bool {
-	return code == 400
-}
-
 func (o *AddOrUpdateConfigItemBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
 }
-
-func (o *AddOrUpdateConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
-}
-
 func (o *AddOrUpdateConfigItemBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -189,44 +127,14 @@ func NewAddOrUpdateConfigItemUnauthorized() *AddOrUpdateConfigItemUnauthorized {
 	return &AddOrUpdateConfigItemUnauthorized{}
 }
 
-/*
-AddOrUpdateConfigItemUnauthorized describes a response with status code 401, with default header values.
+/* AddOrUpdateConfigItemUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type AddOrUpdateConfigItemUnauthorized struct {
 }
 
-// IsSuccess returns true when this add or update config item unauthorized response has a 2xx status code
-func (o *AddOrUpdateConfigItemUnauthorized) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update config item unauthorized response has a 3xx status code
-func (o *AddOrUpdateConfigItemUnauthorized) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update config item unauthorized response has a 4xx status code
-func (o *AddOrUpdateConfigItemUnauthorized) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update config item unauthorized response has a 5xx status code
-func (o *AddOrUpdateConfigItemUnauthorized) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update config item unauthorized response a status code equal to that given
-func (o *AddOrUpdateConfigItemUnauthorized) IsCode(code int) bool {
-	return code == 401
-}
-
 func (o *AddOrUpdateConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized ", 401)
-}
-
-func (o *AddOrUpdateConfigItemUnauthorized) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized ", 401)
 }
 
@@ -240,44 +148,14 @@ func NewAddOrUpdateConfigItemForbidden() *AddOrUpdateConfigItemForbidden {
 	return &AddOrUpdateConfigItemForbidden{}
 }
 
-/*
-AddOrUpdateConfigItemForbidden describes a response with status code 403, with default header values.
+/* AddOrUpdateConfigItemForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type AddOrUpdateConfigItemForbidden struct {
 }
 
-// IsSuccess returns true when this add or update config item forbidden response has a 2xx status code
-func (o *AddOrUpdateConfigItemForbidden) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update config item forbidden response has a 3xx status code
-func (o *AddOrUpdateConfigItemForbidden) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update config item forbidden response has a 4xx status code
-func (o *AddOrUpdateConfigItemForbidden) IsClientError() bool {
-	return true
-}
-
-// IsServerError returns true when this add or update config item forbidden response has a 5xx status code
-func (o *AddOrUpdateConfigItemForbidden) IsServerError() bool {
-	return false
-}
-
-// IsCode returns true when this add or update config item forbidden response a status code equal to that given
-func (o *AddOrUpdateConfigItemForbidden) IsCode(code int) bool {
-	return code == 403
-}
-
 func (o *AddOrUpdateConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden ", 403)
-}
-
-func (o *AddOrUpdateConfigItemForbidden) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden ", 403)
 }
 
@@ -291,8 +169,7 @@ func NewAddOrUpdateConfigItemInternalServerError() *AddOrUpdateConfigItemInterna
 	return &AddOrUpdateConfigItemInternalServerError{}
 }
 
-/*
-AddOrUpdateConfigItemInternalServerError describes a response with status code 500, with default header values.
+/* AddOrUpdateConfigItemInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -300,39 +177,9 @@ type AddOrUpdateConfigItemInternalServerError struct {
 	Payload *models.Error
 }
 
-// IsSuccess returns true when this add or update config item internal server error response has a 2xx status code
-func (o *AddOrUpdateConfigItemInternalServerError) IsSuccess() bool {
-	return false
-}
-
-// IsRedirect returns true when this add or update config item internal server error response has a 3xx status code
-func (o *AddOrUpdateConfigItemInternalServerError) IsRedirect() bool {
-	return false
-}
-
-// IsClientError returns true when this add or update config item internal server error response has a 4xx status code
-func (o *AddOrUpdateConfigItemInternalServerError) IsClientError() bool {
-	return false
-}
-
-// IsServerError returns true when this add or update config item internal server error response has a 5xx status code
-func (o *AddOrUpdateConfigItemInternalServerError) IsServerError() bool {
-	return true
-}
-
-// IsCode returns true when this add or update config item internal server error response a status code equal to that given
-func (o *AddOrUpdateConfigItemInternalServerError) IsCode(code int) bool {
-	return code == 500
-}
-
 func (o *AddOrUpdateConfigItemInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
 }
-
-func (o *AddOrUpdateConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
-}
-
 func (o *AddOrUpdateConfigItemInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

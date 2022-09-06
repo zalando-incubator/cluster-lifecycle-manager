@@ -461,11 +461,11 @@ func subdivide(network *net.IPNet, size int) ([]*net.IPNet, error) {
 	var result []*net.IPNet
 	for i := uint32(0); i < addrCountOriginal/addrCountSubdivided; i++ {
 		// add i * addrCountSubdivided to the initial IP address
-		newIP := make([]byte, 4)
-		binary.BigEndian.PutUint32(newIP, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
+		newIp := make([]byte, 4)
+		binary.BigEndian.PutUint32(newIp, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
 
 		result = append(result, &net.IPNet{
-			IP:   newIP,
+			IP:   newIp,
 			Mask: newMask,
 		})
 	}
