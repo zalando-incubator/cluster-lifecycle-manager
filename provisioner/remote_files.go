@@ -32,11 +32,6 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 	bucketName string,
 	kmsKey string,
 ) (string, error) {
-
-	if !strings.HasPrefix(kmsKey, kmsKeyPrefix) {
-		return "", fmt.Errorf("invalid KMS key: %s", kmsKey)
-	}
-
 	var (
 		manifest channel.Manifest
 		err      error
@@ -90,6 +85,10 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 }
 
 func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte, error) {
+	if !strings.HasPrefix(kmsKey, kmsKeyPrefix) {
+		return nil, fmt.Errorf("invalid KMS key: %s", kmsKey)
+	}
+
 	var data remoteData
 	err := yaml.UnmarshalStrict([]byte(input), &data)
 	if err != nil {
