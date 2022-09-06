@@ -132,7 +132,7 @@ func TestRenderAndUploadFiles(t *testing.T) {
 		s3Location, err := renderer.RenderAndUploadFiles(
 			map[string]interface{}{},
 			testBucket,
-			"test-key",
+			"arn:aws:kms:eu-central-1:xxxxxx:key/97sdhf9hsd978f",
 		)
 
 		if err != nil {
