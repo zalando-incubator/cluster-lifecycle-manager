@@ -174,7 +174,11 @@ func TestMakeArchive(t *testing.T) {
 	} {
 		t.Run(tc.Message, func(tt *testing.T) {
 			testKMSClient := &testKMSClient{}
-			archive, err := makeArchive(makeTestInput(tc.Path, tc.Data, tc.Permissions, tc.Encrypted), "test-key", testKMSClient)
+			archive, err := makeArchive(
+				makeTestInput(tc.Path, tc.Data, tc.Permissions, tc.Encrypted),
+				"arn:aws:kms:eu-central-1:xxxxxx:key/97sdhf9hsd978f",
+				testKMSClient,
+			)
 			require.NoError(t, err)
 			buffer := bytes.NewBuffer(archive)
 			gzr, err := gzip.NewReader(buffer)
