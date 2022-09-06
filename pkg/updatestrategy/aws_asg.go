@@ -285,7 +285,7 @@ func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string
 // ASG, it will also decrease the ASG minSize.
 // This function will not return until the instance has been terminated in AWS.
 func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
-	instanceId := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
+	instanceID := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
 
 	// if desired should be decremented check if we also need to decrement
 	// the minSize of the ASG.
@@ -296,7 +296,7 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 			Filters: []*ec2.Filter{
 				{
 					Name:   aws.String("resource-id"),
-					Values: []*string{aws.String(instanceId)},
+					Values: []*string{aws.String(instanceID)},
 				},
 				{
 					Name:   aws.String("key"),
@@ -318,7 +318,7 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 		}
 
 		if asgName == "" {
-			return fmt.Errorf("failed to get Autoscaling Group name from EC2 tags of instance '%s'", instanceId)
+			return fmt.Errorf("failed to get Autoscaling Group name from EC2 tags of instance '%s'", instanceID)
 		}
 
 		// get current sizes in the ASG
@@ -355,12 +355,12 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 	}
 
 	params := &autoscaling.TerminateInstanceInAutoScalingGroupInput{
-		InstanceId:                     aws.String(instanceId),
+		InstanceId:                     aws.String(instanceID),
 		ShouldDecrementDesiredCapacity: aws.Bool(decrementDesired),
 	}
 
 	terminateAsgInstance := func() error {
-		state, err := n.instanceState(instanceId)
+		state, err := n.instanceState(instanceID)
 		if err != nil {
 			return backoff.Permanent(err)
 		}
@@ -399,10 +399,10 @@ func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error
 
 // instanceState returns the current state of the instance e.g. 'terminated'.
 // If no state is found it's assumed to be 'terminated'.
-func (n *ASGNodePoolsBackend) instanceState(instanceId string) (string, error) {
+func (n *ASGNodePoolsBackend) instanceState(instanceID string) (string, error) {
 	status, err := n.ec2Client.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
 		IncludeAllInstances: aws.Bool(true),
-		InstanceIds:         []*string{aws.String(instanceId)},
+		InstanceIds:         []*string{aws.String(instanceID)},
 	})
 	if err != nil {
 		return "", err

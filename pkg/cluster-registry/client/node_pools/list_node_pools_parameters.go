@@ -52,10 +52,12 @@ func NewListNodePoolsParamsWithHTTPClient(client *http.Client) *ListNodePoolsPar
 	}
 }
 
-/* ListNodePoolsParams contains all the parameters to send to the API endpoint
-   for the list node pools operation.
+/*
+ListNodePoolsParams contains all the parameters to send to the API endpoint
 
-   Typically these are written to a http.Request.
+	for the list node pools operation.
+
+	Typically these are written to a http.Request.
 */
 type ListNodePoolsParams struct {
 

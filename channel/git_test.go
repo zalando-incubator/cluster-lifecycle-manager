@@ -63,14 +63,14 @@ func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel stri
 func TestGitGet(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 
-	repoTempdir := createTempDir(t)
-	defer os.RemoveAll(repoTempdir)
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
 
-	workdir := createTempDir(t)
-	defer os.RemoveAll(workdir)
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
 
-	createGitRepo(t, logger, repoTempdir)
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workdir, repoTempdir, "")
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -85,7 +85,13 @@ func TestGitGet(t *testing.T) {
 	verifyExampleConfig(t, channel2, "testsrc", "channel2")
 
 	// check sha
-	out, err := exec.Command("git", "-C", repoTempdir, "rev-parse", "master").Output()
+	out, err := exec.Command(
+		"git",
+		"-C",
+		repoTempDir,
+		"rev-parse",
+		"master",
+	).Output()
 	require.NoError(t, err)
 
 	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
