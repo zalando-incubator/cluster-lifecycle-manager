@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kms"
