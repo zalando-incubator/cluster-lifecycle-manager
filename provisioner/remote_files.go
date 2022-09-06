@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -15,6 +16,8 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"gopkg.in/yaml.v2"
 )
+
+const kmsKeyPrefix = "arn:aws:kms"
 
 type FilesRenderer struct {
 	awsAdapter *awsAdapter
@@ -29,7 +32,6 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 	bucketName string,
 	kmsKey string,
 ) (string, error) {
-
 	var (
 		manifest channel.Manifest
 		err      error
@@ -83,6 +85,10 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 }
 
 func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte, error) {
+	if !strings.HasPrefix(kmsKey, kmsKeyPrefix) {
+		return nil, fmt.Errorf("invalid KMS key: %s", kmsKey)
+	}
+
 	var data remoteData
 	err := yaml.UnmarshalStrict([]byte(input), &data)
 	if err != nil {
