@@ -234,6 +234,11 @@ func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values
 		poolKind = "worker"
 	}
 
+	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyName)
+	if err != nil {
+		return "", err
+	}
+
 	renderer := &FilesRenderer{
 		awsAdapter: p.awsAdapter,
 		cluster:    p.cluster,
@@ -242,7 +247,7 @@ func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values
 		nodePool:   nodePool,
 	}
 
-	s3Path, err := renderer.RenderAndUploadFiles(values, p.bucketName, keyName)
+	s3Path, err := renderer.RenderAndUploadFiles(values, p.bucketName, kmsKey)
 	if err != nil {
 		return "", err
 	}
