@@ -45,6 +45,13 @@ func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
 type s3APIStub struct{}
 
 func (s *s3APIStub) CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketOutput, error) {
+	if *input.Bucket == "existing" {
+		return nil, awserr.New(
+			s3.ErrCodeBucketAlreadyOwnedByYou,
+			"bucket already exists",
+			nil,
+		)
+	}
 	return nil, nil
 }
 
@@ -281,10 +288,19 @@ func TestGetDefaultVPC(t *testing.T) {
 }
 
 func TestCreateS3Client(t *testing.T) {
-	a := newAWSAdapterWithStubs("", "GroupName")
-	err := a.createS3Bucket("")
-	if err != nil {
-		t.Fatalf("fail: %v", err)
+	var tests = [] struct {
+		bucketName string
+	}{
+		{""},
+		{"existing"},
+	}
+
+	for _, testCase := range tests {
+		a := newAWSAdapterWithStubs("", "GroupName")
+		err := a.createS3Bucket(testCase.bucketName)
+		if err != nil {
+			t.Fatalf("fail: %v", err)
+		}
 	}
 }
 
