@@ -144,12 +144,6 @@ func (a *awsAdapter) VerifyAccount(accountID string) error {
 func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string) error {
 	var templateURL string
 	if len(stackTemplate) > stackMaxSize {
-		// create S3 bucket if it doesn't exist
-		err := a.createS3Bucket(s3BucketName)
-		if err != nil {
-			return err
-		}
-
 		// Upload the stack template to S3
 		result, err := a.s3Uploader.Upload(&s3manager.UploadInput{
 			Bucket: aws.String(s3BucketName),
