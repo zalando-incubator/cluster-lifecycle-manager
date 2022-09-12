@@ -292,9 +292,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	// create bucket name with aws account ID to ensure uniqueness across
-	// accounts.
+	// create S3 bucket with AWS account ID to ensure uniqueness across
+	// accounts
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
+	err = awsAdapter.createS3Bucket(bucketName)
+	if err != nil {
+		return err
+	}
 
 	// create or update the etcd stack
 	if p.manageEtcdStack {
