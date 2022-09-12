@@ -288,7 +288,7 @@ func TestGetDefaultVPC(t *testing.T) {
 }
 
 func TestCreateS3Client(t *testing.T) {
-	var tests = [] struct {
+	var tests = []struct {
 		bucketName string
 	}{
 		{""},
