@@ -411,11 +411,6 @@ func createOrUpdateEtcdStack(
 	}
 
 	values = util.CopyValues(values)
-	err = populateEncryptedEtcdValues(adapter, cluster, etcdKmsKeyARN, values)
-	if err != nil {
-		return err
-	}
-
 	renderer := &FilesRenderer{
 		awsAdapter: adapter,
 		cluster:    cluster,
