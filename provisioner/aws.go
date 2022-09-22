@@ -3,6 +3,7 @@ package provisioner
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -480,6 +481,18 @@ func (a *awsAdapter) resolveKeyID(keyID string) (string, error) {
 	}
 
 	return aws.StringValue(output.KeyMetadata.Arn), nil
+}
+
+// kmsEncryptForTaupage encrypts a string using a Taupage-compatible format (aws:kms:…)
+func (a *awsAdapter) kmsEncryptForTaupage(keyID string, value string) (string, error) {
+	output, err := a.kmsClient.Encrypt(&kms.EncryptInput{
+		KeyId:     aws.String(keyID),
+		Plaintext: []byte(value),
+	})
+	if err != nil {
+		return "", err
+	}
+	return "aws:kms:" + base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
 }
 
 // createS3Bucket creates an s3 bucket if it doesn't exist.

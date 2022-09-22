@@ -537,6 +537,42 @@ func (mock mockKMSAPI) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKe
 	}, nil
 }
 
+func TestKMSEncryptForTaupage(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail bool
+	}{
+		{
+			name: "encryption succeeds",
+			fail: false,
+		},
+		{
+			name: "encryption fails",
+			fail: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter := awsAdapter{
+				kmsClient: mockKMSAPI{
+					expectedKeyID: "key-id",
+					expectedValue: []byte("test"),
+					encryptResult: []byte("foobar"),
+					fail:          tc.fail,
+				},
+			}
+
+			result, err := adapter.kmsEncryptForTaupage("key-id", "test")
+
+			if tc.fail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "aws:kms:Zm9vYmFy", result)
+			}
+		})
+	}
+}
+
 func TestKMSKeyARN(t *testing.T) {
 	for _, tc := range []struct {
 		name string
