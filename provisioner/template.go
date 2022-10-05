@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	awsUtil "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -133,6 +134,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"capacityTypes": func() []string {
 			return []string{"spot", "on-demand"}
 		},
+		"indent": sprig.GenericFuncMap()["indent"],
 	}
 
 	content, ok := context.fileData[file]
@@ -652,6 +654,7 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 //   - don't have AZ restrictions
 //   - use the worker-splitaz profile.
 //   - use the worker-karpenter profile.
+//
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 	poolGroups := make(map[string][]*api.NodePool)

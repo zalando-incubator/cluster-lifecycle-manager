@@ -58,6 +58,29 @@ func (c *SimpleConfig) NodePoolManifest(profileName string, manifestName string)
 	return c.readManifest(path.Join(configRoot, poolConfigDir, profileName), manifestName)
 }
 
+func (c *SimpleConfig) NodePoolPrerequisitesManifests(profileName string) ([]Manifest, error) {
+	var manifests []Manifest
+	files, err := os.ReadDir(path.Join(c.baseDir, configRoot, poolConfigDir, profileName, "prerequisites"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(file.Name(), ".yaml") && !strings.HasSuffix(file.Name(), ".yml") {
+			continue
+		}
+		manifest, err := c.readManifest(path.Join(configRoot, poolConfigDir, profileName, "prerequisites"), file.Name())
+		if err != nil {
+			return nil, err
+		}
+		manifests = append(manifests, manifest)
+	}
+	return manifests, nil
+}
+
 func (c *SimpleConfig) DefaultsManifests() ([]Manifest, error) {
 	res, err := c.readManifest(configRoot, defaultsFile)
 	if err != nil {

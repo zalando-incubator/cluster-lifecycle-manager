@@ -29,3 +29,35 @@ func (np NodePool) IsMaster() bool {
 func (np NodePool) IsKarpenter() bool {
 	return np.Profile == "worker-karpenter"
 }
+
+type Taint struct {
+	Key    string
+	Value  string
+	Effect string
+}
+
+func (np NodePool) Taints() []Taint {
+	conf, exist := np.ConfigItems["taints"]
+	if !exist {
+		return nil
+	}
+	var taints []Taint
+	for _, t := range strings.Split(conf, ",") {
+		taintData := strings.FieldsFunc(t, func(r rune) bool {
+			return r == '=' || r == ':'
+		})
+		if len(taintData) == 3 {
+			taints = append(taints, Taint{
+				Key:    taintData[0],
+				Value:  taintData[1],
+				Effect: taintData[2],
+			})
+		} else if len(taintData) == 2 {
+			taints = append(taints, Taint{
+				Key:    taintData[0],
+				Effect: taintData[1],
+			})
+		}
+	}
+	return taints
+}

@@ -331,11 +331,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	// provision node pools
 	nodePoolProvisioner := &AWSNodePoolProvisioner{
 		awsAdapter:      awsAdapter,
+		execManager:     p.execManager,
 		instanceTypes:   instanceTypes,
 		nodePoolManager: nodePoolManager,
 		bucketName:      bucketName,
 		config:          channelConfig,
 		cluster:         cluster,
+		tokenSource:     p.tokenSource,
 		azInfo:          azInfo,
 		logger:          logger,
 	}
@@ -346,14 +348,14 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		cluster,
 	)
 
-	for _, g := range nodePoolGroups {
-		err := nodePoolProvisioner.Provision(ctx, g.NodePools, values)
+	provisionNodePoolGroup := func(n nodePoolGroup) error {
+		err = nodePoolProvisioner.Provision(ctx, n.NodePools, values)
 		if err != nil {
 			return err
 		}
 
 		// custom function that checks if the node pools are "ready"
-		err = g.ReadyFn()
+		err = n.ReadyFn()
 		if err != nil {
 			return err
 		}
@@ -368,7 +370,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
 			default:
 				// update nodes
-				for _, nodePool := range g.NodePools {
+				for _, nodePool := range n.NodePools {
 					err := updater.Update(ctx, nodePool)
 					if err != nil {
 						return err
@@ -380,6 +382,17 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 				}
 			}
 		}
+		return nil
+	}
+
+	err = provisionNodePoolGroup(nodePoolGroups["masters"])
+	if err != nil {
+		return err
+	}
+
+	err = provisionNodePoolGroup(nodePoolGroups["workers"])
+	if err != nil {
+		return err
 	}
 
 	// clean up removed node pools
@@ -392,7 +405,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return p.apply(ctx, logger, cluster, deletions, manifests)
+	err = p.apply(ctx, logger, cluster, deletions, manifests)
+	if err != nil {
+		return err
+	}
+
+	return provisionNodePoolGroup(nodePoolGroups["karpenterPools"])
 }
 
 func createOrUpdateEtcdStack(
@@ -1341,26 +1359,36 @@ func int32Value(v *int32) int32 {
 	return 0
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
-	var masters, workers []*api.NodePool
+func groupNodePools(logger *log.Entry, cluster *api.Cluster) map[string]nodePoolGroup {
+	var masters, workers, karpenterPools []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
 		if nodePool.IsMaster() {
 			masters = append(masters, nodePool)
+			continue
+		}
+		if nodePool.IsKarpenter() {
+			karpenterPools = append(karpenterPools, nodePool)
 			continue
 		}
 
 		workers = append(workers, nodePool)
 	}
 
-	return []nodePoolGroup{
-		{
+	return map[string]nodePoolGroup{
+		"masters": {
 			NodePools: masters,
 			ReadyFn: func() error {
 				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 			},
 		},
-		{
+		"workers": {
 			NodePools: workers,
+			ReadyFn: func() error {
+				return nil
+			},
+		},
+		"karpenterPools": {
+			NodePools: karpenterPools,
 			ReadyFn: func() error {
 				return nil
 			},

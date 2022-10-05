@@ -278,6 +278,10 @@ type mockConfig struct {
 	deletions []channel.Manifest
 }
 
+func (c *mockConfig) NodePoolPrerequisitesManifests(profileName string) ([]channel.Manifest, error) {
+	return nil, errors.New("unsupported: NodePoolPrerequisitesManifests")
+}
+
 func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: StackManifest")
 }

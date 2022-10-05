@@ -7,23 +7,28 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/cenkalti/backoff"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"golang.org/x/oauth2"
 )
 
 const (
 	cloudInitFileName     = "userdata.yaml"
 	stackFileName         = "stack.yaml"
+	provisionersFileName  = "provisioners.yaml"
 	filesTemplateName     = "files.yaml"
 	nodePoolTagKeyLegacy  = "NodePool"
 	nodePoolTagKey        = "kubernetes.io/node-pool"
@@ -58,25 +63,37 @@ type remoteData struct {
 // TODO: move AWS specific implementation to a separate file/package.
 type AWSNodePoolProvisioner struct {
 	awsAdapter      *awsAdapter
+	execManager     *command.ExecManager
 	instanceTypes   *awsUtils.InstanceTypes
 	nodePoolManager updatestrategy.NodePoolManager
 	bucketName      string
 	config          channel.Config
 	cluster         *api.Cluster
+	tokenSource     oauth2.TokenSource
 	azInfo          *AZInfo
 	templateContext *templateContext
 	logger          *log.Entry
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	renderedUserData, err := p.prepareCloudInit(nodePool, values)
+func (p *AWSNodePoolProvisioner) generateNodePoolTemplate(nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
+	var renderedUserData string
+	var err error
+
+	if nodePool.IsKarpenter() {
+		renderedUserData, err = p.renderCloudInit(nodePool, values)
+	} else {
+		renderedUserData, err = p.prepareCloudInit(nodePool, values)
+	}
 	if err != nil {
 		return "", err
 	}
 
 	values[userDataValuesKey] = renderedUserData
 
-	stackManifest, err := p.config.NodePoolManifest(nodePool.Profile, stackFileName)
+	if templateFileName == "" {
+		templateFileName = stackFileName
+	}
+	stackManifest, err := p.config.NodePoolManifest(nodePool.Profile, templateFileName)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +166,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolStackTemplate(nodePool, values)
+	template, err := p.generateNodePoolTemplate(nodePool, values, stackFileName)
 	if err != nil {
 		return err
 	}
@@ -175,6 +192,44 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	err = p.awsAdapter.waitForStack(ctx, waitTime, stackName)
 	if err != nil {
 		return err
+	}
+	if nodePool.IsKarpenter() {
+		template, err = p.generateNodePoolTemplate(nodePool, values, provisionersFileName)
+		if err != nil {
+			return err
+		}
+		token, err := p.tokenSource.Token()
+		if err != nil {
+			return err
+		}
+
+		args := []string{
+			"kubectl",
+			"apply",
+			fmt.Sprintf("--server=%s", p.cluster.APIServerURL),
+			fmt.Sprintf("--token=%s", token.AccessToken),
+			"-f",
+			"-",
+		}
+
+		newApplyCommand := func() *exec.Cmd {
+			cmd := exec.Command(args[0], args[1:]...)
+			// prevent kubectl to find the in-cluster config
+			cmd.Env = []string{}
+			return cmd
+		}
+
+		p.logger.Debug(newApplyCommand())
+		applyManifest := func() error {
+			cmd := newApplyCommand()
+			cmd.Stdin = strings.NewReader(template)
+			_, err := p.execManager.Run(ctx, p.logger, cmd)
+			return err
+		}
+		err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
+		if err != nil {
+			return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)
+		}
 	}
 
 	return nil
@@ -204,9 +259,50 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	for _, stack := range orphaned {
 		nodePool := nodePoolStackToNodePool(stack)
 
-		err := updater.PrepareForRemoval(ctx, nodePool)
-		if err != nil {
-			return err
+		if nodePool.IsKarpenter() {
+			token, err := p.tokenSource.Token()
+			if err != nil {
+				return err
+			}
+			args := []string{
+				"kubectl",
+				"delete",
+				fmt.Sprintf("--server=%s", p.cluster.APIServerURL),
+				fmt.Sprintf("--token=%s", token.AccessToken),
+				fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", nodePool.Name),
+				fmt.Sprintf("provisioner.karpenter.sh/%s", nodePool.Name),
+			}
+
+			newApplyCommand := func() *exec.Cmd {
+				cmd := exec.Command(args[0], args[1:]...)
+				// prevent kubectl to find the in-cluster config
+				cmd.Env = []string{}
+				return cmd
+			}
+
+			p.logger.Debug(newApplyCommand())
+			deleteResources := func() error {
+				cmd := newApplyCommand()
+				_, err := p.execManager.Run(ctx, p.logger, cmd)
+				return err
+			}
+			// TODO: handle the NotFound error
+			err = backoff.Retry(deleteResources, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
+			if err != nil {
+				return errors.Wrapf(err, "kubectl delete failed for node pool %s", nodePool.Name)
+			}
+
+			// TODO: not sure if we need this, karpenter controller should be able to clean them up when the provisioner is deleted
+			nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(p.cluster.ID, p.awsAdapter.session)
+			err = nodePoolBackend.Decommission(ctx, nodePool)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := updater.PrepareForRemoval(ctx, nodePool)
+			if err != nil {
+				return err
+			}
 		}
 
 		// delete node pool stack
@@ -219,10 +315,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-// prepareCloudInit prepares the user data by rendering the golang template.
-// It also uploads the dynamically generated files needed for the nodes in the pool
-// A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+func (p *AWSNodePoolProvisioner) renderCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
 	var (
 		keyName, poolKind string
 	)
@@ -260,6 +353,17 @@ func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values
 		return "", err
 	}
 	rendered, err := renderSingleTemplate(cloudInitContents, p.cluster, nodePool, values, p.awsAdapter)
+	if err != nil {
+		return "", err
+	}
+	return rendered, nil
+}
+
+// prepareCloudInit prepares the user data by rendering the golang template.
+// It also uploads the dynamically generated files needed for the nodes in the pool
+// A EC2 UserData ready base64 string will be returned.
+func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+	rendered, err := p.renderCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
 	}
