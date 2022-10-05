@@ -2,7 +2,7 @@ package registry
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -28,7 +28,7 @@ func NewFileRegistry(filePath string) Registry {
 }
 
 func (r *fileRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
-	fileContent, err := ioutil.ReadFile(r.filePath)
+	fileContent, err := os.ReadFile(r.filePath)
 	if err != nil {
 		return nil, err
 	}

@@ -282,6 +282,10 @@ func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error
 	return channel.Manifest{}, errors.New("unsupported: StackManifest")
 }
 
+func (c *mockConfig) EtcdManifest(manifestName string) (channel.Manifest, error) {
+	return channel.Manifest{}, errors.New("unsupported: EtcdManifest")
+}
+
 func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: NodePoolManifest")
 }
@@ -407,13 +411,13 @@ second: 2
 }
 
 const (
-	fakeApiGroup   = "group"
-	fakeApiVersion = "version"
+	fakeAPIGroup   = "group"
+	fakeAPIVersion = "version"
 )
 
 func newObject(kind, namespace, name string, labels map[string]string, references []metav1.OwnerReference) *unstructured.Unstructured {
 	u := &unstructured.Unstructured{}
-	u.SetAPIVersion(fakeApiGroup + "/" + fakeApiVersion)
+	u.SetAPIVersion(fakeAPIGroup + "/" + fakeAPIVersion)
 	u.SetKind(kind)
 	u.SetNamespace(namespace)
 	u.SetName(name)
@@ -461,7 +465,7 @@ func TestPerformDeletion(t *testing.T) {
 	}
 	gvrToListKind := map[schema.GroupVersionResource]string{}
 	for kind, resource := range kindToResource {
-		gvrToListKind[schema.GroupVersionResource{Group: fakeApiGroup, Version: fakeApiVersion, Resource: resource}] = kind + "List"
+		gvrToListKind[schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: resource}] = kind + "List"
 	}
 
 	var objects objectList
@@ -681,7 +685,7 @@ func TestPerformDeletion(t *testing.T) {
 				return false, nil, nil
 			})
 
-			gvr := schema.GroupVersionResource{Group: fakeApiGroup, Version: fakeApiVersion, Resource: kindToResource[tc.deletion.Kind]}
+			gvr := schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: kindToResource[tc.deletion.Kind]}
 
 			err := performDeletion(context.TODO(), logger, client, gvr, tc.deletion)
 			if tc.expectError != "" {

@@ -36,10 +36,10 @@ func TestCombinedSourceOverrides(t *testing.T) {
 func TestCombinedSource(t *testing.T) {
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	mainDir := createTempDir(t)
+	mainDir := CreateTempDir(t)
 	defer os.RemoveAll(mainDir)
 
-	secondaryDir := createTempDir(t)
+	secondaryDir := CreateTempDir(t)
 	defer os.RemoveAll(secondaryDir)
 
 	mainSrc, err := NewDirectory("main", mainDir)
@@ -48,7 +48,7 @@ func TestCombinedSource(t *testing.T) {
 	secondarySrc, err := NewDirectory("secondary", secondaryDir)
 	require.NoError(t, err)
 
-	setupConfig(
+	SetupConfig(
 		t, mainDir,
 		map[string]string{
 			"cluster/manifests/example1/config.yaml":     "example1-config-main",
@@ -58,11 +58,12 @@ func TestCombinedSource(t *testing.T) {
 			"cluster/manifests/example2/deployment.yaml": "example2-deployment-main",
 			"cluster/manifests/deletions.yaml":           "deletions",
 			"cluster/node-pools/example/main.yaml":       "node-pool",
+			"cluster/etcd/stack.yaml":                    "etcd",
 			"cluster/config-defaults.yaml":               "defaults",
 			"cluster/stack.yaml":                         "stack",
 		})
 
-	setupConfig(
+	SetupConfig(
 		t, secondaryDir,
 		map[string]string{
 			"cluster/manifests/example1/deployment.yaml": "example1-deployment-secondary",
@@ -85,6 +86,10 @@ func TestCombinedSource(t *testing.T) {
 	stack, err := config.StackManifest("stack.yaml")
 	require.NoError(t, err)
 	require.Equal(t, expectedManifest("main", "cluster/stack.yaml", "stack"), stack)
+
+	etcdStack, err := config.EtcdManifest("stack.yaml")
+	require.NoError(t, err)
+	require.Equal(t, expectedManifest("main", "cluster/etcd/stack.yaml", "etcd"), etcdStack)
 
 	pool, err := config.NodePoolManifest("example", "main.yaml")
 	require.NoError(t, err)

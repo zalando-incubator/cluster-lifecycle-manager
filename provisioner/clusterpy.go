@@ -43,7 +43,7 @@ import (
 
 const (
 	providerID                         = "zalando-aws"
-	etcdStackFileName                  = "etcd-stack.yaml"
+	etcdStackFileName                  = "stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
 	etcdStackName                      = "etcd-cluster-etcd"
 	defaultNamespace                   = "default"
@@ -293,9 +293,17 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	// create S3 bucket with AWS account ID to ensure uniqueness across
+	// accounts
+	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
+	err = awsAdapter.createS3Bucket(bucketName)
+	if err != nil {
+		return err
+	}
+
 	// create or update the etcd stack
 	if p.manageEtcdStack {
-		err = createOrUpdateEtcdStack(ctx, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter)
+		err = createOrUpdateEtcdStack(ctx, logger, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName)
 		if err != nil {
 			return err
 		}
@@ -304,10 +312,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	if err = ctx.Err(); err != nil {
 		return err
 	}
-
-	// create bucket name with aws account ID to ensure uniqueness across
-	// accounts.
-	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
 
 	outputs, err := createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName)
 	if err != nil {
@@ -391,8 +395,18 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	return p.apply(ctx, logger, cluster, deletions, manifests)
 }
 
-func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, etcdKmsKeyARN string, adapter *awsAdapter) error {
-	template, err := config.StackManifest(etcdStackFileName)
+func createOrUpdateEtcdStack(
+	ctx context.Context,
+	logger *log.Entry,
+	config channel.Config,
+	cluster *api.Cluster,
+	values map[string]interface{},
+	etcdKmsKeyARN string,
+	adapter *awsAdapter,
+	bucketName string,
+) error {
+
+	template, err := config.EtcdManifest(etcdStackFileName)
 	if err != nil {
 		return err
 	}
@@ -402,6 +416,22 @@ func createOrUpdateEtcdStack(ctx context.Context, config channel.Config, cluster
 	if err != nil {
 		return err
 	}
+
+	renderer := &FilesRenderer{
+		awsAdapter: adapter,
+		cluster:    cluster,
+		config:     config,
+		directory:  "etcd",
+		nodePool:   nil,
+	}
+
+	s3Path, err := renderer.RenderAndUploadFiles(values, bucketName, etcdKmsKeyARN)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Uploaded generated files to %s", s3Path)
+	values[s3GeneratedFilesPathValuesKey] = s3Path
 
 	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
 	if err != nil {

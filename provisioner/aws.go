@@ -123,14 +123,14 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 	}, nil
 }
 
-func (a *awsAdapter) VerifyAccount(accountId string) error {
+func (a *awsAdapter) VerifyAccount(accountID string) error {
 	stsService := sts.New(a.session)
 	response, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		return err
 	}
 	effectiveAccount := aws.StringValue(response.Account)
-	expectedAccount := getAWSAccountID(accountId)
+	expectedAccount := getAWSAccountID(accountID)
 	if effectiveAccount != expectedAccount {
 		return fmt.Errorf("invalid AWS account, expected %s, found %s", expectedAccount, effectiveAccount)
 	}
@@ -144,12 +144,6 @@ func (a *awsAdapter) VerifyAccount(accountId string) error {
 func (a *awsAdapter) applyClusterStack(stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string) error {
 	var templateURL string
 	if len(stackTemplate) > stackMaxSize {
-		// create S3 bucket if it doesn't exist
-		err := a.createS3Bucket(s3BucketName)
-		if err != nil {
-			return err
-		}
-
 		// Upload the stack template to S3
 		result, err := a.s3Uploader.Upload(&s3manager.UploadInput{
 			Bucket: aws.String(s3BucketName),

@@ -12,12 +12,12 @@ import (
 func TestDirectoryChannel(t *testing.T) {
 	logger := log.StandardLogger().WithFields(map[string]interface{}{})
 
-	tempdir := createTempDir(t)
-	defer os.RemoveAll(tempdir)
+	tempDir := CreateTempDir(t)
+	defer os.RemoveAll(tempDir)
 
-	setupExampleConfig(t, tempdir, "main")
+	setupExampleConfig(t, tempDir, "main")
 
-	d, err := NewDirectory("testsrc", tempdir)
+	d, err := NewDirectory("testsrc", tempDir)
 	require.NoError(t, err)
 
 	err = d.Update(context.Background(), logger)
@@ -32,6 +32,6 @@ func TestDirectoryChannel(t *testing.T) {
 	verifyExampleConfig(t, config, "testsrc", "main")
 
 	require.NoError(t, config.Delete())
-	_, err = os.Stat(tempdir)
+	_, err = os.Stat(tempDir)
 	require.NoError(t, err)
 }

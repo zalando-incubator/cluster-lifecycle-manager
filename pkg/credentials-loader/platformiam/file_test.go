@@ -1,7 +1,6 @@
 package platformiam
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -17,13 +16,13 @@ var (
 )
 
 func CreateTempTokenFiles() {
-	_ = ioutil.WriteFile("foo-token-type", []byte("Bearer"), 0644)
-	_ = ioutil.WriteFile("foo-token-secret", []byte(testToken), 0644)
+	_ = os.WriteFile("foo-token-type", []byte("Bearer"), 0644)
+	_ = os.WriteFile("foo-token-secret", []byte(testToken), 0644)
 }
 
 func CreateTempClientCredentialsFiles() {
-	_ = ioutil.WriteFile("bar-client-secret", []byte("HksjnJHhhjshd"), 0644)
-	_ = ioutil.WriteFile("bar-client-id", []byte("foo-bar"), 0644)
+	_ = os.WriteFile("bar-client-secret", []byte("HksjnJHhhjshd"), 0644)
+	_ = os.WriteFile("bar-client-id", []byte("foo-bar"), 0644)
 }
 
 func DeleteTempTokenFiles() {

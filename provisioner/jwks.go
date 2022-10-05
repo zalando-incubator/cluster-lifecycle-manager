@@ -17,7 +17,7 @@ const (
 	kubernetesProgrammaticAuthorization = "urn:kubernetes:programmatic_authorization"
 	idTokenResponse                     = "id_token"
 	publicSubject                       = "public"
-	jwksUrl                             = "%s/openid-configuration/keys.json"
+	jwksURL                             = "%s/openid-configuration/keys.json"
 	subjectClaim                        = "sub"
 	issuerClaim                         = "iss"
 	jwkUse                              = "sig"
@@ -118,11 +118,11 @@ func getStringMapList(key jose.JSONWebKey) ([]map[string]string, error) {
 	return []map[string]string{keyMap, keyMapCopy}, nil
 }
 
-func generateOIDCDiscoveryDocument(apiServerUrl string) (string, error) {
+func generateOIDCDiscoveryDocument(apiServerURL string) (string, error) {
 	provider := Provider{
-		Issuer:                 apiServerUrl,
+		Issuer:                 apiServerURL,
 		AuthURL:                kubernetesProgrammaticAuthorization,
-		JWKSURL:                fmt.Sprintf(jwksUrl, apiServerUrl),
+		JWKSURL:                fmt.Sprintf(jwksURL, apiServerURL),
 		SupportedResponseTypes: []string{idTokenResponse},
 		SupportedSubjectTypes:  []string{publicSubject},
 		AlgorithmsSupported:    []string{string(jose.RS256)},

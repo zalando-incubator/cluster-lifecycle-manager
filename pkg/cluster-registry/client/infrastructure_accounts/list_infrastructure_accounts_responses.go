@@ -61,7 +61,8 @@ func NewListInfrastructureAccountsOK() *ListInfrastructureAccountsOK {
 	return &ListInfrastructureAccountsOK{}
 }
 
-/* ListInfrastructureAccountsOK describes a response with status code 200, with default header values.
+/*
+ListInfrastructureAccountsOK describes a response with status code 200, with default header values.
 
 List of all infrastructure accounts.
 */
@@ -69,9 +70,39 @@ type ListInfrastructureAccountsOK struct {
 	Payload *ListInfrastructureAccountsOKBody
 }
 
+// IsSuccess returns true when this list infrastructure accounts o k response has a 2xx status code
+func (o *ListInfrastructureAccountsOK) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this list infrastructure accounts o k response has a 3xx status code
+func (o *ListInfrastructureAccountsOK) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this list infrastructure accounts o k response has a 4xx status code
+func (o *ListInfrastructureAccountsOK) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this list infrastructure accounts o k response has a 5xx status code
+func (o *ListInfrastructureAccountsOK) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this list infrastructure accounts o k response a status code equal to that given
+func (o *ListInfrastructureAccountsOK) IsCode(code int) bool {
+	return code == 200
+}
+
 func (o *ListInfrastructureAccountsOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
 }
+
+func (o *ListInfrastructureAccountsOK) String() string {
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
+}
+
 func (o *ListInfrastructureAccountsOK) GetPayload() *ListInfrastructureAccountsOKBody {
 	return o.Payload
 }
@@ -93,14 +124,44 @@ func NewListInfrastructureAccountsUnauthorized() *ListInfrastructureAccountsUnau
 	return &ListInfrastructureAccountsUnauthorized{}
 }
 
-/* ListInfrastructureAccountsUnauthorized describes a response with status code 401, with default header values.
+/*
+ListInfrastructureAccountsUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type ListInfrastructureAccountsUnauthorized struct {
 }
 
+// IsSuccess returns true when this list infrastructure accounts unauthorized response has a 2xx status code
+func (o *ListInfrastructureAccountsUnauthorized) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this list infrastructure accounts unauthorized response has a 3xx status code
+func (o *ListInfrastructureAccountsUnauthorized) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this list infrastructure accounts unauthorized response has a 4xx status code
+func (o *ListInfrastructureAccountsUnauthorized) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this list infrastructure accounts unauthorized response has a 5xx status code
+func (o *ListInfrastructureAccountsUnauthorized) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this list infrastructure accounts unauthorized response a status code equal to that given
+func (o *ListInfrastructureAccountsUnauthorized) IsCode(code int) bool {
+	return code == 401
+}
+
 func (o *ListInfrastructureAccountsUnauthorized) Error() string {
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized ", 401)
+}
+
+func (o *ListInfrastructureAccountsUnauthorized) String() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized ", 401)
 }
 
@@ -114,14 +175,44 @@ func NewListInfrastructureAccountsForbidden() *ListInfrastructureAccountsForbidd
 	return &ListInfrastructureAccountsForbidden{}
 }
 
-/* ListInfrastructureAccountsForbidden describes a response with status code 403, with default header values.
+/*
+ListInfrastructureAccountsForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type ListInfrastructureAccountsForbidden struct {
 }
 
+// IsSuccess returns true when this list infrastructure accounts forbidden response has a 2xx status code
+func (o *ListInfrastructureAccountsForbidden) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this list infrastructure accounts forbidden response has a 3xx status code
+func (o *ListInfrastructureAccountsForbidden) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this list infrastructure accounts forbidden response has a 4xx status code
+func (o *ListInfrastructureAccountsForbidden) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this list infrastructure accounts forbidden response has a 5xx status code
+func (o *ListInfrastructureAccountsForbidden) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this list infrastructure accounts forbidden response a status code equal to that given
+func (o *ListInfrastructureAccountsForbidden) IsCode(code int) bool {
+	return code == 403
+}
+
 func (o *ListInfrastructureAccountsForbidden) Error() string {
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden ", 403)
+}
+
+func (o *ListInfrastructureAccountsForbidden) String() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden ", 403)
 }
 
@@ -135,7 +226,8 @@ func NewListInfrastructureAccountsInternalServerError() *ListInfrastructureAccou
 	return &ListInfrastructureAccountsInternalServerError{}
 }
 
-/* ListInfrastructureAccountsInternalServerError describes a response with status code 500, with default header values.
+/*
+ListInfrastructureAccountsInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -143,9 +235,39 @@ type ListInfrastructureAccountsInternalServerError struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this list infrastructure accounts internal server error response has a 2xx status code
+func (o *ListInfrastructureAccountsInternalServerError) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this list infrastructure accounts internal server error response has a 3xx status code
+func (o *ListInfrastructureAccountsInternalServerError) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this list infrastructure accounts internal server error response has a 4xx status code
+func (o *ListInfrastructureAccountsInternalServerError) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this list infrastructure accounts internal server error response has a 5xx status code
+func (o *ListInfrastructureAccountsInternalServerError) IsServerError() bool {
+	return true
+}
+
+// IsCode returns true when this list infrastructure accounts internal server error response a status code equal to that given
+func (o *ListInfrastructureAccountsInternalServerError) IsCode(code int) bool {
+	return code == 500
+}
+
 func (o *ListInfrastructureAccountsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
 }
+
+func (o *ListInfrastructureAccountsInternalServerError) String() string {
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
+}
+
 func (o *ListInfrastructureAccountsInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -162,7 +284,8 @@ func (o *ListInfrastructureAccountsInternalServerError) readResponse(response ru
 	return nil
 }
 
-/*ListInfrastructureAccountsOKBody list infrastructure accounts o k body
+/*
+ListInfrastructureAccountsOKBody list infrastructure accounts o k body
 swagger:model ListInfrastructureAccountsOKBody
 */
 type ListInfrastructureAccountsOKBody struct {

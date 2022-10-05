@@ -1,7 +1,6 @@
 package channel
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 const (
 	configRoot    = "cluster"
 	poolConfigDir = "node-pools"
+	etcdConfigDir = "etcd"
 	defaultsFile  = "config-defaults.yaml"
 	manifestsDir  = "manifests"
 	deletionsFile = "deletions.yaml"
@@ -36,7 +36,7 @@ func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*Simp
 
 func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Manifest, error) {
 	filePath := path.Join(c.baseDir, manifestDirectory, name)
-	res, err := ioutil.ReadFile(filePath)
+	res, err := os.ReadFile(filePath)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -48,6 +48,10 @@ func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Mani
 
 func (c *SimpleConfig) StackManifest(manifestName string) (Manifest, error) {
 	return c.readManifest(configRoot, manifestName)
+}
+
+func (c *SimpleConfig) EtcdManifest(manifestName string) (Manifest, error) {
+	return c.readManifest(path.Join(configRoot, etcdConfigDir), manifestName)
 }
 
 func (c *SimpleConfig) NodePoolManifest(profileName string, manifestName string) (Manifest, error) {
@@ -80,7 +84,7 @@ func (c *SimpleConfig) Components() ([]Component, error) {
 	var result []Component
 
 	componentsDir := path.Join(c.baseDir, configRoot, manifestsDir)
-	components, err := ioutil.ReadDir(componentsDir)
+	components, err := os.ReadDir(componentsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -95,7 +99,7 @@ func (c *SimpleConfig) Components() ([]Component, error) {
 		var manifests []Manifest
 
 		componentDir := path.Join(componentsDir, component.Name())
-		files, err := ioutil.ReadDir(componentDir)
+		files, err := os.ReadDir(componentDir)
 		if err != nil {
 			return nil, err
 		}

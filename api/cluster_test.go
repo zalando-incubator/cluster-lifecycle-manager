@@ -62,47 +62,6 @@ func permute(value interface{}, field string) error {
 	return nil
 }
 
-func sampleCluster() *Cluster {
-	return &Cluster{
-		ID:                    "aws:123456789012:eu-central-1:kube-1",
-		InfrastructureAccount: "aws:123456789012",
-		LocalID:               "kube-1",
-		APIServerURL:          "https://kube-1.foo.example.org/",
-		Channel:               "alpha",
-		Environment:           "production",
-		CriticalityLevel:      1,
-		LifecycleStatus:       "ready",
-		Provider:              "zalando-aws",
-		Region:                "eu-central-1",
-		ConfigItems: map[string]string{
-			"product_x_key": "abcde",
-			"product_y_key": "12345",
-		},
-		NodePools: []*NodePool{
-			{
-				Name:             "master-default",
-				Profile:          "master-default",
-				InstanceTypes:    []string{"m4.large"},
-				DiscountStrategy: "none",
-				MinSize:          2,
-				MaxSize:          2,
-				ConfigItems:      map[string]string{},
-			},
-			{
-				Name:             "worker-default",
-				Profile:          "worker-default",
-				InstanceTypes:    []string{"m5.large", "m5.2xlarge"},
-				DiscountStrategy: "none",
-				MinSize:          3,
-				MaxSize:          21,
-				ConfigItems: map[string]string{
-					"taints": "my-taint=:NoSchedule",
-				},
-			},
-		},
-	}
-}
-
 type mockVersion struct{}
 
 func (v mockVersion) ID() string {
@@ -116,11 +75,11 @@ func (v mockVersion) Get(ctx context.Context, logger *logrus.Entry) (channel.Con
 func TestVersion(t *testing.T) {
 	commitHash := mockVersion{}
 
-	version, err := sampleCluster().Version(commitHash)
+	version, err := SampleCluster().Version(commitHash)
 	require.NoError(t, err)
 
 	// cluster fields
-	fields, err := fieldNames(sampleCluster())
+	fields, err := fieldNames(SampleCluster())
 	require.NoError(t, err)
 
 	for _, field := range fields {
@@ -128,7 +87,7 @@ func TestVersion(t *testing.T) {
 			continue
 		}
 
-		cluster := sampleCluster()
+		cluster := SampleCluster()
 		err := permute(cluster, field)
 		require.NoError(t, err, "cluster field: %s", field)
 
@@ -139,7 +98,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	// node pool fields
-	fields, err = fieldNames(sampleCluster().NodePools[0])
+	fields, err = fieldNames(SampleCluster().NodePools[0])
 	require.NoError(t, err)
 
 	for _, field := range fields {
@@ -147,7 +106,7 @@ func TestVersion(t *testing.T) {
 			continue
 		}
 
-		cluster := sampleCluster()
+		cluster := SampleCluster()
 		err := permute(cluster.NodePools[0], field)
 		require.NoError(t, err, "node pool field: %s", field)
 

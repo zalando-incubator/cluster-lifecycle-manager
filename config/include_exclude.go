@@ -5,7 +5,7 @@ import "regexp"
 const DefaultInclude = ".*"
 const DefaultExclude = "^$"
 
-var DefaultFilter IncludeExcludeFilter = IncludeExcludeFilter{
+var DefaultFilter = IncludeExcludeFilter{
 	Include: regexp.MustCompile(DefaultInclude),
 	Exclude: regexp.MustCompile(DefaultExclude),
 }

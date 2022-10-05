@@ -337,24 +337,26 @@ type SGIngressRange struct {
 //
 // "10.0.0.0/8:4180-4181,0.0.0.0/0:4190,udp:0.0.0.0/0:53" would result in the ingress ranges:
 // [
-//   {
-//     CIDR: "10.0.0.0/8",
-//     FromPort: 4180,
-//     ToPort: 4181,
-//     Protocol: "tcp",
-//   },
-//   {
-//     CIDR: "0.0.0.0/0",
-//     FromPort: 4190,
-//     ToPort: 4190,
-//     Protocol: "tcp",
-//   },
-//   {
-//     CIDR: "0.0.0.0/0",
-//     FromPort: 53,
-//     ToPort: 53,
-//     Protocol: "udp",
-//   },
+//
+//	{
+//	  CIDR: "10.0.0.0/8",
+//	  FromPort: 4180,
+//	  ToPort: 4181,
+//	  Protocol: "tcp",
+//	},
+//	{
+//	  CIDR: "0.0.0.0/0",
+//	  FromPort: 4190,
+//	  ToPort: 4190,
+//	  Protocol: "tcp",
+//	},
+//	{
+//	  CIDR: "0.0.0.0/0",
+//	  FromPort: 53,
+//	  ToPort: 53,
+//	  Protocol: "udp",
+//	},
+//
 // ]
 func sgIngressRanges(ranges string) ([]SGIngressRange, error) {
 	rangesL := strings.Split(ranges, ",")
@@ -464,11 +466,11 @@ func subdivide(network *net.IPNet, size int) ([]*net.IPNet, error) {
 	var result []*net.IPNet
 	for i := uint32(0); i < addrCountOriginal/addrCountSubdivided; i++ {
 		// add i * addrCountSubdivided to the initial IP address
-		newIp := make([]byte, 4)
-		binary.BigEndian.PutUint32(newIp, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
+		newIP := make([]byte, 4)
+		binary.BigEndian.PutUint32(newIP, binary.BigEndian.Uint32(network.IP)+i*addrCountSubdivided)
 
 		result = append(result, &net.IPNet{
-			IP:   newIp,
+			IP:   newIP,
 			Mask: newMask,
 		})
 	}
@@ -646,10 +648,10 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 
 // azDistributedNodePoolGroups returns a list of node pool groups (using the dedicated label) that are safe to use
 // with even pod spreading. Currently this is the case iff all node pools with this dedicated label
-//  - are correctly configured with regards to the labels and taints
-//  - don't have AZ restrictions
-//  - use the worker-splitaz profile.
-//  - use the worker-karpenter profile.
+//   - are correctly configured with regards to the labels and taints
+//   - don't have AZ restrictions
+//   - use the worker-splitaz profile.
+//   - use the worker-karpenter profile.
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 	poolGroups := make(map[string][]*api.NodePool)

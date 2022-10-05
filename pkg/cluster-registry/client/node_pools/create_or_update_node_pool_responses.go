@@ -63,7 +63,8 @@ func NewCreateOrUpdateNodePoolOK() *CreateOrUpdateNodePoolOK {
 	return &CreateOrUpdateNodePoolOK{}
 }
 
-/* CreateOrUpdateNodePoolOK describes a response with status code 200, with default header values.
+/*
+CreateOrUpdateNodePoolOK describes a response with status code 200, with default header values.
 
 The node pool create request is accepted.
 */
@@ -71,9 +72,39 @@ type CreateOrUpdateNodePoolOK struct {
 	Payload *models.NodePool
 }
 
+// IsSuccess returns true when this create or update node pool o k response has a 2xx status code
+func (o *CreateOrUpdateNodePoolOK) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this create or update node pool o k response has a 3xx status code
+func (o *CreateOrUpdateNodePoolOK) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create or update node pool o k response has a 4xx status code
+func (o *CreateOrUpdateNodePoolOK) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this create or update node pool o k response has a 5xx status code
+func (o *CreateOrUpdateNodePoolOK) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create or update node pool o k response a status code equal to that given
+func (o *CreateOrUpdateNodePoolOK) IsCode(code int) bool {
+	return code == 200
+}
+
 func (o *CreateOrUpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
 }
+
+func (o *CreateOrUpdateNodePoolOK) String() string {
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
+}
+
 func (o *CreateOrUpdateNodePoolOK) GetPayload() *models.NodePool {
 	return o.Payload
 }
@@ -95,7 +126,8 @@ func NewCreateOrUpdateNodePoolBadRequest() *CreateOrUpdateNodePoolBadRequest {
 	return &CreateOrUpdateNodePoolBadRequest{}
 }
 
-/* CreateOrUpdateNodePoolBadRequest describes a response with status code 400, with default header values.
+/*
+CreateOrUpdateNodePoolBadRequest describes a response with status code 400, with default header values.
 
 Invalid request
 */
@@ -103,9 +135,39 @@ type CreateOrUpdateNodePoolBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this create or update node pool bad request response has a 2xx status code
+func (o *CreateOrUpdateNodePoolBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this create or update node pool bad request response has a 3xx status code
+func (o *CreateOrUpdateNodePoolBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create or update node pool bad request response has a 4xx status code
+func (o *CreateOrUpdateNodePoolBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this create or update node pool bad request response has a 5xx status code
+func (o *CreateOrUpdateNodePoolBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create or update node pool bad request response a status code equal to that given
+func (o *CreateOrUpdateNodePoolBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
 func (o *CreateOrUpdateNodePoolBadRequest) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
 }
+
+func (o *CreateOrUpdateNodePoolBadRequest) String() string {
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
+}
+
 func (o *CreateOrUpdateNodePoolBadRequest) GetPayload() *models.Error {
 	return o.Payload
 }
@@ -127,14 +189,44 @@ func NewCreateOrUpdateNodePoolUnauthorized() *CreateOrUpdateNodePoolUnauthorized
 	return &CreateOrUpdateNodePoolUnauthorized{}
 }
 
-/* CreateOrUpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
+/*
+CreateOrUpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
 
 Unauthorized
 */
 type CreateOrUpdateNodePoolUnauthorized struct {
 }
 
+// IsSuccess returns true when this create or update node pool unauthorized response has a 2xx status code
+func (o *CreateOrUpdateNodePoolUnauthorized) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this create or update node pool unauthorized response has a 3xx status code
+func (o *CreateOrUpdateNodePoolUnauthorized) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create or update node pool unauthorized response has a 4xx status code
+func (o *CreateOrUpdateNodePoolUnauthorized) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this create or update node pool unauthorized response has a 5xx status code
+func (o *CreateOrUpdateNodePoolUnauthorized) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create or update node pool unauthorized response a status code equal to that given
+func (o *CreateOrUpdateNodePoolUnauthorized) IsCode(code int) bool {
+	return code == 401
+}
+
 func (o *CreateOrUpdateNodePoolUnauthorized) Error() string {
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized ", 401)
+}
+
+func (o *CreateOrUpdateNodePoolUnauthorized) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized ", 401)
 }
 
@@ -148,14 +240,44 @@ func NewCreateOrUpdateNodePoolForbidden() *CreateOrUpdateNodePoolForbidden {
 	return &CreateOrUpdateNodePoolForbidden{}
 }
 
-/* CreateOrUpdateNodePoolForbidden describes a response with status code 403, with default header values.
+/*
+CreateOrUpdateNodePoolForbidden describes a response with status code 403, with default header values.
 
 Forbidden
 */
 type CreateOrUpdateNodePoolForbidden struct {
 }
 
+// IsSuccess returns true when this create or update node pool forbidden response has a 2xx status code
+func (o *CreateOrUpdateNodePoolForbidden) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this create or update node pool forbidden response has a 3xx status code
+func (o *CreateOrUpdateNodePoolForbidden) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create or update node pool forbidden response has a 4xx status code
+func (o *CreateOrUpdateNodePoolForbidden) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this create or update node pool forbidden response has a 5xx status code
+func (o *CreateOrUpdateNodePoolForbidden) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create or update node pool forbidden response a status code equal to that given
+func (o *CreateOrUpdateNodePoolForbidden) IsCode(code int) bool {
+	return code == 403
+}
+
 func (o *CreateOrUpdateNodePoolForbidden) Error() string {
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden ", 403)
+}
+
+func (o *CreateOrUpdateNodePoolForbidden) String() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden ", 403)
 }
 
@@ -169,7 +291,8 @@ func NewCreateOrUpdateNodePoolInternalServerError() *CreateOrUpdateNodePoolInter
 	return &CreateOrUpdateNodePoolInternalServerError{}
 }
 
-/* CreateOrUpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
+/*
+CreateOrUpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
 
 Unexpected error
 */
@@ -177,9 +300,39 @@ type CreateOrUpdateNodePoolInternalServerError struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this create or update node pool internal server error response has a 2xx status code
+func (o *CreateOrUpdateNodePoolInternalServerError) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this create or update node pool internal server error response has a 3xx status code
+func (o *CreateOrUpdateNodePoolInternalServerError) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create or update node pool internal server error response has a 4xx status code
+func (o *CreateOrUpdateNodePoolInternalServerError) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this create or update node pool internal server error response has a 5xx status code
+func (o *CreateOrUpdateNodePoolInternalServerError) IsServerError() bool {
+	return true
+}
+
+// IsCode returns true when this create or update node pool internal server error response a status code equal to that given
+func (o *CreateOrUpdateNodePoolInternalServerError) IsCode(code int) bool {
+	return code == 500
+}
+
 func (o *CreateOrUpdateNodePoolInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
 }
+
+func (o *CreateOrUpdateNodePoolInternalServerError) String() string {
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
+}
+
 func (o *CreateOrUpdateNodePoolInternalServerError) GetPayload() *models.Error {
 	return o.Payload
 }

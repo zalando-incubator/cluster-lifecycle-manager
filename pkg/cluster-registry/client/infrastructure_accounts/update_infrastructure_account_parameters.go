@@ -54,10 +54,12 @@ func NewUpdateInfrastructureAccountParamsWithHTTPClient(client *http.Client) *Up
 	}
 }
 
-/* UpdateInfrastructureAccountParams contains all the parameters to send to the API endpoint
-   for the update infrastructure account operation.
+/*
+UpdateInfrastructureAccountParams contains all the parameters to send to the API endpoint
 
-   Typically these are written to a http.Request.
+	for the update infrastructure account operation.
+
+	Typically these are written to a http.Request.
 */
 type UpdateInfrastructureAccountParams struct {
 
