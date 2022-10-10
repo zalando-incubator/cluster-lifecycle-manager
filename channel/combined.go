@@ -132,14 +132,6 @@ func (c *combinedConfig) NodePoolManifest(profileName string, manifestName strin
 	return mainConfig.NodePoolManifest(profileName, manifestName)
 }
 
-func (c *combinedConfig) NodePoolPrerequisitesManifests(profileName string) ([]Manifest, error) {
-	mainConfig, err := c.mainConfig()
-	if err != nil {
-		return []Manifest{}, err
-	}
-	return mainConfig.NodePoolPrerequisitesManifests(profileName)
-}
-
 func (c *combinedConfig) DefaultsManifests() ([]Manifest, error) {
 	var result []Manifest
 	for i, config := range c.configs {

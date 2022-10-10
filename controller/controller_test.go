@@ -140,10 +140,6 @@ type mockConfig struct {
 	mockManifest channel.Manifest
 }
 
-func (c *mockConfig) NodePoolPrerequisitesManifests(profileName string) ([]channel.Manifest, error) {
-	return []channel.Manifest{c.mockManifest}, nil
-}
-
 func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
