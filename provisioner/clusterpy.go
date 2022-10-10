@@ -1352,8 +1352,6 @@ type nodePoolGroup struct {
 	ReadyFn     func() error
 }
 
-//func groupNodePools(logger *log.Entry, cluster *api.Cluster, awsAdapter *awsAdapter, channelConfig channel.Config,
-//	bucketName string, azInfo *AZInfo, execManager *command.ExecManager, tokenSource oauth2.TokenSource) (map[string]*nodePoolGroup, error) {
 func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
 
 	var masters, workers, karpenterPools []*api.NodePool
