@@ -1354,7 +1354,7 @@ type nodePoolGroup struct {
 
 //func groupNodePools(logger *log.Entry, cluster *api.Cluster, awsAdapter *awsAdapter, channelConfig channel.Config,
 //	bucketName string, azInfo *AZInfo, execManager *command.ExecManager, tokenSource oauth2.TokenSource) (map[string]*nodePoolGroup, error) {
-func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, kProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
 
 	var masters, workers, karpenterPools []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
@@ -1389,7 +1389,7 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 		},
 		"karpenterPools": {
 			NodePools:   karpenterPools,
-			Provisioner: kProvisioner,
+			Provisioner: karProvisioner,
 			cluster:     cluster,
 			ReadyFn: func() error {
 				return nil
