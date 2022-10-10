@@ -472,6 +472,7 @@ func TestAmiID(t *testing.T) {
 func TestNodeCIDRMaxNodes(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
+		podCIDR       int64
 		cidr          int64
 		reserved      int64
 		expected      string
@@ -479,33 +480,69 @@ func TestNodeCIDRMaxNodes(t *testing.T) {
 	}{
 		{
 			name:     "basic",
+			podCIDR:  16,
 			cidr:     24,
 			expected: "256",
 		},
 		{
 			name:     "basic+reserved",
+			podCIDR:  16,
 			cidr:     24,
 			reserved: 10,
 			expected: "246",
 		},
 		{
 			name:     "large",
+			podCIDR:  16,
 			cidr:     27,
 			expected: "2048",
 		},
 		{
 			name:          "error: too small",
+			podCIDR:       16,
 			cidr:          19,
 			expectedError: true,
 		},
 		{
 			name:          "error: too large",
+			podCIDR:       16,
 			cidr:          29,
 			expectedError: true,
 		},
+		{
+			name:          "error: pod CIDR too small",
+			podCIDR:       13,
+			cidr:          24,
+			expectedError: true,
+		},
+		{
+			name:          "error: pod CIDR too large",
+			podCIDR:       17,
+			cidr:          24,
+			expectedError: true,
+		},
+		{
+			name:     "large podCIDR",
+			podCIDR:  15,
+			cidr:     26,
+			expected: "2048",
+		},
+		{
+			name:     "large podCIDR, small node CIDR",
+			podCIDR:  15,
+			cidr:     25,
+			expected: "1024",
+		},
+		{
+			name:     "very large podCIDR",
+			podCIDR:  14,
+			cidr:     26,
+			expected: "4096",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := renderSingle(t, "{{ nodeCIDRMaxNodes .Values.data.cidr .Values.data.reserved }}", map[string]int64{
+			result, err := renderSingle(t, "{{ nodeCIDRMaxNodesPodCIDR .Values.data.pod_cidr .Values.data.cidr .Values.data.reserved }}", map[string]int64{
+				"pod_cidr": tc.podCIDR,
 				"cidr":     tc.cidr,
 				"reserved": tc.reserved,
 			})

@@ -119,7 +119,14 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"amiID": func(imageName, imageOwner string) (string, error) {
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
-		"nodeCIDRMaxNodes":              nodeCIDRMaxNodes,
+		// TODO: this function is kept for backward compatibility while
+		// the the use of `nodeCIDRMaxNodesPodCIDR` is being rolled out
+		// to all channels of kubernetes-on-aws. After a full rollout
+		// this can be dropped.
+		"nodeCIDRMaxNodes": func(maskSize int64, reserved int64) (int64, error) {
+			return nodeCIDRMaxNodes(16, maskSize, reserved)
+		},
+		"nodeCIDRMaxNodesPodCIDR":       nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":               nodeCIDRMaxPods,
 		"parseInt64":                    parseInt64,
 		"generateJWKSDocument":          generateJWKSDocument,
@@ -542,13 +549,17 @@ func checkCIDRMaxSize(maskSize int64) error {
 	return nil
 }
 
-func nodeCIDRMaxNodes(maskSize int64, reserved int64) (int64, error) {
+func nodeCIDRMaxNodes(podCIDRMaskSize, maskSize int64, reserved int64) (int64, error) {
+	if podCIDRMaskSize < 14 || podCIDRMaskSize > 16 {
+		return 0, fmt.Errorf("invalid for podCIDRMaskSize: %d", podCIDRMaskSize)
+	}
+
 	err := checkCIDRMaxSize(maskSize)
 	if err != nil {
 		return 0, err
 	}
 
-	return 2<<(maskSize-16-1) - reserved, nil
+	return 2<<(maskSize-podCIDRMaskSize-1) - reserved, nil
 }
 
 func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
