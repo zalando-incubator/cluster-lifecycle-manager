@@ -185,7 +185,7 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
-	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
+	awsAdapter, updater, _, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -329,74 +329,41 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// provision node pools
-	nodePoolProvisioner := &AWSNodePoolProvisioner{
-		awsAdapter:      awsAdapter,
-		execManager:     p.execManager,
-		instanceTypes:   instanceTypes,
-		nodePoolManager: nodePoolManager,
-		bucketName:      bucketName,
-		config:          channelConfig,
-		cluster:         cluster,
-		tokenSource:     p.tokenSource,
-		azInfo:          azInfo,
-		logger:          logger,
+	caNodePoolProvisioner := &AWSNodePoolProvisioner{
+		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
+			awsAdapter:     awsAdapter,
+			config:         channelConfig,
+			cluster:        cluster,
+			bucketName:     bucketName,
+			logger:         logger,
+			encodeUserData: false,
+		},
+		instanceTypes: instanceTypes,
+		azInfo:        azInfo,
+	}
+
+	karpenterProvisioner := &KarpenterNodePoolProvisioner{
+		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
+			awsAdapter:     awsAdapter,
+			config:         channelConfig,
+			cluster:        cluster,
+			bucketName:     bucketName,
+			logger:         logger,
+			encodeUserData: true,
+		},
+		execManager: p.execManager,
+		tokenSource: p.tokenSource,
 	}
 
 	// group node pools based on their profile e.g. master
 	nodePoolGroups := groupNodePools(
 		logger,
 		cluster,
+		caNodePoolProvisioner,
+		karpenterProvisioner,
 	)
 
-	provisionNodePoolGroup := func(n nodePoolGroup) error {
-		err = nodePoolProvisioner.Provision(ctx, n.NodePools, values)
-		if err != nil {
-			return err
-		}
-
-		// custom function that checks if the node pools are "ready"
-		err = n.ReadyFn()
-		if err != nil {
-			return err
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		if !p.applyOnly {
-			switch cluster.LifecycleStatus {
-			case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
-				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
-			default:
-				// update nodes
-				for _, nodePool := range n.NodePools {
-					err := updater.Update(ctx, nodePool)
-					if err != nil {
-						return err
-					}
-
-					if err = ctx.Err(); err != nil {
-						return err
-					}
-				}
-			}
-		}
-		return nil
-	}
-
-	err = provisionNodePoolGroup(nodePoolGroups["masters"])
-	if err != nil {
-		return err
-	}
-
-	err = provisionNodePoolGroup(nodePoolGroups["workers"])
-	if err != nil {
-		return err
-	}
-
-	// clean up removed node pools
-	err = nodePoolProvisioner.Reconcile(ctx, updater)
+	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
 	if err != nil {
 		return err
 	}
@@ -410,7 +377,26 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	return provisionNodePoolGroup(nodePoolGroups["karpenterPools"])
+	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
+	if err != nil {
+		return err
+	}
+
+	err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
+	if err != nil {
+		return err
+	}
+
+	// clean up removed node pools
+	err = caNodePoolProvisioner.Reconcile(ctx, updater)
+	if err != nil {
+		return err
+	}
+	err = karpenterProvisioner.Reconcile(ctx, updater)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func createOrUpdateEtcdStack(
@@ -1359,7 +1345,17 @@ func int32Value(v *int32) int32 {
 	return 0
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster) map[string]nodePoolGroup {
+type nodePoolGroup struct {
+	NodePools   []*api.NodePool
+	Provisioner NodePoolProvisioner
+	cluster     *api.Cluster
+	ReadyFn     func() error
+}
+
+//func groupNodePools(logger *log.Entry, cluster *api.Cluster, awsAdapter *awsAdapter, channelConfig channel.Config,
+//	bucketName string, azInfo *AZInfo, execManager *command.ExecManager, tokenSource oauth2.TokenSource) (map[string]*nodePoolGroup, error) {
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, kProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
+
 	var masters, workers, karpenterPools []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
 		if nodePool.IsMaster() {
@@ -1374,21 +1370,27 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster) map[string]nodePool
 		workers = append(workers, nodePool)
 	}
 
-	return map[string]nodePoolGroup{
+	return map[string]*nodePoolGroup{
 		"masters": {
-			NodePools: masters,
+			NodePools:   masters,
+			Provisioner: caProvisioner,
+			cluster:     cluster,
 			ReadyFn: func() error {
 				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 			},
 		},
 		"workers": {
-			NodePools: workers,
+			NodePools:   workers,
+			Provisioner: caProvisioner,
+			cluster:     cluster,
 			ReadyFn: func() error {
 				return nil
 			},
 		},
 		"karpenterPools": {
-			NodePools: karpenterPools,
+			NodePools:   karpenterPools,
+			Provisioner: kProvisioner,
+			cluster:     cluster,
 			ReadyFn: func() error {
 				return nil
 			},
@@ -1396,7 +1398,40 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster) map[string]nodePool
 	}
 }
 
-type nodePoolGroup struct {
-	NodePools []*api.NodePool
-	ReadyFn   func() error
+// TODO: move initialization of NodePoolProvisioner and the def of provisionNodePoolGroup into nodePoolGroups
+func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map[string]interface{}, updater updatestrategy.UpdateStrategy, applyOnly bool) error {
+	err := npg.Provisioner.Provision(ctx, npg.NodePools, values)
+	if err != nil {
+		return err
+	}
+
+	// custom function that checks if the node pools are "ready"
+	err = npg.ReadyFn()
+	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
+	if !applyOnly {
+		switch npg.cluster.LifecycleStatus {
+		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
+			log.Warnf("New cluster (%s), skipping node pool update", npg.cluster.LifecycleStatus)
+		default:
+			// update nodes
+			for _, nodePool := range npg.NodePools {
+				err := updater.Update(ctx, nodePool)
+				if err != nil {
+					return err
+				}
+
+				if err = ctx.Err(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }

@@ -58,32 +58,83 @@ type remoteData struct {
 	} `yaml:"files" json:"files"`
 }
 
-// AWSNodePoolProvisioner is a node provisioner able to provision node pools
-// in AWS via cloudformation.
-// TODO: move AWS specific implementation to a separate file/package.
-type AWSNodePoolProvisioner struct {
-	awsAdapter      *awsAdapter
-	execManager     *command.ExecManager
-	instanceTypes   *awsUtils.InstanceTypes
-	nodePoolManager updatestrategy.NodePoolManager
-	bucketName      string
-	config          channel.Config
-	cluster         *api.Cluster
-	tokenSource     oauth2.TokenSource
-	azInfo          *AZInfo
-	templateContext *templateContext
-	logger          *log.Entry
+type NodePoolTemplateRenderer struct {
+	awsAdapter     *awsAdapter
+	config         channel.Config
+	cluster        *api.Cluster
+	bucketName     string
+	logger         *log.Entry
+	encodeUserData bool
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolTemplate(nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
+// prepareCloudInit prepares the user data by rendering the golang template.
+// It also uploads the dynamically generated files needed for the nodes in the pool
+// A EC2 UserData ready base64 string will be returned.
+func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+	var (
+		keyName, poolKind string
+	)
+	if nodePool.IsMaster() {
+		keyName = masterFilesKMSKey
+		poolKind = "master"
+	} else {
+		keyName = workerFilesKMSKey
+		poolKind = "worker"
+	}
+
+	kmsKey, err := getPKIKMSKey(r.awsAdapter, r.cluster.LocalID, keyName)
+	if err != nil {
+		return "", err
+	}
+
+	renderer := &FilesRenderer{
+		awsAdapter: r.awsAdapter,
+		cluster:    r.cluster,
+		config:     r.config,
+		directory:  poolKind,
+		nodePool:   nodePool,
+	}
+
+	s3Path, err := renderer.RenderAndUploadFiles(values, r.bucketName, kmsKey)
+	if err != nil {
+		return "", err
+	}
+
+	r.logger.Debugf("Uploaded generated files to %s", s3Path)
+	values[s3GeneratedFilesPathValuesKey] = s3Path
+
+	cloudInitContents, err := r.config.NodePoolManifest(nodePool.Profile, cloudInitFileName)
+	if err != nil {
+		return "", err
+	}
+	rendered, err := renderSingleTemplate(cloudInitContents, r.cluster, nodePool, values, r.awsAdapter)
+	if err != nil {
+		return "", err
+	}
+
+	if !r.encodeUserData {
+		return rendered, nil
+	}
+
+	var gzipBuffer bytes.Buffer
+	writer := gzip.NewWriter(&gzipBuffer)
+	defer writer.Close()
+	_, err = writer.Write([]byte(rendered))
+	if err != nil {
+		return "", err
+	}
+	err = writer.Close()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
+}
+
+func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
 	var renderedUserData string
 	var err error
 
-	if nodePool.IsKarpenter() {
-		renderedUserData, err = p.renderCloudInit(nodePool, values)
-	} else {
-		renderedUserData, err = p.prepareCloudInit(nodePool, values)
-	}
+	renderedUserData, err = r.prepareCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
 	}
@@ -93,23 +144,20 @@ func (p *AWSNodePoolProvisioner) generateNodePoolTemplate(nodePool *api.NodePool
 	if templateFileName == "" {
 		templateFileName = stackFileName
 	}
-	stackManifest, err := p.config.NodePoolManifest(nodePool.Profile, templateFileName)
+	stackManifest, err := r.config.NodePoolManifest(nodePool.Profile, templateFileName)
 	if err != nil {
 		return "", err
 	}
-	return renderSingleTemplate(stackManifest, p.cluster, nodePool, values, p.awsAdapter)
+	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter)
 }
 
-// Provision provisions node pools of the cluster.
-func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
-	// create S3 bucket if it doesn't exist
-	// the bucket is used for storing the ignition userdata for the node
-	// pools.
-	err := p.awsAdapter.createS3Bucket(p.bucketName)
-	if err != nil {
-		return err
-	}
+type KarpenterNodePoolProvisioner struct {
+	NodePoolTemplateRenderer
+	execManager *command.ExecManager
+	tokenSource oauth2.TokenSource
+}
 
+func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -140,13 +188,121 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 	return nil
 }
 
-func supportsT2Unlimited(instanceTypes []string) bool {
-	for _, instanceType := range instanceTypes {
-		if !strings.HasPrefix(instanceType, "t2.") {
-			return false
+func (p *KarpenterNodePoolProvisioner) kubectlExecute(ctx context.Context, args []string, stdin string) (string, error) {
+	token, err := p.tokenSource.Token()
+	if err != nil {
+		return "", err
+	}
+
+	args = append([]string{
+		"kubectl",
+		fmt.Sprintf("--server=%s", p.cluster.APIServerURL),
+		fmt.Sprintf("--token=%s", token.AccessToken),
+	}, args...)
+	if stdin != "" {
+		args = append(args, "-f", "-")
+	}
+
+	newApplyCommand := func() *exec.Cmd {
+		cmd := exec.Command(args[0], args[1:]...)
+		// prevent kubectl to find the in-cluster config
+		cmd.Env = []string{}
+		return cmd
+	}
+	var output bytes.Buffer
+	applyManifest := func() error {
+		cmd := newApplyCommand()
+		if stdin != "" {
+			cmd.Stdin = strings.NewReader(stdin)
+		}
+		cmd.Stdout = &output
+		_, err := p.execManager.Run(ctx, p.logger, cmd)
+		return err
+	}
+	err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
+	if err != nil {
+		return "", err
+	}
+	return output.String(), nil
+}
+
+func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
+	template, err := p.generateNodePoolTemplate(nodePool, values, provisionersFileName)
+	if err != nil {
+		return err
+	}
+	_, err = p.kubectlExecute(ctx, []string{"apply"}, template)
+	if err != nil {
+		return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)
+	}
+	return nil
+}
+
+func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
+	karpenterPools := p.cluster.KarpenterPools()
+	output, err := p.kubectlExecute(ctx, []string{"get", "provisioner", "--no-headers", "-o", "custom-columns=':metadata.name'"}, "")
+	if err != nil {
+		return err
+	}
+	existingProvisioners := strings.Split(output, `\n`)
+	var orphaned []string
+	for _, p := range existingProvisioners {
+		if !inNodePoolList(&api.NodePool{}, karpenterPools) {
+			orphaned = append(orphaned, p)
 		}
 	}
-	return true
+	args := []string{"delete"}
+	for _, o := range orphaned {
+		args = append(args, fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", o), fmt.Sprintf("provisioner.karpenter.sh/%s", o))
+	}
+	_, err = p.kubectlExecute(ctx, args, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// AWSNodePoolProvisioner is a node provisioner able to provision node pools
+// in AWS via cloudformation.
+// TODO: move AWS specific implementation to a separate file/package.
+type AWSNodePoolProvisioner struct {
+	NodePoolTemplateRenderer
+	instanceTypes *awsUtils.InstanceTypes
+	//nodePoolManager updatestrategy.NodePoolManager
+	azInfo          *AZInfo
+	templateContext *templateContext
+}
+
+// Provision provisions node pools of the cluster.
+func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
+	errorsc := make(chan error, len(nodePools))
+
+	// provision node pools in parallel
+	for _, nodePool := range nodePools {
+		poolValues := util.CopyValues(values)
+
+		go func(nodePool api.NodePool, errorsc chan error) {
+			err := p.provisionNodePool(ctx, &nodePool, poolValues)
+			if err != nil {
+				err = fmt.Errorf("failed to provision node pool %s: %s", nodePool.Name, err)
+			}
+			errorsc <- err
+		}(*nodePool, errorsc)
+	}
+
+	errorStrs := make([]string, 0, len(nodePools))
+	for i := 0; i < len(nodePools); i++ {
+		err := <-errorsc
+		if err != nil {
+			errorStrs = append(errorStrs, err.Error())
+		}
+	}
+
+	if len(errorStrs) > 0 {
+		return errors.New(strings.Join(errorStrs, ", "))
+	}
+
+	return nil
 }
 
 // provisionNodePool provisions a single node pool.
@@ -193,44 +349,6 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	if err != nil {
 		return err
 	}
-	if nodePool.IsKarpenter() {
-		template, err = p.generateNodePoolTemplate(nodePool, values, provisionersFileName)
-		if err != nil {
-			return err
-		}
-		token, err := p.tokenSource.Token()
-		if err != nil {
-			return err
-		}
-
-		args := []string{
-			"kubectl",
-			"apply",
-			fmt.Sprintf("--server=%s", p.cluster.APIServerURL),
-			fmt.Sprintf("--token=%s", token.AccessToken),
-			"-f",
-			"-",
-		}
-
-		newApplyCommand := func() *exec.Cmd {
-			cmd := exec.Command(args[0], args[1:]...)
-			// prevent kubectl to find the in-cluster config
-			cmd.Env = []string{}
-			return cmd
-		}
-
-		p.logger.Debug(newApplyCommand())
-		applyManifest := func() error {
-			cmd := newApplyCommand()
-			cmd.Stdin = strings.NewReader(template)
-			_, err := p.execManager.Run(ctx, p.logger, cmd)
-			return err
-		}
-		err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
-		if err != nil {
-			return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)
-		}
-	}
 
 	return nil
 }
@@ -250,7 +368,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	// find orphaned by comparing node pool stacks to node pools defined for cluster
-	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.NodePools)
+	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.ClusterAutoscalerPools())
 
 	if len(orphaned) > 0 {
 		p.logger.Infof("Found %d node pool stacks to decommission", len(orphaned))
@@ -259,50 +377,9 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	for _, stack := range orphaned {
 		nodePool := nodePoolStackToNodePool(stack)
 
-		if nodePool.IsKarpenter() {
-			token, err := p.tokenSource.Token()
-			if err != nil {
-				return err
-			}
-			args := []string{
-				"kubectl",
-				"delete",
-				fmt.Sprintf("--server=%s", p.cluster.APIServerURL),
-				fmt.Sprintf("--token=%s", token.AccessToken),
-				fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", nodePool.Name),
-				fmt.Sprintf("provisioner.karpenter.sh/%s", nodePool.Name),
-			}
-
-			newApplyCommand := func() *exec.Cmd {
-				cmd := exec.Command(args[0], args[1:]...)
-				// prevent kubectl to find the in-cluster config
-				cmd.Env = []string{}
-				return cmd
-			}
-
-			p.logger.Debug(newApplyCommand())
-			deleteResources := func() error {
-				cmd := newApplyCommand()
-				_, err := p.execManager.Run(ctx, p.logger, cmd)
-				return err
-			}
-			// TODO: handle the NotFound error
-			err = backoff.Retry(deleteResources, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
-			if err != nil {
-				return errors.Wrapf(err, "kubectl delete failed for node pool %s", nodePool.Name)
-			}
-
-			// TODO: not sure if we need this, karpenter controller should be able to clean them up when the provisioner is deleted
-			nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(p.cluster.ID, p.awsAdapter.session)
-			err = nodePoolBackend.Decommission(ctx, nodePool)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := updater.PrepareForRemoval(ctx, nodePool)
-			if err != nil {
-				return err
-			}
+		err := updater.PrepareForRemoval(ctx, nodePool)
+		if err != nil {
+			return err
 		}
 
 		// delete node pool stack
@@ -315,70 +392,13 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-func (p *AWSNodePoolProvisioner) renderCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	var (
-		keyName, poolKind string
-	)
-	if nodePool.IsMaster() {
-		keyName = masterFilesKMSKey
-		poolKind = "master"
-	} else {
-		keyName = workerFilesKMSKey
-		poolKind = "worker"
+func supportsT2Unlimited(instanceTypes []string) bool {
+	for _, instanceType := range instanceTypes {
+		if !strings.HasPrefix(instanceType, "t2.") {
+			return false
+		}
 	}
-
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyName)
-	if err != nil {
-		return "", err
-	}
-
-	renderer := &FilesRenderer{
-		awsAdapter: p.awsAdapter,
-		cluster:    p.cluster,
-		config:     p.config,
-		directory:  poolKind,
-		nodePool:   nodePool,
-	}
-
-	s3Path, err := renderer.RenderAndUploadFiles(values, p.bucketName, kmsKey)
-	if err != nil {
-		return "", err
-	}
-
-	p.logger.Debugf("Uploaded generated files to %s", s3Path)
-	values[s3GeneratedFilesPathValuesKey] = s3Path
-
-	cloudInitContents, err := p.config.NodePoolManifest(nodePool.Profile, cloudInitFileName)
-	if err != nil {
-		return "", err
-	}
-	rendered, err := renderSingleTemplate(cloudInitContents, p.cluster, nodePool, values, p.awsAdapter)
-	if err != nil {
-		return "", err
-	}
-	return rendered, nil
-}
-
-// prepareCloudInit prepares the user data by rendering the golang template.
-// It also uploads the dynamically generated files needed for the nodes in the pool
-// A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	rendered, err := p.renderCloudInit(nodePool, values)
-	if err != nil {
-		return "", err
-	}
-	var gzipBuffer bytes.Buffer
-	writer := gzip.NewWriter(&gzipBuffer)
-	defer writer.Close()
-	_, err = writer.Write([]byte(rendered))
-	if err != nil {
-		return "", err
-	}
-	err = writer.Close()
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
+	return true
 }
 
 func generateDataHash(userData []byte) (string, error) {
