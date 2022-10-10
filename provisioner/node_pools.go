@@ -244,6 +244,9 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	if err != nil {
 		return err
 	}
+	if output == "" {
+		return nil
+	}
 	existingProvisioners := strings.Split(output, `\n`)
 	var orphaned []string
 	for _, p := range existingProvisioners {
