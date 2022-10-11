@@ -185,7 +185,7 @@ func (cluster *Cluster) KarpenterPools() []*NodePool {
 	return kp
 }
 
-func (cluster *Cluster) ClusterAutoscalerPools() []*NodePool {
+func (cluster *Cluster) ASGBackedPools() []*NodePool {
 	var cp []*NodePool
 	for _, n := range cluster.NodePools {
 		if !n.IsKarpenter() {

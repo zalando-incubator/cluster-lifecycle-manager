@@ -209,21 +209,20 @@ func (p *KarpenterNodePoolProvisioner) kubectlExecute(ctx context.Context, args 
 		cmd.Env = []string{}
 		return cmd
 	}
-	var output bytes.Buffer
+	var output string
 	applyManifest := func() error {
 		cmd := newApplyCommand()
 		if stdin != "" {
 			cmd.Stdin = strings.NewReader(stdin)
 		}
-		cmd.Stdout = &output
-		_, err := p.execManager.Run(ctx, p.logger, cmd)
+		output, err = p.execManager.Run(ctx, p.logger, cmd)
 		return err
 	}
 	err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
 	if err != nil {
 		return "", err
 	}
-	return output.String(), nil
+	return output, nil
 }
 
 func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
@@ -240,27 +239,40 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
-	output, err := p.kubectlExecute(ctx, []string{"get", "provisioner", "--no-headers", "-o", "custom-columns=':metadata.name'"}, "")
+	output, err := p.kubectlExecute(ctx, []string{"get", "provisioner", "-o", "jsonpath={..metadata.name}"}, "")
 	if err != nil {
 		return err
 	}
 	if output == "" {
 		return nil
 	}
-	existingProvisioners := strings.Split(output, `\n`)
-	var orphaned []string
+	existingProvisioners := strings.Split(output, " ")
+	var orphaned []*api.NodePool
 	for _, p := range existingProvisioners {
-		if !inNodePoolList(&api.NodePool{}, karpenterPools) {
-			orphaned = append(orphaned, p)
+		o := api.NodePool{
+			Name: p,
 		}
+		if !inNodePoolList(&o, karpenterPools) {
+			orphaned = append(orphaned, &o)
+		}
+	}
+	if len(orphaned) == 0 {
+		return nil
 	}
 	args := []string{"delete"}
 	for _, o := range orphaned {
-		args = append(args, fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", o), fmt.Sprintf("provisioner.karpenter.sh/%s", o))
+		args = append(args, fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", o.Name), fmt.Sprintf("provisioner.karpenter.sh/%s", o.Name))
 	}
 	_, err = p.kubectlExecute(ctx, args, "")
 	if err != nil {
 		return err
+	}
+	nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(p.cluster.ID, p.awsAdapter.session)
+	for _, o := range orphaned {
+		err := nodePoolBackend.Decommission(ctx, o)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -371,7 +383,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	// find orphaned by comparing node pool stacks to node pools defined for cluster
-	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.ClusterAutoscalerPools())
+	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.ASGBackedPools())
 
 	if len(orphaned) > 0 {
 		p.logger.Infof("Found %d node pool stacks to decommission", len(orphaned))

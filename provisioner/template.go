@@ -137,11 +137,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"certificateExpiry":             certificateExpiry,
 		"sumQuantities":                 sumQuantities,
 		"awsValidID":                    awsValidID,
-		"karpenterNodePools":            karpenterNodePools,
-		"capacityTypes": func() []string {
-			return []string{"spot", "on-demand"}
-		},
-		"indent": sprig.GenericFuncMap()["indent"],
+		"indent":                        sprig.GenericFuncMap()["indent"],
 	}
 
 	content, ok := context.fileData[file]
@@ -663,8 +659,7 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 // with even pod spreading. Currently this is the case iff all node pools with this dedicated label
 //   - are correctly configured with regards to the labels and taints
 //   - don't have AZ restrictions
-//   - use the worker-splitaz profile.
-//   - use the worker-karpenter profile.
+//   - use the worker-splitaz profile or the worker-karpenter profile.
 //
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {

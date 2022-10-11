@@ -363,7 +363,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		karpenterProvisioner,
 	)
 
-	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
+	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
 	}
@@ -377,12 +377,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
+	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
 	}
 
-	err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, p.applyOnly)
+	err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
 	}
@@ -1348,7 +1348,6 @@ func int32Value(v *int32) int32 {
 type nodePoolGroup struct {
 	NodePools   []*api.NodePool
 	Provisioner NodePoolProvisioner
-	cluster     *api.Cluster
 	ReadyFn     func() error
 }
 
@@ -1372,7 +1371,6 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 		"masters": {
 			NodePools:   masters,
 			Provisioner: caProvisioner,
-			cluster:     cluster,
 			ReadyFn: func() error {
 				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 			},
@@ -1380,7 +1378,6 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 		"workers": {
 			NodePools:   workers,
 			Provisioner: caProvisioner,
-			cluster:     cluster,
 			ReadyFn: func() error {
 				return nil
 			},
@@ -1388,7 +1385,6 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 		"karpenterPools": {
 			NodePools:   karpenterPools,
 			Provisioner: karProvisioner,
-			cluster:     cluster,
 			ReadyFn: func() error {
 				return nil
 			},
@@ -1396,8 +1392,7 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 	}
 }
 
-// TODO: move initialization of NodePoolProvisioner and the def of provisionNodePoolGroup into nodePoolGroups
-func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map[string]interface{}, updater updatestrategy.UpdateStrategy, applyOnly bool) error {
+func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map[string]interface{}, updater updatestrategy.UpdateStrategy, cluster *api.Cluster, applyOnly bool) error {
 	err := npg.Provisioner.Provision(ctx, npg.NodePools, values)
 	if err != nil {
 		return err
@@ -1414,9 +1409,9 @@ func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map
 	}
 
 	if !applyOnly {
-		switch npg.cluster.LifecycleStatus {
+		switch cluster.LifecycleStatus {
 		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
-			log.Warnf("New cluster (%s), skipping node pool update", npg.cluster.LifecycleStatus)
+			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
 		default:
 			// update nodes
 			for _, nodePool := range npg.NodePools {
