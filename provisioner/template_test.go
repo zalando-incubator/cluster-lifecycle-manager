@@ -992,3 +992,9 @@ func TestSubQuantity(t *testing.T) {
 		})
 	}
 }
+
+func TestAWSValidID(t *testing.T) {
+	result, err := renderSingle(t, `{{ .Values.data.id | awsValidID }}`, map[string]interface{}{"id": "aws:12345678910:eu-central-1:kube-1"})
+	require.NoError(t, err)
+	require.Equal(t, "aws__12345678910__eu-central-1__kube-1", result)
+}
