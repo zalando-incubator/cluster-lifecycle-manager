@@ -51,63 +51,6 @@ func (n *EC2NodePoolBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 			// Ready: true,
 		}
 
-		// TODO: resolve template version and compare that
-
-		params := &ec2.DescribeInstanceAttributeInput{
-			InstanceId: instance.InstanceId,
-			Attribute:  aws.String("userData"),
-		}
-
-		resp, err := n.ec2Client.DescribeInstanceAttributeWithContext(context.TODO(), params)
-		if err != nil {
-			return nil, err
-		}
-
-		currentInstanceConfig := &InstanceConfig{
-			UserData: aws.StringValue(resp.UserData.Value),
-			ImageID:  aws.StringValue(instance.ImageId),
-			Tags:     make(map[string]string, len(instance.Tags)),
-		}
-
-		for _, tag := range instance.Tags {
-			currentInstanceConfig.Tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
-		}
-
-		ltParams := &ec2.DescribeLaunchTemplateVersionsInput{
-			LaunchTemplateName: aws.String(awsValidID(n.clusterID) + "-" + nodePool.Name),
-			Versions:           aws.StringSlice([]string{"$Latest"}),
-		}
-
-		ltResp, err := n.ec2Client.DescribeLaunchTemplateVersionsWithContext(context.TODO(), ltParams)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(ltResp.LaunchTemplateVersions) != 1 {
-			return nil, fmt.Errorf("expected one LaunchTemplateVersion, found %d", len(ltResp.LaunchTemplateVersions))
-		}
-
-		ltVersion := ltResp.LaunchTemplateVersions[0]
-
-		desiredInstanceConfig := &InstanceConfig{
-			UserData: aws.StringValue(ltVersion.LaunchTemplateData.UserData),
-			ImageID:  aws.StringValue(ltVersion.LaunchTemplateData.ImageId),
-			Tags:     make(map[string]string),
-		}
-
-		for _, tagSpec := range ltVersion.LaunchTemplateData.TagSpecifications {
-			if aws.StringValue(tagSpec.ResourceType) == "instance" {
-				for _, tag := range tagSpec.Tags {
-					desiredInstanceConfig.Tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
-				}
-
-			}
-		}
-
-		if !instanceConfigEqual(currentInstanceConfig, desiredInstanceConfig) {
-			node.Generation = outdatedNodeGeneration
-		}
-
 		nodes = append(nodes, node)
 	}
 

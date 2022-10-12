@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"os/exec"
 	"strings"
 
@@ -239,6 +240,11 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
+	client, err := kubernetes.NewClient(p.cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return err
+	}
+	client.CoreV1()
 	output, err := p.kubectlExecute(ctx, []string{"get", "provisioner", "-o", "jsonpath={..metadata.name}"}, "")
 	if err != nil {
 		return err
@@ -266,13 +272,6 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	_, err = p.kubectlExecute(ctx, args, "")
 	if err != nil {
 		return err
-	}
-	nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(p.cluster.ID, p.awsAdapter.session)
-	for _, o := range orphaned {
-		err := nodePoolBackend.Decommission(ctx, o)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

@@ -712,14 +712,3 @@ func sumQuantities(quantities ...string) (string, error) {
 func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
 }
-
-// karpenterNodePools returns true if at least one node pool is a karpenter
-// managed node pool.
-func karpenterNodePools(nodePools []*api.NodePool) bool {
-	for _, pool := range nodePools {
-		if pool.IsKarpenter() {
-			return true
-		}
-	}
-	return false
-}
