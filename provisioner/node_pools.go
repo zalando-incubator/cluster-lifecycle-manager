@@ -230,6 +230,9 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	if err != nil {
 		return err
 	}
+	if template == "" {
+		return nil
+	}
 	_, err = p.kubectlExecute(ctx, []string{"apply"}, template)
 	if err != nil {
 		return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)

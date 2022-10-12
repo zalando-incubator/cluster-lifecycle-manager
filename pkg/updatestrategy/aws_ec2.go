@@ -3,7 +3,6 @@ package updatestrategy
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -181,8 +180,4 @@ func (n *EC2NodePoolBackend) Decommission(ctx context.Context, nodePool *api.Nod
 			return fmt.Errorf("context cancelled while waiting for instance termination: %w", ctx.Err())
 		}
 	}
-}
-
-func awsValidID(id string) string {
-	return strings.Replace(id, ":", "__", -1)
 }
