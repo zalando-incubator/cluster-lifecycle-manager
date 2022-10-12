@@ -135,6 +135,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
 		"certificateExpiry":             certificateExpiry,
 		"sumQuantities":                 sumQuantities,
+		"awsValidID":                    awsValidID,
 	}
 
 	content, ok := context.fileData[file]
@@ -702,4 +703,8 @@ func sumQuantities(quantities ...string) (string, error) {
 	}
 
 	return result.String(), nil
+}
+
+func awsValidID(id string) string {
+	return strings.Replace(id, ":", "__", -1)
 }
