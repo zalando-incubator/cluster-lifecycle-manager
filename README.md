@@ -209,7 +209,7 @@ earlier source. For instance, consider a CLM deployment that contains the follow
 ...
 ```
 Then for any `config-item`, the value from `source3` will be the final value and in case of it existing in the sources specified earlier, the value will be overridden by the value in `source3`.
-This is because the way in which the CLI is implemented, multiple values specified for a CLI flag are appended, in order, to a slice. Later, in the CLM code, when these are [merged](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/cmd/clm/main.go#L44), the order of the
+This is the intended behavior of the CLI flags i.e. when multiple values are specified for a flag, they are appended, in order, to a slice. Later, in the CLM code, when these are [merged](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/cmd/clm/main.go#L44), the order of the
 source names in the slice is respected.
 
 ## Non-disruptive rolling updates
