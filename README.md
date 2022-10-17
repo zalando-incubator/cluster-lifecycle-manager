@@ -196,7 +196,7 @@ production and test clusters, while keeping the manifests readable:
     …
     ```
 
-### A Note on using Multiple Config Sources
+### A Note on Using Multiple Config Sources
 The CLM supports specifying multiple `config-sources` on the command line, see [here](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/config/config.go#L92).
 It's important to understand that the order in which these are provided is important. If the same `config-item`
 exists in multiple sources, the value in the source specified _later_ will override the one defined in the
