@@ -31,13 +31,8 @@ import (
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 	yaml "gopkg.in/yaml.v2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
 )
 
@@ -965,84 +960,15 @@ func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
 	return false
 }
 
-type labels map[string]string
-
-// String returns a string representation of the labels map.
-func (l labels) String() string {
-	labels := make([]string, 0, len(l))
-	for key, val := range l {
-		labels = append(labels, fmt.Sprintf("%s=%s", key, val))
-	}
-	return strings.Join(labels, ",")
-}
-
-// resource defines a minimal definition of a kubernetes resource.
-type resource struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
-	Kind      string `yaml:"kind"`
-	Labels    labels `yaml:"labels"`
-	HasOwner  *bool  `yaml:"has_owner"`
-
-	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#DeleteOptions
-	GracePeriodSeconds *int64                      `yaml:"grace_period_seconds"`
-	PropagationPolicy  *metav1.DeletionPropagation `yaml:"propagation_policy"`
-}
-
-func (r *resource) options() metav1.DeleteOptions {
-	return metav1.DeleteOptions{
-		GracePeriodSeconds: r.GracePeriodSeconds,
-		PropagationPolicy:  r.PropagationPolicy,
-	}
-}
-
-func (r *resource) logFields() log.Fields {
-	fields := log.Fields{
-		"kind": r.Kind,
-	}
-	if r.Namespace != "" {
-		fields["namespace"] = r.Namespace
-	}
-	if len(r.Labels) > 0 {
-		fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
-	}
-	if r.HasOwner != nil {
-		fields["has_owner"] = fmt.Sprintf("%t", *r.HasOwner)
-	}
-	if r.GracePeriodSeconds != nil {
-		fields["grace_period_seconds"] = fmt.Sprintf("%d", *r.GracePeriodSeconds)
-	}
-	if r.PropagationPolicy != nil {
-		fields["propagation_policy"] = *r.PropagationPolicy
-	}
-	return fields
-}
-
 // deletions defines two list of resources to be deleted. One before applying
 // all manifests and one after applying all manifests.
 type deletions struct {
-	PreApply  []*resource `yaml:"pre_apply"`
-	PostApply []*resource `yaml:"post_apply"`
-}
-
-func resolveKind(mapper meta.RESTMapper, kind string) (schema.GroupVersionResource, error) {
-	var gvr schema.GroupVersionResource
-	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(kind)
-
-	if fullySpecifiedGVR != nil {
-		gvr, _ = mapper.ResourceFor(*fullySpecifiedGVR)
-	}
-	if gvr.Empty() {
-		gvr, _ = mapper.ResourceFor(groupResource.WithVersion(""))
-	}
-	if gvr.Empty() {
-		return schema.GroupVersionResource{}, fmt.Errorf("unable to resolve kind %s (use either name or name.version.group)", kind)
-	}
-	return gvr, nil
+	PreApply  []*kubernetes.Resource `yaml:"pre_apply"`
+	PostApply []*kubernetes.Resource `yaml:"post_apply"`
 }
 
 // Deletions deletes the provided kubernetes resources from the cluster.
-func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
+func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*kubernetes.Resource) error {
 	typedClient, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return err
@@ -1056,103 +982,9 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(typedClient.Discovery()))
 
 	for _, deletion := range deletions {
-		err := processDeletion(ctx, dynamicClient, mapper, logger, deletion)
+		err := kubernetes.ProcessDeletion(ctx, dynamicClient, mapper, logger, deletion)
 		if err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-func listResources(ctx context.Context, iface dynamic.ResourceInterface, deletion *resource) ([]metav1unstructured.Unstructured, error) {
-	items, err := iface.List(ctx, metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: deletion.Labels,
-		}),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if deletion.HasOwner != nil {
-		var result []metav1unstructured.Unstructured
-		for _, item := range items.Items {
-			itemHasOwner := len(item.GetOwnerReferences()) > 0
-			if *deletion.HasOwner == itemHasOwner {
-				result = append(result, item)
-			}
-		}
-		return result, nil
-	}
-	return items.Items, nil
-}
-
-func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string, options metav1.DeleteOptions) error {
-	err := iface.Delete(ctx, name, options)
-	if err != nil && apierrors.IsNotFound(err) {
-		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("unable to delete: %w", err)
-	}
-
-	logger.Infof("%s %s deleted", kind, name)
-	return nil
-}
-
-func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
-	// Figure out the GVR
-	gvr, err := resolveKind(mapper, deletion.Kind)
-	if err != nil {
-		return err
-	}
-	return performDeletion(ctx, logger, client, gvr, deletion)
-}
-
-func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Interface, gvr schema.GroupVersionResource, deletion *resource) error {
-	logger = logger.WithFields(deletion.logFields())
-
-	// identify the resource to be deleted either by name or
-	// labels. name AND labels cannot be defined at the same time,
-	// but one of them MUST be defined.
-	if deletion.Name != "" && len(deletion.Labels) > 0 {
-		return fmt.Errorf("only one of 'name' or 'labels' must be specified")
-	}
-
-	if deletion.Name == "" && len(deletion.Labels) == 0 {
-		return fmt.Errorf("either name or labels must be specified to identify a resource")
-	}
-
-	if deletion.HasOwner != nil && len(deletion.Labels) == 0 {
-		return fmt.Errorf("'has_owner' requires 'labels' to be specified")
-	}
-
-	var iface dynamic.ResourceInterface
-	if deletion.Namespace != "" {
-		iface = client.Resource(gvr).Namespace(deletion.Namespace)
-	} else {
-		iface = client.Resource(gvr)
-	}
-
-	if deletion.Name != "" {
-		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name, deletion.options())
-	} else if len(deletion.Labels) > 0 {
-		items, err := listResources(ctx, iface, deletion)
-		if err != nil {
-			return err
-		}
-
-		if len(items) == 0 {
-			logger.Infof("No matching %s resources found", deletion.Kind)
-		}
-
-		for _, item := range items {
-			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName(), deletion.options())
-			if err != nil {
-				return err
-			}
 		}
 	}
 

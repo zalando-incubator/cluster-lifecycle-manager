@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -19,10 +21,12 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -158,6 +162,15 @@ type KarpenterNodePoolProvisioner struct {
 }
 
 func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
+	installed, err := p.isKarpenterInstalled(ctx)
+	if err != nil {
+		return err
+	}
+	if !installed {
+		// skip if karpenter is not installed
+		p.logger.Infof("skipping provisioning of karpenter node pools as karpenter is not installed")
+		return nil
+	}
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -240,35 +253,64 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	return nil
 }
 
+func (p *KarpenterNodePoolProvisioner) isKarpenterInstalled(ctx context.Context) (bool, error) {
+	_, dynamicClient, mapper, err := kubernetes.InitClients(p.cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return false, err
+	}
+	gvr, err := kubernetes.ResolveKind(mapper, "CustomResourceDefinition")
+	if err != nil {
+		return false, err
+	}
+
+	_, err = dynamicClient.Resource(gvr).Get(ctx, "provisioners.karpenter.sh", metav1.GetOptions{})
+	if err != nil {
+		serr, ok := err.(*apiErrors.StatusError)
+		if ok && serr.Status().Code == http.StatusNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
-	output, err := p.kubectlExecute(ctx, []string{"get", "provisioner", "-o", "jsonpath={..metadata.name}"}, "")
+	installed, err := p.isKarpenterInstalled(ctx)
 	if err != nil {
 		return err
 	}
-	if output == "" {
+	if !installed {
+		// skip if karpenter is not installed
+		p.logger.Infof("skipping reconcilation of karpenter node pools as karpenter is not installed")
 		return nil
 	}
-	existingProvisioners := strings.Split(output, " ")
-	var orphaned []*api.NodePool
-	for _, p := range existingProvisioners {
-		o := api.NodePool{
-			Name: p,
-		}
-		if !inNodePoolList(&o, karpenterPools) {
-			orphaned = append(orphaned, &o)
-		}
-	}
-	if len(orphaned) == 0 {
-		return nil
-	}
-	args := []string{"delete"}
-	for _, o := range orphaned {
-		args = append(args, fmt.Sprintf("awsnodetemplate.karpenter.k8s.aws/%s-template", o.Name), fmt.Sprintf("provisioner.karpenter.sh/%s", o.Name))
-	}
-	_, err = p.kubectlExecute(ctx, args, "")
+
+	_, dynamicClient, mapper, err := kubernetes.InitClients(p.cluster.APIServerURL, p.tokenSource)
+	provisionerGvr, err := kubernetes.ResolveKind(mapper, "provisioner.karpenter.sh")
 	if err != nil {
 		return err
+	}
+	nodeTemplateGvr, err := kubernetes.ResolveKind(mapper, "awsnodetemplates.karpenter.k8s.aws")
+	if err != nil {
+		return err
+	}
+	existingProvisioners, err := dynamicClient.Resource(provisionerGvr).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, p := range existingProvisioners.Items {
+		if !inNodePoolList(&api.NodePool{Name: p.GetName()}, karpenterPools) {
+			err := dynamicClient.Resource(provisionerGvr).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			err = dynamicClient.Resource(nodeTemplateGvr).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

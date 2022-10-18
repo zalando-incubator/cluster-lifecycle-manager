@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"strings"
 	"testing"
 
@@ -266,7 +267,7 @@ func TestPropagateConfigItemsToNodePool(tt *testing.T) {
 }
 
 func TestLabelsString(t *testing.T) {
-	labels := labels(map[string]string{"key": "value", "foo": "bar"})
+	labels := kubernetes.Labels(map[string]string{"key": "value", "foo": "bar"})
 	expected := []string{"key=value,foo=bar", "foo=bar,key=value"}
 	labelStr := labels.String()
 	if labelStr != expected[0] && labelStr != expected[1] {
@@ -322,7 +323,7 @@ func TestParseDeletions(t *testing.T) {
 	gps10 := int64(10)
 	yes, no := true, false
 	expected := &deletions{
-		PreApply: []*resource{
+		PreApply: []*kubernetes.Resource{
 			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-pre", Namespace: "", Kind: "priorityclass"},
 			{Name: "options-pre", Namespace: "kube-system", Kind: "deployment", PropagationPolicy: &orphan},
@@ -330,7 +331,7 @@ func TestParseDeletions(t *testing.T) {
 			{Name: "has-no-owner-pre", HasOwner: &no, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
 			{Name: "require-owner-pre", HasOwner: &yes, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
 		},
-		PostApply: []*resource{
+		PostApply: []*kubernetes.Resource{
 			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-post", Namespace: "", Kind: "priorityclass"},
 			{Name: "options-post", Namespace: "kube-system", Kind: "deployment", GracePeriodSeconds: &gps10},
@@ -488,7 +489,7 @@ func TestPerformDeletion(t *testing.T) {
 	yes, no := true, false
 	for _, tc := range []struct {
 		name          string
-		deletion      *resource
+		deletion      *kubernetes.Resource
 		clientErrors  []clientError
 		expectError   string
 		expectDeleted []string
@@ -499,7 +500,7 @@ func TestPerformDeletion(t *testing.T) {
 		// Usecases
 		{
 			name: "delete by name in namespace",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Name:      "foo",
 				Namespace: "default",
 				Kind:      "Deployment",
@@ -510,7 +511,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete by name non-namespaced",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Name: "ns-foo",
 				Kind: "Namespace",
 			},
@@ -520,7 +521,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete by single label",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
@@ -533,7 +534,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete by multiple labels",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo", "com": "foo"},
@@ -545,7 +546,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "no match by label",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "nomatch"},
@@ -554,7 +555,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete replicasets without owner",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "ReplicaSet",
 				Labels:    map[string]string{"app": "foo", "com": "foo"},
@@ -567,7 +568,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete replicasets with owner",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "ReplicaSet",
 				Labels:    map[string]string{"app": "foo", "com": "foo"},
@@ -580,7 +581,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete replicasets regardless owner",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "ReplicaSet",
 				Labels:    map[string]string{"app": "foo", "com": "foo"},
@@ -596,7 +597,7 @@ func TestPerformDeletion(t *testing.T) {
 		// Errors
 		{
 			name: "both name or labels are specified",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Name:      "foo",
 				Labels:    map[string]string{"foo": "bar"},
 				Namespace: "default",
@@ -606,15 +607,15 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "neither name or labels are specified",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "default",
 				Kind:      "Deployment",
 			},
-			expectError: "either name or labels must be specified to identify a resource",
+			expectError: "either name or labels must be specified to identify a Resource",
 		},
 		{
 			name: "has_owner without labels",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Name:      "foo",
 				Namespace: "default",
 				Kind:      "Deployment",
@@ -624,7 +625,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "list error",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
@@ -639,7 +640,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "delete error",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
@@ -654,7 +655,7 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		{
 			name: "skips not found error",
-			deletion: &resource{
+			deletion: &kubernetes.Resource{
 				Namespace: "ns-foo",
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
@@ -687,7 +688,7 @@ func TestPerformDeletion(t *testing.T) {
 
 			gvr := schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: kindToResource[tc.deletion.Kind]}
 
-			err := performDeletion(context.TODO(), logger, client, gvr, tc.deletion)
+			err := kubernetes.PerformDeletion(context.TODO(), logger, client, gvr, tc.deletion)
 			if tc.expectError != "" {
 				assert.EqualError(t, err, tc.expectError)
 			} else {

@@ -237,7 +237,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
 	onDescribeStackChan := make(chan struct{}, 2)
 	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress),
-		statusReason:        aws.String("The following resource(s) failed to update: [AutoScalingGroup1b, AutoScalingGroup1c]."),
+		statusReason:        aws.String("The following Resource(s) failed to update: [AutoScalingGroup1b, AutoScalingGroup1c]."),
 		onDescribeStackChan: onDescribeStackChan}
 	awsMock.cloudformationClient = stub
 

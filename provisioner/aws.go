@@ -679,7 +679,7 @@ func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 	return subnetResp.Subnets, nil
 }
 
-// CreateTags adds or updates tags of a resource.
+// CreateTags adds or updates tags of a Resource.
 func (a *awsAdapter) CreateTags(resource string, tags []*ec2.Tag) error {
 	params := &ec2.CreateTagsInput{
 		Resources: []*string{aws.String(resource)},
@@ -690,7 +690,7 @@ func (a *awsAdapter) CreateTags(resource string, tags []*ec2.Tag) error {
 	return err
 }
 
-// DeleteTags deletes tags from a resource.
+// DeleteTags deletes tags from a Resource.
 func (a *awsAdapter) DeleteTags(resource string, tags []*ec2.Tag) error {
 	params := &ec2.DeleteTagsInput{
 		Resources: []*string{aws.String(resource)},
