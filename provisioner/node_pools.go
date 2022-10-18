@@ -27,6 +27,8 @@ import (
 	"golang.org/x/oauth2"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/restmapper"
 )
 
 const (
@@ -45,6 +47,10 @@ const (
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 	instanceInfoKey               = "InstanceInfo"
+
+	karpenterProvisionerResource     = "provisioner.karpenter.sh"
+	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
+	crd                              = "CustomResourceDefinition"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -159,6 +165,22 @@ type KarpenterNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
 	execManager *command.ExecManager
 	tokenSource oauth2.TokenSource
+	kubeClient  dynamic.Interface
+	kubeMapper  *restmapper.DeferredDiscoveryRESTMapper
+}
+
+func NewKarpenterNodePoolProvisioner(n NodePoolTemplateRenderer, e *command.ExecManager, ts oauth2.TokenSource) (*KarpenterNodePoolProvisioner, error) {
+	_, dynamicClient, mapper, err := kubernetes.InitClients(n.cluster.APIServerURL, ts)
+	if err != nil {
+		return nil, err
+	}
+	return &KarpenterNodePoolProvisioner{
+		NodePoolTemplateRenderer: n,
+		execManager:              e,
+		tokenSource:              ts,
+		kubeClient:               dynamicClient,
+		kubeMapper:               mapper,
+	}, nil
 }
 
 func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
@@ -254,16 +276,12 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 }
 
 func (p *KarpenterNodePoolProvisioner) isKarpenterInstalled(ctx context.Context) (bool, error) {
-	_, dynamicClient, mapper, err := kubernetes.InitClients(p.cluster.APIServerURL, p.tokenSource)
-	if err != nil {
-		return false, err
-	}
-	gvr, err := kubernetes.ResolveKind(mapper, "CustomResourceDefinition")
+	gvr, err := kubernetes.ResolveKind(p.kubeMapper, crd)
 	if err != nil {
 		return false, err
 	}
 
-	_, err = dynamicClient.Resource(gvr).Get(ctx, "provisioners.karpenter.sh", metav1.GetOptions{})
+	_, err = p.kubeClient.Resource(gvr).Get(ctx, karpenterProvisionerResource, metav1.GetOptions{})
 	if err != nil {
 		serr, ok := err.(*apiErrors.StatusError)
 		if ok && serr.Status().Code == http.StatusNotFound {
@@ -286,33 +304,23 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 		return nil
 	}
 
-	_, dynamicClient, mapper, err := kubernetes.InitClients(p.cluster.APIServerURL, p.tokenSource)
+	provisionerGvr, err := kubernetes.ResolveKind(p.kubeMapper, karpenterProvisionerResource)
 	if err != nil {
 		return err
 	}
-	provisionerGvr, err := kubernetes.ResolveKind(mapper, "provisioner.karpenter.sh")
+	nodeTemplateGvr, err := kubernetes.ResolveKind(p.kubeMapper, karpenterAWSNodeTemplateResource)
 	if err != nil {
 		return err
 	}
-	nodeTemplateGvr, err := kubernetes.ResolveKind(mapper, "awsnodetemplates.karpenter.k8s.aws")
-	if err != nil {
-		return err
-	}
-	existingProvisioners, err := dynamicClient.Resource(provisionerGvr).List(ctx, metav1.ListOptions{})
+	existingProvisioners, err := p.kubeClient.Resource(provisionerGvr).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for _, p := range existingProvisioners.Items {
-		if !inNodePoolList(&api.NodePool{Name: p.GetName()}, karpenterPools) {
-			err := dynamicClient.Resource(provisionerGvr).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
-			err = dynamicClient.Resource(nodeTemplateGvr).Delete(ctx, p.GetName(), metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
+	for _, pr := range existingProvisioners.Items {
+		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
+			_ = p.kubeClient.Resource(provisionerGvr).Delete(ctx, pr.GetName(), metav1.DeleteOptions{})
+			_ = p.kubeClient.Resource(nodeTemplateGvr).Delete(ctx, pr.GetName(), metav1.DeleteOptions{})
 		}
 	}
 	return nil

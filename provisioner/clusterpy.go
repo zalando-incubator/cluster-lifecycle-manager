@@ -337,17 +337,18 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		azInfo:        azInfo,
 	}
 
-	karpenterProvisioner := &KarpenterNodePoolProvisioner{
-		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
+	karpenterProvisioner, err := NewKarpenterNodePoolProvisioner(
+		NodePoolTemplateRenderer{
 			awsAdapter:     awsAdapter,
 			config:         channelConfig,
 			cluster:        cluster,
 			bucketName:     bucketName,
 			logger:         logger,
 			encodeUserData: false,
-		},
-		execManager: p.execManager,
-		tokenSource: p.tokenSource,
+		}, p.execManager, p.tokenSource,
+	)
+	if err != nil {
+		return err
 	}
 
 	// group node pools based on their profile e.g. master
