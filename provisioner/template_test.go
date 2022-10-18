@@ -943,7 +943,7 @@ CWeOoA==
 	require.Equal(t, "2022-06-10T10:06:43Z", res)
 }
 
-func TestSubQuantity(t *testing.T) {
+func TestSumQuantities(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		template string
@@ -997,4 +997,41 @@ func TestAWSValidID(t *testing.T) {
 	result, err := renderSingle(t, `{{ .Values.data.id | awsValidID }}`, map[string]interface{}{"id": "aws:12345678910:eu-central-1:kube-1"})
 	require.NoError(t, err)
 	require.Equal(t, "aws__12345678910__eu-central-1__kube-1", result)
+}
+
+func TestJoinFilterIgnore(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		data     interface{}
+		expected string
+	}{
+		{
+			name:     "filter",
+			template: `{{ split "k8s.io/foo,zalando.org/bar,k8s.io/baz,zalando.org/qux" "," | filter "^zalando[.]org" | join "," }}`,
+			expected: "zalando.org/bar,zalando.org/qux",
+		},
+		{
+			name:     "lines to comma-separated double-quoted list",
+			template: `{{ split .Values.data.lines "\n" | ignore "^#" | ignore "^\\s*$" | join "\", \"" | printf "\"%s\"" }}`,
+			data: map[string]interface{}{
+				"lines": `
+# comments like this are ignored
+foo
+bar
+
+# empty line above and white spaces below are also ignored
+	
+baz
+`,
+			},
+			expected: `"foo", "bar", "baz"`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, tc.data)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
 }

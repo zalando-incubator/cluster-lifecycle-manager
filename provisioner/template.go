@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/url"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -107,6 +108,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azID":                 azID,
 		"azCount":              azCount,
 		"split":                split,
+		"join":                 join,
+		"filter":               filter,
+		"ignore":               ignore,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
@@ -272,6 +276,42 @@ func azCount(subnets map[string]string) int {
 // split is a template function that takes a string and a separator and returns the splitted parts.
 func split(s string, d string) []string {
 	return strings.Split(s, d)
+}
+
+// join is a template function that returns a single string of slice elements joined with a separator.
+func join(sep string, elems []string) string {
+	// arguments in reverse order to enable piped calls
+	return strings.Join(elems, sep)
+}
+
+// filter is a template function that takes a regexp, a slice of strings and returns the slice of matching elements.
+func filter(pattern string, elems []string) ([]string, error) {
+	var result []string
+	for _, e := range elems {
+		matched, err := regexp.MatchString(pattern, e)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			result = append(result, e)
+		}
+	}
+	return result, nil
+}
+
+// ignore is a template function that takes a regexp, a slice of strings and returns the slice of non-matching elements.
+func ignore(pattern string, elems []string) ([]string, error) {
+	var result []string
+	for _, e := range elems {
+		matched, err := regexp.MatchString(pattern, e)
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
+			result = append(result, e)
+		}
+	}
+	return result, nil
 }
 
 // accountID returns just the ID part of an account
