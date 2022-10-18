@@ -3,21 +3,21 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/restmapper"
-	"net/http"
-	"strings"
-
-	"golang.org/x/oauth2"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 )
 
 func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
