@@ -196,6 +196,22 @@ production and test clusters, while keeping the manifests readable:
     …
     ```
 
+### A Note on Using Multiple Config Sources
+The CLM supports specifying multiple `config-sources` on the command line, see [here](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/config/config.go#L92).
+It's important to understand that the order in which these are provided is important. If the same `config-item`
+exists in multiple sources, the value in the source specified _later_ will override the one defined in the
+earlier source. For instance, consider a CLM deployment that contains the following arguments:
+```yaml
+...
+          - --config-source=source1:git:example.domain-1
+          - --config-source=source2:example.domain-2
+          - --config-source=source3:git:example.domain-3
+...
+```
+Then for any `config-item`, the value from `source3` will be the final value and in case of it existing in the sources specified earlier, the value will be overridden by the value in `source3`.
+This is the intended behavior of the CLI flags i.e. when multiple values are specified for a flag, they are appended, in order, to a slice. Later, in the CLM code, when these are [merged](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/cmd/clm/main.go#L44), the order of the
+source names in the slice is respected.
+
 ## Non-disruptive rolling updates
 
 One of the main features of the CLM is the update strategy implemented which is
