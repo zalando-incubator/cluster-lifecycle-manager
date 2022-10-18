@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -26,6 +25,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -287,6 +287,9 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	}
 
 	_, dynamicClient, mapper, err := kubernetes.InitClients(p.cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return err
+	}
 	provisionerGvr, err := kubernetes.ResolveKind(mapper, "provisioner.karpenter.sh")
 	if err != nil {
 		return err
