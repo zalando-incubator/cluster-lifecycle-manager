@@ -611,7 +611,7 @@ func TestPerformDeletion(t *testing.T) {
 				Namespace: "default",
 				Kind:      "Deployment",
 			},
-			expectError: "either name or labels must be specified to identify a Resource",
+			expectError: "either name or labels must be specified to identify a resource",
 		},
 		{
 			name: "has_owner without labels",
