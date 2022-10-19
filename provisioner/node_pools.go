@@ -48,7 +48,7 @@ const (
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 	instanceInfoKey               = "InstanceInfo"
 
-	karpenterProvisionerResource     = "provisioner.karpenter.sh"
+	karpenterProvisionerResource     = "provisioners.karpenter.sh"
 	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
 	crd                              = "CustomResourceDefinition"
 )
