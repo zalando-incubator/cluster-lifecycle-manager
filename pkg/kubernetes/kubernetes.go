@@ -9,7 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -170,6 +172,23 @@ func ResolveKind(mapper meta.RESTMapper, kind string) (schema.GroupVersionResour
 		return schema.GroupVersionResource{}, fmt.Errorf("unable to resolve kind %s (use either name or name.version.group)", kind)
 	}
 	return gvr, nil
+}
+
+func IsCRDInstalled(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, name string) (bool, error) {
+	gvr, err := ResolveKind(mapper, "CustomResourceDefinition")
+	if err != nil {
+		return false, err
+	}
+
+	_, err = client.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		serr, ok := err.(*apiErrors.StatusError)
+		if ok && serr.Status().Code == http.StatusNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 type Labels map[string]string

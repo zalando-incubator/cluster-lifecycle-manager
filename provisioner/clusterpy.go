@@ -351,6 +351,19 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	_, dynamicClient, mapper, err := kubernetes.InitClients(cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return err
+	}
+
+	isKarpenterSupported, err := kubernetes.IsCRDInstalled(ctx, dynamicClient, mapper, karpenterProvisionerResource)
+	if err != nil {
+		return err
+	}
+	if isKarpenterSupported {
+		logger.Info("Karpenter support detected. Using new manifest application order.")
+	}
+
 	// group node pools based on their profile e.g. master
 	nodePoolGroups := groupNodePools(
 		logger,
@@ -368,9 +381,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	err = p.apply(ctx, logger, cluster, deletions, manifests)
-	if err != nil {
-		return err
+	if isKarpenterSupported {
+		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
@@ -381,6 +396,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
+	}
+
+	if !isKarpenterSupported {
+		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		if err != nil {
+			return err
+		}
 	}
 
 	// clean up removed node pools

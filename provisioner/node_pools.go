@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
-	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
@@ -50,7 +48,6 @@ const (
 
 	karpenterProvisionerResource     = "provisioners.karpenter.sh"
 	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
-	crd                              = "CustomResourceDefinition"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -276,20 +273,7 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 }
 
 func (p *KarpenterNodePoolProvisioner) isKarpenterInstalled(ctx context.Context) (bool, error) {
-	gvr, err := kubernetes.ResolveKind(p.kubeMapper, crd)
-	if err != nil {
-		return false, err
-	}
-
-	_, err = p.kubeClient.Resource(gvr).Get(ctx, karpenterProvisionerResource, metav1.GetOptions{})
-	if err != nil {
-		serr, ok := err.(*apiErrors.StatusError)
-		if ok && serr.Status().Code == http.StatusNotFound {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return kubernetes.IsCRDInstalled(ctx, p.kubeClient, p.kubeMapper, karpenterProvisionerResource)
 }
 
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
