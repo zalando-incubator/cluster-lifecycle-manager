@@ -271,16 +271,14 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 					updateStackFunc := func() error {
 						_, err = a.cloudformationClient.UpdateStack(updateParams)
 						if err != nil {
-							if aerr, ok := err.(awserr.Error); ok {
-								// if no update was needed
-								// treat it as success
-								if aerr.Code() == cloudformationValidationErr && aerr.Message() == cloudformationNoUpdateMsg {
-									return nil
-								}
-								// if the stack is currently updating, keep trying.
-								if isStackUpdateInProgressErr(err) {
-									return err
-								}
+							// if no update was needed
+							// treat it as success
+							if isStackNoUpdateNeededErr(err) {
+								return nil
+							}
+							// if the stack is currently updating, keep trying.
+							if isStackUpdateInProgressErr(err) {
+								return err
 							}
 							// treat any other error as non-retriable
 							return backoff.Permanent(err)
@@ -715,7 +713,7 @@ func (a *awsAdapter) DeleteTags(resource string, tags []*ec2.Tag) error {
 
 func isDoesNotExistsErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
-		if awsErr.Code() == "ValidationError" && strings.Contains(awsErr.Message(), "does not exist") {
+		if awsErr.Code() == cloudformationValidationErr && strings.Contains(awsErr.Message(), "does not exist") {
 			//we wanted to delete a stack and it does not exist (or was removed while we were waiting, we can hide the error)
 			return true
 		}
@@ -727,7 +725,18 @@ func isDoesNotExistsErr(err error) bool {
 // describes a failure because of wrong Cloudformation stack status.
 func isWrongStackStatusErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
-		if awsErr.Code() == "ValidationError" && strings.Contains(awsErr.Message(), "cannot be deleted while in status") {
+		if awsErr.Code() == cloudformationValidationErr && strings.Contains(awsErr.Message(), "cannot be deleted while in status") {
+			return true
+		}
+	}
+	return false
+}
+
+// isStackNoUpdateNeededErr returns true if the error is of type awserr.Error and
+// describes a failure because the stack template has no changes.
+func isStackNoUpdateNeededErr(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok {
+		if awsErr.Code() == cloudformationValidationErr && awsErr.Message() == cloudformationNoUpdateMsg {
 			return true
 		}
 	}
@@ -738,7 +747,7 @@ func isWrongStackStatusErr(err error) bool {
 // describes a failure because the stack is currently updating.
 func isStackUpdateInProgressErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
-		if awsErr.Code() == "ValidationError" && (strings.Contains(awsErr.Message(), "UPDATE_IN_PROGRESS") || strings.Contains(awsErr.Message(), "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS")) {
+		if awsErr.Code() == cloudformationValidationErr && (strings.Contains(awsErr.Message(), "UPDATE_IN_PROGRESS") || strings.Contains(awsErr.Message(), "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS")) {
 			return true
 		}
 	}
