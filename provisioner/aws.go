@@ -43,6 +43,7 @@ const (
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
+	stackUpdateRetryDuration    = time.Duration(5) * time.Minute
 
 	etcdInstanceTypeConfigItem      = "etcd_instance_type"
 	etcdInstanceCountConfigItem     = "etcd_instance_count"
@@ -267,17 +268,28 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 						updateParams.TemplateBody = aws.String(stackTemplate)
 					}
 
-					_, err = a.cloudformationClient.UpdateStack(updateParams)
-					if err != nil {
-						if aerr, ok := err.(awserr.Error); ok {
-							// if no update was needed
-							// treat it as success
-							if aerr.Code() == cloudformationValidationErr && aerr.Message() == cloudformationNoUpdateMsg {
-								return nil
+					updateStackFunc := func() error {
+						_, err = a.cloudformationClient.UpdateStack(updateParams)
+						if err != nil {
+							if aerr, ok := err.(awserr.Error); ok {
+								// if no update was needed
+								// treat it as success
+								if aerr.Code() == cloudformationValidationErr && aerr.Message() == cloudformationNoUpdateMsg {
+									return nil
+								}
+								// if the stack is currently updating, keep trying.
+								if isStackUpdateInProgressErr(err) {
+									return err
+								}
 							}
+							// treat any other error as non-retriable
+							return backoff.Permanent(err)
 						}
-						return err
+						return nil
 					}
+					backoffCfg := backoff.NewExponentialBackOff()
+					backoffCfg.MaxElapsedTime = stackUpdateRetryDuration
+					return backoff.Retry(updateStackFunc, backoffCfg)
 				}
 				return nil
 			}
@@ -716,6 +728,17 @@ func isDoesNotExistsErr(err error) bool {
 func isWrongStackStatusErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
 		if awsErr.Code() == "ValidationError" && strings.Contains(awsErr.Message(), "cannot be deleted while in status") {
+			return true
+		}
+	}
+	return false
+}
+
+// isStackUpdateInProgressErr returns true if the error is of type awserr.Error and
+// describes a failure because the stack is currently updating.
+func isStackUpdateInProgressErr(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok {
+		if awsErr.Code() == "ValidationError" && (strings.Contains(awsErr.Message(), "UPDATE_IN_PROGRESS") || strings.Contains(awsErr.Message(), "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS")) {
 			return true
 		}
 	}
