@@ -747,7 +747,7 @@ func isStackNoUpdateNeededErr(err error) bool {
 // describes a failure because the stack is currently updating.
 func isStackUpdateInProgressErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
-		if awsErr.Code() == cloudformationValidationErr && (strings.Contains(awsErr.Message(), "UPDATE_IN_PROGRESS") || strings.Contains(awsErr.Message(), "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS")) {
+		if awsErr.Code() == cloudformationValidationErr && (strings.Contains(awsErr.Message(), cloudformation.ResourceStatusUpdateInProgress) || strings.Contains(awsErr.Message(), cloudformation.StackStatusUpdateCompleteCleanupInProgress)) {
 			return true
 		}
 	}
