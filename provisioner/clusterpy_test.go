@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -486,12 +487,13 @@ func TestPerformDeletion(t *testing.T) {
 	objects.add("ReplicaSet", "ns-foo", "foo-app-com-env-0002", map[string]string{"app": "foo", "com": "foo", "env": "foo"}, fooAppComEnv)
 
 	yes, no := true, false
-	for _, tc := range []struct {
-		name          string
-		deletion      *resource
-		clientErrors  []clientError
-		expectError   string
-		expectDeleted []string
+	i := []struct {
+		name           string
+		deletion       *resource
+		clientErrors   func(state map[string]interface{}) []clientError
+		clientReactors func(state map[string]interface{}) []k8stesting.SimpleReactor
+		expectError    string
+		expectDeleted  []string
 	}{
 		//
 		// TODO: update client-go version and add metav1.DeleteOptions tests
@@ -513,6 +515,40 @@ func TestPerformDeletion(t *testing.T) {
 			deletion: &resource{
 				Name: "ns-foo",
 				Kind: "Namespace",
+			},
+			clientReactors: func(state map[string]interface{}) []k8stesting.SimpleReactor {
+				return []k8stesting.SimpleReactor{
+					{
+						Verb:     "patch",
+						Resource: "namespaces",
+						Reaction: func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+							payload := map[string]interface{}{}
+							err = json.Unmarshal(action.(k8stesting.PatchAction).GetPatch(), &payload)
+							if err != nil {
+								return false, nil, err
+							}
+							for k, v := range payload {
+								state[k] = v
+							}
+							return true, nil, nil
+						},
+					},
+				}
+			},
+			clientErrors: func(state map[string]interface{}) []clientError {
+				if meta, ok := state["metadata"]; ok {
+					if annotations, ok := meta.(map[string]interface{})["annotations"]; ok {
+						if _, ok := annotations.(map[string]interface{})["zalando.org/delete-date"]; ok {
+							return nil
+						}
+					}
+				}
+				return []clientError{
+					{
+						matches: deleteAction("namespaces", "ns-foo"),
+						err:     fmt.Errorf("admission webhook \"namespace-admitter.teapot.zalan.do\" denied the request: annotation zalando.org/delete-date not set in manifest to allow resource deletion. See https://cloud.docs.zalando.net/howtos/delete-protection/"),
+					},
+				}
 			},
 			expectDeleted: []string{
 				"/namespaces/ns-foo",
@@ -629,11 +665,13 @@ func TestPerformDeletion(t *testing.T) {
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
 			},
-			clientErrors: []clientError{
-				{
-					matches: listAction("deployments"),
-					err:     fmt.Errorf("listing deployments failed"),
-				},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: listAction("deployments"),
+						err:     fmt.Errorf("listing deployments failed"),
+					},
+				}
 			},
 			expectError: "listing deployments failed",
 		},
@@ -644,11 +682,13 @@ func TestPerformDeletion(t *testing.T) {
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
 			},
-			clientErrors: []clientError{
-				{
-					matches: deleteAction("deployments", "foo-app"),
-					err:     fmt.Errorf("foo-app delete failed"),
-				},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: deleteAction("deployments", "foo-app"),
+						err:     fmt.Errorf("foo-app delete failed"),
+					},
+				}
 			},
 			expectError: "unable to delete: foo-app delete failed",
 		},
@@ -659,11 +699,13 @@ func TestPerformDeletion(t *testing.T) {
 				Kind:      "Deployment",
 				Labels:    map[string]string{"app": "foo"},
 			},
-			clientErrors: []clientError{
-				{
-					matches: deleteAction("deployments", "foo-app"),
-					err:     apierrors.NewNotFound(schema.GroupResource{}, "foo-app"),
-				},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: deleteAction("deployments", "foo-app"),
+						err:     apierrors.NewNotFound(schema.GroupResource{}, "foo-app"),
+					},
+				}
 			},
 			expectDeleted: []string{
 				// skips "/namespaces/ns-foo/deployments/foo-app" due to not found error
@@ -671,19 +713,28 @@ func TestPerformDeletion(t *testing.T) {
 				"/namespaces/ns-foo/deployments/foo-app-com-env",
 			},
 		},
-	} {
+	}
+	for _, tc := range i {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := log.StandardLogger().WithFields(map[string]interface{}{"testcase": tc.name})
 
+			state := map[string]interface{}{}
 			client := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, objects...)
-			client.PrependReactor("*", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
-				for _, ce := range tc.clientErrors {
-					if ce.matches(action) {
-						return true, nil, ce.err
+			if tc.clientErrors != nil {
+				client.PrependReactor("*", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+					for _, ce := range tc.clientErrors(state) {
+						if ce.matches(action) {
+							return true, nil, ce.err
+						}
 					}
+					return false, nil, nil
+				})
+			}
+			if tc.clientReactors != nil {
+				for _, cr := range tc.clientReactors(state) {
+					client.PrependReactor(cr.Verb, cr.Resource, cr.Reaction)
 				}
-				return false, nil, nil
-			})
+			}
 
 			gvr := schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: kindToResource[tc.deletion.Kind]}
 
@@ -697,14 +748,16 @@ func TestPerformDeletion(t *testing.T) {
 			var deleted []string
 			for _, action := range client.Actions() {
 				ignore := false
-				for _, ce := range tc.clientErrors {
-					if ce.matches(action) {
-						ignore = true
-						break
+				if tc.clientErrors != nil {
+					for _, ce := range tc.clientErrors(state) {
+						if ce.matches(action) {
+							ignore = true
+							break
+						}
 					}
 				}
 
-				if action, ok := action.(k8stesting.DeleteAction); ok && !ignore {
+				if action, ok := action.(k8stesting.DeleteAction); ok && !ignore && action.GetVerb() == "delete" {
 					fqn := "/"
 					if action.GetNamespace() != "" {
 						fqn += "namespaces/" + action.GetNamespace() + "/"
