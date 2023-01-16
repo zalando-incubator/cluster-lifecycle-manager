@@ -1151,8 +1151,6 @@ func overrideDeletionProtection(ctx context.Context, kind, name string, iface dy
 	switch kind {
 	case "Namespace":
 		annotation = "zalando.org/delete-namespace"
-	case "Postgresql":
-		annotation = "zalando.org/delete-clustername"
 	default:
 		// no annotation needed
 		return nil
