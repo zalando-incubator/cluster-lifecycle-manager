@@ -3,6 +3,7 @@ package provisioner
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
@@ -1113,8 +1115,11 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 	} else {
 		iface = client.Resource(gvr)
 	}
-
 	if deletion.Name != "" {
+		err := overrideDeletionProtection(ctx, deletion.Kind, deletion.Name, iface)
+		if err != nil {
+			return err
+		}
 		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name, deletion.options())
 	} else if len(deletion.Labels) > 0 {
 		items, err := listResources(ctx, iface, deletion)
@@ -1127,6 +1132,10 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 		}
 
 		for _, item := range items {
+			err := overrideDeletionProtection(ctx, deletion.Kind, item.GetName(), iface)
+			if err != nil {
+				return err
+			}
 			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName(), deletion.options())
 			if err != nil {
 				return err
@@ -1134,6 +1143,36 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 		}
 	}
 
+	return nil
+}
+
+func overrideDeletionProtection(ctx context.Context, kind, name string, iface dynamic.ResourceInterface) error {
+	annotation := ""
+	switch kind {
+	case "Namespace":
+		annotation = "zalando.org/delete-namespace"
+	default:
+		// no annotation needed
+		return nil
+	}
+
+	patch := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]interface{}{
+				"zalando.org/delete-date": time.Now().Format("2006-01-02"),
+				annotation:                name,
+			},
+		},
+	}
+
+	payload, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = iface.Patch(ctx, name, k8stypes.JSONPatchType, payload, metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
