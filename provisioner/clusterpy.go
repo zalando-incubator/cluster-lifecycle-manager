@@ -1116,7 +1116,7 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 		iface = client.Resource(gvr)
 	}
 	if deletion.Name != "" {
-		err := overrideDeletionProtection(ctx, deletion.Kind, deletion.Name, iface)
+		err := overrideDeletionProtection(ctx, iface, logger, deletion.Kind, deletion.Name)
 		if err != nil {
 			return err
 		}
@@ -1132,7 +1132,7 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 		}
 
 		for _, item := range items {
-			err := overrideDeletionProtection(ctx, deletion.Kind, item.GetName(), iface)
+			err := overrideDeletionProtection(ctx, iface, logger, deletion.Kind, item.GetName())
 			if err != nil {
 				return err
 			}
@@ -1146,7 +1146,7 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 	return nil
 }
 
-func overrideDeletionProtection(ctx context.Context, kind, name string, iface dynamic.ResourceInterface) error {
+func overrideDeletionProtection(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
 	annotation := ""
 	switch kind {
 	case "Namespace":
@@ -1170,6 +1170,10 @@ func overrideDeletionProtection(ctx context.Context, kind, name string, iface dy
 		return err
 	}
 	_, err = iface.Patch(ctx, name, k8stypes.JSONPatchType, payload, metav1.PatchOptions{})
+	if err != nil && apierrors.IsNotFound(err) {
+		logger.Infof("Skipping delete annotation of %s %s: resource not found", kind, name)
+		return nil
+	}
 	if err != nil {
 		return err
 	}
