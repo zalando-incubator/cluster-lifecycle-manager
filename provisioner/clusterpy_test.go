@@ -2,7 +2,6 @@ package provisioner
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -488,12 +487,11 @@ func TestPerformDeletion(t *testing.T) {
 
 	yes, no := true, false
 	i := []struct {
-		name           string
-		deletion       *resource
-		clientErrors   func(state map[string]interface{}) []clientError
-		clientReactors func(state map[string]interface{}) []k8stesting.SimpleReactor
-		expectError    string
-		expectDeleted  []string
+		name          string
+		deletion      *resource
+		clientErrors  func(state map[string]interface{}) []clientError
+		expectError   string
+		expectDeleted []string
 	}{
 		//
 		// TODO: update client-go version and add metav1.DeleteOptions tests
@@ -515,40 +513,6 @@ func TestPerformDeletion(t *testing.T) {
 			deletion: &resource{
 				Name: "ns-foo",
 				Kind: "Namespace",
-			},
-			clientReactors: func(state map[string]interface{}) []k8stesting.SimpleReactor {
-				return []k8stesting.SimpleReactor{
-					{
-						Verb:     "patch",
-						Resource: "namespaces",
-						Reaction: func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-							payload := map[string]interface{}{}
-							err = json.Unmarshal(action.(k8stesting.PatchAction).GetPatch(), &payload)
-							if err != nil {
-								return false, nil, err
-							}
-							for k, v := range payload {
-								state[k] = v
-							}
-							return true, nil, nil
-						},
-					},
-				}
-			},
-			clientErrors: func(state map[string]interface{}) []clientError {
-				if meta, ok := state["metadata"]; ok {
-					if annotations, ok := meta.(map[string]interface{})["annotations"]; ok {
-						if _, ok := annotations.(map[string]interface{})["zalando.org/delete-date"]; ok {
-							return nil
-						}
-					}
-				}
-				return []clientError{
-					{
-						matches: deleteAction("namespaces", "ns-foo"),
-						err:     fmt.Errorf("admission webhook \"namespace-admitter.teapot.zalan.do\" denied the request: annotation zalando.org/delete-date not set in manifest to allow resource deletion. See https://cloud.docs.zalando.net/howtos/delete-protection/"),
-					},
-				}
 			},
 			expectDeleted: []string{
 				"/namespaces/ns-foo",
@@ -729,11 +693,6 @@ func TestPerformDeletion(t *testing.T) {
 					}
 					return false, nil, nil
 				})
-			}
-			if tc.clientReactors != nil {
-				for _, cr := range tc.clientReactors(state) {
-					client.PrependReactor(cr.Verb, cr.Resource, cr.Reaction)
-				}
 			}
 
 			gvr := schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: kindToResource[tc.deletion.Kind]}

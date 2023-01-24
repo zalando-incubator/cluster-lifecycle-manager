@@ -3,7 +3,6 @@ package provisioner
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +36,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/restmapper"
@@ -1147,37 +1145,30 @@ func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Inte
 }
 
 func overrideDeletionProtection(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
-	annotation := ""
-	switch kind {
-	case "Namespace":
-		annotation = "zalando.org/delete-namespace"
-	default:
+	if kind != "Namespace" {
 		// no annotation needed
 		return nil
 	}
 
-	patch := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"annotations": map[string]interface{}{
-				"zalando.org/delete-date": time.Now().Format("2006-01-02"),
-				annotation:                name,
-			},
-		},
+	namespace, err := iface.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Infof("Skipping delete annotation of %s %s: resource not found", kind, name)
+			return nil
+		}
+		return err
 	}
 
-	payload, err := json.Marshal(patch)
-	if err != nil {
-		return err
+	annotations := namespace.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
 	}
-	_, err = iface.Patch(ctx, name, k8stypes.JSONPatchType, payload, metav1.PatchOptions{})
-	if err != nil && apierrors.IsNotFound(err) {
-		logger.Infof("Skipping delete annotation of %s %s: resource not found", kind, name)
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return nil
+	annotations["zalando.org/delete-date"] = time.Now().Format("2006-01-02")
+	annotations["zalando.org/delete-namespace"] = name
+	namespace.SetAnnotations(annotations)
+
+	_, err = iface.Update(ctx, namespace, metav1.UpdateOptions{})
+	return err
 }
 
 // parseDeletions reads and parses the deletions from the config.
