@@ -35,6 +35,10 @@ func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolum
 	return int64(instanceStorageScaleFactor * float64(i.InstanceStorageDevices*i.InstanceStorageDeviceSize))
 }
 
+func (i Instance) MemoryFraction(percent int64) int64 {
+	return percent * i.Memory / 100
+}
+
 type InstanceTypes struct {
 	instances map[string]Instance
 }

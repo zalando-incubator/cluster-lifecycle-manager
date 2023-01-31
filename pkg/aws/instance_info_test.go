@@ -448,3 +448,16 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		})
 	}
 }
+
+func TestMemoryFraction(t *testing.T) {
+	instance := Instance{
+		InstanceType:              "<multiple>",
+		VCPU:                      2,
+		Memory:                    8589934592,
+		InstanceStorageDevices:    1,
+		InstanceStorageDeviceSize: 75 * 1024 * mebibyte,
+		Architecture:              "amd64",
+	}
+
+	require.Equal(t, int64(4294967296), instance.MemoryFraction(50))
+}
