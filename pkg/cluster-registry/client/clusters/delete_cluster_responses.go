@@ -102,6 +102,11 @@ func (o *DeleteClusterNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete cluster no content response
+func (o *DeleteClusterNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteClusterNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent ", 204)
 }
@@ -152,6 +157,11 @@ func (o *DeleteClusterBadRequest) IsServerError() bool {
 // IsCode returns true when this delete cluster bad request response a status code equal to that given
 func (o *DeleteClusterBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the delete cluster bad request response
+func (o *DeleteClusterBadRequest) Code() int {
+	return 400
 }
 
 func (o *DeleteClusterBadRequest) Error() string {
@@ -216,6 +226,11 @@ func (o *DeleteClusterUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the delete cluster unauthorized response
+func (o *DeleteClusterUnauthorized) Code() int {
+	return 401
+}
+
 func (o *DeleteClusterUnauthorized) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized ", 401)
 }
@@ -266,6 +281,11 @@ func (o *DeleteClusterForbidden) IsServerError() bool {
 // IsCode returns true when this delete cluster forbidden response a status code equal to that given
 func (o *DeleteClusterForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the delete cluster forbidden response
+func (o *DeleteClusterForbidden) Code() int {
+	return 403
 }
 
 func (o *DeleteClusterForbidden) Error() string {
@@ -330,6 +350,11 @@ func (o *DeleteClusterNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the delete cluster not found response
+func (o *DeleteClusterNotFound) Code() int {
+	return 404
+}
+
 func (o *DeleteClusterNotFound) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound ", 404)
 }
@@ -380,6 +405,11 @@ func (o *DeleteClusterInternalServerError) IsServerError() bool {
 // IsCode returns true when this delete cluster internal server error response a status code equal to that given
 func (o *DeleteClusterInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the delete cluster internal server error response
+func (o *DeleteClusterInternalServerError) Code() int {
+	return 500
 }
 
 func (o *DeleteClusterInternalServerError) Error() string {

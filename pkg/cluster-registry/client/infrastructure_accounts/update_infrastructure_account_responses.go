@@ -97,6 +97,11 @@ func (o *UpdateInfrastructureAccountOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update infrastructure account o k response
+func (o *UpdateInfrastructureAccountOK) Code() int {
+	return 200
+}
+
 func (o *UpdateInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
 }
@@ -159,6 +164,11 @@ func (o *UpdateInfrastructureAccountUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the update infrastructure account unauthorized response
+func (o *UpdateInfrastructureAccountUnauthorized) Code() int {
+	return 401
+}
+
 func (o *UpdateInfrastructureAccountUnauthorized) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized ", 401)
 }
@@ -208,6 +218,11 @@ func (o *UpdateInfrastructureAccountForbidden) IsServerError() bool {
 // IsCode returns true when this update infrastructure account forbidden response a status code equal to that given
 func (o *UpdateInfrastructureAccountForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the update infrastructure account forbidden response
+func (o *UpdateInfrastructureAccountForbidden) Code() int {
+	return 403
 }
 
 func (o *UpdateInfrastructureAccountForbidden) Error() string {
@@ -261,6 +276,11 @@ func (o *UpdateInfrastructureAccountNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the update infrastructure account not found response
+func (o *UpdateInfrastructureAccountNotFound) Code() int {
+	return 404
+}
+
 func (o *UpdateInfrastructureAccountNotFound) Error() string {
 	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound ", 404)
 }
@@ -311,6 +331,11 @@ func (o *UpdateInfrastructureAccountInternalServerError) IsServerError() bool {
 // IsCode returns true when this update infrastructure account internal server error response a status code equal to that given
 func (o *UpdateInfrastructureAccountInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the update infrastructure account internal server error response
+func (o *UpdateInfrastructureAccountInternalServerError) Code() int {
+	return 500
 }
 
 func (o *UpdateInfrastructureAccountInternalServerError) Error() string {

@@ -97,6 +97,11 @@ func (o *GetClusterOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get cluster o k response
+func (o *GetClusterOK) Code() int {
+	return 200
+}
+
 func (o *GetClusterOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK  %+v", 200, o.Payload)
 }
@@ -159,6 +164,11 @@ func (o *GetClusterUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the get cluster unauthorized response
+func (o *GetClusterUnauthorized) Code() int {
+	return 401
+}
+
 func (o *GetClusterUnauthorized) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterUnauthorized ", 401)
 }
@@ -208,6 +218,11 @@ func (o *GetClusterForbidden) IsServerError() bool {
 // IsCode returns true when this get cluster forbidden response a status code equal to that given
 func (o *GetClusterForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the get cluster forbidden response
+func (o *GetClusterForbidden) Code() int {
+	return 403
 }
 
 func (o *GetClusterForbidden) Error() string {
@@ -261,6 +276,11 @@ func (o *GetClusterNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the get cluster not found response
+func (o *GetClusterNotFound) Code() int {
+	return 404
+}
+
 func (o *GetClusterNotFound) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterNotFound ", 404)
 }
@@ -311,6 +331,11 @@ func (o *GetClusterInternalServerError) IsServerError() bool {
 // IsCode returns true when this get cluster internal server error response a status code equal to that given
 func (o *GetClusterInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the get cluster internal server error response
+func (o *GetClusterInternalServerError) Code() int {
+	return 500
 }
 
 func (o *GetClusterInternalServerError) Error() string {

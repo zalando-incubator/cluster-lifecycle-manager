@@ -103,6 +103,11 @@ func (o *CreateInfrastructureAccountCreated) IsCode(code int) bool {
 	return code == 201
 }
 
+// Code gets the status code for the create infrastructure account created response
+func (o *CreateInfrastructureAccountCreated) Code() int {
+	return 201
+}
+
 func (o *CreateInfrastructureAccountCreated) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
 }
@@ -165,6 +170,11 @@ func (o *CreateInfrastructureAccountBadRequest) IsCode(code int) bool {
 	return code == 400
 }
 
+// Code gets the status code for the create infrastructure account bad request response
+func (o *CreateInfrastructureAccountBadRequest) Code() int {
+	return 400
+}
+
 func (o *CreateInfrastructureAccountBadRequest) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest ", 400)
 }
@@ -214,6 +224,11 @@ func (o *CreateInfrastructureAccountUnauthorized) IsServerError() bool {
 // IsCode returns true when this create infrastructure account unauthorized response a status code equal to that given
 func (o *CreateInfrastructureAccountUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the create infrastructure account unauthorized response
+func (o *CreateInfrastructureAccountUnauthorized) Code() int {
+	return 401
 }
 
 func (o *CreateInfrastructureAccountUnauthorized) Error() string {
@@ -267,6 +282,11 @@ func (o *CreateInfrastructureAccountForbidden) IsCode(code int) bool {
 	return code == 403
 }
 
+// Code gets the status code for the create infrastructure account forbidden response
+func (o *CreateInfrastructureAccountForbidden) Code() int {
+	return 403
+}
+
 func (o *CreateInfrastructureAccountForbidden) Error() string {
 	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden ", 403)
 }
@@ -316,6 +336,11 @@ func (o *CreateInfrastructureAccountConflict) IsServerError() bool {
 // IsCode returns true when this create infrastructure account conflict response a status code equal to that given
 func (o *CreateInfrastructureAccountConflict) IsCode(code int) bool {
 	return code == 409
+}
+
+// Code gets the status code for the create infrastructure account conflict response
+func (o *CreateInfrastructureAccountConflict) Code() int {
+	return 409
 }
 
 func (o *CreateInfrastructureAccountConflict) Error() string {
@@ -368,6 +393,11 @@ func (o *CreateInfrastructureAccountInternalServerError) IsServerError() bool {
 // IsCode returns true when this create infrastructure account internal server error response a status code equal to that given
 func (o *CreateInfrastructureAccountInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the create infrastructure account internal server error response
+func (o *CreateInfrastructureAccountInternalServerError) Code() int {
+	return 500
 }
 
 func (o *CreateInfrastructureAccountInternalServerError) Error() string {

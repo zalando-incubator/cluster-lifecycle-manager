@@ -102,6 +102,11 @@ func (o *DeleteNodePoolConfigItemNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete node pool config item no content response
+func (o *DeleteNodePoolConfigItemNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteNodePoolConfigItemNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNoContent ", 204)
 }
@@ -152,6 +157,11 @@ func (o *DeleteNodePoolConfigItemBadRequest) IsServerError() bool {
 // IsCode returns true when this delete node pool config item bad request response a status code equal to that given
 func (o *DeleteNodePoolConfigItemBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the delete node pool config item bad request response
+func (o *DeleteNodePoolConfigItemBadRequest) Code() int {
+	return 400
 }
 
 func (o *DeleteNodePoolConfigItemBadRequest) Error() string {
@@ -216,6 +226,11 @@ func (o *DeleteNodePoolConfigItemUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the delete node pool config item unauthorized response
+func (o *DeleteNodePoolConfigItemUnauthorized) Code() int {
+	return 401
+}
+
 func (o *DeleteNodePoolConfigItemUnauthorized) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemUnauthorized ", 401)
 }
@@ -265,6 +280,11 @@ func (o *DeleteNodePoolConfigItemForbidden) IsServerError() bool {
 // IsCode returns true when this delete node pool config item forbidden response a status code equal to that given
 func (o *DeleteNodePoolConfigItemForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the delete node pool config item forbidden response
+func (o *DeleteNodePoolConfigItemForbidden) Code() int {
+	return 403
 }
 
 func (o *DeleteNodePoolConfigItemForbidden) Error() string {
@@ -318,6 +338,11 @@ func (o *DeleteNodePoolConfigItemNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the delete node pool config item not found response
+func (o *DeleteNodePoolConfigItemNotFound) Code() int {
+	return 404
+}
+
 func (o *DeleteNodePoolConfigItemNotFound) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNotFound ", 404)
 }
@@ -368,6 +393,11 @@ func (o *DeleteNodePoolConfigItemInternalServerError) IsServerError() bool {
 // IsCode returns true when this delete node pool config item internal server error response a status code equal to that given
 func (o *DeleteNodePoolConfigItemInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the delete node pool config item internal server error response
+func (o *DeleteNodePoolConfigItemInternalServerError) Code() int {
+	return 500
 }
 
 func (o *DeleteNodePoolConfigItemInternalServerError) Error() string {

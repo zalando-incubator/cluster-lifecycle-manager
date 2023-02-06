@@ -97,6 +97,11 @@ func (o *UpdateClusterOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update cluster o k response
+func (o *UpdateClusterOK) Code() int {
+	return 200
+}
+
 func (o *UpdateClusterOK) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
 }
@@ -159,6 +164,11 @@ func (o *UpdateClusterUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the update cluster unauthorized response
+func (o *UpdateClusterUnauthorized) Code() int {
+	return 401
+}
+
 func (o *UpdateClusterUnauthorized) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized ", 401)
 }
@@ -208,6 +218,11 @@ func (o *UpdateClusterForbidden) IsServerError() bool {
 // IsCode returns true when this update cluster forbidden response a status code equal to that given
 func (o *UpdateClusterForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the update cluster forbidden response
+func (o *UpdateClusterForbidden) Code() int {
+	return 403
 }
 
 func (o *UpdateClusterForbidden) Error() string {
@@ -261,6 +276,11 @@ func (o *UpdateClusterNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the update cluster not found response
+func (o *UpdateClusterNotFound) Code() int {
+	return 404
+}
+
 func (o *UpdateClusterNotFound) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound ", 404)
 }
@@ -311,6 +331,11 @@ func (o *UpdateClusterInternalServerError) IsServerError() bool {
 // IsCode returns true when this update cluster internal server error response a status code equal to that given
 func (o *UpdateClusterInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the update cluster internal server error response
+func (o *UpdateClusterInternalServerError) Code() int {
+	return 500
 }
 
 func (o *UpdateClusterInternalServerError) Error() string {

@@ -97,6 +97,11 @@ func (o *GetInfrastructureAccountOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get infrastructure account o k response
+func (o *GetInfrastructureAccountOK) Code() int {
+	return 200
+}
+
 func (o *GetInfrastructureAccountOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
 }
@@ -159,6 +164,11 @@ func (o *GetInfrastructureAccountUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the get infrastructure account unauthorized response
+func (o *GetInfrastructureAccountUnauthorized) Code() int {
+	return 401
+}
+
 func (o *GetInfrastructureAccountUnauthorized) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized ", 401)
 }
@@ -208,6 +218,11 @@ func (o *GetInfrastructureAccountForbidden) IsServerError() bool {
 // IsCode returns true when this get infrastructure account forbidden response a status code equal to that given
 func (o *GetInfrastructureAccountForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the get infrastructure account forbidden response
+func (o *GetInfrastructureAccountForbidden) Code() int {
+	return 403
 }
 
 func (o *GetInfrastructureAccountForbidden) Error() string {
@@ -261,6 +276,11 @@ func (o *GetInfrastructureAccountNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the get infrastructure account not found response
+func (o *GetInfrastructureAccountNotFound) Code() int {
+	return 404
+}
+
 func (o *GetInfrastructureAccountNotFound) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound ", 404)
 }
@@ -311,6 +331,11 @@ func (o *GetInfrastructureAccountInternalServerError) IsServerError() bool {
 // IsCode returns true when this get infrastructure account internal server error response a status code equal to that given
 func (o *GetInfrastructureAccountInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the get infrastructure account internal server error response
+func (o *GetInfrastructureAccountInternalServerError) Code() int {
+	return 500
 }
 
 func (o *GetInfrastructureAccountInternalServerError) Error() string {

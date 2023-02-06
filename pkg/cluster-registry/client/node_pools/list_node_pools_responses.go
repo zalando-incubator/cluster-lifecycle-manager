@@ -95,6 +95,11 @@ func (o *ListNodePoolsOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the list node pools o k response
+func (o *ListNodePoolsOK) Code() int {
+	return 200
+}
+
 func (o *ListNodePoolsOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
 }
@@ -157,6 +162,11 @@ func (o *ListNodePoolsUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the list node pools unauthorized response
+func (o *ListNodePoolsUnauthorized) Code() int {
+	return 401
+}
+
 func (o *ListNodePoolsUnauthorized) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized ", 401)
 }
@@ -206,6 +216,11 @@ func (o *ListNodePoolsForbidden) IsServerError() bool {
 // IsCode returns true when this list node pools forbidden response a status code equal to that given
 func (o *ListNodePoolsForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the list node pools forbidden response
+func (o *ListNodePoolsForbidden) Code() int {
+	return 403
 }
 
 func (o *ListNodePoolsForbidden) Error() string {
@@ -258,6 +273,11 @@ func (o *ListNodePoolsInternalServerError) IsServerError() bool {
 // IsCode returns true when this list node pools internal server error response a status code equal to that given
 func (o *ListNodePoolsInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the list node pools internal server error response
+func (o *ListNodePoolsInternalServerError) Code() int {
+	return 500
 }
 
 func (o *ListNodePoolsInternalServerError) Error() string {
