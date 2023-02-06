@@ -95,6 +95,11 @@ func (o *ListClustersOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the list clusters o k response
+func (o *ListClustersOK) Code() int {
+	return 200
+}
+
 func (o *ListClustersOK) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK  %+v", 200, o.Payload)
 }
@@ -157,6 +162,11 @@ func (o *ListClustersUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the list clusters unauthorized response
+func (o *ListClustersUnauthorized) Code() int {
+	return 401
+}
+
 func (o *ListClustersUnauthorized) Error() string {
 	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersUnauthorized ", 401)
 }
@@ -206,6 +216,11 @@ func (o *ListClustersForbidden) IsServerError() bool {
 // IsCode returns true when this list clusters forbidden response a status code equal to that given
 func (o *ListClustersForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the list clusters forbidden response
+func (o *ListClustersForbidden) Code() int {
+	return 403
 }
 
 func (o *ListClustersForbidden) Error() string {
@@ -258,6 +273,11 @@ func (o *ListClustersInternalServerError) IsServerError() bool {
 // IsCode returns true when this list clusters internal server error response a status code equal to that given
 func (o *ListClustersInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the list clusters internal server error response
+func (o *ListClustersInternalServerError) Code() int {
+	return 500
 }
 
 func (o *ListClustersInternalServerError) Error() string {

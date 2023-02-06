@@ -97,6 +97,11 @@ func (o *UpdateNodePoolOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update node pool o k response
+func (o *UpdateNodePoolOK) Code() int {
+	return 200
+}
+
 func (o *UpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK  %+v", 200, o.Payload)
 }
@@ -158,6 +163,11 @@ func (o *UpdateNodePoolBadRequest) IsServerError() bool {
 // IsCode returns true when this update node pool bad request response a status code equal to that given
 func (o *UpdateNodePoolBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the update node pool bad request response
+func (o *UpdateNodePoolBadRequest) Code() int {
+	return 400
 }
 
 func (o *UpdateNodePoolBadRequest) Error() string {
@@ -222,6 +232,11 @@ func (o *UpdateNodePoolUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the update node pool unauthorized response
+func (o *UpdateNodePoolUnauthorized) Code() int {
+	return 401
+}
+
 func (o *UpdateNodePoolUnauthorized) Error() string {
 	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized ", 401)
 }
@@ -271,6 +286,11 @@ func (o *UpdateNodePoolForbidden) IsServerError() bool {
 // IsCode returns true when this update node pool forbidden response a status code equal to that given
 func (o *UpdateNodePoolForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the update node pool forbidden response
+func (o *UpdateNodePoolForbidden) Code() int {
+	return 403
 }
 
 func (o *UpdateNodePoolForbidden) Error() string {
@@ -323,6 +343,11 @@ func (o *UpdateNodePoolInternalServerError) IsServerError() bool {
 // IsCode returns true when this update node pool internal server error response a status code equal to that given
 func (o *UpdateNodePoolInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the update node pool internal server error response
+func (o *UpdateNodePoolInternalServerError) Code() int {
+	return 500
 }
 
 func (o *UpdateNodePoolInternalServerError) Error() string {

@@ -103,6 +103,11 @@ func (o *CreateClusterCreated) IsCode(code int) bool {
 	return code == 201
 }
 
+// Code gets the status code for the create cluster created response
+func (o *CreateClusterCreated) Code() int {
+	return 201
+}
+
 func (o *CreateClusterCreated) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
 }
@@ -164,6 +169,11 @@ func (o *CreateClusterBadRequest) IsServerError() bool {
 // IsCode returns true when this create cluster bad request response a status code equal to that given
 func (o *CreateClusterBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the create cluster bad request response
+func (o *CreateClusterBadRequest) Code() int {
+	return 400
 }
 
 func (o *CreateClusterBadRequest) Error() string {
@@ -228,6 +238,11 @@ func (o *CreateClusterUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the create cluster unauthorized response
+func (o *CreateClusterUnauthorized) Code() int {
+	return 401
+}
+
 func (o *CreateClusterUnauthorized) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized ", 401)
 }
@@ -277,6 +292,11 @@ func (o *CreateClusterForbidden) IsServerError() bool {
 // IsCode returns true when this create cluster forbidden response a status code equal to that given
 func (o *CreateClusterForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the create cluster forbidden response
+func (o *CreateClusterForbidden) Code() int {
+	return 403
 }
 
 func (o *CreateClusterForbidden) Error() string {
@@ -330,6 +350,11 @@ func (o *CreateClusterConflict) IsCode(code int) bool {
 	return code == 409
 }
 
+// Code gets the status code for the create cluster conflict response
+func (o *CreateClusterConflict) Code() int {
+	return 409
+}
+
 func (o *CreateClusterConflict) Error() string {
 	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict ", 409)
 }
@@ -380,6 +405,11 @@ func (o *CreateClusterInternalServerError) IsServerError() bool {
 // IsCode returns true when this create cluster internal server error response a status code equal to that given
 func (o *CreateClusterInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the create cluster internal server error response
+func (o *CreateClusterInternalServerError) Code() int {
+	return 500
 }
 
 func (o *CreateClusterInternalServerError) Error() string {

@@ -102,6 +102,11 @@ func (o *DeleteNodePoolNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete node pool no content response
+func (o *DeleteNodePoolNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteNodePoolNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent ", 204)
 }
@@ -152,6 +157,11 @@ func (o *DeleteNodePoolBadRequest) IsServerError() bool {
 // IsCode returns true when this delete node pool bad request response a status code equal to that given
 func (o *DeleteNodePoolBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the delete node pool bad request response
+func (o *DeleteNodePoolBadRequest) Code() int {
+	return 400
 }
 
 func (o *DeleteNodePoolBadRequest) Error() string {
@@ -216,6 +226,11 @@ func (o *DeleteNodePoolUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the delete node pool unauthorized response
+func (o *DeleteNodePoolUnauthorized) Code() int {
+	return 401
+}
+
 func (o *DeleteNodePoolUnauthorized) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized ", 401)
 }
@@ -265,6 +280,11 @@ func (o *DeleteNodePoolForbidden) IsServerError() bool {
 // IsCode returns true when this delete node pool forbidden response a status code equal to that given
 func (o *DeleteNodePoolForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the delete node pool forbidden response
+func (o *DeleteNodePoolForbidden) Code() int {
+	return 403
 }
 
 func (o *DeleteNodePoolForbidden) Error() string {
@@ -318,6 +338,11 @@ func (o *DeleteNodePoolNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the delete node pool not found response
+func (o *DeleteNodePoolNotFound) Code() int {
+	return 404
+}
+
 func (o *DeleteNodePoolNotFound) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound ", 404)
 }
@@ -368,6 +393,11 @@ func (o *DeleteNodePoolInternalServerError) IsServerError() bool {
 // IsCode returns true when this delete node pool internal server error response a status code equal to that given
 func (o *DeleteNodePoolInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the delete node pool internal server error response
+func (o *DeleteNodePoolInternalServerError) Code() int {
+	return 500
 }
 
 func (o *DeleteNodePoolInternalServerError) Error() string {

@@ -95,6 +95,11 @@ func (o *ListInfrastructureAccountsOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the list infrastructure accounts o k response
+func (o *ListInfrastructureAccountsOK) Code() int {
+	return 200
+}
+
 func (o *ListInfrastructureAccountsOK) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
 }
@@ -157,6 +162,11 @@ func (o *ListInfrastructureAccountsUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the list infrastructure accounts unauthorized response
+func (o *ListInfrastructureAccountsUnauthorized) Code() int {
+	return 401
+}
+
 func (o *ListInfrastructureAccountsUnauthorized) Error() string {
 	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized ", 401)
 }
@@ -206,6 +216,11 @@ func (o *ListInfrastructureAccountsForbidden) IsServerError() bool {
 // IsCode returns true when this list infrastructure accounts forbidden response a status code equal to that given
 func (o *ListInfrastructureAccountsForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the list infrastructure accounts forbidden response
+func (o *ListInfrastructureAccountsForbidden) Code() int {
+	return 403
 }
 
 func (o *ListInfrastructureAccountsForbidden) Error() string {
@@ -258,6 +273,11 @@ func (o *ListInfrastructureAccountsInternalServerError) IsServerError() bool {
 // IsCode returns true when this list infrastructure accounts internal server error response a status code equal to that given
 func (o *ListInfrastructureAccountsInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the list infrastructure accounts internal server error response
+func (o *ListInfrastructureAccountsInternalServerError) Code() int {
+	return 500
 }
 
 func (o *ListInfrastructureAccountsInternalServerError) Error() string {

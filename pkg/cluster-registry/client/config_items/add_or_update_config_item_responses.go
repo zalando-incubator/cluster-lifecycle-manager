@@ -97,6 +97,11 @@ func (o *AddOrUpdateConfigItemOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the add or update config item o k response
+func (o *AddOrUpdateConfigItemOK) Code() int {
+	return 200
+}
+
 func (o *AddOrUpdateConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
 }
@@ -158,6 +163,11 @@ func (o *AddOrUpdateConfigItemBadRequest) IsServerError() bool {
 // IsCode returns true when this add or update config item bad request response a status code equal to that given
 func (o *AddOrUpdateConfigItemBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the add or update config item bad request response
+func (o *AddOrUpdateConfigItemBadRequest) Code() int {
+	return 400
 }
 
 func (o *AddOrUpdateConfigItemBadRequest) Error() string {
@@ -222,6 +232,11 @@ func (o *AddOrUpdateConfigItemUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the add or update config item unauthorized response
+func (o *AddOrUpdateConfigItemUnauthorized) Code() int {
+	return 401
+}
+
 func (o *AddOrUpdateConfigItemUnauthorized) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized ", 401)
 }
@@ -271,6 +286,11 @@ func (o *AddOrUpdateConfigItemForbidden) IsServerError() bool {
 // IsCode returns true when this add or update config item forbidden response a status code equal to that given
 func (o *AddOrUpdateConfigItemForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the add or update config item forbidden response
+func (o *AddOrUpdateConfigItemForbidden) Code() int {
+	return 403
 }
 
 func (o *AddOrUpdateConfigItemForbidden) Error() string {
@@ -323,6 +343,11 @@ func (o *AddOrUpdateConfigItemInternalServerError) IsServerError() bool {
 // IsCode returns true when this add or update config item internal server error response a status code equal to that given
 func (o *AddOrUpdateConfigItemInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the add or update config item internal server error response
+func (o *AddOrUpdateConfigItemInternalServerError) Code() int {
+	return 500
 }
 
 func (o *AddOrUpdateConfigItemInternalServerError) Error() string {

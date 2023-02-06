@@ -97,6 +97,11 @@ func (o *AddOrUpdateNodePoolConfigItemOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the add or update node pool config item o k response
+func (o *AddOrUpdateNodePoolConfigItemOK) Code() int {
+	return 200
+}
+
 func (o *AddOrUpdateNodePoolConfigItemOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
 }
@@ -158,6 +163,11 @@ func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsServerError() bool {
 // IsCode returns true when this add or update node pool config item bad request response a status code equal to that given
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the add or update node pool config item bad request response
+func (o *AddOrUpdateNodePoolConfigItemBadRequest) Code() int {
+	return 400
 }
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) Error() string {
@@ -222,6 +232,11 @@ func (o *AddOrUpdateNodePoolConfigItemUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the add or update node pool config item unauthorized response
+func (o *AddOrUpdateNodePoolConfigItemUnauthorized) Code() int {
+	return 401
+}
+
 func (o *AddOrUpdateNodePoolConfigItemUnauthorized) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized ", 401)
 }
@@ -271,6 +286,11 @@ func (o *AddOrUpdateNodePoolConfigItemForbidden) IsServerError() bool {
 // IsCode returns true when this add or update node pool config item forbidden response a status code equal to that given
 func (o *AddOrUpdateNodePoolConfigItemForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the add or update node pool config item forbidden response
+func (o *AddOrUpdateNodePoolConfigItemForbidden) Code() int {
+	return 403
 }
 
 func (o *AddOrUpdateNodePoolConfigItemForbidden) Error() string {
@@ -323,6 +343,11 @@ func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsServerError() bool 
 // IsCode returns true when this add or update node pool config item internal server error response a status code equal to that given
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the add or update node pool config item internal server error response
+func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Code() int {
+	return 500
 }
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Error() string {

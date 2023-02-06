@@ -102,6 +102,11 @@ func (o *DeleteConfigItemNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete config item no content response
+func (o *DeleteConfigItemNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteConfigItemNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNoContent ", 204)
 }
@@ -152,6 +157,11 @@ func (o *DeleteConfigItemBadRequest) IsServerError() bool {
 // IsCode returns true when this delete config item bad request response a status code equal to that given
 func (o *DeleteConfigItemBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the delete config item bad request response
+func (o *DeleteConfigItemBadRequest) Code() int {
+	return 400
 }
 
 func (o *DeleteConfigItemBadRequest) Error() string {
@@ -216,6 +226,11 @@ func (o *DeleteConfigItemUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the delete config item unauthorized response
+func (o *DeleteConfigItemUnauthorized) Code() int {
+	return 401
+}
+
 func (o *DeleteConfigItemUnauthorized) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemUnauthorized ", 401)
 }
@@ -265,6 +280,11 @@ func (o *DeleteConfigItemForbidden) IsServerError() bool {
 // IsCode returns true when this delete config item forbidden response a status code equal to that given
 func (o *DeleteConfigItemForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the delete config item forbidden response
+func (o *DeleteConfigItemForbidden) Code() int {
+	return 403
 }
 
 func (o *DeleteConfigItemForbidden) Error() string {
@@ -318,6 +338,11 @@ func (o *DeleteConfigItemNotFound) IsCode(code int) bool {
 	return code == 404
 }
 
+// Code gets the status code for the delete config item not found response
+func (o *DeleteConfigItemNotFound) Code() int {
+	return 404
+}
+
 func (o *DeleteConfigItemNotFound) Error() string {
 	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNotFound ", 404)
 }
@@ -368,6 +393,11 @@ func (o *DeleteConfigItemInternalServerError) IsServerError() bool {
 // IsCode returns true when this delete config item internal server error response a status code equal to that given
 func (o *DeleteConfigItemInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the delete config item internal server error response
+func (o *DeleteConfigItemInternalServerError) Code() int {
+	return 500
 }
 
 func (o *DeleteConfigItemInternalServerError) Error() string {

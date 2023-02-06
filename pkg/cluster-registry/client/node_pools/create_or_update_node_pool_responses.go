@@ -97,6 +97,11 @@ func (o *CreateOrUpdateNodePoolOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the create or update node pool o k response
+func (o *CreateOrUpdateNodePoolOK) Code() int {
+	return 200
+}
+
 func (o *CreateOrUpdateNodePoolOK) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
 }
@@ -158,6 +163,11 @@ func (o *CreateOrUpdateNodePoolBadRequest) IsServerError() bool {
 // IsCode returns true when this create or update node pool bad request response a status code equal to that given
 func (o *CreateOrUpdateNodePoolBadRequest) IsCode(code int) bool {
 	return code == 400
+}
+
+// Code gets the status code for the create or update node pool bad request response
+func (o *CreateOrUpdateNodePoolBadRequest) Code() int {
+	return 400
 }
 
 func (o *CreateOrUpdateNodePoolBadRequest) Error() string {
@@ -222,6 +232,11 @@ func (o *CreateOrUpdateNodePoolUnauthorized) IsCode(code int) bool {
 	return code == 401
 }
 
+// Code gets the status code for the create or update node pool unauthorized response
+func (o *CreateOrUpdateNodePoolUnauthorized) Code() int {
+	return 401
+}
+
 func (o *CreateOrUpdateNodePoolUnauthorized) Error() string {
 	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized ", 401)
 }
@@ -271,6 +286,11 @@ func (o *CreateOrUpdateNodePoolForbidden) IsServerError() bool {
 // IsCode returns true when this create or update node pool forbidden response a status code equal to that given
 func (o *CreateOrUpdateNodePoolForbidden) IsCode(code int) bool {
 	return code == 403
+}
+
+// Code gets the status code for the create or update node pool forbidden response
+func (o *CreateOrUpdateNodePoolForbidden) Code() int {
+	return 403
 }
 
 func (o *CreateOrUpdateNodePoolForbidden) Error() string {
@@ -323,6 +343,11 @@ func (o *CreateOrUpdateNodePoolInternalServerError) IsServerError() bool {
 // IsCode returns true when this create or update node pool internal server error response a status code equal to that given
 func (o *CreateOrUpdateNodePoolInternalServerError) IsCode(code int) bool {
 	return code == 500
+}
+
+// Code gets the status code for the create or update node pool internal server error response
+func (o *CreateOrUpdateNodePoolInternalServerError) Code() int {
+	return 500
 }
 
 func (o *CreateOrUpdateNodePoolInternalServerError) Error() string {
