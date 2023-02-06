@@ -12,15 +12,12 @@ import (
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 // generateString generates a random string token.
 func generateString() string {
 	b := make([]byte, 64)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+		b[i] = letterBytes[r.Intn(len(letterBytes))]
 	}
 	return string(b)
 }
