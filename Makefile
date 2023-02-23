@@ -47,6 +47,8 @@ $(CR_CLIENT): $(GO_SWAGGER) $(SPEC)
 build.local: build/$(BINARY)
 build.linux: build/linux/$(BINARY)
 build.osx: build/osx/$(BINARY)
+build.linux.amd64: build/linux/amd64/$(BINARY)
+build.linux.arm64: build/linux/arm64/$(BINARY)
 
 build/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
 	CGO_ENABLED=0 $(GO) build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
@@ -54,11 +56,17 @@ build/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
 build/linux/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/linux/$(BINARY) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
 
+build/linux/amd64/%: go.mod $(SOURCES)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/linux/amd64/$(notdir $@) -ldflags "$(LDFLAGS)" ./cmd/$(notdir $@)
+
+build/linux/arm64/%: go.mod $(SOURCES)
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/linux/arm64/$(notdir $@) -ldflags "$(LDFLAGS)" ./cmd/$(notdir $@)
+
 build/osx/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/osx/$(BINARY) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
 
 build.docker: build.linux
-	docker build --rm -t "$(IMAGE):$(TAG)" -f $(DOCKERFILE) .
+	docker build --rm -t "$(IMAGE):$(TAG)" -f $(DOCKERFILE) --build-arg TARGETARCH= .
 
 build.push: build.docker
 	docker push "$(IMAGE):$(TAG)"
