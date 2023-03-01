@@ -1,7 +1,7 @@
 module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
-	github.com/aws/aws-sdk-go v1.44.191
+	github.com/aws/aws-sdk-go v1.44.211
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
@@ -16,13 +16,13 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.39.0 // indirect
+	github.com/prometheus/common v0.40.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.1
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.14.7
-	go.mongodb.org/mongo-driver v1.11.1 // indirect
-	golang.org/x/oauth2 v0.4.0
+	github.com/stretchr/testify v1.8.2
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.14.10
+	go.mongodb.org/mongo-driver v1.11.2 // indirect
+	golang.org/x/oauth2 v0.5.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
@@ -35,7 +35,7 @@ require (
 	k8s.io/apimachinery v0.22.5
 	k8s.io/client-go v0.22.5
 	k8s.io/klog/v2 v2.90.0 // indirect
-	k8s.io/utils v0.0.0-20230115233650-391b47cb4029 // indirect
+	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 )
 
 require (
@@ -73,7 +73,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/leodido/go-urn v1.2.2 // indirect
 	github.com/linki/instrumented_http v0.3.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -105,7 +105,7 @@ require (
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
