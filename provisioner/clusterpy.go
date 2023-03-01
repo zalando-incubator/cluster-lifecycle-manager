@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 	"unicode"
@@ -1290,44 +1289,13 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 		return fmt.Errorf("wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
 	}
 
-	token, err := p.tokenSource.Token()
-	if err != nil {
-		return errors.Wrapf(err, "no valid token")
+	if cluster.ConfigItems["experimental_server_side_apply"] == "true" {
+		err = p.applyServerSide(ctx, logger, cluster, renderedManifests)
+	} else {
+		err = p.applyKubectl(ctx, logger, cluster, renderedManifests)
 	}
-
-	for _, m := range renderedManifests {
-		logger := logger.WithField("module", m.name)
-
-		args := []string{
-			"kubectl",
-			"apply",
-			fmt.Sprintf("--server=%s", cluster.APIServerURL),
-			fmt.Sprintf("--token=%s", token.AccessToken),
-			"-f",
-			"-",
-		}
-
-		newApplyCommand := func() *exec.Cmd {
-			cmd := exec.Command(args[0], args[1:]...)
-			// prevent kubectl to find the in-cluster config
-			cmd.Env = []string{}
-			return cmd
-		}
-
-		if p.dryRun {
-			logger.Debug(newApplyCommand())
-		} else {
-			applyManifest := func() error {
-				cmd := newApplyCommand()
-				cmd.Stdin = strings.NewReader(strings.Join(m.manifests, "---\n"))
-				_, err := p.execManager.Run(ctx, logger, cmd)
-				return err
-			}
-			err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
-			if err != nil {
-				return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
-			}
-		}
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
