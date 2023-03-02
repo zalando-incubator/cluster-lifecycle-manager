@@ -45,6 +45,5 @@ type Config interface {
 	DefaultsManifests() ([]Manifest, error)
 	DeletionsManifests() ([]Manifest, error)
 	Components() ([]Component, error)
-
 	Delete() error
 }
