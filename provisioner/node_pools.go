@@ -7,12 +7,12 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -53,46 +53,112 @@ type remoteData struct {
 	} `yaml:"files" json:"files"`
 }
 
-// AWSNodePoolProvisioner is a node provisioner able to provision node pools
-// in AWS via cloudformation.
-// TODO: move AWS specific implementation to a separate file/package.
-type AWSNodePoolProvisioner struct {
-	awsAdapter      *awsAdapter
-	instanceTypes   *awsUtils.InstanceTypes
-	nodePoolManager updatestrategy.NodePoolManager
-	bucketName      string
-	config          channel.Config
-	cluster         *api.Cluster
-	azInfo          *AZInfo
-	templateContext *templateContext
-	logger          *log.Entry
+type NodePoolTemplateRenderer struct {
+	awsAdapter     *awsAdapter
+	config         channel.Config
+	cluster        *api.Cluster
+	bucketName     string
+	logger         *log.Entry
+	encodeUserData bool
 }
 
-func (p *AWSNodePoolProvisioner) generateNodePoolStackTemplate(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	renderedUserData, err := p.prepareCloudInit(nodePool, values)
+// prepareCloudInit prepares the user data by rendering the golang template.
+// It also uploads the dynamically generated files needed for the nodes in the pool
+// A EC2 UserData ready base64 string will be returned.
+func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+	var (
+		keyName, poolKind string
+	)
+	if nodePool.IsMaster() {
+		keyName = masterFilesKMSKey
+		poolKind = "master"
+	} else {
+		keyName = workerFilesKMSKey
+		poolKind = "worker"
+	}
+
+	kmsKey, err := getPKIKMSKey(r.awsAdapter, r.cluster.LocalID, keyName)
+	if err != nil {
+		return "", err
+	}
+
+	renderer := &FilesRenderer{
+		awsAdapter: r.awsAdapter,
+		cluster:    r.cluster,
+		config:     r.config,
+		directory:  poolKind,
+		nodePool:   nodePool,
+	}
+
+	s3Path, err := renderer.RenderAndUploadFiles(values, r.bucketName, kmsKey)
+	if err != nil {
+		return "", err
+	}
+
+	r.logger.Debugf("Uploaded generated files to %s", s3Path)
+	values[s3GeneratedFilesPathValuesKey] = s3Path
+
+	cloudInitContents, err := r.config.NodePoolManifest(nodePool.Profile, cloudInitFileName)
+	if err != nil {
+		return "", err
+	}
+	rendered, err := renderSingleTemplate(cloudInitContents, r.cluster, nodePool, values, r.awsAdapter)
+	if err != nil {
+		return "", err
+	}
+
+	if !r.encodeUserData {
+		return rendered, nil
+	}
+
+	var gzipBuffer bytes.Buffer
+	writer := gzip.NewWriter(&gzipBuffer)
+	defer writer.Close()
+	_, err = writer.Write([]byte(rendered))
+	if err != nil {
+		return "", err
+	}
+	err = writer.Close()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
+}
+
+func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
+	var renderedUserData string
+	var err error
+
+	renderedUserData, err = r.prepareCloudInit(nodePool, values)
 	if err != nil {
 		return "", err
 	}
 
 	values[userDataValuesKey] = renderedUserData
 
-	stackManifest, err := p.config.NodePoolManifest(nodePool.Profile, stackFileName)
+	if templateFileName == "" {
+		templateFileName = stackFileName
+	}
+	stackManifest, err := r.config.NodePoolManifest(nodePool.Profile, templateFileName)
 	if err != nil {
 		return "", err
 	}
-	return renderSingleTemplate(stackManifest, p.cluster, nodePool, values, p.awsAdapter)
+	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter)
+}
+
+// AWSNodePoolProvisioner is a node provisioner able to provision node pools
+// in AWS via cloudformation.
+// TODO: move AWS specific implementation to a separate file/package.
+type AWSNodePoolProvisioner struct {
+	NodePoolTemplateRenderer
+	instanceTypes *awsUtils.InstanceTypes
+	//nodePoolManager updatestrategy.NodePoolManager
+	azInfo          *AZInfo
+	templateContext *templateContext
 }
 
 // Provision provisions node pools of the cluster.
 func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
-	// create S3 bucket if it doesn't exist
-	// the bucket is used for storing the ignition userdata for the node
-	// pools.
-	err := p.awsAdapter.createS3Bucket(p.bucketName)
-	if err != nil {
-		return err
-	}
-
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -123,15 +189,6 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 	return nil
 }
 
-func supportsT2Unlimited(instanceTypes []string) bool {
-	for _, instanceType := range instanceTypes {
-		if !strings.HasPrefix(instanceType, "t2.") {
-			return false
-		}
-	}
-	return true
-}
-
 // provisionNodePool provisions a single node pool.
 func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
@@ -149,7 +206,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolStackTemplate(nodePool, values)
+	template, err := p.generateNodePoolTemplate(nodePool, values, stackFileName)
 	if err != nil {
 		return err
 	}
@@ -195,7 +252,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	// find orphaned by comparing node pool stacks to node pools defined for cluster
-	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.NodePools)
+	orphaned := orphanedNodePoolStacks(nodePoolStacks, p.cluster.ASGBackedPools())
 
 	if len(orphaned) > 0 {
 		p.logger.Infof("Found %d node pool stacks to decommission", len(orphaned))
@@ -219,62 +276,14 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	return nil
 }
 
-// prepareCloudInit prepares the user data by rendering the golang template.
-// It also uploads the dynamically generated files needed for the nodes in the pool
-// A EC2 UserData ready base64 string will be returned.
-func (p *AWSNodePoolProvisioner) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	var (
-		keyName, poolKind string
-	)
-	if nodePool.IsMaster() {
-		keyName = masterFilesKMSKey
-		poolKind = "master"
-	} else {
-		keyName = workerFilesKMSKey
-		poolKind = "worker"
+// supportsT2Unlimited used to configure CPU credits in the CF template if a pool only has t2 instances
+func supportsT2Unlimited(instanceTypes []string) bool {
+	for _, instanceType := range instanceTypes {
+		if !strings.HasPrefix(instanceType, "t2.") {
+			return false
+		}
 	}
-
-	kmsKey, err := getPKIKMSKey(p.awsAdapter, p.cluster.LocalID, keyName)
-	if err != nil {
-		return "", err
-	}
-
-	renderer := &FilesRenderer{
-		awsAdapter: p.awsAdapter,
-		cluster:    p.cluster,
-		config:     p.config,
-		directory:  poolKind,
-		nodePool:   nodePool,
-	}
-
-	s3Path, err := renderer.RenderAndUploadFiles(values, p.bucketName, kmsKey)
-	if err != nil {
-		return "", err
-	}
-
-	p.logger.Debugf("Uploaded generated files to %s", s3Path)
-	values[s3GeneratedFilesPathValuesKey] = s3Path
-
-	cloudInitContents, err := p.config.NodePoolManifest(nodePool.Profile, cloudInitFileName)
-	if err != nil {
-		return "", err
-	}
-	rendered, err := renderSingleTemplate(cloudInitContents, p.cluster, nodePool, values, p.awsAdapter)
-	if err != nil {
-		return "", err
-	}
-	var gzipBuffer bytes.Buffer
-	writer := gzip.NewWriter(&gzipBuffer)
-	defer writer.Close()
-	_, err = writer.Write([]byte(rendered))
-	if err != nil {
-		return "", err
-	}
-	err = writer.Close()
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
+	return true
 }
 
 func generateDataHash(userData []byte) (string, error) {

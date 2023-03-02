@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 	"unicode"
@@ -31,14 +30,7 @@ import (
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 	yaml "gopkg.in/yaml.v2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	metav1unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/restmapper"
 )
 
 const (
@@ -184,7 +176,7 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
-	awsAdapter, updater, nodePoolManager, err := p.prepareProvision(logger, cluster, channelConfig)
+	awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -328,66 +320,49 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// provision node pools
-	nodePoolProvisioner := &AWSNodePoolProvisioner{
-		awsAdapter:      awsAdapter,
-		instanceTypes:   instanceTypes,
-		nodePoolManager: nodePoolManager,
-		bucketName:      bucketName,
-		config:          channelConfig,
-		cluster:         cluster,
-		azInfo:          azInfo,
-		logger:          logger,
+	caNodePoolProvisioner := &AWSNodePoolProvisioner{
+		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
+			awsAdapter:     awsAdapter,
+			config:         channelConfig,
+			cluster:        cluster,
+			bucketName:     bucketName,
+			logger:         logger,
+			encodeUserData: true,
+		},
+		instanceTypes: instanceTypes,
+		azInfo:        azInfo,
 	}
 
 	// group node pools based on their profile e.g. master
 	nodePoolGroups := groupNodePools(
 		logger,
 		cluster,
+		caNodePoolProvisioner,
 	)
 
-	for _, g := range nodePoolGroups {
-		err := nodePoolProvisioner.Provision(ctx, g.NodePools, values)
-		if err != nil {
-			return err
-		}
-
-		// custom function that checks if the node pools are "ready"
-		err = g.ReadyFn()
-		if err != nil {
-			return err
-		}
-
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-
-		if !p.applyOnly {
-			switch cluster.LifecycleStatus {
-			case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
-				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
-			default:
-				// update nodes
-				for _, nodePool := range g.NodePools {
-					err := updater.Update(ctx, nodePool)
-					if err != nil {
-						return err
-					}
-
-					if err = ctx.Err(); err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-
-	// clean up removed node pools
-	err = nodePoolProvisioner.Reconcile(ctx, updater)
+	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
 	}
 
 	if err = ctx.Err(); err != nil {
+		return err
+	}
+	if karpenterProvisioner.isKarpenterEnabled() {
+		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
+	if err != nil {
+		return err
+	}
+
+	// clean up removed node pools
+	err = caNodePoolProvisioner.Reconcile(ctx, updater)
+	if err != nil {
 		return err
 	}
 
@@ -754,26 +729,26 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should
 // be refactored.
-func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, updatestrategy.NodePoolManager, error) {
+func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, error) {
 	if cluster.Provider != providerID {
-		return nil, nil, nil, ErrProviderNotSupported
+		return nil, nil, ErrProviderNotSupported
 	}
 
 	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
 
 	adapter, err := p.setupAWSAdapter(logger, cluster)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
+		return nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
 	err = p.updateDefaults(cluster, channelConfig, adapter)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
+		return nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
 	err = p.decryptConfigItems(cluster)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
+		return nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
 	}
 
 	p.propagateConfigItemsToNodePools(cluster)
@@ -796,7 +771,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// setup updater
@@ -816,7 +791,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		if value, ok := cluster.ConfigItems[setting.key]; ok {
 			parsed, err := time.ParseDuration(value)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
+				return nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
 			}
 			setting.fn(parsed)
 		}
@@ -840,10 +815,10 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	case updateStrategyCLC:
 		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager, clcPollingInterval)
 	default:
-		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
+		return nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
 
-	return adapter, updater, poolManager, nil
+	return adapter, updater, nil
 }
 
 // downscaleDeployments scales down all deployments of a cluster in the
@@ -943,232 +918,28 @@ func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
 	return false
 }
 
-type labels map[string]string
-
-// String returns a string representation of the labels map.
-func (l labels) String() string {
-	labels := make([]string, 0, len(l))
-	for key, val := range l {
-		labels = append(labels, fmt.Sprintf("%s=%s", key, val))
-	}
-	return strings.Join(labels, ",")
-}
-
-// resource defines a minimal definition of a kubernetes resource.
-type resource struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
-	Kind      string `yaml:"kind"`
-	Labels    labels `yaml:"labels"`
-	HasOwner  *bool  `yaml:"has_owner"`
-
-	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#DeleteOptions
-	GracePeriodSeconds *int64                      `yaml:"grace_period_seconds"`
-	PropagationPolicy  *metav1.DeletionPropagation `yaml:"propagation_policy"`
-}
-
-func (r *resource) options() metav1.DeleteOptions {
-	return metav1.DeleteOptions{
-		GracePeriodSeconds: r.GracePeriodSeconds,
-		PropagationPolicy:  r.PropagationPolicy,
-	}
-}
-
-func (r *resource) logFields() log.Fields {
-	fields := log.Fields{
-		"kind": r.Kind,
-	}
-	if r.Namespace != "" {
-		fields["namespace"] = r.Namespace
-	}
-	if len(r.Labels) > 0 {
-		fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
-	}
-	if r.HasOwner != nil {
-		fields["has_owner"] = fmt.Sprintf("%t", *r.HasOwner)
-	}
-	if r.GracePeriodSeconds != nil {
-		fields["grace_period_seconds"] = fmt.Sprintf("%d", *r.GracePeriodSeconds)
-	}
-	if r.PropagationPolicy != nil {
-		fields["propagation_policy"] = *r.PropagationPolicy
-	}
-	return fields
-}
-
 // deletions defines two list of resources to be deleted. One before applying
 // all manifests and one after applying all manifests.
 type deletions struct {
-	PreApply  []*resource `yaml:"pre_apply"`
-	PostApply []*resource `yaml:"post_apply"`
-}
-
-func resolveKind(mapper meta.RESTMapper, kind string) (schema.GroupVersionResource, error) {
-	var gvr schema.GroupVersionResource
-	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(kind)
-
-	if fullySpecifiedGVR != nil {
-		gvr, _ = mapper.ResourceFor(*fullySpecifiedGVR)
-	}
-	if gvr.Empty() {
-		gvr, _ = mapper.ResourceFor(groupResource.WithVersion(""))
-	}
-	if gvr.Empty() {
-		return schema.GroupVersionResource{}, fmt.Errorf("unable to resolve kind %s (use either name or name.version.group)", kind)
-	}
-	return gvr, nil
+	PreApply  []*kubernetes.Resource `yaml:"pre_apply"`
+	PostApply []*kubernetes.Resource `yaml:"post_apply"`
 }
 
 // Deletions deletes the provided kubernetes resources from the cluster.
-func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*resource) error {
-	typedClient, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
+func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*kubernetes.Resource) error {
+	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
 		return err
 	}
-
-	dynamicClient, err := kubernetes.NewDynamicClient(cluster.APIServerURL, p.tokenSource)
-	if err != nil {
-		return err
-	}
-
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(typedClient.Discovery()))
 
 	for _, deletion := range deletions {
-		err := processDeletion(ctx, dynamicClient, mapper, logger, deletion)
+		err := k8sClients.DeleteResource(ctx, logger, deletion)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func listResources(ctx context.Context, iface dynamic.ResourceInterface, deletion *resource) ([]metav1unstructured.Unstructured, error) {
-	items, err := iface.List(ctx, metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: deletion.Labels,
-		}),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if deletion.HasOwner != nil {
-		var result []metav1unstructured.Unstructured
-		for _, item := range items.Items {
-			itemHasOwner := len(item.GetOwnerReferences()) > 0
-			if *deletion.HasOwner == itemHasOwner {
-				result = append(result, item)
-			}
-		}
-		return result, nil
-	}
-	return items.Items, nil
-}
-
-func deleteResource(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string, options metav1.DeleteOptions) error {
-	err := iface.Delete(ctx, name, options)
-	if err != nil && apierrors.IsNotFound(err) {
-		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("unable to delete: %w", err)
-	}
-
-	logger.Infof("%s %s deleted", kind, name)
-	return nil
-}
-
-func processDeletion(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, logger *log.Entry, deletion *resource) error {
-	// Figure out the GVR
-	gvr, err := resolveKind(mapper, deletion.Kind)
-	if err != nil {
-		return err
-	}
-	return performDeletion(ctx, logger, client, gvr, deletion)
-}
-
-func performDeletion(ctx context.Context, logger *log.Entry, client dynamic.Interface, gvr schema.GroupVersionResource, deletion *resource) error {
-	logger = logger.WithFields(deletion.logFields())
-
-	// identify the resource to be deleted either by name or
-	// labels. name AND labels cannot be defined at the same time,
-	// but one of them MUST be defined.
-	if deletion.Name != "" && len(deletion.Labels) > 0 {
-		return fmt.Errorf("only one of 'name' or 'labels' must be specified")
-	}
-
-	if deletion.Name == "" && len(deletion.Labels) == 0 {
-		return fmt.Errorf("either name or labels must be specified to identify a resource")
-	}
-
-	if deletion.HasOwner != nil && len(deletion.Labels) == 0 {
-		return fmt.Errorf("'has_owner' requires 'labels' to be specified")
-	}
-
-	var iface dynamic.ResourceInterface
-	if deletion.Namespace != "" {
-		iface = client.Resource(gvr).Namespace(deletion.Namespace)
-	} else {
-		iface = client.Resource(gvr)
-	}
-	if deletion.Name != "" {
-		err := overrideDeletionProtection(ctx, iface, logger, deletion.Kind, deletion.Name)
-		if err != nil {
-			return err
-		}
-		return deleteResource(ctx, iface, logger, deletion.Kind, deletion.Name, deletion.options())
-	} else if len(deletion.Labels) > 0 {
-		items, err := listResources(ctx, iface, deletion)
-		if err != nil {
-			return err
-		}
-
-		if len(items) == 0 {
-			logger.Infof("No matching %s resources found", deletion.Kind)
-		}
-
-		for _, item := range items {
-			err := overrideDeletionProtection(ctx, iface, logger, deletion.Kind, item.GetName())
-			if err != nil {
-				return err
-			}
-			err = deleteResource(ctx, iface, logger, deletion.Kind, item.GetName(), deletion.options())
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func overrideDeletionProtection(ctx context.Context, iface dynamic.ResourceInterface, logger *log.Entry, kind, name string) error {
-	if kind != "Namespace" {
-		// no annotation needed
-		return nil
-	}
-
-	namespace, err := iface.Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Infof("Skipping delete annotation of %s %s: resource not found", kind, name)
-			return nil
-		}
-		return err
-	}
-
-	annotations := namespace.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-	annotations["zalando.org/delete-date"] = time.Now().Format("2006-01-02")
-	annotations["zalando.org/delete-namespace"] = name
-	namespace.SetAnnotations(annotations)
-
-	_, err = iface.Update(ctx, namespace, metav1.UpdateOptions{})
-	return err
 }
 
 // parseDeletions reads and parses the deletions from the config.
@@ -1290,43 +1061,12 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 		return fmt.Errorf("wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
 	}
 
-	token, err := p.tokenSource.Token()
-	if err != nil {
-		return errors.Wrapf(err, "no valid token")
-	}
-
 	for _, m := range renderedManifests {
 		logger := logger.WithField("module", m.name)
-
-		args := []string{
-			"kubectl",
-			"apply",
-			fmt.Sprintf("--server=%s", cluster.APIServerURL),
-			fmt.Sprintf("--token=%s", token.AccessToken),
-			"-f",
-			"-",
-		}
-
-		newApplyCommand := func() *exec.Cmd {
-			cmd := exec.Command(args[0], args[1:]...)
-			// prevent kubectl to find the in-cluster config
-			cmd.Env = []string{}
-			return cmd
-		}
-
-		if p.dryRun {
-			logger.Debug(newApplyCommand())
-		} else {
-			applyManifest := func() error {
-				cmd := newApplyCommand()
-				cmd.Stdin = strings.NewReader(strings.Join(m.manifests, "---\n"))
-				_, err := p.execManager.Run(ctx, logger, cmd)
-				return err
-			}
-			err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxApplyRetries))
-			if err != nil {
-				return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
-			}
+		kubectlRunner := kubernetes.NewKubeCTLRunner(p.execManager, p.tokenSource, logger, cluster.APIServerURL, maxApplyRetries)
+		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.manifests, "---\n"), p.dryRun)
+		if err != nil {
+			return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
 		}
 	}
 
@@ -1357,7 +1097,14 @@ func int32Value(v *int32) int32 {
 	return 0
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
+type nodePoolGroup struct {
+	NodePools   []*api.NodePool
+	Provisioner NodePoolProvisioner
+	ReadyFn     func() error
+}
+
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
+
 	var masters, workers []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
 		if nodePool.IsMaster() {
@@ -1368,15 +1115,17 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
 		workers = append(workers, nodePool)
 	}
 
-	return []nodePoolGroup{
-		{
-			NodePools: masters,
+	return map[string]*nodePoolGroup{
+		"masters": {
+			NodePools:   masters,
+			Provisioner: caProvisioner,
 			ReadyFn: func() error {
 				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
 			},
 		},
-		{
-			NodePools: workers,
+		"workers": {
+			NodePools:   workers,
+			Provisioner: caProvisioner,
 			ReadyFn: func() error {
 				return nil
 			},
@@ -1384,7 +1133,39 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster) []nodePoolGroup {
 	}
 }
 
-type nodePoolGroup struct {
-	NodePools []*api.NodePool
-	ReadyFn   func() error
+func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map[string]interface{}, updater updatestrategy.UpdateStrategy, cluster *api.Cluster, applyOnly bool) error {
+	err := npg.Provisioner.Provision(ctx, npg.NodePools, values)
+	if err != nil {
+		return err
+	}
+
+	// custom function that checks if the node pools are "ready"
+	err = npg.ReadyFn()
+	if err != nil {
+		return err
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+
+	if !applyOnly {
+		switch cluster.LifecycleStatus {
+		case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
+			log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
+		default:
+			// update nodes
+			for _, nodePool := range npg.NodePools {
+				err := updater.Update(ctx, nodePool)
+				if err != nil {
+					return err
+				}
+
+				if err = ctx.Err(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }

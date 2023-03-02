@@ -174,3 +174,11 @@ func (cluster *Cluster) ChannelOverrides() (map[string]string, error) {
 	}
 	return result, nil
 }
+
+func (cluster *Cluster) ASGBackedPools() []*NodePool {
+	var cp []*NodePool
+	for _, n := range cluster.NodePools {
+		cp = append(cp, n)
+	}
+	return cp
+}
