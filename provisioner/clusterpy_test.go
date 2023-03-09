@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,12 +9,18 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 var (
@@ -259,7 +266,7 @@ func TestPropagateConfigItemsToNodePool(tt *testing.T) {
 }
 
 func TestLabelsString(t *testing.T) {
-	labels := kubernetes.Labels(map[string]string{"key": "value", "foo": "bar"})
+	labels := labels(map[string]string{"key": "value", "foo": "bar"})
 	expected := []string{"key=value,foo=bar", "foo=bar,key=value"}
 	labelStr := labels.String()
 	if labelStr != expected[0] && labelStr != expected[1] {
@@ -315,7 +322,7 @@ func TestParseDeletions(t *testing.T) {
 	gps10 := int64(10)
 	yes, no := true, false
 	expected := &deletions{
-		PreApply: []*kubernetes.Resource{
+		PreApply: []*resource{
 			{Name: "secretary-pre", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-pre", Namespace: "", Kind: "priorityclass"},
 			{Name: "options-pre", Namespace: "kube-system", Kind: "deployment", PropagationPolicy: &orphan},
@@ -323,7 +330,7 @@ func TestParseDeletions(t *testing.T) {
 			{Name: "has-no-owner-pre", HasOwner: &no, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
 			{Name: "require-owner-pre", HasOwner: &yes, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
 		},
-		PostApply: []*kubernetes.Resource{
+		PostApply: []*resource{
 			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
 			{Name: "mate-post", Namespace: "", Kind: "priorityclass"},
 			{Name: "options-post", Namespace: "kube-system", Kind: "deployment", GracePeriodSeconds: &gps10},
@@ -399,6 +406,327 @@ second: 2
 			remarshaled, err := remarshalYAML(tc.source)
 			require.NoError(t, err)
 			require.Equal(t, strings.TrimPrefix(tc.expected, "\n"), remarshaled)
+		})
+	}
+}
+
+const (
+	fakeAPIGroup   = "group"
+	fakeAPIVersion = "version"
+)
+
+func newObject(kind, namespace, name string, labels map[string]string, references []metav1.OwnerReference) *unstructured.Unstructured {
+	u := &unstructured.Unstructured{}
+	u.SetAPIVersion(fakeAPIGroup + "/" + fakeAPIVersion)
+	u.SetKind(kind)
+	u.SetNamespace(namespace)
+	u.SetName(name)
+	u.SetLabels(labels)
+	u.SetOwnerReferences(references)
+	return u
+}
+
+type objectList []runtime.Object
+
+func (ol *objectList) add(kind, namespace, name string, labels map[string]string, controller *unstructured.Unstructured) *unstructured.Unstructured {
+	var refs []metav1.OwnerReference
+	if controller != nil {
+		refs = []metav1.OwnerReference{*metav1.NewControllerRef(controller, controller.GroupVersionKind())}
+	}
+	o := newObject(kind, namespace, name, labels, refs)
+	*ol = append(*ol, o)
+	return o
+}
+
+type clientError struct {
+	matches func(k8stesting.Action) bool
+	err     error
+}
+
+func listAction(resource string) func(k8stesting.Action) bool {
+	return func(action k8stesting.Action) bool {
+		list, ok := action.(k8stesting.ListAction)
+		return ok && list.GetResource().Resource == resource
+	}
+}
+
+func deleteAction(resource, name string) func(k8stesting.Action) bool {
+	return func(action k8stesting.Action) bool {
+		delete, ok := action.(k8stesting.DeleteAction)
+		return ok && delete.GetResource().Resource == resource && delete.GetName() == name
+	}
+}
+
+func TestPerformDeletion(t *testing.T) {
+	kindToResource := map[string]string{
+		"Namespace":  "namespaces",
+		"Deployment": "deployments",
+		"ReplicaSet": "replicasets",
+	}
+	gvrToListKind := map[schema.GroupVersionResource]string{}
+	for kind, resource := range kindToResource {
+		gvrToListKind[schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: resource}] = kind + "List"
+	}
+
+	var objects objectList
+
+	objects.add("Namespace", "", "ns-foo", nil, nil)
+	objects.add("Deployment", "default", "foo", nil, nil)
+	objects.add("Deployment", "ns-foo", "foo", nil, nil)
+
+	fooApp := objects.add("Deployment", "ns-foo", "foo-app", map[string]string{"app": "foo"}, nil)
+	fooAppCom := objects.add("Deployment", "ns-foo", "foo-app-com", map[string]string{"app": "foo", "com": "foo"}, nil)
+	fooAppComEnv := objects.add("Deployment", "ns-foo", "foo-app-com-env", map[string]string{"app": "foo", "com": "foo", "env": "foo"}, nil)
+
+	objects.add("ReplicaSet", "ns-foo", "foo-app-0001", map[string]string{"app": "foo"}, nil)
+	objects.add("ReplicaSet", "ns-foo", "foo-app-0002", map[string]string{"app": "foo"}, fooApp)
+	objects.add("ReplicaSet", "ns-foo", "foo-app-com-0001", map[string]string{"app": "foo", "com": "foo"}, nil)
+	objects.add("ReplicaSet", "ns-foo", "foo-app-com-0002", map[string]string{"app": "foo", "com": "foo"}, fooAppCom)
+	objects.add("ReplicaSet", "ns-foo", "foo-app-com-env-0001", map[string]string{"app": "foo", "com": "foo", "env": "foo"}, nil)
+	objects.add("ReplicaSet", "ns-foo", "foo-app-com-env-0002", map[string]string{"app": "foo", "com": "foo", "env": "foo"}, fooAppComEnv)
+
+	yes, no := true, false
+	i := []struct {
+		name          string
+		deletion      *resource
+		clientErrors  func(state map[string]interface{}) []clientError
+		expectError   string
+		expectDeleted []string
+	}{
+		//
+		// TODO: update client-go version and add metav1.DeleteOptions tests
+		//
+		// Usecases
+		{
+			name: "delete by name in namespace",
+			deletion: &resource{
+				Name:      "foo",
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectDeleted: []string{
+				"/namespaces/default/deployments/foo",
+			},
+		},
+		{
+			name: "delete by name non-namespaced",
+			deletion: &resource{
+				Name: "ns-foo",
+				Kind: "Namespace",
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo",
+			},
+		},
+		{
+			name: "delete by single label",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "foo"},
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app",
+				"/namespaces/ns-foo/deployments/foo-app-com",
+				"/namespaces/ns-foo/deployments/foo-app-com-env",
+			},
+		},
+		{
+			name: "delete by multiple labels",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "foo", "com": "foo"},
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app-com",
+				"/namespaces/ns-foo/deployments/foo-app-com-env",
+			},
+		},
+		{
+			name: "no match by label",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "nomatch"},
+			},
+			expectDeleted: []string{},
+		},
+		{
+			name: "delete replicasets without owner",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "ReplicaSet",
+				Labels:    map[string]string{"app": "foo", "com": "foo"},
+				HasOwner:  &no,
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/replicasets/foo-app-com-0001",
+				"/namespaces/ns-foo/replicasets/foo-app-com-env-0001",
+			},
+		},
+		{
+			name: "delete replicasets with owner",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "ReplicaSet",
+				Labels:    map[string]string{"app": "foo", "com": "foo"},
+				HasOwner:  &yes,
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/replicasets/foo-app-com-0002",
+				"/namespaces/ns-foo/replicasets/foo-app-com-env-0002",
+			},
+		},
+		{
+			name: "delete replicasets regardless owner",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "ReplicaSet",
+				Labels:    map[string]string{"app": "foo", "com": "foo"},
+				HasOwner:  nil,
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/replicasets/foo-app-com-0001",
+				"/namespaces/ns-foo/replicasets/foo-app-com-env-0001",
+				"/namespaces/ns-foo/replicasets/foo-app-com-0002",
+				"/namespaces/ns-foo/replicasets/foo-app-com-env-0002",
+			},
+		},
+		// Errors
+		{
+			name: "both name or labels are specified",
+			deletion: &resource{
+				Name:      "foo",
+				Labels:    map[string]string{"foo": "bar"},
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectError: "only one of 'name' or 'labels' must be specified",
+		},
+		{
+			name: "neither name or labels are specified",
+			deletion: &resource{
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectError: "either name or labels must be specified to identify a resource",
+		},
+		{
+			name: "has_owner without labels",
+			deletion: &resource{
+				Name:      "foo",
+				Namespace: "default",
+				Kind:      "Deployment",
+				HasOwner:  &yes,
+			},
+			expectError: "'has_owner' requires 'labels' to be specified",
+		},
+		{
+			name: "list error",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "foo"},
+			},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: listAction("deployments"),
+						err:     fmt.Errorf("listing deployments failed"),
+					},
+				}
+			},
+			expectError: "listing deployments failed",
+		},
+		{
+			name: "delete error",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "foo"},
+			},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: deleteAction("deployments", "foo-app"),
+						err:     fmt.Errorf("foo-app delete failed"),
+					},
+				}
+			},
+			expectError: "unable to delete: foo-app delete failed",
+		},
+		{
+			name: "skips not found error",
+			deletion: &resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Labels:    map[string]string{"app": "foo"},
+			},
+			clientErrors: func(map[string]interface{}) []clientError {
+				return []clientError{
+					{
+						matches: deleteAction("deployments", "foo-app"),
+						err:     apierrors.NewNotFound(schema.GroupResource{}, "foo-app"),
+					},
+				}
+			},
+			expectDeleted: []string{
+				// skips "/namespaces/ns-foo/deployments/foo-app" due to not found error
+				"/namespaces/ns-foo/deployments/foo-app-com",
+				"/namespaces/ns-foo/deployments/foo-app-com-env",
+			},
+		},
+	}
+	for _, tc := range i {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := log.StandardLogger().WithFields(map[string]interface{}{"testcase": tc.name})
+
+			state := map[string]interface{}{}
+			client := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, objects...)
+			if tc.clientErrors != nil {
+				client.PrependReactor("*", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+					for _, ce := range tc.clientErrors(state) {
+						if ce.matches(action) {
+							return true, nil, ce.err
+						}
+					}
+					return false, nil, nil
+				})
+			}
+
+			gvr := schema.GroupVersionResource{Group: fakeAPIGroup, Version: fakeAPIVersion, Resource: kindToResource[tc.deletion.Kind]}
+
+			err := performDeletion(context.TODO(), logger, client, gvr, tc.deletion)
+			if tc.expectError != "" {
+				assert.EqualError(t, err, tc.expectError)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			var deleted []string
+			for _, action := range client.Actions() {
+				ignore := false
+				if tc.clientErrors != nil {
+					for _, ce := range tc.clientErrors(state) {
+						if ce.matches(action) {
+							ignore = true
+							break
+						}
+					}
+				}
+
+				if action, ok := action.(k8stesting.DeleteAction); ok && !ignore && action.GetVerb() == "delete" {
+					fqn := "/"
+					if action.GetNamespace() != "" {
+						fqn += "namespaces/" + action.GetNamespace() + "/"
+					}
+					fqn += action.GetResource().Resource + "/" + action.GetName()
+
+					deleted = append(deleted, fqn)
+				}
+			}
+			assert.ElementsMatch(t, tc.expectDeleted, deleted)
 		})
 	}
 }
