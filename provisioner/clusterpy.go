@@ -55,6 +55,7 @@ const (
 	configKeyUpdateStrategy            = "update_strategy"
 	updateStrategyRolling              = "rolling"
 	updateStrategyCLC                  = "clc"
+	configKeyUpdateApplyOnly           = "update_apply_only"
 	defaultMaxRetryTime                = 5 * time.Minute
 	clcPollingInterval                 = 10 * time.Second
 	clusterStackOutputKey              = "ClusterStackOutputs"
@@ -353,7 +354,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			return err
 		}
 
-		if !p.applyOnly {
+		if !p.onlyApplyManifests(cluster) {
 			switch cluster.LifecycleStatus {
 			case models.ClusterLifecycleStatusRequested, models.ClusterUpdateLifecycleStatusCreating:
 				log.Warnf("New cluster (%s), skipping node pool update", cluster.LifecycleStatus)
@@ -384,6 +385,13 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	return p.apply(ctx, logger, cluster, deletions, manifests)
+}
+
+// onlyApplyManifests returns true if rolling nodes should be skipped and only manifests should be updated.
+// This can be enabled either globally by running CLM with the flag `--apply-only` or per cluster by setting
+// the config item `update_apply_only: "true"`.
+func (p *clusterpyProvisioner) onlyApplyManifests(cluster *api.Cluster) bool {
+	return p.applyOnly || cluster.ConfigItems[configKeyUpdateApplyOnly] == "true"
 }
 
 func createOrUpdateEtcdStack(
