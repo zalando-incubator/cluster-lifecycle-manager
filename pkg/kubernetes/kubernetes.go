@@ -67,6 +67,7 @@ type Resource struct {
 	Name      string `yaml:"name"`
 	Namespace string `yaml:"namespace"`
 	Kind      string `yaml:"kind"`
+	Selector  string `yaml:"selector"`
 	Labels    Labels `yaml:"labels"`
 	HasOwner  *bool  `yaml:"has_owner"`
 
@@ -82,6 +83,13 @@ func (r *Resource) Options() metav1.DeleteOptions {
 	}
 }
 
+func (r *Resource) LabelSelector() string {
+	if r.Selector != "" {
+		return r.Selector
+	}
+	return metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
+}
+
 func (r *Resource) LogFields() logrus.Fields {
 	fields := logrus.Fields{
 		"kind": r.Kind,
@@ -89,9 +97,9 @@ func (r *Resource) LogFields() logrus.Fields {
 	if r.Namespace != "" {
 		fields["namespace"] = r.Namespace
 	}
-	if len(r.Labels) > 0 {
-		fields["selector"] = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: r.Labels})
-	}
+
+	fields["selector"] = r.LabelSelector()
+
 	if r.HasOwner != nil {
 		fields["has_owner"] = fmt.Sprintf("%t", *r.HasOwner)
 	}
@@ -250,19 +258,27 @@ func (c *ClientsCollection) deleteIfFound(ctx context.Context, logger *logrus.En
 func (c *ClientsCollection) DeleteResource(ctx context.Context, logger *logrus.Entry, deletion *Resource) error {
 	logger = logger.WithFields(deletion.LogFields())
 
-	// identify the resource to be deleted either by name or
-	// labels. name AND labels cannot be defined at the same time,
-	// but one of them MUST be defined.
-	if deletion.Name != "" && len(deletion.Labels) > 0 {
-		return fmt.Errorf("only one of 'name' or 'labels' must be specified")
+	// identify the resource to be deleted either by name, selector or labels.
+	// Only one of them must be defined.
+	resourceIdentifiers := 0
+	if deletion.Name != "" {
+		resourceIdentifiers++
+	}
+	if deletion.Selector != "" {
+		resourceIdentifiers++
+	}
+	if len(deletion.Labels) > 0 {
+		resourceIdentifiers++
 	}
 
-	if deletion.Name == "" && len(deletion.Labels) == 0 {
-		return fmt.Errorf("either name or labels must be specified to identify a resource")
+	if resourceIdentifiers == 0 {
+		return fmt.Errorf("either 'name', 'selector' or 'labels' must be specified to identify a resource")
+	} else if resourceIdentifiers > 1 {
+		return fmt.Errorf("only one of 'name', 'selector' or 'labels' must be specified to identify a resource")
 	}
 
-	if deletion.HasOwner != nil && len(deletion.Labels) == 0 {
-		return fmt.Errorf("'has_owner' requires 'labels' to be specified")
+	if deletion.HasOwner != nil && deletion.Selector == "" && len(deletion.Labels) == 0 {
+		return fmt.Errorf("'has_owner' requires 'selector' or 'labels' to be specified")
 	}
 
 	if deletion.Name != "" {
@@ -271,25 +287,25 @@ func (c *ClientsCollection) DeleteResource(ctx context.Context, logger *logrus.E
 			return err
 		}
 		return c.deleteIfFound(ctx, logger, deletion.Kind, deletion.Namespace, deletion.Name, deletion.Options())
-	} else if len(deletion.Labels) > 0 {
-		items, err := c.ListResources(ctx, deletion)
+	}
+
+	items, err := c.ListResources(ctx, deletion)
+	if err != nil {
+		return err
+	}
+
+	if len(items) == 0 {
+		logger.Infof("No matching %s resources found", deletion.Kind)
+	}
+
+	for _, item := range items {
+		err := c.overrideDeletionProtection(ctx, logger, deletion.Kind, deletion.Namespace, deletion.Name)
 		if err != nil {
 			return err
 		}
-
-		if len(items) == 0 {
-			logger.Infof("No matching %s resources found", deletion.Kind)
-		}
-
-		for _, item := range items {
-			err := c.overrideDeletionProtection(ctx, logger, deletion.Kind, deletion.Namespace, deletion.Name)
-			if err != nil {
-				return err
-			}
-			err = c.deleteIfFound(ctx, logger, deletion.Kind, item.GetNamespace(), item.GetName(), deletion.Options())
-			if err != nil {
-				return err
-			}
+		err = c.deleteIfFound(ctx, logger, deletion.Kind, item.GetNamespace(), item.GetName(), deletion.Options())
+		if err != nil {
+			return err
 		}
 	}
 
@@ -297,11 +313,7 @@ func (c *ClientsCollection) DeleteResource(ctx context.Context, logger *logrus.E
 }
 
 func (c *ClientsCollection) ListResources(ctx context.Context, rsrc *Resource) ([]unstructured.Unstructured, error) {
-	items, err := c.List(ctx, rsrc.Kind, rsrc.Namespace, metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: rsrc.Labels,
-		}),
-	})
+	items, err := c.List(ctx, rsrc.Kind, rsrc.Namespace, metav1.ListOptions{LabelSelector: rsrc.LabelSelector()})
 	if err != nil {
 		return nil, err
 	}

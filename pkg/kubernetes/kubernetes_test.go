@@ -197,6 +197,64 @@ func TestPerformDeletion(t *testing.T) {
 			expectDeleted: []string{},
 		},
 		{
+			name: "delete by selector (single label)",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Selector:  "app=foo",
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app",
+				"/namespaces/ns-foo/deployments/foo-app-com",
+				"/namespaces/ns-foo/deployments/foo-app-com-env",
+			},
+		},
+		{
+			name: "delete by selector (multiple labels)",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Selector:  "app=foo,com=foo",
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app-com",
+				"/namespaces/ns-foo/deployments/foo-app-com-env",
+			},
+		},
+		{
+			name: "delete by selector (label not equal)",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Selector:  "app=foo, env != foo",
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app",
+				"/namespaces/ns-foo/deployments/foo-app-com",
+			},
+		},
+		{
+			name: "delete by selector (label not in)",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Selector:  "app=foo, env notin (foo, bar)",
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/deployments/foo-app",
+				"/namespaces/ns-foo/deployments/foo-app-com",
+			},
+		},
+		{
+			name: "delete by selector (no match)",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "Deployment",
+				Selector:  "app=nomatch",
+			},
+			expectDeleted: []string{},
+		},
+		{
 			name: "delete replicasets without owner",
 			deletion: &Resource{
 				Namespace: "ns-foo",
@@ -210,11 +268,24 @@ func TestPerformDeletion(t *testing.T) {
 			},
 		},
 		{
-			name: "delete replicasets with owner",
+			name: "delete replicasets with owner and labels",
 			deletion: &Resource{
 				Namespace: "ns-foo",
 				Kind:      "ReplicaSet",
 				Labels:    map[string]string{"app": "foo", "com": "foo"},
+				HasOwner:  &yes,
+			},
+			expectDeleted: []string{
+				"/namespaces/ns-foo/replicasets/foo-app-com-0002",
+				"/namespaces/ns-foo/replicasets/foo-app-com-env-0002",
+			},
+		},
+		{
+			name: "delete replicasets with owner and selector",
+			deletion: &Resource{
+				Namespace: "ns-foo",
+				Kind:      "ReplicaSet",
+				Selector:  "app=foo,com=foo",
 				HasOwner:  &yes,
 			},
 			expectDeleted: []string{
@@ -239,32 +310,63 @@ func TestPerformDeletion(t *testing.T) {
 		},
 		// Errors
 		{
-			name: "both name or labels are specified",
+			name: "all of name, selector and labels are specified",
+			deletion: &Resource{
+				Name:      "foo",
+				Labels:    map[string]string{"foo": "bar"},
+				Selector:  "foo=bar",
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectError: "only one of 'name', 'selector' or 'labels' must be specified to identify a resource",
+		},
+		{
+			name: "both name and labels are specified",
 			deletion: &Resource{
 				Name:      "foo",
 				Labels:    map[string]string{"foo": "bar"},
 				Namespace: "default",
 				Kind:      "Deployment",
 			},
-			expectError: "only one of 'name' or 'labels' must be specified",
+			expectError: "only one of 'name', 'selector' or 'labels' must be specified to identify a resource",
 		},
 		{
-			name: "neither name or labels are specified",
+			name: "both name and selector are specified",
+			deletion: &Resource{
+				Name:      "foo",
+				Selector:  "foo=bar",
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectError: "only one of 'name', 'selector' or 'labels' must be specified to identify a resource",
+		},
+		{
+			name: "both selector and labels are specified",
+			deletion: &Resource{
+				Labels:    map[string]string{"foo": "bar"},
+				Selector:  "foo=bar",
+				Namespace: "default",
+				Kind:      "Deployment",
+			},
+			expectError: "only one of 'name', 'selector' or 'labels' must be specified to identify a resource",
+		},
+		{
+			name: "none of name, selector or labels are specified",
 			deletion: &Resource{
 				Namespace: "default",
 				Kind:      "Deployment",
 			},
-			expectError: "either name or labels must be specified to identify a resource",
+			expectError: "either 'name', 'selector' or 'labels' must be specified to identify a resource",
 		},
 		{
-			name: "has_owner without labels",
+			name: "has_owner without selector or labels",
 			deletion: &Resource{
 				Name:      "foo",
 				Namespace: "default",
 				Kind:      "Deployment",
 				HasOwner:  &yes,
 			},
-			expectError: "'has_owner' requires 'labels' to be specified",
+			expectError: "'has_owner' requires 'selector' or 'labels' to be specified",
 		},
 		{
 			name: "list error",

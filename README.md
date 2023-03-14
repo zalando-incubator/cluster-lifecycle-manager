@@ -140,6 +140,9 @@ pre_apply: # everything defined under here will be deleted before applying the m
   labels:
     foo: bar
   has_owner: false
+- namespace: kube-system
+  kind: deployment
+  selector: version != v1
 post_apply: # everything defined under here will be deleted after applying the manifests
 - namespace: kube-system
   kind: deployment
@@ -152,8 +155,9 @@ Whatever is defined in this file will be deleted pre/post applying the other
 manifest files, if the resource exists. If the resource has already been
 deleted previously it's treated as a no-op.
 
-A resource can be identified either by `name` or `labels`.
-It is an error if both or none of them are defined.
+A resource can be identified either by `name`,
+[`selector`](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) or
+`labels` and only one of them should be defined.
 
 `namespace` can be left out, in which case it will default to `kube-system`.
 
