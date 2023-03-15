@@ -99,10 +99,15 @@ func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodeP
 // returns the transformed template or an error if not successful
 func renderTemplate(context *templateContext, file string) (string, error) {
 	funcMap := template.FuncMap{
-		"getAWSAccountID":      getAWSAccountID,
-		"base64":               base64Encode,
-		"base64Decode":         base64Decode,
-		"manifestHash":         func(template string) (string, error) { return manifestHash(context, file, template) },
+		"getAWSAccountID": getAWSAccountID,
+		"base64":          base64Encode,
+		"base64Decode":    base64Decode,
+		"manifestHash": func(template string) (string, error) {
+			return manifestHash(context, file, template)
+		},
+		"sha256": func(value string) (string, error) {
+			return fmt.Sprintf("%x", sha256.Sum256([]byte(value))), nil
+		},
 		"asgSize":              asgSize,
 		"azID":                 azID,
 		"azCount":              azCount,

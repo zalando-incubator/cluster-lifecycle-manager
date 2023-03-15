@@ -104,6 +104,16 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSha256(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ printf "%.32s" (.Values.data | sha256) }}`,
+		"hello")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "2cf24dba5fb0a30e26e83b2ac5b9e29e", result)
+}
+
 func TestASGSize(t *testing.T) {
 	result, err := renderSingle(
 		t,
