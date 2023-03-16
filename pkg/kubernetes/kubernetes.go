@@ -10,8 +10,10 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -401,4 +403,36 @@ func (k *KubeCTLRunner) KubectlExecute(ctx context.Context, args []string, stdin
 		return "", err
 	}
 	return output, nil
+}
+
+func ParseTaint(taintSpec string) (*v1.Taint, error) {
+	var taint v1.Taint
+	allowedTaints := []v1.TaintEffect{
+		v1.TaintEffectNoSchedule, v1.TaintEffectNoExecute, v1.TaintEffectPreferNoSchedule,
+	}
+	parts := strings.Split(taintSpec, ":")
+	switch len(parts) {
+	case 1:
+		taint.Key = parts[0]
+		if strings.Contains(taint.Key, "=") {
+			return nil, fmt.Errorf("invalid taint spec: %v", taintSpec)
+		}
+	case 2:
+		taint.Effect = v1.TaintEffect(parts[1])
+		if !util.Contains(allowedTaints, taint.Effect) {
+			return nil, fmt.Errorf("invalid taint spec: %v", taintSpec)
+		}
+		partsKV := strings.Split(parts[0], "=")
+		if len(partsKV) > 2 {
+			return nil, fmt.Errorf("invalid taint spec: %v", taintSpec)
+		}
+		taint.Key = partsKV[0]
+		if len(partsKV) == 2 {
+			taint.Value = partsKV[1]
+		}
+	default:
+		return nil, fmt.Errorf("invalid taint spec: %v", taintSpec)
+	}
+
+	return &taint, nil
 }

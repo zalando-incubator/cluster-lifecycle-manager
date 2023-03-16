@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -373,6 +373,31 @@ func TestPerformDeletion(t *testing.T) {
 				}
 			}
 			assert.ElementsMatch(t, tc.expectDeleted, deleted)
+		})
+	}
+}
+
+func TestParseTaint(t *testing.T) {
+	testCases := []struct {
+		title          string
+		input          string
+		expectedOutput *corev1.Taint
+		expectError    bool
+	}{
+		{title: "taint with key, value, and effect", input: "dedicated=test:NoSchedule", expectedOutput: &corev1.Taint{Key: "dedicated", Value: "test", Effect: "NoSchedule"}, expectError: false},
+		{title: "taint with key and effect", input: "example:NoSchedule", expectedOutput: &corev1.Taint{Key: "example", Value: "", Effect: "NoSchedule"}, expectError: false},
+		{title: "taint with only key", input: "dedicated", expectedOutput: &corev1.Taint{Key: "dedicated", Value: "", Effect: ""}, expectError: false},
+		{title: "taint with key and value", input: "dedicated=test", expectedOutput: nil, expectError: true},
+		{title: "taint with invalid effect", input: "dedicated:foo=NoSchedule", expectedOutput: nil, expectError: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.title, func(t *testing.T) {
+			taint, err := ParseTaint(tc.input)
+			if tc.expectError != (err != nil) {
+				assert.Fail(t, "testcase error state does not match expectations")
+			}
+			assert.Equal(t, tc.expectedOutput, taint)
 		})
 	}
 }

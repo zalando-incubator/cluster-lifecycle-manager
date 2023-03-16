@@ -2,6 +2,9 @@ package api
 
 import (
 	"strings"
+
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NodePool describes a node pool in a kubernetes cluster.
@@ -24,4 +27,19 @@ func (np NodePool) IsSpot() bool {
 
 func (np NodePool) IsMaster() bool {
 	return strings.Contains(np.Profile, "master")
+}
+
+func (np NodePool) Taints() []*corev1.Taint {
+	conf, exist := np.ConfigItems["taints"]
+	if !exist {
+		return nil
+	}
+	var taints []*corev1.Taint
+	for _, t := range strings.Split(conf, ",") {
+		taint, err := kubernetes.ParseTaint(t)
+		if err == nil {
+			taints = append(taints, taint)
+		}
+	}
+	return taints
 }
