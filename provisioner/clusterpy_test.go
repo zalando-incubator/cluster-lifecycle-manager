@@ -68,6 +68,13 @@ pre_apply:
     baz: qux
   has_owner: true
 `
+
+	deletionsContent4 = `
+pre_apply:
+- namespace: kube-system
+  kind: Deployment
+  selector: version != v1
+`
 )
 
 func TestGetInfrastructureID(t *testing.T) {
@@ -249,7 +256,7 @@ func TestPropagateConfigItemsToNodePool(tt *testing.T) {
 	} {
 		cluster := &api.Cluster{
 			ConfigItems: tc.cluster,
-			NodePools:   []*api.NodePool{&api.NodePool{ConfigItems: tc.nodePool}},
+			NodePools:   []*api.NodePool{{ConfigItems: tc.nodePool}},
 		}
 
 		p := clusterpyProvisioner{}
@@ -305,6 +312,7 @@ func TestParseDeletions(t *testing.T) {
 			{Path: "deletions.yaml", Contents: []byte(deletionsContent)},
 			{Path: "deletions.yaml", Contents: []byte(deletionsContent2)},
 			{Path: "deletions.yaml", Contents: []byte(deletionsContent3)},
+			{Path: "deletions.yaml", Contents: []byte(deletionsContent4)},
 		},
 	}
 
@@ -322,6 +330,7 @@ func TestParseDeletions(t *testing.T) {
 			{Name: "foobar-pre", Namespace: "templated", Kind: "deployment"},
 			{Name: "has-no-owner-pre", HasOwner: &no, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
 			{Name: "require-owner-pre", HasOwner: &yes, Namespace: "kube-system", Kind: "ReplicaSet", Labels: map[string]string{"foo": "bar", "baz": "qux"}},
+			{Namespace: "kube-system", Kind: "Deployment", Selector: "version != v1"},
 		},
 		PostApply: []*kubernetes.Resource{
 			{Name: "secretary-post", Namespace: "kube-system", Kind: "deployment"},
