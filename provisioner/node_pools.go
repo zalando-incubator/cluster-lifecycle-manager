@@ -155,16 +155,6 @@ func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(nodePool *api.NodePo
 	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter)
 }
 
-// AWSNodePoolProvisioner is a node provisioner able to provision node pools
-// in AWS via cloudformation.
-// TODO: move AWS specific implementation to a separate file/package.
-type AWSNodePoolProvisioner struct {
-	NodePoolTemplateRenderer
-	instanceTypes   *awsUtils.InstanceTypes
-	azInfo          *AZInfo
-	templateContext *templateContext
-}
-
 type KarpenterNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
 	*kubernetes.KubeCTLRunner
@@ -242,31 +232,41 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 	return false
 }
 
-func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
+func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 	if !p.isKarpenterEnabled() {
 		// skip
 		return nil
 	}
 
-	existingProvisioners, err := p.k8sClients.List(ctx, karpenterProvisionerResource, "default", metav1.ListOptions{})
+	existingProvisioners, err := p.k8sClients.List(ctx, karpenterProvisionerResource, "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, pr := range existingProvisioners.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err := p.k8sClients.Delete(ctx, karpenterProvisionerResource, "default", pr.GetName(), metav1.DeleteOptions{})
+			err := p.k8sClients.Delete(ctx, karpenterProvisionerResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
-			err = p.k8sClients.Delete(ctx, karpenterAWSNodeTemplateResource, "default", pr.GetName(), metav1.DeleteOptions{})
+			err = p.k8sClients.Delete(ctx, karpenterAWSNodeTemplateResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// AWSNodePoolProvisioner is a node provisioner able to provision node pools
+// in AWS via cloudformation.
+// TODO: move AWS specific implementation to a separate file/package.
+type AWSNodePoolProvisioner struct {
+	NodePoolTemplateRenderer
+	instanceTypes   *awsUtils.InstanceTypes
+	azInfo          *AZInfo
+	templateContext *templateContext
 }
 
 // Provision provisions node pools of the cluster.
@@ -455,4 +455,44 @@ func nodePoolStackToNodePool(stack *cloudformation.Stack) *api.NodePool {
 		}
 	}
 	return nodePool
+}
+
+func KarpenterNodePoolConfigGetter(kubeClient *kubernetes.ClientsCollection) updatestrategy.NodePoolConfigGetter {
+	return func(nodePool *api.NodePool) (*updatestrategy.InstanceConfig, error) {
+		provisionerResource, err := kubeClient.Get(context.TODO(), karpenterProvisionerResource, "", nodePool.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		spec, ok := provisionerResource.Object["spec"]
+		if !ok {
+			return nil, errors.New("")
+		}
+		providerRefSpec := spec.(map[string]interface{})["providerRef"]
+		if providerRefSpec == nil {
+			return nil, nil
+		}
+		providerRef := providerRefSpec.(map[string]interface{})["name"]
+		if providerRefSpec == nil {
+			return nil, nil
+		}
+
+		nodeTemplateResource, err := kubeClient.Get(context.TODO(), karpenterAWSNodeTemplateResource, "", providerRef.(string), metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		spec, ok = nodeTemplateResource.Object["spec"]
+		if !ok {
+			return nil, errors.New("")
+		}
+		tags := make(map[string]string)
+		for k, v := range spec.(map[string]interface{})["tags"].(map[string]interface{}) {
+			tags[k] = v.(string)
+		}
+		return &updatestrategy.InstanceConfig{
+			UserData: base64.StdEncoding.EncodeToString([]byte(spec.(map[string]interface{})["userData"].(string))),
+			ImageID:  spec.(map[string]interface{})["amiSelector"].(map[string]interface{})["aws-ids"].(string),
+			Tags:     tags,
+		}, nil
+	}
 }

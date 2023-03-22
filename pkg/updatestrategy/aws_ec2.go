@@ -3,6 +3,7 @@ package updatestrategy
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -10,22 +11,72 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 
-// EC2NodePoolBackend defines a node pool consiting of EC2 instances
+type InstanceConfig struct {
+	UserData string
+	ImageID  string
+	Tags     map[string]string
+	// TODO: Karpenter supports more parameters https://karpenter.sh/preview/concepts/node-templates/
+}
+
+// InstanceConfigUpToDate compares current and desired InstanceConfig. It compares
+// userdata, imageID and checks if the current config has all the desired tags.
+// It does NOT check if the current config has too many EC2 tags as many tags are
+// injected out of our control. This means removing a tag is not enough to
+// make the configs unequal.
+func InstanceConfigUpToDate(instanceConfig, poolConfig *InstanceConfig) bool {
+	if instanceConfig.UserData != poolConfig.UserData {
+		return false
+	}
+
+	if !util.Contains(strings.Split(poolConfig.ImageID, ","), instanceConfig.ImageID) {
+		return false
+	}
+
+	for k, v := range poolConfig.Tags {
+		if instanceValue, ok := instanceConfig.Tags[k]; !ok || v != instanceValue {
+			return false
+		}
+	}
+	return true
+}
+
+type Option func(b *EC2NodePoolBackend)
+
+type NodePoolConfigGetter func(nodePool *api.NodePool) (*InstanceConfig, error)
+
+func NoopNodePoolConfigGetter(*api.NodePool) (*InstanceConfig, error) {
+	return nil, nil
+}
+
+func WithConfigGetter(g NodePoolConfigGetter) Option {
+	return func(b *EC2NodePoolBackend) {
+		b.configGetter = g
+	}
+}
+
+// EC2NodePoolBackend defines a node pool consisting of EC2 instances
 // managed externally by some component e.g. Karpenter.
 type EC2NodePoolBackend struct {
-	ec2Client ec2iface.EC2API
-	clusterID string
+	ec2Client    ec2iface.EC2API
+	clusterID    string
+	configGetter NodePoolConfigGetter
 }
 
 // NewEC2NodePoolBackend initializes a new EC2NodePoolBackend for
 // the given clusterID and AWS session and.
-func NewEC2NodePoolBackend(clusterID string, sess *session.Session) *EC2NodePoolBackend {
-	return &EC2NodePoolBackend{
-		ec2Client: ec2.New(sess),
-		clusterID: clusterID,
+func NewEC2NodePoolBackend(clusterID string, sess *session.Session, opts ...Option) *EC2NodePoolBackend {
+	b := &EC2NodePoolBackend{
+		ec2Client:    ec2.New(sess),
+		clusterID:    clusterID,
+		configGetter: NoopNodePoolConfigGetter,
 	}
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
 }
 
 // Get gets the EC2 instances matching to the node pool by looking at node pool
@@ -40,12 +91,27 @@ func (n *EC2NodePoolBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 	}
 
 	nodes := make([]*Node, 0)
+	nodePoolConfig, err := n.configGetter(nodePool)
+	if err != nil {
+		return nil, err
+	}
 	for _, instance := range instances {
 		instanceID := aws.StringValue(instance.InstanceId)
+
+		instanceConfig, err := n.getInstanceConfig(instance)
+		if err != nil {
+			return nil, err
+		}
+		generation := currentNodeGeneration
+
+		if !InstanceConfigUpToDate(instanceConfig, nodePoolConfig) {
+			generation = outdatedNodeGeneration
+		}
+
 		node := &Node{
 			ProviderID:    fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), instanceID),
 			FailureDomain: aws.StringValue(instance.Placement.AvailabilityZone),
-			Generation:    currentNodeGeneration,
+			Generation:    generation,
 			// not used in clc logic
 			// Ready: true,
 		}
@@ -99,44 +165,38 @@ func (n *EC2NodePoolBackend) getInstances(nodePool *api.NodePool) ([]*ec2.Instan
 	return instances, nil
 }
 
-type InstanceConfig struct {
-	UserData string
-	ImageID  string
-	Tags     map[string]string
+func (n *EC2NodePoolBackend) getInstanceConfig(i *ec2.Instance) (*InstanceConfig, error) {
+	// note: this make an extra http call to aws api for each node
+	tags := make(map[string]string, len(i.Tags))
+	for _, tag := range i.Tags {
+		tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
+	}
+	config := InstanceConfig{
+		ImageID: aws.StringValue(i.ImageId),
+		Tags:    tags,
+	}
+	params := &ec2.DescribeInstanceAttributeInput{
+		Attribute:  aws.String("userData"),
+		DryRun:     aws.Bool(false),
+		InstanceId: i.InstanceId,
+	}
+	op, err := n.ec2Client.DescribeInstanceAttributeWithContext(context.TODO(), params)
+	if err != nil {
+		return nil, err
+	}
+	config.UserData = aws.StringValue(op.UserData.Value)
+	return &config, nil
 }
 
-// instanceConfigEqual compares current and desired InstanceConfig. It compares
-// userdata, imageID and checks if the current config has all the desired tags.
-// It does NOT check if the current config has too many EC2 tags as many tags are
-// injected out of our control. This means removing a tag is not enough to
-// make the configs unequal.
-func instanceConfigEqual(current, desired *InstanceConfig) bool {
-	if current.UserData != desired.UserData {
-		return false
-	}
-
-	if current.ImageID != desired.ImageID {
-		return false
-	}
-
-	// TODO: explain
-	for k, v := range desired.Tags {
-		if currentValue, ok := current.Tags[k]; !ok || v != currentValue {
-			return false
-		}
-	}
-	return true
-}
-
-func (n *EC2NodePoolBackend) MarkForDecommission(nodePool *api.NodePool) error {
+func (n *EC2NodePoolBackend) MarkForDecommission(*api.NodePool) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Scale(nodePool *api.NodePool, replicas int) error {
+func (n *EC2NodePoolBackend) Scale(*api.NodePool, int) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Terminate(node *Node, decrementDesired bool) error {
+func (n *EC2NodePoolBackend) Terminate(*Node, bool) error {
 	return nil
 }
 

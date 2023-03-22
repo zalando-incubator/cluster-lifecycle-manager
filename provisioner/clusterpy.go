@@ -361,10 +361,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	//if err = ctx.Err(); err != nil {
-	//	return err
-	//}
-
 	if karpenterProvisioner.isKarpenterEnabled() {
 		err = p.apply(ctx, logger, cluster, deletions, manifests)
 		if err != nil {
@@ -391,9 +387,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	//if err = ctx.Err(); err != nil {
-	//	return err
-	//}
 	if !karpenterProvisioner.isKarpenterEnabled() {
 		err = p.apply(ctx, logger, cluster, deletions, manifests)
 		if err != nil {
@@ -633,13 +626,13 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	if err != nil {
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
-
+	karpenterNodePoolBackend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
 	for _, nodePool := range cluster.NodePools {
 		if nodePool.Profile == karpenterNodePoolProfile {
 			logger.Infof("Decommissioning Node Pool: %s (profile: %s)", nodePool.Name, nodePool.Profile)
-			nodePoolBackend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
-			err := nodePoolBackend.Decommission(ctx, nodePool)
+
+			err := karpenterNodePoolBackend.Decommission(ctx, nodePool)
 			if err != nil {
 				return err
 			}
@@ -773,8 +766,7 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 
 // prepareProvision checks that a cluster can be handled by the provisioner and
 // prepares to provision a cluster by initializing the aws adapter.
-// TODO: this is doing a lot of things to glue everything together, this should
-// be refactored.
+// TODO: this is doing a lot of things to glue everything together, this should be refactored.
 func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, error) {
 	if cluster.Provider != providerID {
 		return nil, nil, ErrProviderNotSupported
@@ -847,9 +839,12 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
-
+	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return nil, nil, err
+	}
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, updatestrategy.WithConfigGetter(KarpenterNodePoolConfigGetter(k8sClients))),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
