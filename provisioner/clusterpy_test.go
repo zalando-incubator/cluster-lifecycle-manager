@@ -278,15 +278,15 @@ type mockConfig struct {
 	deletions []channel.Manifest
 }
 
-func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) StackManifest(_ string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: StackManifest")
 }
 
-func (c *mockConfig) EtcdManifest(manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) EtcdManifest(_ string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: EtcdManifest")
 }
 
-func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) NodePoolManifest(_ string, _ string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: NodePoolManifest")
 }
 

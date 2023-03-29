@@ -41,15 +41,15 @@ type mockProviderNodePoolsBackend struct {
 	nodePool *NodePool
 }
 
-func (n *mockProviderNodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
+func (n *mockProviderNodePoolsBackend) Get(_ *api.NodePool) (*NodePool, error) {
 	return n.nodePool, n.err
 }
 
-func (n *mockProviderNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error {
+func (n *mockProviderNodePoolsBackend) Scale(_ *api.NodePool, _ int) error {
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
+func (n *mockProviderNodePoolsBackend) Terminate(node *Node, _ bool) error {
 	newNodes := make([]*Node, 0, len(n.nodePool.Nodes))
 	for _, n := range n.nodePool.Nodes {
 		if n.Name != node.Name {
@@ -62,11 +62,11 @@ func (n *mockProviderNodePoolsBackend) Terminate(node *Node, decrementDesired bo
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) UpdateSize(nodePool *api.NodePool) error {
+func (n *mockProviderNodePoolsBackend) UpdateSize(_ *api.NodePool) error {
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
+func (n *mockProviderNodePoolsBackend) MarkForDecommission(_ *api.NodePool) error {
 	return n.err
 }
 

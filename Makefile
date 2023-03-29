@@ -27,7 +27,7 @@ test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
 
 lint: $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
 	$(GO) mod download
-	golangci-lint -v run --timeout=10m ./...
+	golangci-lint -v run ./...
 
 fmt:
 	$(GO) fmt $(GOPKGS)

@@ -28,7 +28,7 @@ func removePod(ctx context.Context, client kubernetes.Interface, pod v1.Pod) err
 	return nil
 }
 
-func evictPodFailPDB(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+func evictPodFailPDB(_ context.Context, _ kubernetes.Interface, _ *log.Entry, _ v1.Pod) error {
 	return &errors.StatusError{
 		ErrStatus: metav1.Status{
 			Code: http.StatusTooManyRequests,

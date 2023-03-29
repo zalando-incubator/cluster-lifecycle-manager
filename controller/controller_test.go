@@ -30,35 +30,35 @@ func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == mockProvider
 }
 
-func (p *mockProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
+func (p *mockProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
 	return nil
 }
 
-func (p *mockProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
+func (p *mockProvisioner) Decommission(_ context.Context, _ *log.Entry, _ *api.Cluster) error {
 	return nil
 }
 
 type mockErrProvisioner mockProvisioner
 
-func (p *mockErrProvisioner) Supports(cluster *api.Cluster) bool {
+func (p *mockErrProvisioner) Supports(_ *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
+func (p *mockErrProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
-func (p *mockErrProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
+func (p *mockErrProvisioner) Decommission(_ context.Context, _ *log.Entry, _ *api.Cluster) error {
 	return fmt.Errorf("failed to decommission")
 }
 
 type mockErrCreateProvisioner struct{ *mockProvisioner }
 
-func (p *mockErrCreateProvisioner) Supports(cluster *api.Cluster) bool {
+func (p *mockErrCreateProvisioner) Supports(_ *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrCreateProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, config channel.Config) error {
+func (p *mockErrCreateProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -82,7 +82,7 @@ func createMockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mock
 	return &mockRegistry{theCluster: cluster}
 }
 
-func (r *mockRegistry) ListClusters(filter registry.Filter) ([]*api.Cluster, error) {
+func (r *mockRegistry) ListClusters(_ registry.Filter) ([]*api.Cluster, error) {
 	return []*api.Cluster{r.theCluster}, nil
 }
 func (r *mockRegistry) UpdateCluster(cluster *api.Cluster) error {
@@ -113,11 +113,11 @@ func (r *mockChannelSource) Version(channel string, overrides map[string]string)
 	return &mockVersion{failGet: r.failGet}, nil
 }
 
-func (r *mockChannelSource) Update(ctx context.Context, logger *log.Entry) error {
+func (r *mockChannelSource) Update(_ context.Context, _ *log.Entry) error {
 	return nil
 }
 
-func (r *mockChannelSource) Delete(logger *log.Entry, config channel.Config) error {
+func (r *mockChannelSource) Delete(_ *log.Entry, _ channel.Config) error {
 	return nil
 }
 
@@ -129,7 +129,7 @@ func (r *mockVersion) ID() string {
 	return "<some-sha>"
 }
 
-func (r *mockVersion) Get(ctx context.Context, logger *log.Entry) (channel.Config, error) {
+func (r *mockVersion) Get(_ context.Context, _ *log.Entry) (channel.Config, error) {
 	if r.failGet {
 		return nil, fmt.Errorf("failed to checkout version %s", r.ID())
 	}
@@ -140,15 +140,15 @@ type mockConfig struct {
 	mockManifest channel.Manifest
 }
 
-func (c *mockConfig) StackManifest(manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) StackManifest(_ string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
 
-func (c *mockConfig) EtcdManifest(manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) EtcdManifest(_ string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
 
-func (c *mockConfig) NodePoolManifest(profileName string, manifestName string) (channel.Manifest, error) {
+func (c *mockConfig) NodePoolManifest(_ string, _ string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
 

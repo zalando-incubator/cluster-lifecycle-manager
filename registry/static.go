@@ -9,7 +9,7 @@ func NewStaticRegistry() Registry {
 	return &staticRegistry{}
 }
 
-func (r *staticRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
+func (r *staticRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 	clusters := []*api.Cluster{
 		{
 			APIServerURL:          "http://127.0.0.1:8001",
@@ -26,6 +26,6 @@ func (r *staticRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	return clusters, nil
 }
 
-func (r *staticRegistry) UpdateCluster(cluster *api.Cluster) error {
+func (r *staticRegistry) UpdateCluster(_ *api.Cluster) error {
 	return nil
 }

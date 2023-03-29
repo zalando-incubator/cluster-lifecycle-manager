@@ -40,27 +40,27 @@ type mockNodePoolManager struct {
 	nodePool *NodePool
 }
 
-func (m *mockNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) error {
+func (m *mockNodePoolManager) MarkPoolForDecommission(_ *api.NodePool) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManager) DisableReplacementNodeProvisioning(_ context.Context, _ *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) GetPool(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
+func (m *mockNodePoolManager) GetPool(_ context.Context, _ *api.NodePool) (*NodePool, error) {
 	return m.nodePool, nil
 }
 
-func (m *mockNodePoolManager) MarkNodeForDecommission(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManager) MarkNodeForDecommission(_ context.Context, _ *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) AbortNodeDecommissioning(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManager) AbortNodeDecommissioning(_ context.Context, _ *Node) error {
 	return nil
 }
 
-func (m *mockNodePoolManager) ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error {
+func (m *mockNodePoolManager) ScalePool(_ context.Context, _ *api.NodePool, replicas int) error {
 	if replicas > m.nodePool.Current {
 		delta := replicas - m.nodePool.Current
 		for i := 0; i < delta; i++ {
@@ -77,7 +77,7 @@ func (m *mockNodePoolManager) ScalePool(ctx context.Context, nodePool *api.NodeP
 	return nil
 }
 
-func (m *mockNodePoolManager) TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error {
+func (m *mockNodePoolManager) TerminateNode(_ context.Context, node *Node, decrementDesired bool) error {
 	newNodes := make([]*Node, 0, len(m.nodePool.Nodes))
 	for _, n := range m.nodePool.Nodes {
 		if n.ProviderID != node.ProviderID {
@@ -101,7 +101,7 @@ func (m *mockNodePoolManager) TerminateNode(ctx context.Context, node *Node, dec
 	return nil
 }
 
-func (m *mockNodePoolManager) CordonNode(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManager) CordonNode(_ context.Context, node *Node) error {
 	for _, n := range m.nodePool.Nodes {
 		if n.ProviderID == node.ProviderID {
 			n.Cordoned = true

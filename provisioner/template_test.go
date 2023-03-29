@@ -12,7 +12,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
-func render(t *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
+func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
 	templateData := make(map[string][]byte, len(templates))
 
 	for name, content := range templates {

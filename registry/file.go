@@ -27,7 +27,7 @@ func NewFileRegistry(filePath string) Registry {
 	}
 }
 
-func (r *fileRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
+func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 	fileContent, err := os.ReadFile(r.filePath)
 	if err != nil {
 		return nil, err
