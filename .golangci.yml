@@ -1,4 +1,6 @@
 run:
+  timeout: 10m
+
 linters-settings:
   golint:
     min-confidence: 0.9
@@ -17,3 +19,6 @@ issues:
     - linters:
         - staticcheck
       text: "SA9003:"
+    - linters:
+        - revive
+      text: "unused-parameter: parameter '.+' seems to be unused, consider removing or renaming it as _"

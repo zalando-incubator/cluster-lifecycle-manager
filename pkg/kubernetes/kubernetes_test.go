@@ -60,8 +60,8 @@ func listAction(resource string) func(k8stesting.Action) bool {
 
 func deleteAction(resource, name string) func(k8stesting.Action) bool {
 	return func(action k8stesting.Action) bool {
-		delete, ok := action.(k8stesting.DeleteAction)
-		return ok && delete.GetResource().Resource == resource && delete.GetName() == name
+		deleteAction, ok := action.(k8stesting.DeleteAction)
+		return ok && deleteAction.GetResource().Resource == resource && deleteAction.GetName() == name
 	}
 }
 
