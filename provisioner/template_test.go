@@ -180,6 +180,38 @@ func TestAZCountNoSubnets(t *testing.T) {
 	require.EqualValues(t, "0", result)
 }
 
+func TestSplit(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ range $index, $element := split .Values.data "," }}{{ $index }}={{ $element}}{{end}}`,
+			"")
+
+		require.NoError(t, err)
+		require.Equal(t, "", result)
+	})
+
+	t.Run("single", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ range $index, $element := split .Values.data "," }}{{ $index }}={{ $element}}{{end}}`,
+			"foo")
+
+		require.NoError(t, err)
+		require.Equal(t, "0=foo", result)
+	})
+
+	t.Run("multiple", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ range $index, $element := split .Values.data "," }}{{ $index }}={{ $element}}{{end}}`,
+			"foo,bar")
+
+		require.NoError(t, err)
+		require.Equal(t, "0=foo1=bar", result)
+	})
+}
+
 func TestMountUnitName(t *testing.T) {
 	result, err := renderSingle(
 		t,
