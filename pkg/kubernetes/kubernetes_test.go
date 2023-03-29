@@ -69,11 +69,11 @@ type fakeRESTMapper struct {
 	kindToResource map[string]string
 }
 
-func (f *fakeRESTMapper) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error) {
+func (f *fakeRESTMapper) KindFor(_ schema.GroupVersionResource) (schema.GroupVersionKind, error) {
 	return schema.GroupVersionKind{}, nil
 }
 
-func (f *fakeRESTMapper) KindsFor(resource schema.GroupVersionResource) ([]schema.GroupVersionKind, error) {
+func (f *fakeRESTMapper) KindsFor(_ schema.GroupVersionResource) ([]schema.GroupVersionKind, error) {
 	return nil, nil
 }
 
@@ -85,19 +85,19 @@ func (f *fakeRESTMapper) ResourceFor(input schema.GroupVersionResource) (schema.
 	}, nil
 }
 
-func (f *fakeRESTMapper) ResourcesFor(input schema.GroupVersionResource) ([]schema.GroupVersionResource, error) {
+func (f *fakeRESTMapper) ResourcesFor(_ schema.GroupVersionResource) ([]schema.GroupVersionResource, error) {
 	return nil, nil
 }
 
-func (f *fakeRESTMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.RESTMapping, error) {
+func (f *fakeRESTMapper) RESTMapping(_ schema.GroupKind, _ ...string) (*meta.RESTMapping, error) {
 	return nil, nil
 }
 
-func (f *fakeRESTMapper) RESTMappings(gk schema.GroupKind, versions ...string) ([]*meta.RESTMapping, error) {
+func (f *fakeRESTMapper) RESTMappings(_ schema.GroupKind, _ ...string) ([]*meta.RESTMapping, error) {
 	return nil, nil
 }
 
-func (f *fakeRESTMapper) ResourceSingularizer(resource string) (singular string, err error) {
+func (f *fakeRESTMapper) ResourceSingularizer(_ string) (singular string, err error) {
 	return "", nil
 }
 

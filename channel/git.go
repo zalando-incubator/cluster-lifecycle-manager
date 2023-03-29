@@ -114,7 +114,7 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	return nil
 }
 
-func (g *Git) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error) {
 	sha, err := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel).Output()
 	if err != nil {
 		return nil, err

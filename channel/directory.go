@@ -24,11 +24,11 @@ func (d *Directory) Name() string {
 	return d.name
 }
 
-func (d *Directory) Update(ctx context.Context, logger *log.Entry) error {
+func (d *Directory) Update(_ context.Context, _ *log.Entry) error {
 	return nil
 }
 
-func (d *Directory) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+func (d *Directory) Version(_ string, _ map[string]string) (ConfigVersion, error) {
 	return d, nil
 }
 
@@ -36,6 +36,6 @@ func (d *Directory) ID() string {
 	return "<dir>"
 }
 
-func (d *Directory) Get(ctx context.Context, logger *log.Entry) (Config, error) {
+func (d *Directory) Get(_ context.Context, _ *log.Entry) (Config, error) {
 	return NewSimpleConfig(d.name, d.location, false)
 }

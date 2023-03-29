@@ -7,13 +7,13 @@ import (
 
 type mockDecrypter struct{}
 
-func (d mockDecrypter) Decrypt(secret string) (string, error) {
+func (d mockDecrypter) Decrypt(_ string) (string, error) {
 	return "", nil
 }
 
 type mockErrDecrypter struct{}
 
-func (d mockErrDecrypter) Decrypt(secret string) (string, error) {
+func (d mockErrDecrypter) Decrypt(_ string) (string, error) {
 	return "", fmt.Errorf("failed")
 }
 

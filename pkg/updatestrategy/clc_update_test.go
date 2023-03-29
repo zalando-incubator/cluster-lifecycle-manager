@@ -33,11 +33,11 @@ type mockNodePoolManagerCLC struct {
 	abortFunc             func()
 }
 
-func (m *mockNodePoolManagerCLC) MarkPoolForDecommission(nodePool *api.NodePool) error {
+func (m *mockNodePoolManagerCLC) MarkPoolForDecommission(_ *api.NodePool) error {
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManagerCLC) DisableReplacementNodeProvisioning(_ context.Context, _ *Node) error {
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (m *mockNodePoolManagerCLC) advance() {
 	}
 }
 
-func (m *mockNodePoolManagerCLC) GetPool(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
+func (m *mockNodePoolManagerCLC) GetPool(_ context.Context, _ *api.NodePool) (*NodePool, error) {
 	m.advance()
 
 	result := &NodePool{
@@ -108,7 +108,7 @@ func (m *mockNodePoolManagerCLC) findNode(nodeName string) (*mockNodeCLC, error)
 	return nil, fmt.Errorf("unknown node: %s", nodeName)
 }
 
-func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(_ context.Context, node *Node) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func (m *mockNodePoolManagerCLC) MarkNodeForDecommission(ctx context.Context, no
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(_ context.Context, node *Node) error {
 	n, err := m.findNode(node.Name)
 	if err != nil {
 		return err
@@ -136,15 +136,15 @@ func (m *mockNodePoolManagerCLC) AbortNodeDecommissioning(ctx context.Context, n
 	return nil
 }
 
-func (m *mockNodePoolManagerCLC) ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error {
+func (m *mockNodePoolManagerCLC) ScalePool(_ context.Context, _ *api.NodePool, _ int) error {
 	panic("should not be called")
 }
 
-func (m *mockNodePoolManagerCLC) TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error {
+func (m *mockNodePoolManagerCLC) TerminateNode(_ context.Context, _ *Node, _ bool) error {
 	panic("should not be called")
 }
 
-func (m *mockNodePoolManagerCLC) CordonNode(ctx context.Context, node *Node) error {
+func (m *mockNodePoolManagerCLC) CordonNode(_ context.Context, _ *Node) error {
 	panic("should not be called")
 }
 

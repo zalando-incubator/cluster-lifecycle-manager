@@ -848,7 +848,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(ctx context.Context, logger 
 	return nil
 }
 
-func (p *clusterpyProvisioner) listClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]*cloudformation.Stack, error) {
+func (p *clusterpyProvisioner) listClusterStacks(_ context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]*cloudformation.Stack, error) {
 	includeTags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 	}

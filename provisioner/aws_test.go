@@ -59,7 +59,7 @@ type s3UploaderAPIStub struct {
 	err error
 }
 
-func (s *s3UploaderAPIStub) Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
+func (s *s3UploaderAPIStub) Upload(_ *s3manager.UploadInput, _ ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
 	return &s3manager.UploadOutput{Location: "url"}, s.err
 }
 
@@ -75,7 +75,7 @@ type cloudFormationAPIStub struct {
 	onCreate            func(input *cloudformation.CreateStackInput)
 }
 
-func (c *cloudFormationAPIStub) DescribeStacks(input *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
+func (c *cloudFormationAPIStub) DescribeStacks(_ *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
 	name := "foobar"
 	s := cloudformation.Stack{StackName: aws.String(name), StackStatus: c.getStatus(), StackStatusReason: c.getStatusReason()}
 	if c.onDescribeStackChan != nil {
@@ -91,19 +91,19 @@ func (c *cloudFormationAPIStub) CreateStack(input *cloudformation.CreateStackInp
 	return nil, c.createErr
 }
 
-func (c *cloudFormationAPIStub) UpdateStack(input *cloudformation.UpdateStackInput) (*cloudformation.UpdateStackOutput, error) {
+func (c *cloudFormationAPIStub) UpdateStack(_ *cloudformation.UpdateStackInput) (*cloudformation.UpdateStackOutput, error) {
 	return nil, c.updateErr
 }
 
-func (c *cloudFormationAPIStub) DeleteStack(input *cloudformation.DeleteStackInput) (*cloudformation.DeleteStackOutput, error) {
+func (c *cloudFormationAPIStub) DeleteStack(_ *cloudformation.DeleteStackInput) (*cloudformation.DeleteStackOutput, error) {
 	return nil, c.deleteErr
 }
 
-func (c *cloudFormationAPIStub) UpdateTerminationProtection(input *cloudformation.UpdateTerminationProtectionInput) (*cloudformation.UpdateTerminationProtectionOutput, error) {
+func (c *cloudFormationAPIStub) UpdateTerminationProtection(_ *cloudformation.UpdateTerminationProtectionInput) (*cloudformation.UpdateTerminationProtectionOutput, error) {
 	return nil, nil
 }
 
-func (c *cloudFormationAPIStub) DescribeStacksPages(input *cloudformation.DescribeStacksInput, fn func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool) error {
+func (c *cloudFormationAPIStub) DescribeStacksPages(_ *cloudformation.DescribeStacksInput, _ func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool) error {
 	return nil
 }
 
@@ -137,7 +137,7 @@ type cloudFormationAPIStub2 struct {
 	err    error
 }
 
-func (cf *cloudFormationAPIStub2) DescribeStacksPages(input *cloudformation.DescribeStacksInput, fn func(*cloudformation.DescribeStacksOutput, bool) bool) error {
+func (cf *cloudFormationAPIStub2) DescribeStacksPages(_ *cloudformation.DescribeStacksInput, fn func(*cloudformation.DescribeStacksOutput, bool) bool) error {
 	if len(cf.stacks) > 0 {
 		fn(&cloudformation.DescribeStacksOutput{
 			Stacks: cf.stacks,
@@ -151,18 +151,18 @@ type autoscalingAPIStub struct {
 	groupName string
 }
 
-func (a *autoscalingAPIStub) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (a *autoscalingAPIStub) DescribeAutoScalingGroups(_ *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	group := &autoscaling.Group{AutoScalingGroupName: aws.String(a.groupName)}
 	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: []*autoscaling.Group{group}}, nil
 }
 
-func (a *autoscalingAPIStub) DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+func (a *autoscalingAPIStub) DescribeLaunchConfigurations(_ *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
 	return nil, nil
 }
-func (a *autoscalingAPIStub) UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+func (a *autoscalingAPIStub) UpdateAutoScalingGroup(_ *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return nil, nil
 }
-func (a *autoscalingAPIStub) SuspendProcesses(input *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error) {
+func (a *autoscalingAPIStub) SuspendProcesses(_ *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error) {
 	return nil, nil
 }
 func (a *autoscalingAPIStub) ResumeProcesses(*autoscaling.ScalingProcessQuery) (*autoscaling.ResumeProcessesOutput, error) {

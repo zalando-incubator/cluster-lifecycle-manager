@@ -68,7 +68,7 @@ func (v mockVersion) ID() string {
 	return "git-commit-hash"
 }
 
-func (v mockVersion) Get(ctx context.Context, logger *logrus.Entry) (channel.Config, error) {
+func (v mockVersion) Get(_ context.Context, _ *logrus.Entry) (channel.Config, error) {
 	return nil, errors.New("unsupported")
 }
 

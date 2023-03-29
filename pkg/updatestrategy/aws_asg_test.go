@@ -24,16 +24,16 @@ type mockASGAPI struct {
 	descLB *autoscaling.DescribeLoadBalancersOutput
 }
 
-func (a *mockASGAPI) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
+func (a *mockASGAPI) DescribeAutoScalingGroupsPages(_ *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
 	fn(&autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, true)
 	return a.err
 }
 
-func (a *mockASGAPI) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (a *mockASGAPI) DescribeAutoScalingGroups(_ *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, a.err
 }
 
-func (a *mockASGAPI) UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+func (a *mockASGAPI) UpdateAutoScalingGroup(_ *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return nil, a.err
 }
 
@@ -41,11 +41,11 @@ func (a *mockASGAPI) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateI
 	return nil, a.err
 }
 
-func (a *mockASGAPI) DescribeLoadBalancers(input *autoscaling.DescribeLoadBalancersInput) (*autoscaling.DescribeLoadBalancersOutput, error) {
+func (a *mockASGAPI) DescribeLoadBalancers(_ *autoscaling.DescribeLoadBalancersInput) (*autoscaling.DescribeLoadBalancersOutput, error) {
 	return a.descLB, a.err
 }
 
-func (a *mockASGAPI) DeleteTags(input *autoscaling.DeleteTagsInput) (*autoscaling.DeleteTagsOutput, error) {
+func (a *mockASGAPI) DeleteTags(_ *autoscaling.DeleteTagsInput) (*autoscaling.DeleteTagsOutput, error) {
 	return nil, a.err
 }
 
@@ -58,15 +58,15 @@ type mockEC2API struct {
 	descInstances *ec2.DescribeInstancesOutput
 }
 
-func (e *mockEC2API) DescribeLaunchTemplateVersions(input *ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+func (e *mockEC2API) DescribeLaunchTemplateVersions(_ *ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
 	return e.descLTVs, e.err
 }
 
-func (e *mockEC2API) DescribeInstanceStatus(input *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+func (e *mockEC2API) DescribeInstanceStatus(_ *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
 	return e.descStatus, e.err
 }
 
-func (e *mockEC2API) DescribeInstancesPages(input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
+func (e *mockEC2API) DescribeInstancesPages(_ *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
 	if e.err != nil {
 		return e.err
 	}
@@ -76,7 +76,7 @@ func (e *mockEC2API) DescribeInstancesPages(input *ec2.DescribeInstancesInput, f
 	return nil
 }
 
-func (e *mockEC2API) DescribeTagsPages(input *ec2.DescribeTagsInput, fn func(*ec2.DescribeTagsOutput, bool) bool) error {
+func (e *mockEC2API) DescribeTagsPages(_ *ec2.DescribeTagsInput, fn func(*ec2.DescribeTagsOutput, bool) bool) error {
 	if e.err != nil {
 		return e.err
 	}
@@ -91,11 +91,11 @@ type mockELBAPI struct {
 	descInstanceHealth *elb.DescribeInstanceHealthOutput
 }
 
-func (e *mockELBAPI) DescribeLoadBalancers(input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+func (e *mockELBAPI) DescribeLoadBalancers(_ *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
 	return e.descLBs, e.err
 }
 
-func (e *mockELBAPI) DescribeInstanceHealth(input *elb.DescribeInstanceHealthInput) (*elb.DescribeInstanceHealthOutput, error) {
+func (e *mockELBAPI) DescribeInstanceHealth(_ *elb.DescribeInstanceHealthInput) (*elb.DescribeInstanceHealthOutput, error) {
 	return e.descInstanceHealth, e.err
 }
 
