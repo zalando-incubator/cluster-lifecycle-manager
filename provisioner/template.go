@@ -276,6 +276,9 @@ func azCount(subnets map[string]string) int {
 
 // split is a template function that takes a string and a separator and returns the splitted parts.
 func split(s string, d string) []string {
+	if s == "" {
+		return nil
+	}
 	return strings.Split(s, d)
 }
 
