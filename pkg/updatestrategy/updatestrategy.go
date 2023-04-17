@@ -16,10 +16,10 @@ type UpdateStrategy interface {
 // ProviderNodePoolsBackend is an interface for describing a node pools
 // provider backend e.g. AWS Auto Scaling Groups.
 type ProviderNodePoolsBackend interface {
-	Get(nodePool *api.NodePool) (*NodePool, error)
-	Scale(nodePool *api.NodePool, replicas int) error
-	MarkForDecommission(nodePool *api.NodePool) error
-	Terminate(node *Node, decrementDesired bool) error
+	Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error)
+	Scale(ctx context.Context, nodePool *api.NodePool, replicas int) error
+	MarkForDecommission(ctx context.Context, nodePool *api.NodePool) error
+	Terminate(ctx context.Context, node *Node, decrementDesired bool) error
 }
 
 // NodePool defines a node pool including all nodes.
@@ -79,35 +79,35 @@ func NewProfileNodePoolsBackend(defaultProvisioner ProviderNodePoolsBackend, pro
 
 // Get the specified node pool using the right node pool provisioner for the
 // profile.
-func (n *ProfileNodePoolProvisioner) Get(nodePool *api.NodePool) (*NodePool, error) {
+func (n *ProfileNodePoolProvisioner) Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
 	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
-		return provisioner.Get(nodePool)
+		return provisioner.Get(ctx, nodePool)
 	}
 
-	return n.defaultProvisioner.Get(nodePool)
+	return n.defaultProvisioner.Get(ctx, nodePool)
 }
 
 // MarkForDecommission marks a node pool for decommissioning using the right
 // node pool provisioner for the profile.
-func (n *ProfileNodePoolProvisioner) MarkForDecommission(nodePool *api.NodePool) error {
+func (n *ProfileNodePoolProvisioner) MarkForDecommission(ctx context.Context, nodePool *api.NodePool) error {
 	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
-		return provisioner.MarkForDecommission(nodePool)
+		return provisioner.MarkForDecommission(ctx, nodePool)
 	}
 
-	return n.defaultProvisioner.MarkForDecommission(nodePool)
+	return n.defaultProvisioner.MarkForDecommission(ctx, nodePool)
 }
 
 // Scale scales a node pool  using the right node pool provisioner for the
 // profile.
-func (n *ProfileNodePoolProvisioner) Scale(nodePool *api.NodePool, replicas int) error {
+func (n *ProfileNodePoolProvisioner) Scale(ctx context.Context, nodePool *api.NodePool, replicas int) error {
 	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
-		return provisioner.Scale(nodePool, replicas)
+		return provisioner.Scale(ctx, nodePool, replicas)
 	}
 
-	return n.defaultProvisioner.Scale(nodePool, replicas)
+	return n.defaultProvisioner.Scale(ctx, nodePool, replicas)
 }
 
 // Terminate terminates a node pool using the default provisioner.
-func (n *ProfileNodePoolProvisioner) Terminate(node *Node, decrementDesired bool) error {
-	return n.defaultProvisioner.Terminate(node, decrementDesired)
+func (n *ProfileNodePoolProvisioner) Terminate(ctx context.Context, node *Node, decrementDesired bool) error {
+	return n.defaultProvisioner.Terminate(ctx, node, decrementDesired)
 }

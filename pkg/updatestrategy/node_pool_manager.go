@@ -46,7 +46,7 @@ type NodePoolManager interface {
 	AbortNodeDecommissioning(ctx context.Context, node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
-	MarkPoolForDecommission(nodePool *api.NodePool) error
+	MarkPoolForDecommission(ctx context.Context, nodePool *api.NodePool) error
 	DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error
 	CordonNode(ctx context.Context, node *Node) error
 }
@@ -99,7 +99,7 @@ func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Inter
 // GetPool gets the current node Pool from the node pool backend and attaches
 // the Kubernetes node object name and labels to the corresponding nodes.
 func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *api.NodePool) (*NodePool, error) {
-	nodePool, err := m.backend.Get(nodePoolDesc)
+	nodePool, err := m.backend.Get(ctx, nodePoolDesc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node pool details: %#v", err)
 	}
@@ -345,11 +345,11 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 
 	m.logger.WithField("node", node.Name).Info("Terminating node")
 
-	return m.backend.Terminate(node, decrementDesired)
+	return m.backend.Terminate(ctx, node, decrementDesired)
 }
 
-func (m *KubernetesNodePoolManager) MarkPoolForDecommission(nodePool *api.NodePool) error {
-	return m.backend.MarkForDecommission(nodePool)
+func (m *KubernetesNodePoolManager) MarkPoolForDecommission(ctx context.Context, nodePool *api.NodePool) error {
+	return m.backend.MarkForDecommission(ctx, nodePool)
 }
 
 // ScalePool scales a nodePool to the specified number of replicas.
@@ -362,7 +362,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 	// in case we are scaling down to 0 replicas, disable the autoscaler to
 	// not fight with it.
 	if replicas == 0 {
-		err := m.backend.MarkForDecommission(nodePool)
+		err := m.backend.MarkForDecommission(ctx, nodePool)
 		if err != nil {
 			return err
 		}
@@ -389,7 +389,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 		}
 
 		if pool.Current < replicas {
-			return m.backend.Scale(nodePool, replicas)
+			return m.backend.Scale(ctx, nodePool, replicas)
 		} else if pool.Current > replicas {
 			// pick a random node to terminate
 			if len(pool.Nodes) < 1 {

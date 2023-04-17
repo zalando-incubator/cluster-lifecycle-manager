@@ -45,9 +45,9 @@ func InstanceConfigUpToDate(instanceConfig, poolConfig *InstanceConfig) bool {
 
 type Option func(b *EC2NodePoolBackend)
 
-type NodePoolConfigGetter func(nodePool *api.NodePool) (*InstanceConfig, error)
+type NodePoolConfigGetter func(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error)
 
-func NoopNodePoolConfigGetter(*api.NodePool) (*InstanceConfig, error) {
+func NoopNodePoolConfigGetter(context.Context, *api.NodePool) (*InstanceConfig, error) {
 	return nil, nil
 }
 
@@ -84,14 +84,14 @@ func NewEC2NodePoolBackend(clusterID string, sess *session.Session, opts ...Opti
 // The node generation is set to 'current' for nodes with up-to-date
 // userData,ImageID and tags and 'outdated' for nodes with an outdated
 // configuration.
-func (n *EC2NodePoolBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
+func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
 	instances, err := n.getInstances(nodePool)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
 
 	nodes := make([]*Node, 0)
-	nodePoolConfig, err := n.configGetter(nodePool)
+	nodePoolConfig, err := n.configGetter(ctx, nodePool)
 	if err != nil {
 		return nil, err
 	}
@@ -188,15 +188,15 @@ func (n *EC2NodePoolBackend) getInstanceConfig(i *ec2.Instance) (*InstanceConfig
 	return &config, nil
 }
 
-func (n *EC2NodePoolBackend) MarkForDecommission(*api.NodePool) error {
+func (n *EC2NodePoolBackend) MarkForDecommission(context.Context, *api.NodePool) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Scale(*api.NodePool, int) error {
+func (n *EC2NodePoolBackend) Scale(context.Context, *api.NodePool, int) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Terminate(*Node, bool) error {
+func (n *EC2NodePoolBackend) Terminate(context.Context, *Node, bool) error {
 	return nil
 }
 

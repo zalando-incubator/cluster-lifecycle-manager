@@ -1,6 +1,7 @@
 package updatestrategy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -67,7 +68,7 @@ func NewASGNodePoolsBackend(clusterID string, sess *session.Session) *ASGNodePoo
 // ASG. The node generation is set to 'current' for nodes with the latest
 // launch configuration and 'outdated' for nodes with an older launch
 // configuration.
-func (n *ASGNodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
+func (n *ASGNodePoolsBackend) Get(_ context.Context, nodePool *api.NodePool) (*NodePool, error) {
 	asgs, err := n.getNodePoolASGs(nodePool)
 	if err != nil {
 		return nil, err
@@ -131,7 +132,7 @@ func (n *ASGNodePoolsBackend) Get(nodePool *api.NodePool) (*NodePool, error) {
 // Scale sets the desired capacity of the ASGs to the number of replicas.
 // If the node pool is backed by multiple ASGs the scale operation will try to
 // balance the increment/decrement of nodes over all the ASGs.
-func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error {
+func (n *ASGNodePoolsBackend) Scale(_ context.Context, nodePool *api.NodePool, replicas int) error {
 	asgs, err := n.getNodePoolASGs(nodePool)
 	if err != nil {
 		return err
@@ -214,7 +215,7 @@ func (n *ASGNodePoolsBackend) Scale(nodePool *api.NodePool, replicas int) error 
 // MarkForDecommission suspends autoscaling of the node pool if it was enabled and makes sure that the pool can be
 // scaled down to 0.
 // The implementation assumes the kubernetes cluster-autoscaler is used so it just removes a tag.
-func (n *ASGNodePoolsBackend) MarkForDecommission(nodePool *api.NodePool) error {
+func (n *ASGNodePoolsBackend) MarkForDecommission(_ context.Context, nodePool *api.NodePool) error {
 	tags := map[string]string{
 		kubeAutoScalerEnabledTagKey: "",
 	}
@@ -284,7 +285,7 @@ func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string
 // In case the new desired capacity is less then the current min size of the
 // ASG, it will also decrease the ASG minSize.
 // This function will not return until the instance has been terminated in AWS.
-func (n *ASGNodePoolsBackend) Terminate(node *Node, decrementDesired bool) error {
+func (n *ASGNodePoolsBackend) Terminate(_ context.Context, node *Node, decrementDesired bool) error {
 	instanceID := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
 
 	// if desired should be decremented check if we also need to decrement

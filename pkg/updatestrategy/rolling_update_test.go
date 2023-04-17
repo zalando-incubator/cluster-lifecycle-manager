@@ -40,7 +40,7 @@ type mockNodePoolManager struct {
 	nodePool *NodePool
 }
 
-func (m *mockNodePoolManager) MarkPoolForDecommission(_ *api.NodePool) error {
+func (m *mockNodePoolManager) MarkPoolForDecommission(_ context.Context, _ *api.NodePool) error {
 	return nil
 }
 

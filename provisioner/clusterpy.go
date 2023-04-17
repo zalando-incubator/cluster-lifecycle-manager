@@ -373,8 +373,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	if err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly); err != nil {
-		return err
+	if karpenterProvisioner.isKarpenterEnabled() {
+		if err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly); err != nil {
+			return err
+		}
 	}
 
 	// clean up removed node pools
@@ -382,9 +384,11 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	if err != nil {
 		return err
 	}
-	err = karpenterProvisioner.Reconcile(ctx, updater)
-	if err != nil {
-		return err
+	if karpenterProvisioner.isKarpenterEnabled() {
+		err = karpenterProvisioner.Reconcile(ctx, updater)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !karpenterProvisioner.isKarpenterEnabled() {

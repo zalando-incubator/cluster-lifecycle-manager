@@ -175,11 +175,6 @@ func NewKarpenterNodePoolProvisioner(n NodePoolTemplateRenderer, e *command.Exec
 }
 
 func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
-	if !p.isKarpenterEnabled() {
-		// skip
-		return nil
-	}
-
 	errorsc := make(chan error, len(nodePools))
 
 	// provision node pools in parallel
@@ -458,8 +453,8 @@ func nodePoolStackToNodePool(stack *cloudformation.Stack) *api.NodePool {
 }
 
 func KarpenterNodePoolConfigGetter(kubeClient *kubernetes.ClientsCollection) updatestrategy.NodePoolConfigGetter {
-	return func(nodePool *api.NodePool) (*updatestrategy.InstanceConfig, error) {
-		provisionerResource, err := kubeClient.Get(context.TODO(), karpenterProvisionerResource, "", nodePool.Name, metav1.GetOptions{})
+	return func(ctx context.Context, nodePool *api.NodePool) (*updatestrategy.InstanceConfig, error) {
+		provisionerResource, err := kubeClient.Get(ctx, karpenterProvisionerResource, "", nodePool.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -477,7 +472,7 @@ func KarpenterNodePoolConfigGetter(kubeClient *kubernetes.ClientsCollection) upd
 			return nil, nil
 		}
 
-		nodeTemplateResource, err := kubeClient.Get(context.TODO(), karpenterAWSNodeTemplateResource, "", providerRef.(string), metav1.GetOptions{})
+		nodeTemplateResource, err := kubeClient.Get(ctx, karpenterAWSNodeTemplateResource, "", providerRef.(string), metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

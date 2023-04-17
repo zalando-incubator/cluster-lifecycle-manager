@@ -1,6 +1,7 @@
 package updatestrategy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -250,7 +251,7 @@ func TestGet(tt *testing.T) {
 				clusterID: "",
 			}
 
-			_, err := backend.Get(&api.NodePool{Name: "test"})
+			_, err := backend.Get(context.Background(), &api.NodePool{Name: "test"})
 			if tc.success {
 				require.NoError(t, err)
 			} else {
@@ -672,7 +673,7 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 				clusterID: "",
 			}
 
-			res, err := backend.Get(&api.NodePool{Name: "test"})
+			res, err := backend.Get(context.Background(), &api.NodePool{Name: "test"})
 			require.NoError(t, err)
 
 			instanceGenerations := make(map[string]int)
@@ -689,7 +690,7 @@ func TestScale(t *testing.T) {
 	backend := &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{},
 	}
-	err := backend.Scale(&api.NodePool{Name: "test"}, 10)
+	err := backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 10)
 	assert.Error(t, err)
 
 	// test scaling up
@@ -719,7 +720,7 @@ func TestScale(t *testing.T) {
 			},
 		},
 	}
-	err = backend.Scale(&api.NodePool{Name: "test"}, 10)
+	err = backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 10)
 	assert.NoError(t, err)
 
 	// test scaling down
@@ -749,7 +750,7 @@ func TestScale(t *testing.T) {
 			},
 		},
 	}
-	err = backend.Scale(&api.NodePool{Name: "test"}, 1)
+	err = backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 1)
 	assert.NoError(t, err)
 
 	// test getting error
@@ -757,7 +758,7 @@ func TestScale(t *testing.T) {
 		asgClient: &mockASGAPI{err: errors.New("failed")},
 		ec2Client: &mockEC2API{err: errors.New("failed")},
 	}
-	err = backend.Terminate(&Node{}, true)
+	err = backend.Terminate(context.Background(), &Node{}, true)
 	assert.Error(t, err)
 }
 
@@ -849,7 +850,7 @@ func TestTerminate(t *testing.T) {
 			},
 		},
 	}
-	err := backend.Terminate(&Node{}, true)
+	err := backend.Terminate(context.Background(), &Node{}, true)
 	assert.NoError(t, err)
 
 	// test getting error
@@ -857,7 +858,7 @@ func TestTerminate(t *testing.T) {
 		asgClient: &mockASGAPI{err: errors.New("failed")},
 		ec2Client: &mockEC2API{err: errors.New("failed")},
 	}
-	err = backend.Terminate(&Node{}, true)
+	err = backend.Terminate(context.Background(), &Node{}, true)
 	assert.Error(t, err)
 
 	// test already terminated
@@ -874,7 +875,7 @@ func TestTerminate(t *testing.T) {
 			},
 		}},
 	}
-	err = backend.Terminate(&Node{}, false)
+	err = backend.Terminate(context.Background(), &Node{}, false)
 	assert.NoError(t, err)
 }
 
