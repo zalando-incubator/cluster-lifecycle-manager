@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	awsUtil "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -141,6 +142,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"certificateExpiry":             certificateExpiry,
 		"sumQuantities":                 sumQuantities,
 		"awsValidID":                    awsValidID,
+		"indent":                        sprig.GenericFuncMap()["indent"],
 	}
 
 	content, ok := context.fileData[file]
@@ -652,7 +654,9 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 		}
 
 		// Check if the pool is using the pool profile that's properly spread between AZs
-		if pool.Profile != "worker-splitaz" {
+		switch pool.Profile {
+		case "worker-splitaz", "worker-karpenter":
+		default:
 			return false
 		}
 	}
@@ -663,7 +667,7 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 // with even pod spreading. Currently this is the case iff all node pools with this dedicated label
 //   - are correctly configured with regards to the labels and taints
 //   - don't have AZ restrictions
-//   - use the worker-splitaz profile.
+//   - use the worker-splitaz profile or the worker-karpenter profile.
 //
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {

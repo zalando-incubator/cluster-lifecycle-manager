@@ -41,15 +41,15 @@ type mockProviderNodePoolsBackend struct {
 	nodePool *NodePool
 }
 
-func (n *mockProviderNodePoolsBackend) Get(_ *api.NodePool) (*NodePool, error) {
+func (n *mockProviderNodePoolsBackend) Get(context.Context, *api.NodePool) (*NodePool, error) {
 	return n.nodePool, n.err
 }
 
-func (n *mockProviderNodePoolsBackend) Scale(_ *api.NodePool, _ int) error {
+func (n *mockProviderNodePoolsBackend) Scale(context.Context, *api.NodePool, int) error {
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) Terminate(node *Node, _ bool) error {
+func (n *mockProviderNodePoolsBackend) Terminate(_ context.Context, node *Node, _ bool) error {
 	newNodes := make([]*Node, 0, len(n.nodePool.Nodes))
 	for _, n := range n.nodePool.Nodes {
 		if n.Name != node.Name {
@@ -66,7 +66,7 @@ func (n *mockProviderNodePoolsBackend) UpdateSize(_ *api.NodePool) error {
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) MarkForDecommission(_ *api.NodePool) error {
+func (n *mockProviderNodePoolsBackend) MarkForDecommission(context.Context, *api.NodePool) error {
 	return n.err
 }
 

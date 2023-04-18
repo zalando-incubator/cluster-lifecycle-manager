@@ -29,6 +29,10 @@ func (np NodePool) IsMaster() bool {
 	return strings.Contains(np.Profile, "master")
 }
 
+func (np NodePool) IsKarpenter() bool {
+	return np.Profile == "worker-karpenter"
+}
+
 func (np NodePool) Taints() []*corev1.Taint {
 	conf, exist := np.ConfigItems["taints"]
 	if !exist {
