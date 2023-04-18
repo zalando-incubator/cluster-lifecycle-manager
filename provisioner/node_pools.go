@@ -229,10 +229,6 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
-	if !p.isKarpenterEnabled() {
-		// skip
-		return nil
-	}
 
 	existingProvisioners, err := p.k8sClients.List(ctx, karpenterProvisionerResource, "", metav1.ListOptions{})
 	if err != nil {
