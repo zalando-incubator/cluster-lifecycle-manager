@@ -469,8 +469,8 @@ github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.14.12 h1:UZpsfc6HHhqAYay9ZlK/RTQjWx9BQuPa/rwvTpKDQ+0=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.14.12/go.mod h1:Z/T2bbEY9KWqnQen+H/ZlG7h9FegoIKhc/5/rZv/xrU=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.14.14 h1:7wCn23FDLmvQZy/aY3dgalw2VD4r28n8uvLaPCVSuCE=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.14.14/go.mod h1:KiX0gzfVs+RstP7SCBmpIwAxCKqx5tKRZ82DonU/8fY=
 go.mongodb.org/mongo-driver v1.7.3/go.mod h1:NqaYOwnXWr5Pm7AOpO5QFxKJ503nbMse/R79oO62zWg=
 go.mongodb.org/mongo-driver v1.7.5/go.mod h1:VXEWRZ6URJIkUq2SCAyapmhH0ZLRBP+FT4xhp5Zvxng=
 go.mongodb.org/mongo-driver v1.10.0/go.mod h1:wsihk0Kdgv8Kqu1Anit4sfK+22vSFbUrAVEYRhCXrA8=
