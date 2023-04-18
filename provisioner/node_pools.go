@@ -238,13 +238,22 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatest
 	if err != nil {
 		return err
 	}
-
 	for _, pr := range existingProvisioners.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
 			err := p.k8sClients.Delete(ctx, karpenterProvisionerResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	existingNodeTemplates, err := p.k8sClients.List(ctx, karpenterAWSNodeTemplateResource, "", metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pr := range existingNodeTemplates.Items {
+		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
 			err = p.k8sClients.Delete(ctx, karpenterAWSNodeTemplateResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
