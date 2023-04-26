@@ -287,23 +287,39 @@ func TestClusterPriority(t *testing.T) {
 		Channel:               "dev",
 		Status:                mockStatus,
 	}
+	criticality1 := &api.Cluster{
+		ID:                    "aws:123456789015:eu-central-1:criticality-1",
+		InfrastructureAccount: "aws:123456789015",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Status:                mockStatus,
+		CriticalityLevel:      1,
+	}
+	criticality2 := &api.Cluster{
+		ID:                    "aws:123456789016:eu-central-1:criticality-2",
+		InfrastructureAccount: "aws:123456789016",
+		LifecycleStatus:       "ready",
+		Channel:               "dev",
+		Status:                mockStatus,
+		CriticalityLevel:      2,
+	}
 
 	for _, clusters := range [][]*api.Cluster{
-		{normal, decommissionRequested, pendingUpdate},
-		{normal, pendingUpdate, decommissionRequested},
-		{decommissionRequested, normal, pendingUpdate},
-		{decommissionRequested, pendingUpdate, normal},
-		{pendingUpdate, normal, decommissionRequested},
-		{pendingUpdate, decommissionRequested, normal},
+		{normal, decommissionRequested, pendingUpdate, criticality1, criticality2},
+		{normal, pendingUpdate, decommissionRequested, criticality1, criticality2},
+		{decommissionRequested, normal, pendingUpdate, criticality1, criticality2},
+		{decommissionRequested, pendingUpdate, normal, criticality1, criticality2},
+		{pendingUpdate, normal, decommissionRequested, criticality1, criticality2},
+		{pendingUpdate, decommissionRequested, normal, criticality1, criticality2},
 	} {
 		clusterList := NewClusterList(config.DefaultFilter)
 
 		clusterList.UpdateAvailable(MockChannelSource(false, false), clusters)
-		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIds(clusterList))
+		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, criticality2.ID, criticality1.ID, normal.ID}, allClusterIds(clusterList))
 
 		// add normal2, it should now be updated before normal1
 		clusterList.UpdateAvailable(MockChannelSource(false, false), append(clusters, normal2))
-		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal2.ID, normal.ID}, allClusterIds(clusterList))
+		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, criticality2.ID, criticality1.ID, normal2.ID, normal.ID}, allClusterIds(clusterList))
 	}
 }
 
