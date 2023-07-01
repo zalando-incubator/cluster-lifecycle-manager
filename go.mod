@@ -23,7 +23,7 @@ require (
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.14.18
 	go.mongodb.org/mongo-driver v1.11.6 // indirect
 	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
