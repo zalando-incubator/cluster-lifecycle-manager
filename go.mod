@@ -1,33 +1,33 @@
 module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
-	github.com/aws/aws-sdk-go v1.44.273
+	github.com/aws/aws-sdk-go v1.44.299
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
-	github.com/go-openapi/errors v0.20.3
+	github.com/go-openapi/errors v0.20.4
 	github.com/go-openapi/runtime v0.26.0
 	github.com/go-openapi/strfmt v0.21.7
-	github.com/go-openapi/swag v0.22.3
+	github.com/go-openapi/swag v0.22.4
 	github.com/go-openapi/validate v0.22.1
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-swagger/go-swagger v0.30.4
+	github.com/go-swagger/go-swagger v0.30.5
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.44.0 // indirect
-	github.com/prometheus/procfs v0.10.1 // indirect
-	github.com/sirupsen/logrus v1.9.2
+	github.com/prometheus/procfs v0.11.0 // indirect
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.14.18
-	go.mongodb.org/mongo-driver v1.11.6 // indirect
-	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sync v0.2.0
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.14.30
+	go.mongodb.org/mongo-driver v1.12.0 // indirect
+	golang.org/x/oauth2 v0.10.0
+	golang.org/x/sync v0.3.0
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -35,7 +35,7 @@ require (
 	k8s.io/apimachinery v0.22.17
 	k8s.io/client-go v0.22.17
 	k8s.io/klog/v2 v2.100.1 // indirect
-	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
+	k8s.io/utils v0.0.0-20230711102312-30195339c3c7 // indirect
 )
 
 require github.com/Masterminds/sprig/v3 v3.2.3
@@ -87,29 +87,27 @@ require (
 	github.com/mweagle/go-cloudformation v0.0.0-20211009163201-0a35d7d0fa70 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/onsi/gomega v1.20.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.15.1 // indirect
+	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	github.com/spf13/afero v1.9.2 // indirect
+	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.14.0 // indirect
-	github.com/subosito/gotenv v1.4.1 // indirect
+	github.com/spf13/viper v1.16.0 // indirect
+	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	go.opentelemetry.io/otel v1.14.0 // indirect
 	go.opentelemetry.io/otel/trace v1.14.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
-	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/tools v0.9.3 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

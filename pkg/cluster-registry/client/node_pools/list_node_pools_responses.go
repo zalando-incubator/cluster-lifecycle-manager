@@ -52,7 +52,7 @@ func (o *ListNodePoolsReader) ReadResponse(response runtime.ClientResponse, cons
 		}
 		return nil, result
 	default:
-		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
+		return nil, runtime.NewAPIError("[GET /kubernetes-clusters/{cluster_id}/node-pools] listNodePools", response, response.Code())
 	}
 }
 
@@ -373,6 +373,11 @@ func (o *ListNodePoolsOKBody) contextValidateItems(ctx context.Context, formats 
 	for i := 0; i < len(o.Items); i++ {
 
 		if o.Items[i] != nil {
+
+			if swag.IsZero(o.Items[i]) { // not required
+				return nil
+			}
+
 			if err := o.Items[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("listNodePoolsOK" + "." + "items" + "." + strconv.Itoa(i))

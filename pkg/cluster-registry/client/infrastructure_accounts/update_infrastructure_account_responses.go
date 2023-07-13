@@ -54,7 +54,7 @@ func (o *UpdateInfrastructureAccountReader) ReadResponse(response runtime.Client
 		}
 		return nil, result
 	default:
-		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
+		return nil, runtime.NewAPIError("[PATCH /infrastructure-accounts/{account_id}] updateInfrastructureAccount", response, response.Code())
 	}
 }
 

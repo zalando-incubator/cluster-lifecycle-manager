@@ -105,6 +105,11 @@ func (m *ClusterStatus) contextValidateProblems(ctx context.Context, formats str
 	for i := 0; i < len(m.Problems); i++ {
 
 		if m.Problems[i] != nil {
+
+			if swag.IsZero(m.Problems[i]) { // not required
+				return nil
+			}
+
 			if err := m.Problems[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("problems" + "." + strconv.Itoa(i))
