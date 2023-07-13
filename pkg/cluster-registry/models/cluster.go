@@ -370,6 +370,11 @@ func (m *Cluster) contextValidateNodePools(ctx context.Context, formats strfmt.R
 	for i := 0; i < len(m.NodePools); i++ {
 
 		if m.NodePools[i] != nil {
+
+			if swag.IsZero(m.NodePools[i]) { // not required
+				return nil
+			}
+
 			if err := m.NodePools[i].ContextValidate(ctx, formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
 					return ve.ValidateName("node_pools" + "." + strconv.Itoa(i))
@@ -388,6 +393,11 @@ func (m *Cluster) contextValidateNodePools(ctx context.Context, formats strfmt.R
 func (m *Cluster) contextValidateStatus(ctx context.Context, formats strfmt.Registry) error {
 
 	if m.Status != nil {
+
+		if swag.IsZero(m.Status) { // not required
+			return nil
+		}
+
 		if err := m.Status.ContextValidate(ctx, formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("status")
