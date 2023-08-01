@@ -14,6 +14,8 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 
+const karpenterProvisionerTag = "karpenter.sh/provisioner-name"
+
 type InstanceConfig struct {
 	UserData string
 	ImageID  string
@@ -85,7 +87,7 @@ func NewEC2NodePoolBackend(clusterID string, sess *session.Session, opts ...Opti
 // userData,ImageID and tags and 'outdated' for nodes with an outdated
 // configuration.
 func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
-	instances, err := n.getInstances(nodePool)
+	instances, err := n.getInstances(n.filterWithNodePool(nodePool))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
@@ -127,23 +129,27 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 	}, nil
 }
 
-// getInstances lists all running instances of the node pool.
-func (n *EC2NodePoolBackend) getInstances(nodePool *api.NodePool) ([]*ec2.Instance, error) {
-	params := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
-				Values: []*string{
-					aws.String(resourceLifecycleOwned),
-				},
-			},
-			{
-				Name: aws.String("tag:" + nodePoolTag),
-				Values: []*string{
-					aws.String(nodePool.Name),
-				},
+func (n *EC2NodePoolBackend) filterWithNodePool(nodePool *api.NodePool) []*ec2.Filter {
+	return []*ec2.Filter{
+		{
+			Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
+			Values: []*string{
+				aws.String(resourceLifecycleOwned),
 			},
 		},
+		{
+			Name: aws.String("tag:" + nodePoolTag),
+			Values: []*string{
+				aws.String(nodePool.Name),
+			},
+		},
+	}
+}
+
+// getInstances lists all running instances of the node pool.
+func (n *EC2NodePoolBackend) getInstances(filters []*ec2.Filter) ([]*ec2.Instance, error) {
+	params := &ec2.DescribeInstancesInput{
+		Filters: filters,
 	}
 
 	instances := make([]*ec2.Instance, 0)
@@ -200,8 +206,30 @@ func (n *EC2NodePoolBackend) Terminate(context.Context, *Node, bool) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Decommission(ctx context.Context, nodePool *api.NodePool) error {
-	instances, err := n.getInstances(nodePool)
+func (n *EC2NodePoolBackend) DecommissionNodePool(ctx context.Context, nodePool *api.NodePool) error {
+	filters := n.filterWithNodePool(nodePool)
+	return n.decommission(ctx, filters)
+}
+
+func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) error {
+	return n.decommission(ctx, []*ec2.Filter{
+		{
+			Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
+			Values: []*string{
+				aws.String(resourceLifecycleOwned),
+			},
+		},
+		{
+			Name: aws.String("tag-key"),
+			Values: []*string{
+				aws.String(karpenterProvisionerTag),
+			},
+		},
+	})
+}
+
+func (n *EC2NodePoolBackend) decommission(ctx context.Context, filters []*ec2.Filter) error {
+	instances, err := n.getInstances(filters)
 	if err != nil {
 		return fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
@@ -220,14 +248,14 @@ func (n *EC2NodePoolBackend) Decommission(ctx context.Context, nodePool *api.Nod
 	}
 	_, err = n.ec2Client.TerminateInstancesWithContext(ctx, params)
 	if err != nil {
-		return fmt.Errorf("failed to terminate EC2 instances of node pool '%s': %w", nodePool.Name, err)
+		return fmt.Errorf("failed to terminate EC2 instances of the filters '%s': %w", filters, err)
 	}
 
 	// wait for all instances to be terminated
 	for {
 		select {
 		case <-time.After(15 * time.Second):
-			instances, err := n.getInstances(nodePool)
+			instances, err := n.getInstances(filters)
 			if err != nil {
 				return fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 			}

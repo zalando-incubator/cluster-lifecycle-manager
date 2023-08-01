@@ -630,19 +630,13 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	if err != nil {
 		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
 	}
-	karpenterNodePoolBackend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	for _, nodePool := range cluster.NodePools {
-		if nodePool.Profile == karpenterNodePoolProfile {
-			logger.Infof("Decommissioning Node Pool: %s (profile: %s)", nodePool.Name, nodePool.Profile)
-
-			err := karpenterNodePoolBackend.Decommission(ctx, nodePool)
-			if err != nil {
-				return err
-			}
-		}
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+	err = ec2Backend.DecommissionKarpenterNodes(ctx)
+	if err != nil {
+		return err
 	}
-
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
 	// and just after that we delete CF stacks, but if the pod
