@@ -1052,3 +1052,115 @@ func TestAWSValidID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "aws__12345678910__eu-central-1__kube-1", result)
 }
+
+func TestNodePoolGroupsProfile(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    []*api.NodePool
+		expected map[string]string
+	}{
+		{
+			name: "application-1 dedicated pools share the same profile",
+			input: []*api.NodePool{
+				{
+					Name:    "example-1",
+					Profile: "worker-combined",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-1",
+					},
+				},
+				{
+					Name:    "example-2",
+					Profile: "worker-combined",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-1",
+					},
+				},
+			},
+			expected: map[string]string{
+				"application-1": "zalando",
+			},
+		},
+		{
+			name: "application-1 dedicated pools share the same profile, which is unknown",
+			input: []*api.NodePool{
+				{
+					Name:    "example-1",
+					Profile: "worker-unknown",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-1",
+					},
+				},
+				{
+					Name:    "example-2",
+					Profile: "worker-unknown",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-1",
+					},
+				},
+			},
+			expected: map[string]string{
+				"application-1": "",
+			},
+		},
+		{
+			name: "application-2 dedicated pools do not share the same profile",
+			input: []*api.NodePool{
+				{
+					Name:    "example-1",
+					Profile: "profile-2",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-2",
+					},
+				},
+				{
+					Name:    "example-2",
+					Profile: "profile-1",
+					ConfigItems: map[string]string{
+						"labels": "dedicated=application-2",
+					},
+				},
+			},
+			expected: map[string]string{
+				"application-2": "",
+			},
+		},
+		{
+			name: "default pools share the same profile",
+			input: []*api.NodePool{
+				{
+					Name:    "example-1",
+					Profile: "worker-karpenter",
+				},
+				{
+					Name:    "example-2",
+					Profile: "worker-karpenter",
+				},
+			},
+			expected: map[string]string{
+				"default": "karpenter",
+			},
+		},
+		{
+			name: "default pools do not share the same profile",
+			input: []*api.NodePool{
+				{
+					Name:    "example-1",
+					Profile: "worker-karpenter",
+				},
+				{
+					Name:    "example-2",
+					Profile: "worker-combined",
+				},
+			},
+			expected: map[string]string{
+				"default": "",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output := nodeLifeCycleProviderPerNodePoolGroup(tc.input)
+			require.Equal(t, tc.expected, output)
+		})
+	}
+}

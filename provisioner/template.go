@@ -131,18 +131,19 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"nodeCIDRMaxNodes": func(maskSize int64, reserved int64) (int64, error) {
 			return nodeCIDRMaxNodes(16, maskSize, reserved)
 		},
-		"nodeCIDRMaxNodesPodCIDR":       nodeCIDRMaxNodes,
-		"nodeCIDRMaxPods":               nodeCIDRMaxPods,
-		"parseInt64":                    parseInt64,
-		"generateJWKSDocument":          generateJWKSDocument,
-		"generateOIDCDiscoveryDocument": generateOIDCDiscoveryDocument,
-		"kubernetesSizeToKiloBytes":     kubernetesSizeToKiloBytes,
-		"indexedList":                   indexedList,
-		"zoneDistributedNodePoolGroups": zoneDistributedNodePoolGroups,
-		"certificateExpiry":             certificateExpiry,
-		"sumQuantities":                 sumQuantities,
-		"awsValidID":                    awsValidID,
-		"indent":                        sprig.GenericFuncMap()["indent"],
+		"nodeCIDRMaxNodesPodCIDR":               nodeCIDRMaxNodes,
+		"nodeCIDRMaxPods":                       nodeCIDRMaxPods,
+		"parseInt64":                            parseInt64,
+		"generateJWKSDocument":                  generateJWKSDocument,
+		"generateOIDCDiscoveryDocument":         generateOIDCDiscoveryDocument,
+		"kubernetesSizeToKiloBytes":             kubernetesSizeToKiloBytes,
+		"indexedList":                           indexedList,
+		"zoneDistributedNodePoolGroups":         zoneDistributedNodePoolGroups,
+		"nodeLifeCycleProviderPerNodePoolGroup": nodeLifeCycleProviderPerNodePoolGroup,
+		"certificateExpiry":                     certificateExpiry,
+		"sumQuantities":                         sumQuantities,
+		"awsValidID":                            awsValidID,
+		"indent":                                sprig.GenericFuncMap()["indent"],
 	}
 
 	content, ok := context.fileData[file]
@@ -671,6 +672,17 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 //
 // The default pool is represented with an empty string as the key.
 func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
+	poolGroups := groupNodePoolsByPurpose(nodePools)
+	result := make(map[string]bool)
+	for group, pools := range poolGroups {
+		if poolsDistributed(group, pools) {
+			result[group] = true
+		}
+	}
+	return result
+}
+
+func groupNodePoolsByPurpose(nodePools []*api.NodePool) map[string][]*api.NodePool {
 	poolGroups := make(map[string][]*api.NodePool)
 
 	for _, pool := range nodePools {
@@ -686,13 +698,34 @@ func zoneDistributedNodePoolGroups(nodePools []*api.NodePool) map[string]bool {
 		}
 	}
 
-	result := make(map[string]bool)
-	for group, pools := range poolGroups {
-		if poolsDistributed(group, pools) {
-			result[group] = true
-		}
+	return poolGroups
+}
+
+// nodeLifeCycleProviderPerNodePoolGroup groups node-pools by the dedicated label, each node-pool-group is mapped to
+// the provider suitable for its node-pool profile
+// in case all pools of a group do not share the same profile, the group is mapped to empty string
+func nodeLifeCycleProviderPerNodePoolGroup(nodePools []*api.NodePool) map[string]string {
+	providers := map[string]string{
+		"worker-karpenter": "karpenter",
+		"worker-combined":  "zalando",
+		"worker-splitaz":   "zalando",
 	}
-	return result
+	poolGroups := groupNodePoolsByPurpose(nodePools)
+	provider := make(map[string]string)
+	for group, pools := range poolGroups {
+		if group == "" {
+			group = "default"
+		}
+		groupProfile := pools[0].Profile
+		for _, pool := range pools[1:] {
+			if pool.Profile != groupProfile {
+				groupProfile = ""
+				break
+			}
+		}
+		provider[group] = providers[groupProfile]
+	}
+	return provider
 }
 
 // certificateExpiry returns the notAfter timestamp of a PEM-encoded certificate in the RFC3339 format
