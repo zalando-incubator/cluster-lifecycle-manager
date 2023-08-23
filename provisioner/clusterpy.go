@@ -37,7 +37,8 @@ const (
 	providerID                         = "zalando-aws"
 	etcdStackFileName                  = "stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
-	etcdStackName                      = "etcd-cluster-etcd"
+	etcdStackNameDefault               = "etcd-cluster-etcd"
+	etcdStackNameConfigItemKey         = "etcd_stack_name"
 	defaultNamespace                   = "default"
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
@@ -416,8 +417,14 @@ func createOrUpdateEtcdStack(
 		return err
 	}
 
+	etcdStackName := etcdStackNameDefault
+
+	if v, ok := cluster.ConfigItems[etcdStackNameConfigItemKey]; ok {
+		etcdStackName = v
+	}
+
 	values = util.CopyValues(values)
-	err = populateEncryptedEtcdValues(adapter, cluster, etcdKmsKeyARN, values)
+	err = populateEncryptedEtcdValues(adapter, etcdStackName, cluster, etcdKmsKeyARN, values)
 	if err != nil {
 		return err
 	}

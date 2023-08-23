@@ -17,7 +17,7 @@ import (
 // we run. Unfortunately it's pretty much unavoidable because we rely on the KMS-encrypted config items inside the launch template, and if we
 // didn't do this, every run would create new ciphertext for the same plaintext value and then trigger a rolling update. We can drop it and switch
 // to a saner scheme (same as what we do with Kubernetes) once we migrate away from Taupage, and then this whole mess can be dropped.
-func populateEncryptedEtcdValues(adapter *awsAdapter, cluster *api.Cluster, etcdKMSKeyARN string, values map[string]interface{}) error {
+func populateEncryptedEtcdValues(adapter *awsAdapter, etcdStackName string, cluster *api.Cluster, etcdKMSKeyARN string, values map[string]interface{}) error {
 	stack, err := adapter.getStackByName(etcdStackName)
 	if err != nil && !isDoesNotExistsErr(err) {
 		return err
