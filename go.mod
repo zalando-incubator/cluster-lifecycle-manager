@@ -31,9 +31,9 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.22.17
-	k8s.io/apimachinery v0.22.17
-	k8s.io/client-go v0.22.17
+	k8s.io/api v0.24.17
+	k8s.io/apimachinery v0.24.17
+	k8s.io/client-go v0.24.17
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/utils v0.0.0-20230711102312-30195339c3c7 // indirect
 )
