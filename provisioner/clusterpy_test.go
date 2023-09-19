@@ -411,3 +411,50 @@ second: 2
 		})
 	}
 }
+
+func TestIsEmptyYAML(t *testing.T) {
+	t.Run("test empty", func(t *testing.T) {
+		for i, content := range []string{
+			"",
+			"\n",
+			"\n\n",
+			" ",
+			" \n",
+			" \n ",
+			"\n ",
+			"\n \n",
+			"#",
+			"# foo",
+			"# foo \n",
+			"# foo \n\n",
+			"\n# foo",
+			"\n# foo \n",
+			"\n# foo \n \n",
+			"# foo \n#bar\n",
+			"# foo \n#bar\n ",
+		} {
+			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+				assert.True(t, isEmptyYAML(content))
+			})
+		}
+	})
+
+	t.Run("test non empty", func(t *testing.T) {
+		for i, content := range []string{
+			"X",
+			"X\n",
+			"X\n\n",
+			" X",
+			"X \n",
+			"\n X\n",
+			"# foo\nX",
+			"# foo \nX\n",
+			"X\n# foo \n",
+			"# foo \n#bar\nX",
+		} {
+			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+				assert.False(t, isEmptyYAML(content))
+			})
+		}
+	})
+}

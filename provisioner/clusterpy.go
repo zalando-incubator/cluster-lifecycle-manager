@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -1069,8 +1068,8 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 			}
 
 			// If there's no content we skip the file.
-			if stripWhitespace(rendered) == "" {
-				log.Debugf("Skipping empty file: %s", manifest.Path)
+			if isEmptyYAML(rendered) {
+				log.Debugf("Skipping empty file: %s\n%s\n", manifest.Path, rendered)
 				continue
 			}
 
@@ -1127,13 +1126,15 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	return nil
 }
 
-func stripWhitespace(content string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
+// isEmptyYAML returns true if yaml content contains only commented or whitespace lines.
+func isEmptyYAML(content string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return false
 		}
-		return r
-	}, content)
+	}
+	return true
 }
 
 func int32Ptr(i int32) *int32 { return &i }
