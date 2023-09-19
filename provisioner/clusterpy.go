@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -1042,7 +1041,7 @@ func remarshalYAML(contents string) (string, error) {
 		}
 	}
 
-	return string(result.Bytes()), nil
+	return result.String(), nil
 }
 
 func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]manifestPackage, error) {
@@ -1068,19 +1067,18 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 				return nil, fmt.Errorf("error rendering template %s: %v", manifest.Path, err)
 			}
 
-			// If there's no content we skip the file.
-			if stripWhitespace(rendered) == "" {
-				log.Debugf("Skipping empty file: %s", manifest.Path)
-				continue
-			}
-
 			// We remarshal the manifest here to get rid of references
 			remarshaled, err := remarshalYAML(rendered)
 			if err != nil {
 				return nil, fmt.Errorf("error remarshaling manifest %s: %v", manifest.Path, err)
 			}
 
-			renderedManifests = append(renderedManifests, remarshaled)
+			// If there's no content we skip the manifest
+			if remarshaled == "" {
+				log.Debugf("Skipping empty manifest: %s\n%s\n", manifest.Path, rendered)
+			} else {
+				renderedManifests = append(renderedManifests, remarshaled)
+			}
 		}
 
 		if len(renderedManifests) > 0 {
@@ -1125,15 +1123,6 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	}
 
 	return nil
-}
-
-func stripWhitespace(content string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
-		}
-		return r
-	}, content)
 }
 
 func int32Ptr(i int32) *int32 { return &i }
