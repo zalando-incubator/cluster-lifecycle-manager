@@ -403,6 +403,72 @@ first: 1
 second: 2
 `,
 		},
+		{
+			name:     "empty manifest",
+			source:   "",
+			expected: "",
+		},
+		{
+			name:     "empty manifest with newline",
+			source:   "\n",
+			expected: "",
+		},
+		{
+			name:     "empty manifest with newlines",
+			source:   "\n\n",
+			expected: "",
+		},
+		{
+			name: "empty manifest with comments",
+			source: `
+# this manifest consists only
+
+  # of comments and
+
+    # whitespace lines
+`,
+			expected: "",
+		},
+		{
+			name:     "empty manifest with multiple documents",
+			source:   "---",
+			expected: "",
+		},
+		{
+			name:     "empty manifest with multiple documents",
+			source:   "\n---",
+			expected: "",
+		},
+		{
+			name:     "empty manifest with multiple documents",
+			source:   "---\n",
+			expected: "",
+		},
+		{
+			name:     "empty manifest with multiple documents",
+			source:   "\n---\n",
+			expected: "",
+		},
+		{
+			name: "empty manifest with multiple documents and comments",
+			source: `
+
+# this multidoc manifest
+# consists only
+
+
+---
+  # of comments and
+
+---
+    # whitespace lines
+---
+---
+
+---
+`,
+			expected: "",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			remarshaled, err := remarshalYAML(tc.source)
