@@ -263,10 +263,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	values := map[string]interface{}{
-		// TODO(tech-debt): custom legacy value
-		"node_labels": fmt.Sprintf("lifecycle-status=%s", lifecycleStatusReady),
-		// TODO(tech-debt): custom legacy value
-		"apiserver_count":           "1",
 		subnetsValueKey:             azInfo.SubnetsByAZ(),
 		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
 		"hosted_zone":               hostedZone,
