@@ -532,26 +532,6 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 }
 
-// getEnvVars gets AWS credentials from the session and returns the
-// corresponding environment variables.
-// only used for senza (TODO:think about not storing session in the awsAdapter)
-func (a *awsAdapter) getEnvVars() ([]string, error) {
-	creds, err := a.session.Config.Credentials.Get()
-	if err != nil {
-		return nil, err
-	}
-
-	return []string{
-		"AWS_ACCESS_KEY_ID=" + creds.AccessKeyID,
-		"AWS_SECRET_ACCESS_KEY=" + creds.SecretAccessKey,
-		"AWS_SESSION_TOKEN=" + creds.SessionToken,
-		"AWS_DEFAULT_REGION=" + *a.session.Config.Region,
-		"LC_ALL=en_US.UTF-8",
-		"LANG=en_US.UTF-8",
-		"PATH=/usr/local/bin:/usr/bin:/bin",
-	}, nil
-}
-
 func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
 	var filters []*ec2.Filter
 
