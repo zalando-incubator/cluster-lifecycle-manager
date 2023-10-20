@@ -1,0 +1,53 @@
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "stable"
+  namespace: kube-system
+  labels:
+    application: app
+    version: "v1"
+spec:
+
+  selector:
+    matchLabels:
+      deployment: "stable"
+  template:
+    spec:
+      containers:
+        - name: app
+          args:
+            - -log-level=info
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "alpha"
+  namespace: kube-system
+  labels:
+    application: app
+    version: "v2"
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      deployment: "alpha"
+  template:
+    spec:
+      containers:
+        - name: app
+          args:
+            - -log-level=info
+
+
+            - -foo=bar
+
+            - -baz=qux
+
+
+

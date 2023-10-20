@@ -1,0 +1,32 @@
+{{ range json `[
+  {"name": "stable", "version": "v1"},
+  {"name": "alpha", "version": "v2", "replicas": 1, "args": ["-foo=bar", "-baz=qux"]}
+]` }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .name }}"
+  namespace: kube-system
+  labels:
+    application: app
+    version: "{{ .version }}"
+spec:
+{{ if index . "replicas" }}
+  replicas: {{ .replicas }}
+{{ end }}
+  selector:
+    matchLabels:
+      deployment: "{{ .name }}"
+  template:
+    spec:
+      containers:
+        - name: app
+          args:
+            - -log-level=info
+{{ if index . "args" }}
+{{ range .args }}
+            - {{ . }}
+{{ end }}
+{{ end }}
+{{ end }}

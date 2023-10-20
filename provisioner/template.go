@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -113,6 +114,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azID":                 azID,
 		"azCount":              azCount,
 		"split":                split,
+		"json":                 parseJSON,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
@@ -292,6 +294,11 @@ func accountID(account string) (string, error) {
 		return "", fmt.Errorf("invalid account (expected type:id): %s", account)
 	}
 	return items[1], nil
+}
+
+func parseJSON(input string) (result interface{}, err error) {
+	err = json.Unmarshal([]byte(input), &result)
+	return
 }
 
 type HostPort struct {

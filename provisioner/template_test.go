@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
@@ -1163,4 +1164,52 @@ func TestNodePoolGroupsProfile(t *testing.T) {
 			require.Equal(t, tc.expected, output)
 		})
 	}
+}
+
+func TestJson(t *testing.T) {
+	t.Run("object", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ with json .Values.data }}name={{ .name }} value={{ .value }}{{end}}`,
+			`{"name": "foo", "value": "bar"}`)
+
+		require.NoError(t, err)
+		require.Equal(t, "name=foo value=bar", result)
+	})
+
+	t.Run("range over array", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ range json .Values.data }}{{ .name }}={{ .value }} {{end}}`,
+			`[{"name": "foo", "value": "bar"}, {"name": "baz", "value": "qux"}]`)
+
+		require.NoError(t, err)
+		require.Equal(t, "foo=bar baz=qux ", result)
+	})
+
+	t.Run("range over object", func(t *testing.T) {
+		result, err := renderSingle(
+			t,
+			`{{ range $key, $value := json .Values.data }}{{ $key }}={{ $value }} {{end}}`,
+			`{"name": "foo", "value": "bar"}`)
+
+		require.NoError(t, err)
+		require.Equal(t, "name=foo value=bar ", result)
+	})
+
+	t.Run("example manifest", func(t *testing.T) {
+		template, err := os.ReadFile("testdata/json.template.yaml")
+		require.NoError(t, err)
+
+		expected, err := os.ReadFile("testdata/json.expected.yaml")
+		require.NoError(t, err)
+
+		result, err := renderSingle(
+			t,
+			string(template),
+			"")
+
+		require.NoError(t, err)
+		require.Equal(t, string(expected), result)
+	})
 }
