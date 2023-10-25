@@ -75,16 +75,18 @@ func (clusterList *ClusterList) UpdateAvailable(configSource channel.ConfigSourc
 		}
 	}
 	sort.Slice(pendingUpdate, func(i, j int) bool {
-		pi := pendingUpdate[i].updatePriority
-		pj := pendingUpdate[j].updatePriority
+		ui, uj := pendingUpdate[i], pendingUpdate[j]
 
-		if pi > pj {
-			return true
-		} else if pi < pj {
-			return false
-		} else {
-			return pendingUpdate[i].lastProcessed.Before(pendingUpdate[j].lastProcessed)
+		if ui.updatePriority != uj.updatePriority {
+			return ui.updatePriority > uj.updatePriority
 		}
+
+		if ui.Cluster.CriticalityLevel != uj.Cluster.CriticalityLevel {
+			// Greater criticality levels processed first
+			return ui.Cluster.CriticalityLevel > uj.Cluster.CriticalityLevel
+		}
+
+		return ui.lastProcessed.Before(uj.lastProcessed)
 	})
 	clusterList.pendingUpdate = pendingUpdate
 }
