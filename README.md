@@ -25,8 +25,8 @@ For a better understanding on how we use the CLM within Zalando, see the 2018 Ku
 ## Current state
 
 The CLM has been developed internally at Zalando since January 2017. It's
-currently used to operate 80+ clusters on AWS where the oldest clusters has
-been continuously updated all the way from Kubernetes v1.4 to Kubernetes v1.9
+currently used to operate 200+ clusters on AWS where the oldest clusters has
+been continuously updated all the way from Kubernetes v1.4 to Kubernetes v1.24
 by the CLM.
 
 It is currently tightly coupled with our [production cluster
@@ -38,7 +38,7 @@ scale.
 ### Features
 
 * Automatically trigger cluster updates based on changes to a Cluster Registry
-  defined either as an HTTP REST API or a yaml file.
+  defined either as an HTTP REST API or a YAML file.
 * Automatically trigger cluster updates based on configuration changes, where
   configuration is stored in a remote git repository or a local directory.
 * Perform [Non-disruptive Rolling Updates](#non-disruptive-rolling-updates) of
@@ -63,7 +63,7 @@ $ make
 
 To run CLM you need to provide at least the following information:
 
-* URI to a registry `--registry` either a file path or a url to a cluster
+* URI to a registry `--registry` either a file path or a URL to a cluster
   registry.
 * A `$TOKEN` used for authenticating with the target Kubernetes cluster once it
   has been provisioned (the `$TOKEN` is an assumption of the Zalando setup, we
