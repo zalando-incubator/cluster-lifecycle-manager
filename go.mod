@@ -37,7 +37,10 @@ require (
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 )
 
-require github.com/Masterminds/sprig/v3 v3.2.3
+require (
+	github.com/Masterminds/sprig/v3 v3.2.3
+	sigs.k8s.io/aws-iam-authenticator v0.6.17
+)
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -59,6 +62,7 @@ require (
 	github.com/go-openapi/loads v0.22.0 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic v0.7.0 // indirect
