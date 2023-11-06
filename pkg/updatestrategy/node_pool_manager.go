@@ -116,7 +116,7 @@ func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *a
 		kubeNodes, kubeErr = m.kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 		return kubeErr
 	}, backoffCfg); err != nil {
-		return nil, fmt.Errorf("failed to list nodes: %#v", err)
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
 	instanceIDMap := make(map[string]v1.Node)
