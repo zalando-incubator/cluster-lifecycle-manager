@@ -95,6 +95,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azID":                 azID,
 		"azCount":              azCount,
 		"split":                split,
+		"eksID":                eksID,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
@@ -278,6 +279,10 @@ func dict(args ...interface{}) (map[string]interface{}, error) {
 
 func list(args ...interface{}) []interface{} {
 	return args
+}
+
+func eksID(id string) string {
+	return strings.Replace(id, ":", "--", -1)
 }
 
 // accountID returns just the ID part of an account

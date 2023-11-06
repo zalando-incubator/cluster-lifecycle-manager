@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -59,7 +61,7 @@ const (
 )
 
 var (
-	maxWaitTimeout            = 15 * time.Minute
+	maxWaitTimeout            = 25 * time.Minute
 	errCreateFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusCreateFailed)
 	errRollbackComplete       = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusRollbackComplete)
 	errUpdateRollbackComplete = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackComplete)
@@ -95,6 +97,7 @@ type awsAdapter struct {
 	iamClient            iamiface.IAMAPI
 	ec2Client            ec2iface.EC2API
 	acmClient            acmiface.ACMAPI
+	eksClient            eksiface.EKSAPI
 	region               string
 	apiServer            string
 	tokenSrc             oauth2.TokenSource
@@ -114,6 +117,7 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		autoscalingClient:    autoscaling.New(sess),
 		ec2Client:            ec2.New(sess),
 		acmClient:            acm.New(sess),
+		eksClient:            eks.New(sess),
 		region:               region,
 		apiServer:            apiServer,
 		tokenSrc:             tokenSrc,
@@ -740,4 +744,23 @@ func tagsToMap(tags []*ec2.Tag) map[string]string {
 		tagMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 	}
 	return tagMap
+}
+
+type EKSClusterInfo struct {
+	Endpoint             string
+	CertificateAuthority string
+}
+
+func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error) {
+	resp, err := a.eksClient.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(eksID(cluster.ID)),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &EKSClusterInfo{
+		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
+		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
+	}, nil
 }
