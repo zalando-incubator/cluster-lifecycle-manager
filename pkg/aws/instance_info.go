@@ -124,34 +124,33 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 		return Instance{}, fmt.Errorf("no instance types provided")
 	} else if len(instanceTypes) == 1 {
 		return types.InstanceInfo(instanceTypes[0])
-	} else {
-		first, err := types.InstanceInfo(instanceTypes[0])
+	}
+
+	first, err := types.InstanceInfo(instanceTypes[0])
+	if err != nil {
+		return Instance{}, err
+	}
+
+	result := Instance{
+		InstanceType:              "<multiple>",
+		VCPU:                      first.VCPU,
+		Memory:                    first.Memory,
+		InstanceStorageDevices:    first.InstanceStorageDevices,
+		InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
+		Architecture:              first.Architecture,
+	}
+	for _, instanceType := range instanceTypes[1:] {
+		info, err := types.InstanceInfo(instanceType)
 		if err != nil {
 			return Instance{}, err
 		}
 
-		result := Instance{
-			InstanceType:              first.InstanceType,
-			VCPU:                      first.VCPU,
-			Memory:                    first.Memory,
-			InstanceStorageDevices:    first.InstanceStorageDevices,
-			InstanceStorageDeviceSize: first.InstanceStorageDeviceSize,
-			Architecture:              first.Architecture,
-		}
-		for _, instanceType := range instanceTypes[1:] {
-			info, err := types.InstanceInfo(instanceType)
-			if err != nil {
-				return Instance{}, err
-			}
-
-			result.VCPU = min(result.VCPU, info.VCPU)
-			result.Memory = min(result.Memory, info.Memory)
-			result.InstanceStorageDeviceSize = min(result.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
-			result.InstanceStorageDevices = min(result.InstanceStorageDevices, info.InstanceStorageDevices)
-		}
-		result.InstanceType = "<multiple>"
-		return result, nil
+		result.VCPU = min(result.VCPU, info.VCPU)
+		result.Memory = min(result.Memory, info.Memory)
+		result.InstanceStorageDeviceSize = min(result.InstanceStorageDeviceSize, info.InstanceStorageDeviceSize)
+		result.InstanceStorageDevices = min(result.InstanceStorageDevices, info.InstanceStorageDevices)
 	}
+	return result, nil
 }
 
 // getCompatibleCPUArchitecture returns a single compatible CPU architecture. It's either `amd64` or `arm64`.
