@@ -82,9 +82,8 @@ func (clusterList *ClusterList) UpdateAvailable(configSource channel.ConfigSourc
 			return true
 		} else if pi < pj {
 			return false
-		} else {
-			return pendingUpdate[i].lastProcessed.Before(pendingUpdate[j].lastProcessed)
 		}
+		return pendingUpdate[i].lastProcessed.Before(pendingUpdate[j].lastProcessed)
 	})
 	clusterList.pendingUpdate = pendingUpdate
 }
