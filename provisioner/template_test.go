@@ -1164,3 +1164,40 @@ func TestNodePoolGroupsProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestDict(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ define "a-template" -}}
+name: {{ .name }}
+version: {{ .version }}
+{{ end }}
+
+{{ template "a-template" dict "name" "foo" "version" .Values.data }}
+`,
+		"1")
+
+	require.NoError(t, err)
+	require.EqualValues(t, `
+
+name: foo
+version: 1
+
+`, result)
+}
+
+func TestDictInvalidArgs(t *testing.T) {
+	for i, tc := range []struct {
+		args []interface{}
+	}{
+		{args: []interface{}{}},
+		{args: []interface{}{"foo"}},
+		{args: []interface{}{1, "foo"}},
+		{args: []interface{}{"foo", "bar", "foo", "baz"}},
+	} {
+		t.Run(fmt.Sprintf("%d: %v", i, tc.args), func(t *testing.T) {
+			_, err := dict(tc.args...)
+			require.Error(t, err)
+		})
+	}
+}

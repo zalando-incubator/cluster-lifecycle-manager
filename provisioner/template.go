@@ -144,6 +144,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"sumQuantities":                         sumQuantities,
 		"awsValidID":                            awsValidID,
 		"indent":                                sprig.GenericFuncMap()["indent"],
+		"dict":                                  dict,
 	}
 
 	content, ok := context.fileData[file]
@@ -283,6 +284,27 @@ func split(s string, d string) []string {
 		return nil
 	}
 	return strings.Split(s, d)
+}
+
+// dict is a template function that constructs a map out of its arguments.
+// Argument list is treated as a sequence of key-value pairs and must have even length.
+// Key arguments must be unique and have string type.
+func dict(args ...interface{}) (map[string]interface{}, error) {
+	if len(args) == 0 || len(args)%2 != 0 {
+		return nil, fmt.Errorf("dict: invalid number of arguments: %d", len(args))
+	}
+	dict := make(map[string]interface{}, len(args)/2)
+	for i := 0; i < len(args); i += 2 {
+		key, ok := args[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict: key argument %d must be string", i)
+		}
+		if _, ok := dict[key]; ok {
+			return nil, fmt.Errorf("dict: duplicate key %s", key)
+		}
+		dict[key] = args[i+1]
+	}
+	return dict, nil
 }
 
 // accountID returns just the ID part of an account
