@@ -3,16 +3,21 @@ package provisioner
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+	"golang.org/x/oauth2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -474,6 +479,41 @@ second: 2
 			remarshaled, err := remarshalYAML(tc.source)
 			require.NoError(t, err)
 			require.Equal(t, strings.TrimPrefix(tc.expected, "\n"), remarshaled)
+		})
+	}
+}
+
+func TestWaitForAPIServer(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		responseCode int
+	}{
+		{
+			name:         "test successful response from wait",
+			responseCode: 200,
+		},
+		{
+			name:         "test unuccessful response during wait",
+			responseCode: 500,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.responseCode)
+			}))
+			defer ts.Close()
+
+			cluster := &api.Cluster{
+				APIServerURL: ts.URL,
+			}
+
+			tokenSource := oauth2.StaticTokenSource(&oauth2.Token{})
+			err := waitForAPIServer(log.WithField("cluster", "test"), cluster, 1*time.Millisecond, tokenSource)
+			if tc.responseCode == http.StatusOK {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
 		})
 	}
 }
