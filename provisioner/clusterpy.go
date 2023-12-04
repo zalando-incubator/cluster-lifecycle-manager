@@ -350,6 +350,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		cluster,
 		caNodePoolProvisioner,
 		karpenterProvisioner,
+		p.tokenSource,
 	)
 
 	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
@@ -709,14 +710,26 @@ func (p *clusterpyProvisioner) removeEBSVolumes(awsAdapter *awsAdapter, cluster 
 
 // waitForAPIServer waits a cluster API server to be ready. It's considered
 // ready when it's reachable.
-func waitForAPIServer(logger *log.Entry, server string, maxTimeout time.Duration) error {
+func waitForAPIServer(logger *log.Entry, cluster *api.Cluster, maxTimeout time.Duration, tokenSource oauth2.TokenSource) error {
 	logger.Infof("Waiting for API Server to be reachable")
 	client := &http.Client{}
 	timeout := time.Now().UTC().Add(maxTimeout)
 
 	for time.Now().UTC().Before(timeout) {
-		resp, err := client.Get(server)
-		if err == nil && resp.StatusCode < http.StatusInternalServerError {
+		req, err := http.NewRequest(http.MethodGet, cluster.APIServerURL+"/readyz", nil)
+		if err != nil {
+			return err
+		}
+
+		token, err := tokenSource.Token()
+		if err != nil {
+			return err
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
 			return nil
 		}
 
@@ -725,7 +738,7 @@ func waitForAPIServer(logger *log.Entry, server string, maxTimeout time.Duration
 		time.Sleep(15 * time.Second)
 	}
 
-	return fmt.Errorf("'%s' was not ready after %s", server, maxTimeout.String())
+	return fmt.Errorf("%q was not ready after %s", cluster.APIServerURL, maxTimeout.String())
 }
 
 // setupAWSAdapter sets up the AWS Adapter used for communicating with AWS.
@@ -1136,7 +1149,7 @@ type nodePoolGroup struct {
 	ReadyFn     func() error
 }
 
-func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner) map[string]*nodePoolGroup {
+func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSNodePoolProvisioner, karProvisioner *KarpenterNodePoolProvisioner, tokenSource oauth2.TokenSource) map[string]*nodePoolGroup {
 
 	var masters, workers, karpenterPools []*api.NodePool
 	for _, nodePool := range cluster.NodePools {
@@ -1157,7 +1170,7 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 			NodePools:   masters,
 			Provisioner: caProvisioner,
 			ReadyFn: func() error {
-				return waitForAPIServer(logger, cluster.APIServerURL, 15*time.Minute)
+				return waitForAPIServer(logger, cluster, 15*time.Minute, tokenSource)
 			},
 		},
 		"workers": {
