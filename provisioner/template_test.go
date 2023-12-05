@@ -997,12 +997,32 @@ CWeOoA==
 	require.Equal(t, "2022-06-10T10:06:43Z", res)
 }
 
-func TestSubQuantity(t *testing.T) {
+func TestSumQuantities(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		template string
 		expected string
 	}{
+		{
+			name:     "whole add zero",
+			template: `{{ sumQuantities "2" "0" }}`,
+			expected: "2",
+		},
+		{
+			name:     "whole addition",
+			template: `{{ sumQuantities "2" "3" }}`,
+			expected: "5",
+		},
+		{
+			name:     "whole subtraction",
+			template: `{{ sumQuantities "5" "-3" }}`,
+			expected: "2",
+		},
+		{
+			name:     "fraction add zero",
+			template: `{{ sumQuantities "256m" "0" }}`,
+			expected: "256m",
+		},
 		{
 			name:     "whole CPU add fraction",
 			template: `{{ sumQuantities "2" "256m" }}`,
