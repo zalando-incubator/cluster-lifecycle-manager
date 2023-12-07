@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -232,6 +233,8 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 				Title: err.Error(),
 				Type:  errTypeGeneral,
 			})
+
+			cluster.Status.Problems = slices.CompactFunc(cluster.Status.Problems, func(a, b *api.Problem) bool { return *a == *b })
 
 			if len(cluster.Status.Problems) > errorLimit {
 				cluster.Status.Problems = cluster.Status.Problems[len(cluster.Status.Problems)-errorLimit:]

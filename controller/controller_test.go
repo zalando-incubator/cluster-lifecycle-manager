@@ -62,6 +62,24 @@ func (p *mockErrCreateProvisioner) Provision(_ context.Context, _ *log.Entry, _ 
 	return fmt.Errorf("failed to provision")
 }
 
+type mockCountingErrProvisioner struct {
+	*mockProvisioner
+	attempt int
+}
+
+func (p *mockCountingErrProvisioner) Supports(_ *api.Cluster) bool {
+	return true
+}
+
+func (p *mockCountingErrProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
+	p.attempt++
+	return fmt.Errorf("attempt %d failed to provision", p.attempt)
+}
+
+func (p *mockCountingErrProvisioner) Decommission(_ context.Context, _ *log.Entry, _ *api.Cluster) error {
+	return fmt.Errorf("failed to decommission")
+}
+
 type mockRegistry struct {
 	theCluster *api.Cluster
 	lastUpdate *api.Cluster
@@ -278,20 +296,41 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 }
 
 func TestCoalesceFailures(t *testing.T) {
-	registry := createMockRegistry("ready", nil)
-	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockErrProvisioner{}, MockChannelSource(false, false), defaultOptions)
+	t.Run("limits various problems", func(t *testing.T) {
+		registry := createMockRegistry("ready", nil)
+		controller := New(defaultLogger, command.NewExecManager(1), registry, &mockCountingErrProvisioner{}, MockChannelSource(false, false), defaultOptions)
 
-	for i := 0; i < 100; i++ {
-		err := controller.refresh()
-		require.NoError(t, err)
+		for i := 0; i < 100; i++ {
+			err := controller.refresh()
+			require.NoError(t, err)
 
-		ctx, cancelFunc := context.WithCancel(context.Background())
+			ctx, cancelFunc := context.WithCancel(context.Background())
 
-		next := controller.clusterList.SelectNext(cancelFunc)
-		require.NotNil(t, next)
-		controller.processCluster(ctx, 0, next)
+			next := controller.clusterList.SelectNext(cancelFunc)
+			require.NotNil(t, next)
+			controller.processCluster(ctx, 0, next)
 
-		registry.theCluster.Status = registry.lastUpdate.Status
-		require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.theCluster.Status.Problems))
-	}
+			registry.theCluster.Status = registry.lastUpdate.Status
+			require.EqualValues(t, math.Min(errorLimit, float64(i+1)), len(registry.theCluster.Status.Problems))
+		}
+	})
+
+	t.Run("compacts repeating problems", func(t *testing.T) {
+		registry := createMockRegistry("ready", nil)
+		controller := New(defaultLogger, command.NewExecManager(1), registry, &mockErrProvisioner{}, MockChannelSource(false, false), defaultOptions)
+
+		for i := 0; i < 100; i++ {
+			err := controller.refresh()
+			require.NoError(t, err)
+
+			ctx, cancelFunc := context.WithCancel(context.Background())
+
+			next := controller.clusterList.SelectNext(cancelFunc)
+			require.NotNil(t, next)
+			controller.processCluster(ctx, 0, next)
+
+			registry.theCluster.Status = registry.lastUpdate.Status
+			require.Len(t, registry.theCluster.Status.Problems, 1)
+		}
+	})
 }
