@@ -52,7 +52,6 @@ const (
 	etcdClientCAConfigItem          = "etcd_client_ca_cert"
 	etcdClientKeyConfigItem         = "etcd_client_server_key"
 	etcdClientCertificateConfigItem = "etcd_client_server_cert"
-	etcdClientTLSEnabledConfigItem  = "etcd_client_tls_enabled"
 	etcdImageConfigItem             = "etcd_image"
 
 	applicationTagKey = "application"
