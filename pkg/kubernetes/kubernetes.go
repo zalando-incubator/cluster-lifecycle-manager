@@ -203,6 +203,14 @@ func (c *ClientsCollection) Get(ctx context.Context, kind, namespace, name strin
 	return client.Get(ctx, name, options, subresources...)
 }
 
+func (c *ClientsCollection) Exists(ctx context.Context, kind, namespace, name string, options metav1.GetOptions, subresources ...string) bool {
+	_, err := c.Get(ctx, kind, namespace, name, options, subresources...)
+	if err != nil { // TODO: check for specific error
+		return false
+	}
+	return true
+}
+
 func (c *ClientsCollection) List(ctx context.Context, kind, namespace string, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
 	client, err := c.getResourceClient(kind, namespace)
 	if err != nil {

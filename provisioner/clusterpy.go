@@ -849,8 +849,9 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, err
 	}
+	crdResolver := NewKarpenterCRDResolver(context.Background(), k8sClients)
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, updatestrategy.WithConfigGetter(KarpenterNodePoolConfigGetter(k8sClients))),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, updatestrategy.WithConfigGetter(crdResolver.ConfigGetter(k8sClients))),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
