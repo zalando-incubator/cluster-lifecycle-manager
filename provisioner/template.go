@@ -145,6 +145,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"awsValidID":                            awsValidID,
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
+		"divideInstanceResourcesInRatio":        divideInstanceResourcesInRatio,
 	}
 
 	content, ok := context.fileData[file]
@@ -774,4 +775,41 @@ func sumQuantities(quantities ...string) (string, error) {
 
 func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
+}
+
+// divideInstanceResourcesInRatio takes in an instance type and a ratio and returns the result of applying
+// the ratio on the instance CPU and Memory sizes.
+// The ratio must be a positive number and less than 1.
+// The result is rounded down to the nearest integer, to avoid overcommitting resources.
+// The units for CPU and memory are millicores and mebibytes (MiB) respectively.
+func divideInstanceResourcesInRatio(adapter *awsAdapter, instanceType string, ratio float32) (cpu, memory int, err error) {
+	if adapter == nil || adapter.ec2Client == nil {
+		return 0, 0, fmt.Errorf("the ec2 client is not available")
+	}
+
+	// validate the ratio
+	if ratio <= 0 {
+		return 0, 0, fmt.Errorf("ratio must be a positive number")
+	} else if ratio > 1 {
+		return 0, 0, fmt.Errorf("ratio must be less than 1")
+	} else if ratio == 1 {
+		return 0, 0, fmt.Errorf("ratio cannot be 1, cannot use all resources of an instance")
+	}
+
+	// get the instance type info
+	input := ec2.DescribeInstanceTypesInput{InstanceTypes: awsUtil.StringSlice([]string{instanceType})}
+	output, err := adapter.ec2Client.DescribeInstanceTypes(&input)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
+	}
+	if len(output.InstanceTypes) != 1 {
+		return 0, 0, fmt.Errorf("no instance type found with name: %s", instanceType)
+	}
+	instanceTypeInfo := output.InstanceTypes[0]
+
+	// calculate the CPU and memory sizes
+	cpu = int(float32(*instanceTypeInfo.VCpuInfo.DefaultVCpus) * ratio)
+	memory = int(float32(*instanceTypeInfo.MemoryInfo.SizeInMiB) * ratio)
+
+	return cpu, memory, nil
 }
