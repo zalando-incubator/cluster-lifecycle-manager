@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
@@ -1220,4 +1221,61 @@ func TestDictInvalidArgs(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestScaleQuantity(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		quantity k8sresource.Quantity
+		factor   float32
+		expected k8sresource.Quantity
+	}{
+		{
+			name:     "whole CPU scaled by whole",
+			quantity: k8sresource.MustParse("1.0"),
+			factor:   2.0,
+			expected: k8sresource.MustParse("2.0"),
+		},
+		{
+			name:     "whole CPU scaled by fraction",
+			quantity: k8sresource.MustParse("10"),
+			factor:   0.5,
+			expected: k8sresource.MustParse("5"),
+		},
+		{
+			name:     "fraction CPU scaled by whole",
+			quantity: k8sresource.MustParse("256m"),
+			factor:   2.0,
+			expected: k8sresource.MustParse("512m"),
+		},
+		{
+			name:     "fraction CPU scaled by fraction",
+			quantity: k8sresource.MustParse("256m"),
+			factor:   0.5,
+			expected: k8sresource.MustParse("128m"),
+		},
+		{
+			name:     "memory scaled by whole",
+			quantity: k8sresource.MustParse("1Gi"),
+			factor:   2.0,
+			expected: k8sresource.MustParse("2Gi"),
+		},
+		{
+			name:     "memory scaled by fraction",
+			quantity: k8sresource.MustParse("1Gi"),
+			factor:   0.5,
+			expected: k8sresource.MustParse("512Mi"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := scaleQuantity(tc.quantity, tc.factor)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected.String(), result.String())
+		})
+	}
+}
+
+func TestScaleQuantityError(t *testing.T) {
+	_, err := scaleQuantity(k8sresource.MustParse("1.0"), -1.0)
+	require.Error(t, err)
 }

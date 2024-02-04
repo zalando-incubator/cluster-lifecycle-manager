@@ -145,7 +145,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"awsValidID":                            awsValidID,
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
-		"divideInstanceResourcesInRatio":        divideInstanceResourcesInRatio,
+		"scaleQuantity":                         scaleQuantity,
+		"instanceTypeCPU":                       instanceTypeCPU,
+		"instanceTypeMemory":                    instanceTypeMemory,
 	}
 
 	content, ok := context.fileData[file]
@@ -777,48 +779,62 @@ func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
 }
 
-// divideInstanceResourcesInRatio takes in an instance type and a ratio and returns the result of applying
-// the ratio on the instance CPU and Memory sizes.
-// The ratio must be a positive number and less than 1.
-// The resourceType must be either 'cpu' or 'memory'.
-// The result is rounded down to the nearest integer, to avoid overcommitting resources.
-// The units for CPU and memory are millicores and mebibytes (MiB) respectively.
-func divideInstanceResourcesInRatio(adapter *awsAdapter, instanceType string, resourceType string, ratio float32) (dividedResource int, err error) {
+// instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity
+func instanceTypeCPU(instanceType string, adapter *awsAdapter) (k8sresource.Quantity, error) {
+	var cpu k8sresource.Quantity
+
 	if adapter == nil || adapter.ec2Client == nil {
-		return 0, fmt.Errorf("the ec2 client is not available")
-	}
-
-	// validate the ratio
-	if ratio <= 0 {
-		return 0, fmt.Errorf("ratio must be a positive number")
-	} else if ratio > 1 {
-		return 0, fmt.Errorf("ratio must be less than 1")
-	} else if ratio == 1 {
-		return 0, fmt.Errorf("ratio cannot be 1, cannot use all resources of an instance")
-	}
-
-	// validate the resourceType
-	if resourceType != "cpu" && resourceType != "memory" {
-		return 0, fmt.Errorf("resourceType must be either 'cpu' or 'memory'")
+		return cpu, fmt.Errorf("the ec2 client is not available")
 	}
 
 	// get the instance type info
 	input := ec2.DescribeInstanceTypesInput{InstanceTypes: awsUtil.StringSlice([]string{instanceType})}
 	output, err := adapter.ec2Client.DescribeInstanceTypes(&input)
 	if err != nil {
-		return 0, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
+		return cpu, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
 	}
 	if len(output.InstanceTypes) != 1 {
-		return 0, fmt.Errorf("no instance type found with name: %s", instanceType)
+		return cpu, fmt.Errorf("no instance type found with name: %s", instanceType)
 	}
 	instanceTypeInfo := output.InstanceTypes[0]
+	cpu.Set(int64(*instanceTypeInfo.VCpuInfo.DefaultVCpus))
 
-	// calculate the CPU and memory sizes
-	if resourceType == "cpu" {
-		return int(float32(*instanceTypeInfo.VCpuInfo.DefaultVCpus) * ratio), nil
-	} else if resourceType == "memory" {
-		return int(float32(*instanceTypeInfo.MemoryInfo.SizeInMiB) * ratio), nil
+	return cpu, nil
+}
+
+// instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity
+func instanceTypeMemory(instanceType string, adapter *awsAdapter) (k8sresource.Quantity, error) {
+	var memory k8sresource.Quantity
+
+	if adapter == nil || adapter.ec2Client == nil {
+		return memory, fmt.Errorf("the ec2 client is not available")
 	}
 
-	return 0, fmt.Errorf("failed to calculate the %s size of instance type %s", resourceType, instanceType)
+	// get the instance type info
+	input := ec2.DescribeInstanceTypesInput{InstanceTypes: awsUtil.StringSlice([]string{instanceType})}
+	output, err := adapter.ec2Client.DescribeInstanceTypes(&input)
+	if err != nil {
+		return memory, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
+	}
+	if len(output.InstanceTypes) != 1 {
+		return memory, fmt.Errorf("no instance type found with name: %s", instanceType)
+	}
+	instanceTypeInfo := output.InstanceTypes[0]
+	memory.SetScaled(int64(*instanceTypeInfo.MemoryInfo.SizeInMiB), k8sresource.Mega)
+
+	return memory, nil
+}
+
+// scaleQuantity scales a k8sresource.Quantity by a factor
+// returns the k8sresource.Quantity and an error if the scaling factor is less than or equal to 0.0
+func scaleQuantity(quantity k8sresource.Quantity, factor float32) (k8sresource.Quantity, error) {
+	// validate scaling factor
+	if factor <= 0.0 {
+		return quantity, fmt.Errorf("scaling factor must be greater than 0.0")
+	}
+
+	// scale the quantity in milli-units to handle fractions
+	quantity.SetMilli(int64(float32(quantity.MilliValue()) * factor))
+
+	return quantity, nil
 }
