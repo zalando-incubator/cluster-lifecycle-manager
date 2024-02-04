@@ -65,6 +65,7 @@ type NodePoolTemplateRenderer struct {
 	bucketName     string
 	logger         *log.Entry
 	encodeUserData bool
+	instanceTypes  *awsUtils.InstanceTypes
 }
 
 // prepareCloudInit prepares the user data by rendering the golang template.
@@ -88,11 +89,12 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, valu
 	}
 
 	renderer := &FilesRenderer{
-		awsAdapter: r.awsAdapter,
-		cluster:    r.cluster,
-		config:     r.config,
-		directory:  poolKind,
-		nodePool:   nodePool,
+		awsAdapter:    r.awsAdapter,
+		cluster:       r.cluster,
+		config:        r.config,
+		directory:     poolKind,
+		nodePool:      nodePool,
+		instanceTypes: r.instanceTypes,
 	}
 
 	s3Path, err := renderer.RenderAndUploadFiles(values, r.bucketName, kmsKey)
@@ -107,7 +109,7 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, valu
 	if err != nil {
 		return "", err
 	}
-	rendered, err := renderSingleTemplate(cloudInitContents, r.cluster, nodePool, values, r.awsAdapter)
+	rendered, err := renderSingleTemplate(cloudInitContents, r.cluster, nodePool, values, r.awsAdapter, r.instanceTypes)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +150,7 @@ func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(nodePool *api.NodePo
 	if err != nil {
 		return "", err
 	}
-	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter)
+	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter, r.instanceTypes)
 }
 
 type KarpenterNodePoolProvisioner struct {
@@ -264,7 +266,6 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatest
 // TODO: move AWS specific implementation to a separate file/package.
 type AWSNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
-	instanceTypes   *awsUtils.InstanceTypes
 	azInfo          *AZInfo
 	templateContext *templateContext
 }
@@ -305,7 +306,7 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
-	instanceInfo, err := p.instanceTypes.SyntheticInstanceInfo(nodePool.InstanceTypes)
+	instanceInfo, err := p.NodePoolTemplateRenderer.instanceTypes.SyntheticInstanceInfo(nodePool.InstanceTypes)
 	if err != nil {
 		return err
 	}

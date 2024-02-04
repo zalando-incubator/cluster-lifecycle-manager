@@ -10,17 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
-func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
+func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
 	templateData := make(map[string][]byte, len(templates))
 
 	for name, content := range templates {
 		templateData[name] = []byte(content)
 	}
 
-	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter)
+	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter, instanceTypes)
 	return renderTemplate(context, templateName)
 }
 
@@ -30,6 +31,7 @@ func renderSingle(t *testing.T, template string, data interface{}) (string, erro
 		map[string]string{"foo.yaml": template},
 		"foo.yaml",
 		data,
+		nil,
 		nil)
 }
 
@@ -72,6 +74,7 @@ func TestManifestHash(t *testing.T) {
 		},
 		"dir/foo.yaml",
 		"abc123",
+		nil,
 		nil)
 
 	require.NoError(t, err)
@@ -86,6 +89,7 @@ func TestManifestHashMissingFile(t *testing.T) {
 		},
 		"foo.yaml",
 		"",
+		nil,
 		nil)
 
 	require.Error(t, err)
@@ -100,6 +104,7 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 		},
 		"foo.yaml",
 		"",
+		nil,
 		nil)
 
 	require.Error(t, err)
@@ -500,7 +505,8 @@ func TestAmiID(t *testing.T) {
 				},
 				"foo.yaml",
 				"abc123",
-				&adapter)
+				&adapter,
+				nil)
 
 			if !tc.expectErr {
 				require.NoError(t, err)

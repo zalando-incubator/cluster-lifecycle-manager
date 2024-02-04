@@ -13,17 +13,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"gopkg.in/yaml.v2"
 )
 
 const kmsKeyPrefix = "arn:aws:kms"
 
 type FilesRenderer struct {
-	awsAdapter *awsAdapter
-	cluster    *api.Cluster
-	config     channel.Config
-	directory  string
-	nodePool   *api.NodePool
+	awsAdapter    *awsAdapter
+	cluster       *api.Cluster
+	config        channel.Config
+	directory     string
+	nodePool      *api.NodePool
+	instanceTypes *awsUtils.InstanceTypes
 }
 
 func (f *FilesRenderer) RenderAndUploadFiles(
@@ -54,6 +56,7 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 		f.nodePool,
 		values,
 		f.awsAdapter,
+		f.instanceTypes,
 	)
 	if err != nil {
 		return "", err

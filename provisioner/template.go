@@ -20,10 +20,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	awsUtil "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -46,6 +47,7 @@ type templateContext struct {
 	values                map[string]interface{}
 	computingManifestHash bool
 	awsAdapter            *awsAdapter
+	instanceTypes         *awsUtils.InstanceTypes
 }
 
 type templateData struct {
@@ -80,19 +82,20 @@ type templateData struct {
 	S3GeneratedFilesPath string
 }
 
-func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) *templateContext {
+func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) *templateContext {
 	return &templateContext{
-		fileData:     fileData,
-		templateData: make(map[string]string),
-		cluster:      cluster,
-		nodePool:     nodePool,
-		values:       values,
-		awsAdapter:   adapter,
+		fileData:      fileData,
+		templateData:  make(map[string]string),
+		cluster:       cluster,
+		nodePool:      nodePool,
+		values:        values,
+		awsAdapter:    adapter,
+		instanceTypes: instanceTypes,
 	}
 }
 
-func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) (string, error) {
-	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter)
+func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
+	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes)
 	return renderTemplate(ctx, manifest.Path)
 }
 
@@ -146,8 +149,12 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
 		"scaleQuantity":                         scaleQuantity,
-		"instanceTypeCPU":                       instanceTypeCPU,
-		"instanceTypeMemory":                    instanceTypeMemory,
+		"instanceTypeCPU": func(instanceType string) (k8sresource.Quantity, error) {
+			return instanceTypeCPU(context, instanceType)
+		},
+		"instanceTypeMemory": func(instanceType string) (k8sresource.Quantity, error) {
+			return instanceTypeMemory(context, instanceType)
+		},
 	}
 
 	content, ok := context.fileData[file]
@@ -552,8 +559,8 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 	}
 
 	input := ec2.DescribeImagesInput{Filters: []*ec2.Filter{
-		{Name: awsUtil.String(describeImageFilterNameName), Values: awsUtil.StringSlice([]string{imageName})},
-		{Name: awsUtil.String(describeImageFilterNameOwner), Values: awsUtil.StringSlice([]string{imageOwner})},
+		{Name: aws.String(describeImageFilterNameName), Values: aws.StringSlice([]string{imageName})},
+		{Name: aws.String(describeImageFilterNameOwner), Values: aws.StringSlice([]string{imageOwner})},
 	}}
 	output, err := adapter.ec2Client.DescribeImages(&input)
 	if err != nil {
@@ -780,47 +787,33 @@ func awsValidID(id string) string {
 }
 
 // instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity
-func instanceTypeCPU(instanceType string, adapter *awsAdapter) (k8sresource.Quantity, error) {
+func instanceTypeCPU(context *templateContext, instanceType string) (k8sresource.Quantity, error) {
 	var cpu k8sresource.Quantity
 
-	if adapter == nil || adapter.ec2Client == nil {
-		return cpu, fmt.Errorf("the ec2 client is not available")
+	// get the instance type info
+	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
+
+	if err != nil {
+		return cpu, err
 	}
 
-	// get the instance type info
-	input := ec2.DescribeInstanceTypesInput{InstanceTypes: awsUtil.StringSlice([]string{instanceType})}
-	output, err := adapter.ec2Client.DescribeInstanceTypes(&input)
-	if err != nil {
-		return cpu, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
-	}
-	if len(output.InstanceTypes) != 1 {
-		return cpu, fmt.Errorf("no instance type found with name: %s", instanceType)
-	}
-	instanceTypeInfo := output.InstanceTypes[0]
-	cpu.Set(int64(*instanceTypeInfo.VCpuInfo.DefaultVCpus))
+	cpu.Set(instanceTypeInfo.VCPU)
 
 	return cpu, nil
 }
 
 // instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity
-func instanceTypeMemory(instanceType string, adapter *awsAdapter) (k8sresource.Quantity, error) {
+func instanceTypeMemory(context *templateContext, instanceType string) (k8sresource.Quantity, error) {
 	var memory k8sresource.Quantity
 
-	if adapter == nil || adapter.ec2Client == nil {
-		return memory, fmt.Errorf("the ec2 client is not available")
+	// get the instance type info
+	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
+
+	if err != nil {
+		return memory, err
 	}
 
-	// get the instance type info
-	input := ec2.DescribeInstanceTypesInput{InstanceTypes: awsUtil.StringSlice([]string{instanceType})}
-	output, err := adapter.ec2Client.DescribeInstanceTypes(&input)
-	if err != nil {
-		return memory, fmt.Errorf("failed to describe instance type %s: %v", instanceType, err)
-	}
-	if len(output.InstanceTypes) != 1 {
-		return memory, fmt.Errorf("no instance type found with name: %s", instanceType)
-	}
-	instanceTypeInfo := output.InstanceTypes[0]
-	memory.SetScaled(int64(*instanceTypeInfo.MemoryInfo.SizeInMiB), k8sresource.Mega)
+	memory.Set(instanceTypeInfo.Memory)
 
 	return memory, nil
 }
