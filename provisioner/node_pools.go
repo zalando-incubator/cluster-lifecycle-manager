@@ -41,12 +41,6 @@ const (
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 	instanceInfoKey               = "InstanceInfo"
-
-	karpenterProvisionerResource     = "provisioners.karpenter.sh"
-	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
-	karpenterNodePoolResource        = "nodepools.karpenter.sh"
-	KarpenterEC2NodeClassResource    = "ec2nodeclasses.karpenter.k8s.aws"
-	crd                              = "CustomResourceDefinition"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -232,28 +226,31 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 
-	crdResolver := NewKarpenterCRDResolver(ctx, p.k8sClients)
-	existingProvisioners, err := p.k8sClients.List(ctx, crdResolver.MainCRDName, "", metav1.ListOptions{})
+	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, p.k8sClients)
+	if err != nil {
+		return err
+	}
+	existingProvisioners, err := p.k8sClients.List(ctx, crdResolver.NodePoolCRDName, "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, pr := range existingProvisioners.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err := p.k8sClients.Delete(ctx, crdResolver.MainCRDName, "", pr.GetName(), metav1.DeleteOptions{})
+			err := p.k8sClients.Delete(ctx, crdResolver.NodePoolCRDName, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	existingNodeTemplates, err := p.k8sClients.List(ctx, crdResolver.SecondaryCRDName(), "", metav1.ListOptions{})
+	existingNodeTemplates, err := p.k8sClients.List(ctx, crdResolver.NodeTemplateCRDName(), "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, pr := range existingNodeTemplates.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err = p.k8sClients.Delete(ctx, crdResolver.SecondaryCRDName(), "", pr.GetName(), metav1.DeleteOptions{})
+			err = p.k8sClients.Delete(ctx, crdResolver.NodeTemplateCRDName(), "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -458,94 +455,4 @@ func nodePoolStackToNodePool(stack *cloudformation.Stack) *api.NodePool {
 		}
 	}
 	return nodePool
-}
-
-type KarpenterCRDNameResolver struct {
-	MainCRDName string
-}
-
-func NewKarpenterCRDResolver(ctx context.Context, k8sClients *kubernetes.ClientsCollection) *KarpenterCRDNameResolver {
-	exists := k8sClients.Exists(ctx, crd, "", karpenterNodePoolResource, metav1.GetOptions{})
-	if exists {
-		return &KarpenterCRDNameResolver{
-			MainCRDName: karpenterNodePoolResource,
-		}
-	}
-	return &KarpenterCRDNameResolver{
-		MainCRDName: karpenterProvisionerResource,
-	}
-}
-
-func (r *KarpenterCRDNameResolver) SecondaryCRDName() string {
-	switch r.MainCRDName {
-	case karpenterNodePoolResource:
-		return KarpenterEC2NodeClassResource
-	default:
-		return karpenterAWSNodeTemplateResource
-	}
-}
-
-func (r *KarpenterCRDNameResolver) referenceFieldName() string {
-	switch r.MainCRDName {
-	case karpenterNodePoolResource:
-		return "nodeClassRef"
-	default:
-		return "providerRef"
-	}
-}
-
-func (r *KarpenterCRDNameResolver) getAMIsFromSpec(spec interface{}) string {
-	switch r.MainCRDName {
-	case karpenterNodePoolResource:
-		amiSelectorTerms := spec.(map[string][]interface{})["amiSelectorTerms"]
-		var amis []string
-		for _, amiSelectorTerm := range amiSelectorTerms {
-			if amiSelectorTerm.(map[string]interface{})["id"] != nil {
-				amis = append(amis, amiSelectorTerm.(map[string]interface{})["id"].(string))
-			}
-		}
-		return strings.Join(amis, ",")
-	default:
-		return spec.(map[string]interface{})["amiSelector"].(map[string]interface{})["aws-ids"].(string)
-	}
-}
-
-func (r *KarpenterCRDNameResolver) ConfigGetter(kubeClient *kubernetes.ClientsCollection) updatestrategy.NodePoolConfigGetter {
-	return func(ctx context.Context, nodePool *api.NodePool) (*updatestrategy.InstanceConfig, error) {
-		mainResource, err := kubeClient.Get(ctx, r.MainCRDName, "", nodePool.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		spec, ok := mainResource.Object["spec"]
-		if !ok {
-			return nil, errors.New("")
-		}
-		refSpec := spec.(map[string]interface{})[r.referenceFieldName()]
-		if refSpec == nil {
-			return nil, nil
-		}
-		ref := refSpec.(map[string]interface{})["name"]
-		if refSpec == nil {
-			return nil, nil
-		}
-
-		secondaryResource, err := kubeClient.Get(ctx, r.SecondaryCRDName(), "", ref.(string), metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		spec, ok = secondaryResource.Object["spec"]
-		if !ok {
-			return nil, errors.New("")
-		}
-		tags := make(map[string]string)
-		for k, v := range spec.(map[string]interface{})["tags"].(map[string]interface{}) {
-			tags[k] = v.(string)
-		}
-		return &updatestrategy.InstanceConfig{
-			UserData: base64.StdEncoding.EncodeToString([]byte(spec.(map[string]interface{})["userData"].(string))),
-			ImageID:  r.getAMIsFromSpec(spec),
-			Tags:     tags,
-		}, nil
-	}
 }

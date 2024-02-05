@@ -27,7 +27,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -610,7 +610,14 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	if err != nil {
 		return err
 	}
-
+	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+	if err != nil {
+		return err
+	}
+	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
+	if err != nil {
+		return err
+	}
 	// scale down kube-system deployments
 	// This is done to ensure controllers stop running so they don't
 	// recreate resources we delete in the next step
@@ -628,7 +635,7 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, crdResolver)
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
 		return err
@@ -849,9 +856,12 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, err
 	}
-	crdResolver := NewKarpenterCRDResolver(context.Background(), k8sClients)
+	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
+	if err != nil {
+		return nil, nil, err
+	}
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, updatestrategy.WithConfigGetter(crdResolver.ConfigGetter(k8sClients))),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, crdResolver),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
