@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
-	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
@@ -1232,56 +1231,56 @@ func TestDictInvalidArgs(t *testing.T) {
 func TestScaleQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		quantity k8sresource.Quantity
+		quantity string
 		factor   float32
-		expected k8sresource.Quantity
+		expected string
 	}{
 		{
 			name:     "whole CPU scaled by whole",
-			quantity: k8sresource.MustParse("1.0"),
+			quantity: "1",
 			factor:   2.0,
-			expected: k8sresource.MustParse("2.0"),
+			expected: "2",
 		},
 		{
 			name:     "whole CPU scaled by fraction",
-			quantity: k8sresource.MustParse("10"),
+			quantity: "10",
 			factor:   0.5,
-			expected: k8sresource.MustParse("5"),
+			expected: "5",
 		},
 		{
 			name:     "fraction CPU scaled by whole",
-			quantity: k8sresource.MustParse("256m"),
+			quantity: "256m",
 			factor:   2.0,
-			expected: k8sresource.MustParse("512m"),
+			expected: "512m",
 		},
 		{
 			name:     "fraction CPU scaled by fraction",
-			quantity: k8sresource.MustParse("256m"),
+			quantity: "256m",
 			factor:   0.5,
-			expected: k8sresource.MustParse("128m"),
+			expected: "128m",
 		},
 		{
 			name:     "memory scaled by whole",
-			quantity: k8sresource.MustParse("1Gi"),
+			quantity: "1Gi",
 			factor:   2.0,
-			expected: k8sresource.MustParse("2Gi"),
+			expected: "2Gi",
 		},
 		{
 			name:     "memory scaled by fraction",
-			quantity: k8sresource.MustParse("1Gi"),
+			quantity: "1Gi",
 			factor:   0.5,
-			expected: k8sresource.MustParse("512Mi"),
+			expected: "512Mi",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := scaleQuantity(tc.quantity, tc.factor)
 			require.NoError(t, err)
-			require.EqualValues(t, tc.expected.String(), result.String())
+			require.EqualValues(t, tc.expected, result)
 		})
 	}
 }
 
 func TestScaleQuantityError(t *testing.T) {
-	_, err := scaleQuantity(k8sresource.MustParse("1.0"), -1.0)
+	_, err := scaleQuantity("1.0", -1.0)
 	require.Error(t, err)
 }

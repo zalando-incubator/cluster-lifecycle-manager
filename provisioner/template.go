@@ -149,10 +149,10 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
 		"scaleQuantity":                         scaleQuantity,
-		"instanceTypeCPU": func(instanceType string) (k8sresource.Quantity, error) {
+		"instanceTypeCPU": func(instanceType string) (string, error) {
 			return instanceTypeCPU(context, instanceType)
 		},
-		"instanceTypeMemory": func(instanceType string) (k8sresource.Quantity, error) {
+		"instanceTypeMemory": func(instanceType string) (string, error) {
 			return instanceTypeMemory(context, instanceType)
 		},
 	}
@@ -786,48 +786,52 @@ func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
 }
 
-// instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity
-func instanceTypeCPU(context *templateContext, instanceType string) (k8sresource.Quantity, error) {
+// instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeCPU(context *templateContext, instanceType string) (string, error) {
 	var cpu k8sresource.Quantity
 
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
 	if err != nil {
-		return cpu, err
+		return cpu.String(), err
 	}
 
 	cpu.Set(instanceTypeInfo.VCPU)
 
-	return cpu, nil
+	return cpu.String(), nil
 }
 
-// instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity
-func instanceTypeMemory(context *templateContext, instanceType string) (k8sresource.Quantity, error) {
+// instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeMemory(context *templateContext, instanceType string) (string, error) {
 	var memory k8sresource.Quantity
 
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
 	if err != nil {
-		return memory, err
+		return memory.String(), err
 	}
 
-	memory.Set(instanceTypeInfo.Memory)
-
-	return memory, nil
+	memory.SetScaled(instanceTypeInfo.Memory, k8sresource.Mega)
+	return memory.String(), nil
 }
 
-// scaleQuantity scales a k8sresource.Quantity by a factor
+// scaleQuantity scales a k8sresource.Quantity by a factor, represented as string
 // returns the k8sresource.Quantity and an error if the scaling factor is less than or equal to 0.0
-func scaleQuantity(quantity k8sresource.Quantity, factor float32) (k8sresource.Quantity, error) {
+func scaleQuantity(quantityStr string, factor float32) (string, error) {
 	// validate scaling factor
 	if factor <= 0.0 {
-		return quantity, fmt.Errorf("scaling factor must be greater than 0.0")
+		return quantityStr, fmt.Errorf("scaling factor must be greater than 0.0")
 	}
 
+	// parse the quantity as k8sresource.Quantity
+	quantity, err := k8sresource.ParseQuantity(quantityStr)
+	if err != nil {
+		return quantityStr, fmt.Errorf("failed to parse %v as k8sresource.Quantity: %v", quantityStr, err)
+	}
 	// scale the quantity in milli-units to handle fractions
 	quantity.SetMilli(int64(float32(quantity.MilliValue()) * factor))
 
-	return quantity, nil
+	return quantity.String(), nil
 }
