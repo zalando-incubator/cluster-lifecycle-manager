@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -138,7 +139,7 @@ func (n *EC2NodePoolBackend) filterWithNodePool(nodePool *api.NodePool) []*ec2.F
 			},
 		},
 		{
-			Name: aws.String("tag:" + nodePoolTag), // TODO: this needs to be conditional
+			Name: aws.String("tag:" + nodePoolTag),
 			Values: []*string{
 				aws.String(nodePool.Name),
 			},
@@ -305,15 +306,6 @@ func (r *KarpenterCRDNameResolver) NodeTemplateCRDName() string {
 	}
 }
 
-func (r *KarpenterCRDNameResolver) referenceFieldName() string {
-	switch r.NodePoolCRDName {
-	case karpenterNodePoolResource:
-		return "nodeClassRef"
-	default:
-		return "providerRef"
-	}
-}
-
 func (r *KarpenterCRDNameResolver) getAMIsFromSpec(spec interface{}) string {
 	switch r.NodePoolCRDName {
 	case karpenterNodePoolResource:
@@ -342,10 +334,10 @@ func (r *KarpenterCRDNameResolver) getInstanceTag() string {
 func (r *KarpenterCRDNameResolver) NodePoolConfigGetter(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error) {
 	// CLM assumes that the node pool name is used for both the node-pool and the node-template that it references
 	NodeTemplate, err := r.k8sClients.Get(ctx, r.NodeTemplateCRDName(), "", nodePool.Name, v1.GetOptions{})
-	//if apierrors.IsNotFound(err) {
-	//	// the node pool have been deleted. thus the
-	//	return nil, nil
-	//}
+	if apierrors.IsNotFound(err) {
+		// the node pool have been deleted. thus returning nil nodePoolConfig will result in labeling all nodes for decommission
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

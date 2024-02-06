@@ -855,7 +855,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: lazy init, better error handling for the resolver and use a universal karpenter tag for decommission 'karpenter.sh/managed-by'
+
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
 		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
 			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
