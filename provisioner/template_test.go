@@ -13,6 +13,31 @@ import (
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 )
 
+var instanceTypes = awsUtils.NewInstanceTypes([]awsUtils.Instance{
+	{
+		InstanceType:              "m5.xlarge",
+		VCPU:                      4,
+		Memory:                    17179869184,
+		InstanceStorageDevices:    0,
+		InstanceStorageDeviceSize: 0,
+		Architecture:              "amd64",
+	},
+	{
+		InstanceType:              "c5d.xlarge",
+		VCPU:                      4,
+		Memory:                    8589934592,
+		InstanceStorageDevices:    1,
+		InstanceStorageDeviceSize: 107374182400,
+		Architecture:              "amd64",
+	},
+	{
+		InstanceType: "m6g.xlarge",
+		VCPU:         4,
+		Memory:       17179869184,
+		Architecture: "arm64",
+	},
+})
+
 func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
 	templateData := make(map[string][]byte, len(templates))
 
@@ -31,7 +56,7 @@ func renderSingle(t *testing.T, template string, data interface{}) (string, erro
 		"foo.yaml",
 		data,
 		nil,
-		nil)
+		instanceTypes)
 }
 
 func TestTemplating(t *testing.T) {
@@ -1283,4 +1308,105 @@ func TestScaleQuantity(t *testing.T) {
 func TestScaleQuantityError(t *testing.T) {
 	_, err := scaleQuantity("1.0", -1.0)
 	require.Error(t, err)
+}
+
+func TestInstanceTypeMemory(t *testing.T) {
+
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:     "m5.xlarge",
+			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m5.xlarge"},
+			expected: "16Gi",
+		},
+		{
+			name:     "c5d.xlarge",
+			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			expected: "8Gi",
+		}, {
+			name:     "m6g.xlarge",
+			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			expected: "16Gi",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
+
+func TestInstanceTypeVCPU(t *testing.T) {
+
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:     "m5.xlarge",
+			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m5.xlarge"},
+			expected: "4",
+		},
+		{
+			name:     "c5d.xlarge",
+			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			expected: "4",
+		}, {
+			name:     "m6g.xlarge",
+			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			expected: "4",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
+
+func TestScalingTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:     "m5.xlarge",
+			input:    `{{ scaleQuantity (instanceTypeMemory .Values.data.instance_type) 0.1 }}`,
+			data:     map[string]string{"instance_type": "m5.xlarge"},
+			expected: "1.6Gi",
+		},
+		{
+			name:     "c5d.xlarge",
+			input:    `{{ scaleQuantity (instanceTypeMemory .Values.data.instance_type) 0.1 }}`,
+			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			expected: "800Mi",
+		}, {
+			name:     "m6g.xlarge",
+			input:    `{{ scaleQuantity (instanceTypeMemory .Values.data.instance_type) 0.1 }}`,
+			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			expected: "1.6Gi",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
 }

@@ -37,6 +37,8 @@ const (
 	labelsConfigItem = "labels"
 	taintsConfigItem = "taints"
 	dedicatedLabel   = "dedicated"
+
+	giga = 1024 * 1024 * 1024
 )
 
 type templateContext struct {
@@ -788,33 +790,30 @@ func awsValidID(id string) string {
 
 // instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
 func instanceTypeCPU(context *templateContext, instanceType string) (string, error) {
-	var cpu k8sresource.Quantity
-
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
 	if err != nil {
-		return cpu.String(), err
+		return "", err
 	}
 
-	cpu.Set(instanceTypeInfo.VCPU)
+	cpu := fmt.Sprintf("%v", instanceTypeInfo.VCPU)
 
-	return cpu.String(), nil
+	return cpu, nil
 }
 
 // instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity represented as string
 func instanceTypeMemory(context *templateContext, instanceType string) (string, error) {
-	var memory k8sresource.Quantity
-
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
 	if err != nil {
-		return memory.String(), err
+		return "", err
 	}
 
-	memory.SetScaled(instanceTypeInfo.Memory, k8sresource.Mega)
-	return memory.String(), nil
+	memory := fmt.Sprintf("%v%s", instanceTypeInfo.Memory/giga, "Gi")
+
+	return memory, nil
 }
 
 // scaleQuantity scales a k8sresource.Quantity by a factor, represented as string
