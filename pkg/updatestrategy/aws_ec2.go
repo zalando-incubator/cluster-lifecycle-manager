@@ -58,29 +58,21 @@ func InstanceConfigUpToDate(instanceConfig, poolConfig *InstanceConfig) bool {
 	return true
 }
 
-type Option func(b *EC2NodePoolBackend)
-
-type NodePoolConfigGetter func(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error)
-
-func NoopNodePoolConfigGetter(context.Context, *api.NodePool) (*InstanceConfig, error) {
-	return nil, nil
-}
-
 // EC2NodePoolBackend defines a node pool consisting of EC2 instances
 // managed externally by some component e.g. Karpenter.
 type EC2NodePoolBackend struct {
-	*KarpenterCRDNameResolver
-	ec2Client ec2iface.EC2API
-	clusterID string
+	crdResolver *util.LazyOf[*KarpenterCRDNameResolver]
+	ec2Client   ec2iface.EC2API
+	clusterID   string
 }
 
 // NewEC2NodePoolBackend initializes a new EC2NodePoolBackend for
 // the given clusterID and AWS session and.
-func NewEC2NodePoolBackend(clusterID string, sess *session.Session, crdResolver *KarpenterCRDNameResolver) *EC2NodePoolBackend {
+func NewEC2NodePoolBackend(clusterID string, sess *session.Session, crdResolverInitializer func() (*KarpenterCRDNameResolver, error)) *EC2NodePoolBackend {
 	return &EC2NodePoolBackend{
-		ec2Client:                ec2.New(sess),
-		clusterID:                clusterID,
-		KarpenterCRDNameResolver: crdResolver,
+		ec2Client:   ec2.New(sess),
+		clusterID:   clusterID,
+		crdResolver: util.NewLazyOf[*KarpenterCRDNameResolver](crdResolverInitializer),
 	}
 }
 
@@ -95,8 +87,13 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 		return nil, fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
 
+	crdResolver, err := n.crdResolver.Value()
+	if err != nil {
+		return nil, err
+	}
+
 	nodes := make([]*Node, 0)
-	nodePoolConfig, err := n.NodePoolConfigGetter(ctx, nodePool) // in case of decommission nodePoolConfig is nil, and all nodes are deleted anyway
+	nodePoolConfig, err := crdResolver.NodePoolConfigGetter(ctx, nodePool) // in case of decommission nodePoolConfig is nil, and all nodes are deleted anyway
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +212,10 @@ func (n *EC2NodePoolBackend) DecommissionNodePool(ctx context.Context, nodePool 
 }
 
 func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) error {
-
+	crdResolver, err := n.crdResolver.Value()
+	if err != nil {
+		return err
+	}
 	return n.decommission(ctx, []*ec2.Filter{
 		{
 			Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
@@ -226,7 +226,7 @@ func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) err
 		{
 			Name: aws.String("tag-key"),
 			Values: []*string{
-				aws.String(n.getInstanceTag()),
+				aws.String(crdResolver.getInstanceTag()),
 			},
 		},
 	})

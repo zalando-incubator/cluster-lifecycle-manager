@@ -610,14 +610,7 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	if err != nil {
 		return err
 	}
-	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
-	if err != nil {
-		return err
-	}
-	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
-	if err != nil {
-		return err
-	}
+
 	// scale down kube-system deployments
 	// This is done to ensure controllers stop running so they don't
 	// recreate resources we delete in the next step
@@ -635,7 +628,13 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, crdResolver)
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+		k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+		if err != nil {
+			return nil, err
+		}
+		return updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
+	})
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
 		return err
@@ -856,12 +855,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, err
 	}
-	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
-	if err != nil {
-		return nil, nil, err
-	}
+	// TODO: lazy init, better error handling for the resolver and use a universal karpenter tag for decommission 'karpenter.sh/managed-by'
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, crdResolver),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
+		}),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
@@ -1088,7 +1086,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 
 			// If there's no content we skip the manifest
 			if remarshaled == "" {
-				log.Debugf("Skipping empty manifest: %s\n%s\n", manifest.Path, rendered)
+				log.Debugf("Skipping empty file: %s", manifest.Path)
 			} else {
 				renderedManifests = append(renderedManifests, remarshaled)
 			}
