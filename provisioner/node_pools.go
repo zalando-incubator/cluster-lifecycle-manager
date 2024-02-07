@@ -41,10 +41,6 @@ const (
 	userDataValuesKey             = "UserData"
 	s3GeneratedFilesPathValuesKey = "S3GeneratedFilesPath"
 	instanceInfoKey               = "InstanceInfo"
-
-	karpenterProvisionerResource     = "provisioners.karpenter.sh"
-	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
-	crd                              = "CustomResourceDefinition"
 )
 
 // NodePoolProvisioner is able to provision node pools for a cluster.
@@ -230,27 +226,31 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 
-	existingProvisioners, err := p.k8sClients.List(ctx, karpenterProvisionerResource, "", metav1.ListOptions{})
+	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, p.k8sClients)
+	if err != nil {
+		return err
+	}
+	existingProvisioners, err := p.k8sClients.List(ctx, crdResolver.NodePoolCRDName, "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, pr := range existingProvisioners.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err := p.k8sClients.Delete(ctx, karpenterProvisionerResource, "", pr.GetName(), metav1.DeleteOptions{})
+			err := p.k8sClients.Delete(ctx, crdResolver.NodePoolCRDName, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	existingNodeTemplates, err := p.k8sClients.List(ctx, karpenterAWSNodeTemplateResource, "", metav1.ListOptions{})
+	existingNodeTemplates, err := p.k8sClients.List(ctx, crdResolver.NodeTemplateCRDName(), "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, pr := range existingNodeTemplates.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err = p.k8sClients.Delete(ctx, karpenterAWSNodeTemplateResource, "", pr.GetName(), metav1.DeleteOptions{})
+			err = p.k8sClients.Delete(ctx, crdResolver.NodeTemplateCRDName(), "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -455,44 +455,4 @@ func nodePoolStackToNodePool(stack *cloudformation.Stack) *api.NodePool {
 		}
 	}
 	return nodePool
-}
-
-func KarpenterNodePoolConfigGetter(kubeClient *kubernetes.ClientsCollection) updatestrategy.NodePoolConfigGetter {
-	return func(ctx context.Context, nodePool *api.NodePool) (*updatestrategy.InstanceConfig, error) {
-		provisionerResource, err := kubeClient.Get(ctx, karpenterProvisionerResource, "", nodePool.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		spec, ok := provisionerResource.Object["spec"]
-		if !ok {
-			return nil, errors.New("")
-		}
-		providerRefSpec := spec.(map[string]interface{})["providerRef"]
-		if providerRefSpec == nil {
-			return nil, nil
-		}
-		providerRef := providerRefSpec.(map[string]interface{})["name"]
-		if providerRefSpec == nil {
-			return nil, nil
-		}
-
-		nodeTemplateResource, err := kubeClient.Get(ctx, karpenterAWSNodeTemplateResource, "", providerRef.(string), metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		spec, ok = nodeTemplateResource.Object["spec"]
-		if !ok {
-			return nil, errors.New("")
-		}
-		tags := make(map[string]string)
-		for k, v := range spec.(map[string]interface{})["tags"].(map[string]interface{}) {
-			tags[k] = v.(string)
-		}
-		return &updatestrategy.InstanceConfig{
-			UserData: base64.StdEncoding.EncodeToString([]byte(spec.(map[string]interface{})["userData"].(string))),
-			ImageID:  spec.(map[string]interface{})["amiSelector"].(map[string]interface{})["aws-ids"].(string),
-			Tags:     tags,
-		}, nil
-	}
 }

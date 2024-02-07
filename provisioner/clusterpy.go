@@ -27,7 +27,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -628,7 +628,13 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session)
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+		k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+		if err != nil {
+			return nil, err
+		}
+		return updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
+	})
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
 		return err
@@ -849,8 +855,11 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if err != nil {
 		return nil, nil, err
 	}
+
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, updatestrategy.WithConfigGetter(KarpenterNodePoolConfigGetter(k8sClients))),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
+		}),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
@@ -1077,7 +1086,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 
 			// If there's no content we skip the manifest
 			if remarshaled == "" {
-				log.Debugf("Skipping empty manifest: %s\n%s\n", manifest.Path, rendered)
+				log.Debugf("Skipping empty file: %s", manifest.Path)
 			} else {
 				renderedManifests = append(renderedManifests, remarshaled)
 			}
