@@ -37,8 +37,6 @@ const (
 	labelsConfigItem = "labels"
 	taintsConfigItem = "taints"
 	dedicatedLabel   = "dedicated"
-
-	giga = 1024 * 1024 * 1024
 )
 
 type templateContext struct {
@@ -811,9 +809,9 @@ func instanceTypeMemory(context *templateContext, instanceType string) (string, 
 		return "", err
 	}
 
-	memory := fmt.Sprintf("%v%s", instanceTypeInfo.Memory/giga, "Gi")
+	memory := k8sresource.NewQuantity(instanceTypeInfo.Memory, k8sresource.BinarySI)
 
-	return memory, nil
+	return memory.String(), nil
 }
 
 // scaleQuantity scales a k8sresource.Quantity by a factor, represented as string
@@ -829,8 +827,13 @@ func scaleQuantity(quantityStr string, factor float32) (string, error) {
 	if err != nil {
 		return quantityStr, fmt.Errorf("failed to parse %v as k8sresource.Quantity: %v", quantityStr, err)
 	}
-	// scale the quantity in milli-units to handle fractions
-	quantity.SetMilli(int64(float32(quantity.MilliValue()) * factor))
-
+	// CPU quantities can be represented as milli-cores, so we need to scale them differently
+	if quantity.Value() < 1024 && quantity.Format == k8sresource.DecimalSI {
+		quantity.SetMilli(int64(float32(quantity.MilliValue()) * factor))
+	} else {
+		// memory quantities can be represented as binary SI, so we need to scale them differently
+		scaledValue := int64(float32(quantity.Value()) * factor)
+		quantity.Set(scaledValue)
+	}
 	return quantity.String(), nil
 }
