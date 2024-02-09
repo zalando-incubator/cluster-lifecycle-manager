@@ -149,11 +149,11 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
 		"scaleQuantity":                         scaleQuantity,
-		"instanceTypeCPU": func(instanceType string) (string, error) {
-			return instanceTypeCPU(context, instanceType)
+		"instanceTypeCPUQuantity": func(instanceType string) (string, error) {
+			return instanceTypeCPUQuantity(context, instanceType)
 		},
-		"instanceTypeMemory": func(instanceType string) (string, error) {
-			return instanceTypeMemory(context, instanceType)
+		"instanceTypeMemoryQuantity": func(instanceType string) (string, error) {
+			return instanceTypeMemoryQuantity(context, instanceType)
 		},
 	}
 
@@ -786,8 +786,8 @@ func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
 }
 
-// instanceTypeCPU returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
-func instanceTypeCPU(context *templateContext, instanceType string) (string, error) {
+// instanceTypeCPUQuantity returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeCPUQuantity(context *templateContext, instanceType string) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
@@ -800,8 +800,8 @@ func instanceTypeCPU(context *templateContext, instanceType string) (string, err
 	return cpu, nil
 }
 
-// instanceTypeMemory returns the memory of an instance type provided as k8sresource.Quantity represented as string
-func instanceTypeMemory(context *templateContext, instanceType string) (string, error) {
+// instanceTypeMemoryQuantity returns the memory of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeMemoryQuantity(context *templateContext, instanceType string) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 

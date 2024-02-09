@@ -1295,6 +1295,19 @@ func TestScaleQuantity(t *testing.T) {
 			quantity: "1Gi",
 			factor:   0.5,
 			expected: "512Mi",
+		}, {
+			// fraction memory in Gi is scaled in Mi terms
+			name:     "scale memory fraction by 1",
+			quantity: "2.5Gi",
+			factor:   1.0,
+			// 2.5Gi = 2.0Gi + 0.5Gi = 2048Mi + 512Mi = 2560Mi
+			expected: "2560Mi",
+		}, {
+			name:     "scale memory fraction by fraction",
+			quantity: "1.0Gi",
+			factor:   1.5,
+			// 1.5Gi = 1.0Gi + 0.5Gi = 1024Mi + 512Mi = 1536Mi
+			expected: "1536Mi",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1316,7 +1329,7 @@ func TestScaleQuantityError(t *testing.T) {
 	require.Errorf(t, err, "failed to parse %v as k8sresource.Quantity: %v", quantityStr, err)
 }
 
-func TestInstanceTypeMemory(t *testing.T) {
+func TestInstanceTypeMemoryQuantity(t *testing.T) {
 
 	for _, tc := range []struct {
 		name     string
@@ -1326,18 +1339,18 @@ func TestInstanceTypeMemory(t *testing.T) {
 	}{
 		{
 			name:     "m5.xlarge",
-			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "m5.xlarge"},
 			expected: "16Gi",
 		},
 		{
 			name:     "c5d.xlarge",
-			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "c5d.xlarge"},
 			expected: "8Gi",
 		}, {
 			name:     "m6g.xlarge",
-			input:    `{{ instanceTypeMemory .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "m6g.xlarge"},
 			expected: "16Gi",
 		},
@@ -1350,15 +1363,15 @@ func TestInstanceTypeMemory(t *testing.T) {
 	}
 }
 
-func TestInstanceTypeMemoryError(t *testing.T) {
+func TestInstanceTypeMemoryQuantityError(t *testing.T) {
 	invalidInstanceType := "m6g.invalid"
-	input := `{{ instanceTypeMemory .Values.data.instance_type }}`
+	input := `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`
 	data := map[string]string{"instance_type": invalidInstanceType}
 	_, err := renderSingle(t, input, data)
 	require.Error(t, err)
 }
 
-func TestInstanceTypeVCPU(t *testing.T) {
+func TestInstanceTypeCPUQuantity(t *testing.T) {
 
 	for _, tc := range []struct {
 		name     string
@@ -1368,18 +1381,18 @@ func TestInstanceTypeVCPU(t *testing.T) {
 	}{
 		{
 			name:     "m5.xlarge",
-			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "m5.xlarge"},
 			expected: "4",
 		},
 		{
 			name:     "c5d.xlarge",
-			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "c5d.xlarge"},
 			expected: "4",
 		}, {
 			name:     "m6g.xlarge",
-			input:    `{{ instanceTypeCPU .Values.data.instance_type }}`,
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
 			data:     map[string]string{"instance_type": "m6g.xlarge"},
 			expected: "4",
 		},
@@ -1392,9 +1405,9 @@ func TestInstanceTypeVCPU(t *testing.T) {
 	}
 }
 
-func TestInstanceTypeVCPUError(t *testing.T) {
+func TestInstanceTypeCPUQuantityError(t *testing.T) {
 	invalidInstanceType := "m6g.invalid"
-	input := `{{ instanceTypeCPU .Values.data.instance_type }}`
+	input := `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`
 	data := map[string]string{"instance_type": invalidInstanceType}
 	_, err := renderSingle(t, input, data)
 	require.Error(t, err)
@@ -1409,25 +1422,25 @@ func TestScalingTemplate(t *testing.T) {
 	}{
 		{
 			name:  "m5.xlarge",
-			input: `{{ scaleQuantity (instanceTypeMemory .Values.data.instance_type) 0.1 }}`,
+			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.1 }}`,
 			data:  map[string]string{"instance_type": "m5.xlarge"},
 			// 1.6Gi
 			expected: "1717986944",
 		}, {
 			name:  "c5d.xlarge",
-			input: `{{ scaleQuantity (instanceTypeMemory .Values.data.instance_type) 0.3 }}`,
+			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.3 }}`,
 			data:  map[string]string{"instance_type": "c5d.xlarge"},
 			// 2.4Gi
 			expected: "2576980480",
 		}, {
 			name:  "scale CPU evenly",
-			input: `{{ scaleQuantity (instanceTypeCPU .Values.data.instance_type) 0.1 }}`,
+			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.1 }}`,
 			data:  map[string]string{"instance_type": "m6g.xlarge"},
 			// This is interpreted as 4 * 0.1 = 0.4 => 400m, this is the preferred format for CPU
 			expected: "400m",
 		}, {
 			name:  "scale CPU unevenly",
-			input: `{{ scaleQuantity (instanceTypeCPU .Values.data.instance_type) 0.3 }}`,
+			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.3 }}`,
 			data:  map[string]string{"instance_type": "m6g.xlarge"},
 			// This is intepreted as 4 * 0.3 = 1.2 => 1200m and not 4/3 = 1.33 => 1333m
 			expected: "1200m",
