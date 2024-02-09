@@ -795,7 +795,7 @@ func instanceTypeCPUQuantity(context *templateContext, instanceType string) (str
 		return "", err
 	}
 
-	cpu := fmt.Sprintf("%v", instanceTypeInfo.VCPU)
+	cpu := fmt.Sprintf("%d", instanceTypeInfo.VCPU)
 
 	return cpu, nil
 }
