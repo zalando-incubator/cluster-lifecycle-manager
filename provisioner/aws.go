@@ -563,7 +563,7 @@ func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 		},
 	}
 	acmSummaries := make([]*acm.CertificateSummary, 0)
-	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, lastPage bool) bool {
+	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, _ bool) bool {
 		acmSummaries = append(acmSummaries, page.CertificateSummaryList...)
 		return true
 	})
