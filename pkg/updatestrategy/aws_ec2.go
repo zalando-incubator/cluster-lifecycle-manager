@@ -154,7 +154,7 @@ func (n *EC2NodePoolBackend) getInstances(filters []*ec2.Filter) ([]*ec2.Instanc
 	}
 
 	instances := make([]*ec2.Instance, 0)
-	err := n.ec2Client.DescribeInstancesPagesWithContext(context.TODO(), params, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	err := n.ec2Client.DescribeInstancesPagesWithContext(context.TODO(), params, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
 		for _, reservation := range output.Reservations {
 			for _, instance := range reservation.Instances {
 				switch aws.StringValue(instance.State.Name) {

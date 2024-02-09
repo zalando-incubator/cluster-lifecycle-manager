@@ -360,7 +360,7 @@ func (a *awsAdapter) ListStacks(includeTags, excludeTags map[string]string) ([]*
 	params := &cloudformation.DescribeStacksInput{}
 
 	stacks := make([]*cloudformation.Stack, 0)
-	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool {
+	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, _ bool) bool {
 		for _, stack := range resp.Stacks {
 			if cloudformationHasTags(includeTags, stack.Tags) && cloudformationDoesNotHaveTags(excludeTags, stack.Tags) {
 				stacks = append(stacks, stack)

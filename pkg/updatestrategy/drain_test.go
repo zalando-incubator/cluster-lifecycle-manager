@@ -199,7 +199,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 			drainConfig: &DrainConfig{},
 		}
 
-		evictPod = func(_ context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		evictPod = func(_ context.Context, _ kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&evictCount, 1)
 			return nil
 		}
@@ -271,7 +271,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		deletePod = func(_ context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		deletePod = func(_ context.Context, _ kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&deleteCount, 1)
 			cancel()
 			return nil
