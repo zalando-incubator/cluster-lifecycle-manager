@@ -345,7 +345,7 @@ func TestParseDeletions(t *testing.T) {
 		},
 	}
 
-	deletions, err := parseDeletions(cfg, exampleCluster, nil, nil)
+	deletions, err := parseDeletions(cfg, exampleCluster, nil, nil, nil)
 	require.NoError(t, err)
 	require.EqualValues(t, expected, deletions)
 }

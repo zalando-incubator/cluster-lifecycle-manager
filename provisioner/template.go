@@ -20,10 +20,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	awsUtil "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -46,6 +47,7 @@ type templateContext struct {
 	values                map[string]interface{}
 	computingManifestHash bool
 	awsAdapter            *awsAdapter
+	instanceTypes         *awsUtils.InstanceTypes
 }
 
 type templateData struct {
@@ -80,19 +82,20 @@ type templateData struct {
 	S3GeneratedFilesPath string
 }
 
-func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) *templateContext {
+func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) *templateContext {
 	return &templateContext{
-		fileData:     fileData,
-		templateData: make(map[string]string),
-		cluster:      cluster,
-		nodePool:     nodePool,
-		values:       values,
-		awsAdapter:   adapter,
+		fileData:      fileData,
+		templateData:  make(map[string]string),
+		cluster:       cluster,
+		nodePool:      nodePool,
+		values:        values,
+		awsAdapter:    adapter,
+		instanceTypes: instanceTypes,
 	}
 }
 
-func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter) (string, error) {
-	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter)
+func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
+	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes)
 	return renderTemplate(ctx, manifest.Path)
 }
 
@@ -145,6 +148,13 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"awsValidID":                            awsValidID,
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
+		"scaleQuantity":                         scaleQuantity,
+		"instanceTypeCPUQuantity": func(instanceType string) (string, error) {
+			return instanceTypeCPUQuantity(context, instanceType)
+		},
+		"instanceTypeMemoryQuantity": func(instanceType string) (string, error) {
+			return instanceTypeMemoryQuantity(context, instanceType)
+		},
 	}
 
 	content, ok := context.fileData[file]
@@ -549,8 +559,8 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 	}
 
 	input := ec2.DescribeImagesInput{Filters: []*ec2.Filter{
-		{Name: awsUtil.String(describeImageFilterNameName), Values: awsUtil.StringSlice([]string{imageName})},
-		{Name: awsUtil.String(describeImageFilterNameOwner), Values: awsUtil.StringSlice([]string{imageOwner})},
+		{Name: aws.String(describeImageFilterNameName), Values: aws.StringSlice([]string{imageName})},
+		{Name: aws.String(describeImageFilterNameOwner), Values: aws.StringSlice([]string{imageOwner})},
 	}}
 	output, err := adapter.ec2Client.DescribeImages(&input)
 	if err != nil {
@@ -774,4 +784,56 @@ func sumQuantities(quantities ...string) (string, error) {
 
 func awsValidID(id string) string {
 	return strings.Replace(id, ":", "__", -1)
+}
+
+// instanceTypeCPUQuantity returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeCPUQuantity(context *templateContext, instanceType string) (string, error) {
+	// get the instance type info
+	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
+
+	if err != nil {
+		return "", err
+	}
+
+	cpu := fmt.Sprintf("%d", instanceTypeInfo.VCPU)
+
+	return cpu, nil
+}
+
+// instanceTypeMemoryQuantity returns the memory of an instance type provided as k8sresource.Quantity represented as string
+func instanceTypeMemoryQuantity(context *templateContext, instanceType string) (string, error) {
+	// get the instance type info
+	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
+
+	if err != nil {
+		return "", err
+	}
+
+	memory := k8sresource.NewQuantity(instanceTypeInfo.Memory, k8sresource.BinarySI)
+
+	return memory.String(), nil
+}
+
+// scaleQuantity scales a k8sresource.Quantity by a factor, represented as string
+// returns the k8sresource.Quantity and an error if the scaling factor is less than or equal to 0.0
+func scaleQuantity(quantityStr string, factor float32) (string, error) {
+	// validate scaling factor
+	if factor <= 0.0 {
+		return quantityStr, fmt.Errorf("scaling factor must be greater than 0.0")
+	}
+
+	// parse the quantity as k8sresource.Quantity
+	quantity, err := k8sresource.ParseQuantity(quantityStr)
+	if err != nil {
+		return quantityStr, fmt.Errorf("failed to parse %v as k8sresource.Quantity: %v", quantityStr, err)
+	}
+	// CPU quantities can be represented as milli-cores, so we need to scale them differently
+	if quantity.Value() < 1024 && quantity.Format == k8sresource.DecimalSI {
+		quantity.SetMilli(int64(float32(quantity.MilliValue()) * factor))
+	} else {
+		// memory quantities can be represented as binary SI, so we need to scale them differently
+		scaledValue := int64(float32(quantity.Value()) * factor)
+		quantity.Set(scaledValue)
+	}
+	return quantity.String(), nil
 }

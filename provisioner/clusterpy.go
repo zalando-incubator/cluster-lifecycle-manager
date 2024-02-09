@@ -106,7 +106,7 @@ func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == providerID
 }
 
-func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter) error {
+func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
 	defaultsFiles, err := channelConfig.DefaultsManifests()
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 	allDefaults := make(map[string]string)
 
 	for _, file := range defaultsFiles {
-		result, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, adapter)
+		result, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, adapter, instanceTypes)
 		if err != nil {
 			return err
 		}
@@ -176,7 +176,7 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
-	awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
+	instanceTypes, awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
 	}
@@ -271,11 +271,12 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	// render the manifests to find out if they're valid
-	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter)
+	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter, instanceTypes)
 	if err != nil {
 		return err
 	}
-	manifests, err := renderManifests(channelConfig, cluster, values, awsAdapter)
+
+	manifests, err := renderManifests(channelConfig, cluster, values, awsAdapter, instanceTypes)
 	if err != nil {
 		return err
 	}
@@ -290,7 +291,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	// create or update the etcd stack
 	if p.manageEtcdStack {
-		err = createOrUpdateEtcdStack(ctx, logger, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName)
+		err = createOrUpdateEtcdStack(ctx, logger, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName, instanceTypes)
 		if err != nil {
 			return err
 		}
@@ -300,7 +301,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	outputs, err := createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName)
+	outputs, err := createOrUpdateClusterStack(ctx, channelConfig, cluster, values, awsAdapter, bucketName, instanceTypes)
 	if err != nil {
 		return err
 	}
@@ -308,11 +309,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 
 	if err = ctx.Err(); err != nil {
 		return err
-	}
-
-	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
-	if err != nil {
-		return fmt.Errorf("failed to fetch instance types from AWS")
 	}
 
 	// provision node pools
@@ -324,9 +320,9 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			bucketName:     bucketName,
 			logger:         logger,
 			encodeUserData: true,
+			instanceTypes:  instanceTypes,
 		},
-		instanceTypes: instanceTypes,
-		azInfo:        azInfo,
+		azInfo: azInfo,
 	}
 
 	karpenterProvisioner, err := NewKarpenterNodePoolProvisioner(
@@ -337,6 +333,7 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			bucketName:     bucketName,
 			logger:         logger,
 			encodeUserData: false,
+			instanceTypes:  instanceTypes,
 		}, p.execManager, p.tokenSource,
 	)
 	if err != nil {
@@ -405,6 +402,7 @@ func createOrUpdateEtcdStack(
 	etcdKmsKeyARN string,
 	adapter *awsAdapter,
 	bucketName string,
+	instanceTypes *awsUtils.InstanceTypes,
 ) error {
 
 	template, err := config.EtcdManifest(etcdStackFileName)
@@ -419,11 +417,12 @@ func createOrUpdateEtcdStack(
 	}
 
 	renderer := &FilesRenderer{
-		awsAdapter: adapter,
-		cluster:    cluster,
-		config:     config,
-		directory:  "etcd",
-		nodePool:   nil,
+		awsAdapter:    adapter,
+		cluster:       cluster,
+		config:        config,
+		directory:     "etcd",
+		nodePool:      nil,
+		instanceTypes: instanceTypes,
 	}
 
 	s3Path, err := renderer.RenderAndUploadFiles(values, bucketName, etcdKmsKeyARN)
@@ -434,7 +433,7 @@ func createOrUpdateEtcdStack(
 	logger.Debugf("Uploaded generated files to %s", s3Path)
 	values[s3GeneratedFilesPathValuesKey] = s3Path
 
-	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
+	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter, instanceTypes)
 	if err != nil {
 		return err
 	}
@@ -478,13 +477,13 @@ func createOrUpdateEtcdStack(
 	return nil
 }
 
-func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string) (map[string]string, error) {
+func createOrUpdateClusterStack(ctx context.Context, config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, bucketName string, instanceTypes *awsUtils.InstanceTypes) (map[string]string, error) {
 	template, err := config.StackManifest(clusterStackFileName)
 	if err != nil {
 		return nil, err
 	}
 
-	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter)
+	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter, instanceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -779,26 +778,32 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 // prepareProvision checks that a cluster can be handled by the provisioner and
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should be refactored.
-func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsAdapter, updatestrategy.UpdateStrategy, error) {
+func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsUtils.InstanceTypes, *awsAdapter, updatestrategy.UpdateStrategy, error) {
 	if cluster.Provider != providerID {
-		return nil, nil, ErrProviderNotSupported
+		return nil, nil, nil, ErrProviderNotSupported
 	}
 
 	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
 
 	adapter, err := p.setupAWSAdapter(logger, cluster)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
-	err = p.updateDefaults(cluster, channelConfig, adapter)
+	// fetch instance data that will be used by all the render functions
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(adapter.ec2Client)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to fetch instance types from AWS")
+	}
+
+	err = p.updateDefaults(cluster, channelConfig, adapter, instanceTypes)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
 	err = p.decryptConfigItems(cluster)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
+		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
 	}
 
 	p.propagateConfigItemsToNodePools(cluster)
@@ -821,7 +826,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 
 	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// setup updater
@@ -841,7 +846,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		if value, ok := cluster.ConfigItems[setting.key]; ok {
 			parsed, err := time.ParseDuration(value)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
+				return nil, nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
 			}
 			setting.fn(parsed)
 		}
@@ -853,7 +858,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	}
 	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
@@ -873,10 +878,10 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	case updateStrategyCLC:
 		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager, clcPollingInterval)
 	default:
-		return nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
+		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
 
-	return adapter, updater, nil
+	return instanceTypes, adapter, updater, nil
 }
 
 // downscaleDeployments scales down all deployments of a cluster in the
@@ -1001,7 +1006,7 @@ func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry,
 }
 
 // parseDeletions reads and parses the deletions from the config.
-func parseDeletions(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) (*deletions, error) {
+func parseDeletions(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (*deletions, error) {
 	result := &deletions{}
 
 	deletionsFiles, err := config.DeletionsManifests()
@@ -1010,7 +1015,7 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	}
 
 	for _, deletionsFile := range deletionsFiles {
-		res, err := renderSingleTemplate(deletionsFile, cluster, nil, values, adapter)
+		res, err := renderSingleTemplate(deletionsFile, cluster, nil, values, adapter, instanceTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -1055,7 +1060,7 @@ func remarshalYAML(contents string) (string, error) {
 	return result.String(), nil
 }
 
-func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter) ([]manifestPackage, error) {
+func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) ([]manifestPackage, error) {
 	var result []manifestPackage
 
 	components, err := config.Components()
@@ -1068,7 +1073,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 		for _, manifest := range component.Manifests {
 			fileData[manifest.Path] = manifest.Contents
 		}
-		ctx := newTemplateContext(fileData, cluster, nil, values, adapter)
+		ctx := newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
 
 		var renderedManifests []string
 

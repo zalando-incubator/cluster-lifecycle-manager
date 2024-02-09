@@ -10,16 +10,42 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 )
 
-func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter) (string, error) {
+var instanceTypes = awsUtils.NewInstanceTypes([]awsUtils.Instance{
+	{
+		InstanceType:              "m5.xlarge",
+		VCPU:                      4,
+		Memory:                    17179869184,
+		InstanceStorageDevices:    0,
+		InstanceStorageDeviceSize: 0,
+		Architecture:              "amd64",
+	},
+	{
+		InstanceType:              "c5d.xlarge",
+		VCPU:                      4,
+		Memory:                    8589934592,
+		InstanceStorageDevices:    1,
+		InstanceStorageDeviceSize: 107374182400,
+		Architecture:              "amd64",
+	},
+	{
+		InstanceType: "m6g.xlarge",
+		VCPU:         4,
+		Memory:       17179869184,
+		Architecture: "arm64",
+	},
+})
+
+func render(_ *testing.T, templates map[string]string, templateName string, data interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
 	templateData := make(map[string][]byte, len(templates))
 
 	for name, content := range templates {
 		templateData[name] = []byte(content)
 	}
 
-	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter)
+	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter, instanceTypes)
 	return renderTemplate(context, templateName)
 }
 
@@ -29,7 +55,8 @@ func renderSingle(t *testing.T, template string, data interface{}) (string, erro
 		map[string]string{"foo.yaml": template},
 		"foo.yaml",
 		data,
-		nil)
+		nil,
+		instanceTypes)
 }
 
 func TestTemplating(t *testing.T) {
@@ -71,6 +98,7 @@ func TestManifestHash(t *testing.T) {
 		},
 		"dir/foo.yaml",
 		"abc123",
+		nil,
 		nil)
 
 	require.NoError(t, err)
@@ -85,6 +113,7 @@ func TestManifestHashMissingFile(t *testing.T) {
 		},
 		"foo.yaml",
 		"",
+		nil,
 		nil)
 
 	require.Error(t, err)
@@ -99,6 +128,7 @@ func TestManifestHashRecursiveInclude(t *testing.T) {
 		},
 		"foo.yaml",
 		"",
+		nil,
 		nil)
 
 	require.Error(t, err)
@@ -499,7 +529,8 @@ func TestAmiID(t *testing.T) {
 				},
 				"foo.yaml",
 				"abc123",
-				&adapter)
+				&adapter,
+				nil)
 
 			if !tc.expectErr {
 				require.NoError(t, err)
@@ -1218,6 +1249,207 @@ func TestDictInvalidArgs(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %v", i, tc.args), func(t *testing.T) {
 			_, err := dict(tc.args...)
 			require.Error(t, err)
+		})
+	}
+}
+
+func TestScaleQuantity(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		quantity string
+		factor   float32
+		expected string
+	}{
+		{
+			name:     "whole CPU scaled by whole",
+			quantity: "1",
+			factor:   2.0,
+			expected: "2",
+		},
+		{
+			name:     "whole CPU scaled by fraction",
+			quantity: "10",
+			factor:   0.5,
+			expected: "5",
+		},
+		{
+			name:     "fraction CPU scaled by whole",
+			quantity: "256m",
+			factor:   2.0,
+			expected: "512m",
+		},
+		{
+			name:     "fraction CPU scaled by fraction",
+			quantity: "256m",
+			factor:   0.5,
+			expected: "128m",
+		},
+		{
+			name:     "memory scaled by whole",
+			quantity: "1Gi",
+			factor:   2.0,
+			expected: "2Gi",
+		},
+		{
+			name:     "memory scaled by fraction",
+			quantity: "1Gi",
+			factor:   0.5,
+			expected: "512Mi",
+		}, {
+			// fraction memory in Gi is scaled in Mi terms
+			name:     "scale memory fraction by 1",
+			quantity: "2.5Gi",
+			factor:   1.0,
+			// 2.5Gi = 2.0Gi + 0.5Gi = 2048Mi + 512Mi = 2560Mi
+			expected: "2560Mi",
+		}, {
+			name:     "scale memory fraction by fraction",
+			quantity: "1.0Gi",
+			factor:   1.5,
+			// 1.5Gi = 1.0Gi + 0.5Gi = 1024Mi + 512Mi = 1536Mi
+			expected: "1536Mi",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := scaleQuantity(tc.quantity, tc.factor)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
+
+func TestScaleQuantityError(t *testing.T) {
+	// factor must be positive and non-zero
+	_, err := scaleQuantity("1.0", -1.0)
+	require.Errorf(t, err, "scaling factor must be greater than 0.0")
+
+	// must be a valid k8s quantity like "100m" or "1Gi"
+	quantityStr := "InvalidQuantity"
+	_, err = scaleQuantity(quantityStr, 1.0)
+	require.Errorf(t, err, "failed to parse %v as k8sresource.Quantity: %v", quantityStr, err)
+}
+
+func TestInstanceTypeMemoryQuantity(t *testing.T) {
+
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:     "m5.xlarge",
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m5.xlarge"},
+			expected: "16Gi",
+		},
+		{
+			name:     "c5d.xlarge",
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			expected: "8Gi",
+		}, {
+			name:     "m6g.xlarge",
+			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			expected: "16Gi",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
+
+func TestInstanceTypeMemoryQuantityError(t *testing.T) {
+	invalidInstanceType := "m6g.invalid"
+	input := `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`
+	data := map[string]string{"instance_type": invalidInstanceType}
+	_, err := renderSingle(t, input, data)
+	require.Error(t, err)
+}
+
+func TestInstanceTypeCPUQuantity(t *testing.T) {
+
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:     "m5.xlarge",
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m5.xlarge"},
+			expected: "4",
+		},
+		{
+			name:     "c5d.xlarge",
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			expected: "4",
+		}, {
+			name:     "m6g.xlarge",
+			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
+			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			expected: "4",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}
+
+func TestInstanceTypeCPUQuantityError(t *testing.T) {
+	invalidInstanceType := "m6g.invalid"
+	input := `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`
+	data := map[string]string{"instance_type": invalidInstanceType}
+	_, err := renderSingle(t, input, data)
+	require.Error(t, err)
+}
+
+func TestScalingTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    string
+		data     map[string]string
+		expected string
+	}{
+		{
+			name:  "m5.xlarge",
+			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.1 }}`,
+			data:  map[string]string{"instance_type": "m5.xlarge"},
+			// 1.6Gi
+			expected: "1717986944",
+		}, {
+			name:  "c5d.xlarge",
+			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.3 }}`,
+			data:  map[string]string{"instance_type": "c5d.xlarge"},
+			// 2.4Gi
+			expected: "2576980480",
+		}, {
+			name:  "scale CPU evenly",
+			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.1 }}`,
+			data:  map[string]string{"instance_type": "m6g.xlarge"},
+			// This is interpreted as 4 * 0.1 = 0.4 => 400m, this is the preferred format for CPU
+			expected: "400m",
+		}, {
+			name:  "scale CPU unevenly",
+			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.3 }}`,
+			data:  map[string]string{"instance_type": "m6g.xlarge"},
+			// This is intepreted as 4 * 0.3 = 1.2 => 1200m and not 4/3 = 1.33 => 1333m
+			expected: "1200m",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, tc.data)
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, result)
 		})
 	}
 }
