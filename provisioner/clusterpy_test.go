@@ -146,7 +146,7 @@ func TestFilterSubnets(tt *testing.T) {
 		for _, tc := range []struct {
 			msg             string
 			subnets         []*ec2.Subnet
-			subnetIds       []string
+			subnetIDs       []string
 			expectedSubnets []*ec2.Subnet
 		}{
 
@@ -160,7 +160,7 @@ func TestFilterSubnets(tt *testing.T) {
 						SubnetId: aws.String("id-2"),
 					},
 				},
-				subnetIds: []string{"id-1"},
+				subnetIDs: []string{"id-1"},
 				expectedSubnets: []*ec2.Subnet{
 					{
 						SubnetId: aws.String("id-1"),
@@ -174,12 +174,12 @@ func TestFilterSubnets(tt *testing.T) {
 						SubnetId: aws.String("id-1"),
 					},
 				},
-				subnetIds:       []string{"id-2"},
+				subnetIDs:       []string{"id-2"},
 				expectedSubnets: nil,
 			},
 		} {
 			tt.Run(tc.msg, func(t *testing.T) {
-				subnets := filterSubnets(tc.subnets, subnetIDIncluded(tc.subnetIds))
+				subnets := filterSubnets(tc.subnets, subnetIDIncluded(tc.subnetIDs))
 				require.EqualValues(t, tc.expectedSubnets, subnets)
 			})
 		}
@@ -498,7 +498,7 @@ func TestWaitForAPIServer(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.responseCode)
 			}))
 			defer ts.Close()

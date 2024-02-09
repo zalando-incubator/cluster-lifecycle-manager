@@ -172,7 +172,7 @@ func TestMakeArchive(t *testing.T) {
 			Encrypted:   true,
 		},
 	} {
-		t.Run(tc.Message, func(tt *testing.T) {
+		t.Run(tc.Message, func(_ *testing.T) {
 			testKMSClient := &testKMSClient{}
 			archive, err := makeArchive(
 				makeTestInput(tc.Path, tc.Data, tc.Permissions, tc.Encrypted),

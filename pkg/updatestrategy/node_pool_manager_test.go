@@ -368,7 +368,7 @@ func TestCordonNode(t *testing.T) {
 }
 
 func TestScalePool(tt *testing.T) {
-	evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+	evictPod = func(_ context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 		return nil
 	}
 

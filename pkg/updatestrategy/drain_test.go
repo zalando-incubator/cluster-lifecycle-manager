@@ -37,7 +37,7 @@ func evictPodFailPDB(_ context.Context, _ kubernetes.Interface, _ *log.Entry, _ 
 }
 
 func TestTerminateNode(t *testing.T) {
-	evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+	evictPod = func(ctx context.Context, client kubernetes.Interface, _ *log.Entry, pod v1.Pod) error {
 		return removePod(ctx, client, pod)
 	}
 
@@ -199,7 +199,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 			drainConfig: &DrainConfig{},
 		}
 
-		evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		evictPod = func(_ context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&evictCount, 1)
 			return nil
 		}
@@ -222,7 +222,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		// evicted in parallel.
 		blockHelper.Add(2)
 
-		evictPod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		evictPod = func(ctx context.Context, client kubernetes.Interface, _ *log.Entry, pod v1.Pod) error {
 			// unblock so we can be cancelled
 			blockHelper.Done()
 			// wait until we're unblocked
@@ -271,7 +271,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		deletePod = func(ctx context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
+		deletePod = func(_ context.Context, client kubernetes.Interface, logger *log.Entry, pod v1.Pod) error {
 			atomic.AddInt32(&deleteCount, 1)
 			cancel()
 			return nil

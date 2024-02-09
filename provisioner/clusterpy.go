@@ -214,8 +214,8 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
 
 	// if subnets are defined in the config items, filter the subnet list
-	if subnetIds, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
-		ids := strings.Split(subnetIds, ",")
+	if subnetIDs, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
+		ids := strings.Split(subnetIDs, ",")
 		subnets = filterSubnets(subnets, subnetIDIncluded(ids))
 		if len(subnets) != len(ids) {
 			return fmt.Errorf("invalid or unknown subnets; desired %v", ids)

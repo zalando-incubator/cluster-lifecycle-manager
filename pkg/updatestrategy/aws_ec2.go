@@ -243,13 +243,13 @@ func (n *EC2NodePoolBackend) decommission(ctx context.Context, filters []*ec2.Fi
 		return nil
 	}
 
-	instanceIds := make([]*string, 0, len(instances))
+	instanceIDs := make([]*string, 0, len(instances))
 	for _, instance := range instances {
-		instanceIds = append(instanceIds, instance.InstanceId)
+		instanceIDs = append(instanceIDs, instance.InstanceId)
 	}
 
 	params := &ec2.TerminateInstancesInput{
-		InstanceIds: instanceIds,
+		InstanceIds: instanceIDs,
 	}
 	_, err = n.ec2Client.TerminateInstancesWithContext(ctx, params)
 	if err != nil {
