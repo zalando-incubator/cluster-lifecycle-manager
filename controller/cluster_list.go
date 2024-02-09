@@ -94,7 +94,7 @@ func updateBlocked(cluster *api.Cluster) bool {
 }
 
 func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource, availableClusters []*api.Cluster) {
-	availableClusterIds := make(map[string]bool)
+	availableClusterIDs := make(map[string]bool)
 
 	for _, cluster := range availableClusters {
 		if cluster.LifecycleStatus == statusDecommissioned {
@@ -107,7 +107,7 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 			continue
 		}
 
-		availableClusterIds[cluster.ID] = true
+		availableClusterIDs[cluster.ID] = true
 
 		currentVersion := api.ParseVersion(cluster.Status.CurrentVersion)
 
@@ -157,7 +157,7 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 			continue
 		}
 
-		if _, ok := availableClusterIds[id]; !ok {
+		if _, ok := availableClusterIDs[id]; !ok {
 			delete(clusterList.clusters, id)
 		}
 	}

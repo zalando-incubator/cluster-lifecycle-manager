@@ -305,7 +305,7 @@ func (n *ASGNodePoolsBackend) Terminate(_ context.Context, node *Node, decrement
 				},
 			},
 		}
-		err := n.ec2Client.DescribeTagsPages(params, func(resp *ec2.DescribeTagsOutput, lastPage bool) bool {
+		err := n.ec2Client.DescribeTagsPages(params, func(resp *ec2.DescribeTagsOutput, _ bool) bool {
 			for _, tag := range resp.Tags {
 				if aws.StringValue(tag.Key) == ec2AutoscalingGroupTagKey {
 					asgName = aws.StringValue(tag.Value)
@@ -442,7 +442,7 @@ func (n *ASGNodePoolsBackend) getNodePoolASGs(nodePool *api.NodePool) ([]*autosc
 	}
 
 	var asgs []*autoscaling.Group
-	err := n.asgClient.DescribeAutoScalingGroupsPages(params, func(resp *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
+	err := n.asgClient.DescribeAutoScalingGroupsPages(params, func(resp *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
 		for _, group := range resp.AutoScalingGroups {
 			if asgHasAllTags(expectedTags, group.Tags) {
 				asgs = append(asgs, group)
@@ -535,7 +535,7 @@ func (n *ASGNodePoolsBackend) getInstancesToUpdate(asg *autoscaling.Group) (map[
 	}
 
 	// figure out if instance types or spotness changed
-	err := n.ec2Client.DescribeInstancesPages(describeParams, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	err := n.ec2Client.DescribeInstancesPages(describeParams, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
 		for _, reservation := range output.Reservations {
 			for _, instance := range reservation.Instances {
 				_, typeValid := launchParams.instanceTypes[aws.StringValue(instance.InstanceType)]

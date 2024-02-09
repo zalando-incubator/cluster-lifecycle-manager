@@ -360,7 +360,7 @@ func (a *awsAdapter) ListStacks(includeTags, excludeTags map[string]string) ([]*
 	params := &cloudformation.DescribeStacksInput{}
 
 	stacks := make([]*cloudformation.Stack, 0)
-	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool {
+	err := a.cloudformationClient.DescribeStacksPages(params, func(resp *cloudformation.DescribeStacksOutput, _ bool) bool {
 		for _, stack := range resp.Stacks {
 			if cloudformationHasTags(includeTags, stack.Tags) && cloudformationDoesNotHaveTags(excludeTags, stack.Tags) {
 				stacks = append(stacks, stack)
@@ -563,7 +563,7 @@ func (a *awsAdapter) GetCertificates() ([]*certs.CertificateSummary, error) {
 		},
 	}
 	acmSummaries := make([]*acm.CertificateSummary, 0)
-	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, lastPage bool) bool {
+	err := a.acmClient.ListCertificatesPages(params, func(page *acm.ListCertificatesOutput, _ bool) bool {
 		acmSummaries = append(acmSummaries, page.CertificateSummaryList...)
 		return true
 	})

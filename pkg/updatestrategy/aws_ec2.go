@@ -154,7 +154,7 @@ func (n *EC2NodePoolBackend) getInstances(filters []*ec2.Filter) ([]*ec2.Instanc
 	}
 
 	instances := make([]*ec2.Instance, 0)
-	err := n.ec2Client.DescribeInstancesPagesWithContext(context.TODO(), params, func(output *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	err := n.ec2Client.DescribeInstancesPagesWithContext(context.TODO(), params, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
 		for _, reservation := range output.Reservations {
 			for _, instance := range reservation.Instances {
 				switch aws.StringValue(instance.State.Name) {
@@ -243,13 +243,13 @@ func (n *EC2NodePoolBackend) decommission(ctx context.Context, filters []*ec2.Fi
 		return nil
 	}
 
-	instanceIds := make([]*string, 0, len(instances))
+	instanceIDs := make([]*string, 0, len(instances))
 	for _, instance := range instances {
-		instanceIds = append(instanceIds, instance.InstanceId)
+		instanceIDs = append(instanceIDs, instance.InstanceId)
 	}
 
 	params := &ec2.TerminateInstancesInput{
-		InstanceIds: instanceIds,
+		InstanceIds: instanceIDs,
 	}
 	_, err = n.ec2Client.TerminateInstancesWithContext(ctx, params)
 	if err != nil {

@@ -113,7 +113,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 	}
 }
 
-func allClusterIds(clusterList *ClusterList) []string {
+func allClusterIDs(clusterList *ClusterList) []string {
 	var clusters []*ClusterInfo
 	var result []string
 	for {
@@ -152,11 +152,11 @@ func TestUpdateAddsNewClusters(t *testing.T) {
 
 	// One new cluster
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster1})
-	require.Equal(t, []string{cluster1.ID}, allClusterIds(clusterList))
+	require.Equal(t, []string{cluster1.ID}, allClusterIDs(clusterList))
 
 	// Another new cluster
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster1, cluster2})
-	require.Equal(t, []string{cluster2.ID, cluster1.ID}, allClusterIds(clusterList))
+	require.Equal(t, []string{cluster2.ID, cluster1.ID}, allClusterIDs(clusterList))
 }
 
 func TestUpdateUpdatesExistingClusters(t *testing.T) {
@@ -193,7 +193,7 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{updated})
 
-	assert.Equal(t, []string{cluster.ID}, allClusterIds(clusterList))
+	assert.Equal(t, []string{cluster.ID}, allClusterIDs(clusterList))
 }
 
 func sortedStrings(s []string) []string {
@@ -249,10 +249,10 @@ func TestUpdateDeletesUnusedClusters(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter)
 
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster1, cluster2})
-	require.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIds(clusterList)))
+	require.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIDs(clusterList)))
 
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster2})
-	require.Equal(t, []string{cluster2.ID}, allClusterIds(clusterList))
+	require.Equal(t, []string{cluster2.ID}, allClusterIDs(clusterList))
 }
 
 func TestClusterPriority(t *testing.T) {
@@ -299,11 +299,11 @@ func TestClusterPriority(t *testing.T) {
 		clusterList := NewClusterList(config.DefaultFilter)
 
 		clusterList.UpdateAvailable(MockChannelSource(false, false), clusters)
-		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIds(clusterList))
+		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIDs(clusterList))
 
 		// add normal2, it should now be updated before normal1
 		clusterList.UpdateAvailable(MockChannelSource(false, false), append(clusters, normal2))
-		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal2.ID, normal.ID}, allClusterIds(clusterList))
+		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal2.ID, normal.ID}, allClusterIDs(clusterList))
 	}
 }
 
@@ -357,7 +357,7 @@ func TestClusterLastUpdated(t *testing.T) {
 
 	// the same order should be preserved for next update attempts
 	clusterList.UpdateAvailable(MockChannelSource(false, false), clusters)
-	require.Equal(t, []string{next2.Cluster.ID, next1.Cluster.ID, next3.Cluster.ID}, allClusterIds(clusterList))
+	require.Equal(t, []string{next2.Cluster.ID, next1.Cluster.ID, next3.Cluster.ID}, allClusterIDs(clusterList))
 }
 
 func TestProcessingClusterNotDeleted(t *testing.T) {
