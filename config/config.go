@@ -5,8 +5,8 @@ import (
 	"path"
 	"time"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
