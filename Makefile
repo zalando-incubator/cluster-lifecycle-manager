@@ -36,13 +36,9 @@ $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
 	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | {instance_type, vCPU, memory, storage: (if .storage == null then null else .storage | {devices, size, nvme_ssd} end)}] | sort_by(.instance_type)' > "$@"
 
-$(GO_SWAGGER):
-	mkdir -p build
-	GOBIN=$(shell pwd)/build $(GO) install github.com/go-swagger/go-swagger/cmd/swagger
-
-$(CR_CLIENT): $(GO_SWAGGER) $(SPEC)
+$(CR_CLIENT): $(SPEC)
 	mkdir -p $@
-	$(GO_SWAGGER) generate client --name cluster-registry --principal oauth.User --spec docs/cluster-registry.yaml --target ./$(CR_CLIENT)
+	go run github.com/go-swagger/go-swagger/cmd/swagger generate client --name cluster-registry --principal oauth.User --spec docs/cluster-registry.yaml --target ./$(CR_CLIENT)
 
 build.local: build/$(BINARY)
 build.linux: build/linux/$(BINARY)

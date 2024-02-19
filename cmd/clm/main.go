@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 	"golang.org/x/oauth2"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
