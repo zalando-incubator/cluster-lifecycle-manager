@@ -13,6 +13,8 @@ jobs:
     - run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
     - run: make build.docker
     - run: make test
+      env:
+        GOEXPERIMENT: nocoverageredesign
     - run: make lint
     - run: goveralls -coverprofile=profile.cov -service=github
       env:
