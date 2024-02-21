@@ -623,7 +623,7 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 		},
 		backoff.WithMaxRetries(backoff.NewConstantBackOff(10*time.Second), 5))
 	if err != nil {
-		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %s", err)
+		logger.Errorf("Unable to downscale the deployments, proceeding anyway: %v", err)
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
@@ -636,7 +636,7 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 	})
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
-		return err
+		logger.Errorf("Unable to decommission karpenter node-pools, proceeding anyway: %v", err)
 	}
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
