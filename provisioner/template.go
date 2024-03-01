@@ -51,6 +51,21 @@ type templateContext struct {
 }
 
 type templateData struct {
+	// From api.Cluster, TODO: drop after we migrate all Kubernetes manifests
+	Alias                 string
+	APIServerURL          string
+	Channel               string
+	ConfigItems           map[string]string
+	CriticalityLevel      int32
+	Environment           string
+	ID                    string
+	InfrastructureAccount string
+	LifecycleStatus       string
+	LocalID               string
+	NodePools             []*api.NodePool
+	Region                string
+	Owner                 string
+
 	// Available everywhere
 	Cluster *api.Cluster
 
@@ -59,6 +74,12 @@ type templateData struct {
 
 	// Available in node pool templates
 	NodePool *api.NodePool
+
+	// User data (deprecated, TODO: move to .Values.UserData)
+	UserData string
+
+	// Path to the generated files uploaded to S3 (deprecated, TODO: move to .Values.S3GeneratedFilesPath)
+	S3GeneratedFilesPath string
 }
 
 func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) *templateContext {
@@ -147,9 +168,30 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 	var out bytes.Buffer
 
 	data := &templateData{
-		Cluster:  context.cluster,
-		Values:   context.values,
-		NodePool: context.nodePool,
+		Alias:                 context.cluster.Alias,
+		APIServerURL:          context.cluster.APIServerURL,
+		Channel:               context.cluster.Channel,
+		ConfigItems:           context.cluster.ConfigItems,
+		CriticalityLevel:      context.cluster.CriticalityLevel,
+		Environment:           context.cluster.Environment,
+		ID:                    context.cluster.ID,
+		InfrastructureAccount: context.cluster.InfrastructureAccount,
+		LifecycleStatus:       context.cluster.LifecycleStatus,
+		LocalID:               context.cluster.LocalID,
+		NodePools:             context.cluster.NodePools,
+		Region:                context.cluster.Region,
+		Owner:                 context.cluster.Owner,
+		Cluster:               context.cluster,
+		Values:                context.values,
+		NodePool:              context.nodePool,
+	}
+
+	if ud, ok := context.values[userDataValuesKey]; ok {
+		data.UserData = ud.(string)
+	}
+
+	if s3path, ok := context.values[s3GeneratedFilesPathValuesKey]; ok {
+		data.S3GeneratedFilesPath = s3path.(string)
 	}
 
 	err = t.Execute(&out, data)
