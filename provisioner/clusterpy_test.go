@@ -47,11 +47,11 @@ post_apply:
 
 	deletionsContent2 = `
 pre_apply:
-- name: {{.Alias}}-pre
+- name: {{.Cluster.Alias}}-pre
   namespace: templated
   kind: deployment
 post_apply:
-- name: {{.Alias}}-post
+- name: {{.Cluster.Alias}}-post
   namespace: templated
   kind: deployment
 `
