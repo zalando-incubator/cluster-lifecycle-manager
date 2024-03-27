@@ -30,9 +30,9 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.26.14
-	k8s.io/apimachinery v0.26.14
-	k8s.io/client-go v0.26.14
+	k8s.io/api v0.27.12
+	k8s.io/apimachinery v0.27.12
+	k8s.io/client-go v0.27.12
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 )
@@ -91,7 +91,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
@@ -121,9 +121,9 @@ require (
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.26.14
-	k8s.io/apimachinery => k8s.io/apimachinery v0.26.14
-	k8s.io/client-go => k8s.io/client-go v0.26.14
+	k8s.io/api => k8s.io/api v0.27.12
+	k8s.io/apimachinery => k8s.io/apimachinery v0.27.12
+	k8s.io/client-go => k8s.io/client-go v0.27.12
 )
 
 go 1.22
