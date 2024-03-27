@@ -95,6 +95,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azID":                 azID,
 		"azCount":              azCount,
 		"split":                split,
+		"replaceAll":           strings.ReplaceAll,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
