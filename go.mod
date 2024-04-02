@@ -16,11 +16,11 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.50.0 // indirect
+	github.com/prometheus/common v0.51.1 // indirect
 	github.com/prometheus/procfs v0.13.0 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.15.8
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.15.10
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	golang.org/x/oauth2 v0.18.0
 	golang.org/x/sync v0.6.0
@@ -105,10 +105,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/tools v0.19.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
