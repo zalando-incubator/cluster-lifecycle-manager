@@ -30,9 +30,9 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.27.12
-	k8s.io/apimachinery v0.27.12
-	k8s.io/client-go v0.27.12
+	k8s.io/api v0.28.8
+	k8s.io/apimachinery v0.28.8
+	k8s.io/client-go v0.28.8
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 )
@@ -61,7 +61,6 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/gnostic v0.7.0 // indirect
 	github.com/google/gnostic-models v0.6.9-0.20230804172637-c7be7c783f49 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
@@ -121,9 +120,9 @@ require (
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.27.12
-	k8s.io/apimachinery => k8s.io/apimachinery v0.27.12
-	k8s.io/client-go => k8s.io/client-go v0.27.12
+	k8s.io/api => k8s.io/api v0.28.8
+	k8s.io/apimachinery => k8s.io/apimachinery v0.28.8
+	k8s.io/client-go => k8s.io/client-go v0.28.8
 )
 
 go 1.22
