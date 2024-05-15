@@ -94,7 +94,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag(
 		"provider",
 		"Cloud provider. Defaults to single provider \"zalando-aws\".",
-	).Default(defaultProvider).StringsVar(&cfg.Providers)
+	).Default(defaultProvider).EnumsVar(&cfg.Providers, "zalando-aws")
 	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
 	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)
