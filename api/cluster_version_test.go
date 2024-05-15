@@ -8,28 +8,28 @@ import (
 
 func TestParseVersion(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		version string
+		name     string
+		version  string
 		expected string
 	}{
 		{
-			name:    "empty",
-			version: "",
+			name:     "empty",
+			version:  "",
 			expected: "#",
 		},
 		{
-			name:    "simple",
-			version: "foo#bar",
+			name:     "simple",
+			version:  "foo#bar",
 			expected: "foo#bar",
 		},
 		{
-			name:    "missing hash",
-			version: "foo",
+			name:     "missing hash",
+			version:  "foo",
 			expected: "#",
 		},
 		{
-			name:    "missing version",
-			version: "#bar",
+			name:     "missing version",
+			version:  "#bar",
 			expected: "#bar",
 		},
 	} {
