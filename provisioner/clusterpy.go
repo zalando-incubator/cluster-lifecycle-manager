@@ -88,7 +88,7 @@ type clusterpyProvisioner struct {
 
 type manifestPackage struct {
 	name      string
-	manifests []string
+	manifests []*kubernetes.ResourceManifest
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
@@ -1189,7 +1189,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 		}
 		ctx := newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
 
-		var renderedManifests []string
+		var parsedManifests []*kubernetes.ResourceManifest
 
 		for _, manifest := range component.Manifests {
 			rendered, err := renderTemplate(ctx, manifest.Path)
@@ -1207,14 +1207,19 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 			if remarshaled == "" {
 				log.Debugf("Skipping empty file: %s", manifest.Path)
 			} else {
-				renderedManifests = append(renderedManifests, remarshaled)
+				parsedResourceManifests, err := kubernetes.ParseResourceManifest(remarshaled, manifest.Path)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing manifest %s: %v", manifest.Path, err)
+				}
+
+				parsedManifests = append(parsedManifests, parsedResourceManifests...)
 			}
 		}
 
-		if len(renderedManifests) > 0 {
+		if len(parsedManifests) > 0 {
 			result = append(result, manifestPackage{
 				name:      component.Name,
-				manifests: renderedManifests,
+				manifests: parsedManifests,
 			})
 		}
 	}
@@ -1256,19 +1261,46 @@ func (p *clusterpyProvisioner) apply(
 	if options != nil {
 		caData = options.CAData
 	}
-	for _, m := range renderedManifests {
-		logger := logger.WithField("module", m.name)
-		kubectlRunner := kubernetes.NewKubeCTLRunner(
-			p.execManager,
-			tokenSource,
-			logger,
-			cluster.APIServerURL,
-			maxApplyRetries,
-			caData,
-		)
-		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.manifests, "---\n"), p.dryRun)
-		if err != nil {
-			return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
+
+	kubectlApplier, err := kubernetes.NewApplier(kubernetes.NewConfigFromHost(cluster.APIServerURL, tokenSource, caData), maxApplyRetries)
+	if err != nil {
+		return err
+	}
+
+	for _, module := range renderedManifests {
+		logger := logger.WithField("module", module.name)
+
+		if cluster.ConfigItems["kubectl_apply_inline"] == "true" {
+			for _, m := range module.manifests {
+				err := kubectlApplier.Apply(ctx, m)
+				if err != nil {
+					return errors.Wrapf(err, "kubectl apply failed for %s", m.SourceFile)
+				}
+				logger.Infof("%s/%s %s/%s applied", m.APIVersion, m.Kind, m.Namespace, m.Name)
+			}
+		} else {
+			manifests := make([]string, 0, len(module.manifests))
+			for _, m := range module.manifests {
+				content, err := m.ToYaml()
+				if err != nil {
+					return errors.Wrapf(err, "failed to convert manifest to yaml for %s", m.SourceFile)
+				}
+				manifests = append(manifests, content)
+			}
+
+			kubectlRunner := kubernetes.NewKubeCTLRunner(
+				p.execManager,
+				tokenSource,
+				logger,
+				cluster.APIServerURL,
+				maxApplyRetries,
+				caData,
+			)
+			_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(manifests, "---\n"), p.dryRun)
+			if err != nil {
+				return errors.Wrapf(err, "kubectl apply failed for %s", module.name)
+			}
+
 		}
 	}
 
