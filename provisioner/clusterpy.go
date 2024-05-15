@@ -77,7 +77,7 @@ type clusterpyProvisioner struct {
 
 type manifestPackage struct {
 	name      string
-	manifests []string
+	manifests []*kubernetes.ResourceManifest
 }
 
 // NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
@@ -1074,7 +1074,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 		}
 		ctx := newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
 
-		var renderedManifests []string
+		var parsedManifests []*kubernetes.ResourceManifest
 
 		for _, manifest := range component.Manifests {
 			rendered, err := renderTemplate(ctx, manifest.Path)
@@ -1092,14 +1092,19 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 			if remarshaled == "" {
 				log.Debugf("Skipping empty file: %s", manifest.Path)
 			} else {
-				renderedManifests = append(renderedManifests, remarshaled)
+				parsedResourceManifests, err := kubernetes.ParseResourceManifest(remarshaled, manifest.Path)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing manifest %s: %v", manifest.Path, err)
+				}
+
+				parsedManifests = append(parsedManifests, parsedResourceManifests...)
 			}
 		}
 
-		if len(renderedManifests) > 0 {
+		if len(parsedManifests) > 0 {
 			result = append(result, manifestPackage{
 				name:      component.Name,
-				manifests: renderedManifests,
+				manifests: parsedManifests,
 			})
 		}
 	}
@@ -1122,13 +1127,39 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 		return fmt.Errorf("wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
 	}
 
-	for _, m := range renderedManifests {
-		logger := logger.WithField("module", m.name)
-		kubectlRunner := kubernetes.NewKubeCTLRunner(p.execManager, p.tokenSource, logger, cluster.APIServerURL, maxApplyRetries)
-		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.manifests, "---\n"), p.dryRun)
-		if err != nil {
-			return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
+	kubectlApplier, err := kubernetes.NewApplier(kubernetes.NewConfigFromHost(cluster.APIServerURL, p.tokenSource))
+	if err != nil {
+		return err
+	}
+
+	for _, module := range renderedManifests {
+		logger := logger.WithField("module", module.name)
+
+		if cluster.ConfigItems["kubectl_apply_inline"] == "true" {
+			for _, m := range module.manifests {
+				err := kubectlApplier.Apply(ctx, m)
+				if err != nil {
+					return errors.Wrapf(err, "kubectl apply failed for %s", m.SourceFile)
+				}
+				logger.Infof("resource %s/%s applied", m.Namespace, m.Name)
+			}
+		} else {
+			manifests := make([]string, 0, len(module.manifests))
+			for _, m := range module.manifests {
+				content, err := m.ToYaml()
+				if err != nil {
+					return errors.Wrapf(err, "failed to convert manifest to yaml for %s", m.SourceFile)
+				}
+				manifests = append(manifests, content)
+			}
+
+			kubectlRunner := kubernetes.NewKubeCTLRunner(p.execManager, p.tokenSource, logger, cluster.APIServerURL, maxApplyRetries)
+			_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(manifests, "---\n"), p.dryRun)
+			if err != nil {
+				return errors.Wrapf(err, "kubectl apply failed for %s", module.name)
+			}
 		}
+
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
