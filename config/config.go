@@ -93,7 +93,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("workdir", "Path to working directory used for storing channel configurations.").Default(defaultWorkdir).StringVar(&cfg.Workdir)
 	kingpin.Flag(
 		"provider",
-		"Cloud provider. Defaults to single provider \"zalando-aws\").",
+		"Cloud provider. Defaults to single provider \"zalando-aws\".",
 	).Default(defaultProvider).StringsVar(&cfg.Providers)
 	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
 	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
