@@ -35,7 +35,6 @@ var (
 	ErrProviderNotSupported = errors.New("unsupported provider type")
 )
 
-
 // Provisioner is an interface describing how to provision or decommission
 // clusters.
 type Provisioner interface {

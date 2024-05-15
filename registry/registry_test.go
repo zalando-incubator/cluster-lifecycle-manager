@@ -8,63 +8,63 @@ import (
 )
 
 func TestFilter(t *testing.T) {
-	for _, tc := range []struct{
-		testCase string
+	for _, tc := range []struct {
+		testCase        string
 		lifecycleStatus *string
-		providers []string
-		cluster *models.Cluster
-		expected bool
+		providers       []string
+		cluster         *models.Cluster
+		expected        bool
 	}{
 		{
-			testCase: "nil cluster",
+			testCase:        "nil cluster",
 			lifecycleStatus: nil,
-			providers: nil,
-			cluster: nil,
-			expected: false,
+			providers:       nil,
+			cluster:         nil,
+			expected:        false,
 		},
 		{
-			testCase: "nil filters",
+			testCase:        "nil filters",
 			lifecycleStatus: nil,
-			providers: nil,
+			providers:       nil,
 			cluster: &models.Cluster{
 				LifecycleStatus: aws.String("ready"),
-				Provider: aws.String("zalando-aws"),				
+				Provider:        aws.String("zalando-aws"),
 			},
 			expected: true,
 		},
 		{
-			testCase: "valid lifecycle status",
+			testCase:        "valid lifecycle status",
 			lifecycleStatus: aws.String("ready"),
-			providers: nil,
+			providers:       nil,
 			cluster: &models.Cluster{
 				LifecycleStatus: aws.String("ready"),
 			},
 			expected: true,
 		},
 		{
-			testCase: "not valid lifecycle status",
+			testCase:        "not valid lifecycle status",
 			lifecycleStatus: aws.String("ready"),
-			providers: nil,
+			providers:       nil,
 			cluster: &models.Cluster{
 				LifecycleStatus: aws.String("decommissioned"),
 			},
 			expected: false,
 		},
 		{
-			testCase: "valid provider",
+			testCase:        "valid provider",
 			lifecycleStatus: aws.String("ready"),
-			providers: []string{"zalando-aws"},
+			providers:       []string{"zalando-aws"},
 			cluster: &models.Cluster{
 				LifecycleStatus: aws.String("ready"),
-				Provider: aws.String("zalando-aws"),
+				Provider:        aws.String("zalando-aws"),
 			},
 			expected: true,
 		},
-	}{
+	} {
 		t.Run(tc.testCase, func(t *testing.T) {
 			f := &Filter{
 				LifecycleStatus: tc.lifecycleStatus,
-				Providers: tc.providers,
+				Providers:       tc.providers,
 			}
 			if f.Includes(tc.cluster) != tc.expected {
 				t.Errorf("Expected %v, got %v", tc.expected, !tc.expected)

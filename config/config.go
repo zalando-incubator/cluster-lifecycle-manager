@@ -27,7 +27,7 @@ const (
 	defaultDrainForceEvictInterval          = "5m"
 	defaultDrainPollInterval                = "30s"
 	defaultUpdateStrategy                   = "clc"
-	defaultProvider						    = "zalando-aws"
+	defaultProvider                         = "zalando-aws"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
@@ -48,7 +48,7 @@ type LifecycleManagerConfig struct {
 	Listen                      string
 	Workdir                     string
 	Directory                   string
-	Providers 					[]string
+	Providers                   []string
 	ConfigSources               []string
 	SSHPrivateKeyFile           string
 	CredentialsDir              string
