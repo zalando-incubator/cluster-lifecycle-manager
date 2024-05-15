@@ -63,16 +63,18 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	var result []*api.Cluster
 
 	for _, cluster := range resp.Payload.Items {
-		if filter.LifecycleStatus == nil || *cluster.LifecycleStatus == *filter.LifecycleStatus {
-			c, err := convertFromClusterModel(cluster)
-			if err != nil {
-				return nil, err
-			}
-			if account, ok := accounts[c.InfrastructureAccount]; ok {
-				c.Owner = *account.Owner
-			}
-			result = append(result, c)
+		if !filter.Includes(cluster) {
+			continue
 		}
+
+		c, err := convertFromClusterModel(cluster)
+		if err != nil {
+			return nil, err
+		}
+		if account, ok := accounts[c.InfrastructureAccount]; ok {
+			c.Owner = *account.Owner
+		}
+		result = append(result, c)
 	}
 
 	return result, nil

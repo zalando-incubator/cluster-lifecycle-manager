@@ -137,6 +137,7 @@ func main() {
 			AccountFilter:     cfg.AccountFilter,
 			Interval:          cfg.Interval,
 			DryRun:            cfg.DryRun,
+			Providers:		   cfg.Providers,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
 		}
 

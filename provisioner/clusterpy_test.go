@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -516,4 +517,23 @@ func TestWaitForAPIServer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProvisionDoesNotSupportProvider(t *testing.T) {
+	cluster := &api.Cluster{
+		Provider: "zalando-eks",
+	}
+
+	p := clusterpyProvisioner{}
+	err := p.Provision(context.TODO(), nil, cluster, nil)
+	assert.Equal(t, ErrProviderNotSupported, err)
+}
+func TestDecommissionDoesNotSupportProvider(t *testing.T) {
+	cluster := &api.Cluster{
+		Provider: "zalando-eks",
+	}
+
+	p := clusterpyProvisioner{}
+	err := p.Decommission(context.TODO(), nil, cluster)
+	assert.Equal(t, ErrProviderNotSupported, err)
 }
