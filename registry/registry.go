@@ -5,12 +5,14 @@ import (
 	"net/url"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"golang.org/x/oauth2"
 )
 
 // Filter defines a filter which can be used when listing clusters.
 type Filter struct {
 	LifecycleStatus *string
+	Providers       []string
 }
 
 // Registry defines an interface for listing and updating clusters from a
@@ -37,4 +39,30 @@ func NewRegistry(uri string, tokenSource oauth2.TokenSource, options *Options) R
 	}
 
 	return nil
+}
+
+// Includes returns true if the cluster should be included based on the filter.
+// Returns false if the given cluster is nil.
+func (f *Filter) Includes(cluster *models.Cluster) bool {
+	if cluster == nil {
+		return false
+	}
+
+	if f.LifecycleStatus != nil &&
+		*cluster.LifecycleStatus != *f.LifecycleStatus {
+
+		return false
+	}
+
+	if len(f.Providers) == 0 {
+		return true
+	}
+
+	for _, p := range f.Providers {
+		if *cluster.Provider == string(p) {
+			return true
+		}
+	}
+
+	return false
 }

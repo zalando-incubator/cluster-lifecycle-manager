@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	providerID                         = "zalando-aws"
 	etcdStackFileName                  = "stack.yaml"
 	clusterStackFileName               = "cluster.yaml"
 	etcdStackNameDefault               = "etcd-cluster-etcd"
@@ -103,7 +102,7 @@ func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth
 }
 
 func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == providerID
+	return cluster.Provider == string(ZalandoAWSProvider)
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
@@ -176,6 +175,10 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 // Provision provisions/updates a cluster on AWS. Provision is an idempotent
 // operation for the same input.
 func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
+	if !p.Supports(cluster) {
+		return ErrProviderNotSupported
+	}
+
 	instanceTypes, awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
 	if err != nil {
 		return err
@@ -599,7 +602,7 @@ func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 
 // Decommission decommissions a cluster provisioned in AWS.
 func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
-	if cluster.Provider != providerID {
+	if !p.Supports(cluster) {
 		return ErrProviderNotSupported
 	}
 
@@ -779,10 +782,6 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 // prepares to provision a cluster by initializing the aws adapter.
 // TODO: this is doing a lot of things to glue everything together, this should be refactored.
 func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsUtils.InstanceTypes, *awsAdapter, updatestrategy.UpdateStrategy, error) {
-	if cluster.Provider != providerID {
-		return nil, nil, nil, ErrProviderNotSupported
-	}
-
 	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
 
 	adapter, err := p.setupAWSAdapter(logger, cluster)

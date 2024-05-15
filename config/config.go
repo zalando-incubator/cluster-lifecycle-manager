@@ -27,6 +27,7 @@ const (
 	defaultDrainForceEvictInterval          = "5m"
 	defaultDrainPollInterval                = "30s"
 	defaultUpdateStrategy                   = "clc"
+	defaultProvider                         = "zalando-aws"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
@@ -47,6 +48,7 @@ type LifecycleManagerConfig struct {
 	Listen                      string
 	Workdir                     string
 	Directory                   string
+	Providers                   []string
 	ConfigSources               []string
 	SSHPrivateKeyFile           string
 	CredentialsDir              string
@@ -89,6 +91,10 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)
 	kingpin.Flag("listen", "Address to listen at, e.g. :9090 or 0.0.0.0:9090").Default(defaultListener).StringVar(&cfg.Listen)
 	kingpin.Flag("workdir", "Path to working directory used for storing channel configurations.").Default(defaultWorkdir).StringVar(&cfg.Workdir)
+	kingpin.Flag(
+		"provider",
+		"Cloud provider. Defaults to single provider \"zalando-aws\".",
+	).Default(defaultProvider).EnumsVar(&cfg.Providers, "zalando-aws")
 	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
 	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)

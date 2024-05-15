@@ -33,6 +33,7 @@ var (
 type Options struct {
 	Interval          time.Duration
 	AccountFilter     config.IncludeExcludeFilter
+	Providers         []string
 	DryRun            bool
 	ConcurrentUpdates uint
 	EnvironmentOrder  []string
@@ -44,6 +45,7 @@ type Controller struct {
 	execManager          *command.ExecManager
 	registry             registry.Registry
 	provisioner          provisioner.Provisioner
+	providers            []string
 	channelConfigSourcer channel.ConfigSource
 	interval             time.Duration
 	dryRun               bool
@@ -58,6 +60,7 @@ func New(logger *log.Entry, execManager *command.ExecManager, registry registry.
 		execManager:          execManager,
 		registry:             registry,
 		provisioner:          provisioner,
+		providers:            options.Providers,
 		channelConfigSourcer: channel.NewCachingSource(channelConfigSourcer),
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
@@ -116,7 +119,11 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
-	clusters, err := c.registry.ListClusters(registry.Filter{})
+	clusters, err := c.registry.ListClusters(
+		registry.Filter{
+			Providers: c.providers,
+		},
+	)
 	if err != nil {
 		return err
 	}
