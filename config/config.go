@@ -9,6 +9,14 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
+// A provider ID is a string that identifies a cluster provider.
+type ProviderID string
+
+const (
+	// ZalandoAWS Provider is the provider ID for Zalando managed AWS clusters.
+	ZalandoAWSProvider ProviderID = "zalando-aws"
+)
+
 const (
 	defaultInterval                         = "10m"
 	defaultListener                         = ":9090"
@@ -27,7 +35,6 @@ const (
 	defaultDrainForceEvictInterval          = "5m"
 	defaultDrainPollInterval                = "30s"
 	defaultUpdateStrategy                   = "clc"
-	defaultProvider                         = "zalando-aws"
 )
 
 var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
@@ -94,7 +101,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag(
 		"provider",
 		"Cloud provider. Defaults to single provider \"zalando-aws\".",
-	).Default(defaultProvider).EnumsVar(&cfg.Providers, "zalando-aws")
+	).Default(string(ZalandoAWSProvider)).EnumsVar(&cfg.Providers, string(ZalandoAWSProvider))
 	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
 	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)

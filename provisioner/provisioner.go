@@ -12,9 +12,6 @@ import (
 )
 
 type (
-	// A provider ID is a string that identifies a cluster provider.
-	ProviderID string
-
 	// Options is the options that can be passed to a provisioner when initialized.
 	Options struct {
 		DryRun          bool
@@ -23,11 +20,6 @@ type (
 		RemoveVolumes   bool
 		ManageEtcdStack bool
 	}
-)
-
-const (
-	// ZalandoAWS Provider is the provider ID for Zalando managed AWS clusters.
-	ZalandoAWSProvider ProviderID = "zalando-aws"
 )
 
 var (

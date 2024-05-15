@@ -102,7 +102,7 @@ func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth
 }
 
 func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(ZalandoAWSProvider)
+	return cluster.Provider == string(config.ZalandoAWSProvider)
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
