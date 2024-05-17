@@ -41,6 +41,10 @@ func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
 	}
 }
 
+func NewConfigFromHost(host string, tokenSrc oauth2.TokenSource) *rest.Config {
+	return newConfig(host, tokenSrc)
+}
+
 // NewClient initializes a Kubernetes client with the
 // specified token source.
 func NewClient(host string, tokenSrc oauth2.TokenSource) (kubernetes.Interface, error) {
