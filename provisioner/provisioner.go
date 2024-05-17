@@ -26,8 +26,10 @@ type (
 )
 
 const (
-	// ZalandoAWS Provider is the provider ID for Zalando managed AWS clusters.
+	// ZalandoAWSProvider is the provider ID for Zalando managed AWS clusters.
 	ZalandoAWSProvider ProviderID = "zalando-aws"
+	// ZalandoEKSProvider is the provider ID for AWS EKS clusters.
+	ZalandoEKSProvider ProviderID = "zalando-eks"
 )
 
 var (
