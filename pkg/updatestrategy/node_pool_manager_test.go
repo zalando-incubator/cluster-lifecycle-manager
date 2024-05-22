@@ -49,7 +49,7 @@ func (n *mockProviderNodePoolsBackend) Scale(context.Context, *api.NodePool, int
 	return n.err
 }
 
-func (n *mockProviderNodePoolsBackend) Terminate(_ context.Context, node *Node, _ bool) error {
+func (n *mockProviderNodePoolsBackend) Terminate(_ context.Context, _ *api.NodePool, node *Node, _ bool) error {
 	newNodes := make([]*Node, 0, len(n.nodePool.Nodes))
 	for _, n := range n.nodePool.Nodes {
 		if n.Name != node.Name {

@@ -37,7 +37,10 @@ require (
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 )
 
-require github.com/Masterminds/sprig/v3 v3.2.3
+require (
+	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
+)
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect

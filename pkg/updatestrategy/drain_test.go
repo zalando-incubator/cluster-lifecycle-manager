@@ -107,14 +107,14 @@ func TestTerminateNode(t *testing.T) {
 		},
 	}
 
-	err := mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
+	err := mgr.TerminateNode(context.Background(), nil, &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 
 	// test when evictPod returns 429
 	evictPod = evictPodFailPDB
 
 	mgr.kube = setupMockKubernetes(context.Background(), t, []*v1.Node{node}, pods, nil)
-	err = mgr.TerminateNode(context.Background(), &Node{Name: node.Name}, false)
+	err = mgr.TerminateNode(context.Background(), nil, &Node{Name: node.Name}, false)
 	assert.NoError(t, err)
 }
 
@@ -206,7 +206,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
+		err := mgr.TerminateNode(ctx, nil, &Node{Name: node.Name}, false)
 		evictCountFinal := atomic.LoadInt32(&evictCount)
 		assert.Zero(t, evictCountFinal)
 		assert.EqualValues(t, err, context.Canceled)
@@ -248,7 +248,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 			blockEviction.Done()
 		}()
 
-		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
+		err := mgr.TerminateNode(ctx, nil, &Node{Name: node.Name}, false)
 
 		evictCountFinal := atomic.LoadInt32(&evictCount)
 		assert.Equal(t, int32(2), evictCountFinal)
@@ -276,7 +276,7 @@ func TestTerminateNodeCancelled(t *testing.T) {
 			cancel()
 			return nil
 		}
-		err := mgr.TerminateNode(ctx, &Node{Name: node.Name}, false)
+		err := mgr.TerminateNode(ctx, nil, &Node{Name: node.Name}, false)
 
 		deleteCountFinal := atomic.LoadInt32(&deleteCount)
 		assert.EqualValues(t, int32(1), deleteCountFinal)

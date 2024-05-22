@@ -77,7 +77,7 @@ func (m *mockNodePoolManager) ScalePool(_ context.Context, _ *api.NodePool, repl
 	return nil
 }
 
-func (m *mockNodePoolManager) TerminateNode(_ context.Context, node *Node, decrementDesired bool) error {
+func (m *mockNodePoolManager) TerminateNode(_ context.Context, _ *api.NodePool, node *Node, decrementDesired bool) error {
 	newNodes := make([]*Node, 0, len(m.nodePool.Nodes))
 	for _, n := range m.nodePool.Nodes {
 		if n.ProviderID != node.ProviderID {

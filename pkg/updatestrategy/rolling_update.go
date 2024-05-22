@@ -53,7 +53,7 @@ func (r *RollingUpdateStrategy) isUpdateDone(nodePool *NodePool) bool {
 // terminateCordonedNodes filters for nodes to be terminated and terminates the
 // nodes one by one. It will conditionally scale down the node pool in case
 // there is less than surge old nodes left.
-func (r *RollingUpdateStrategy) terminateCordonedNodes(ctx context.Context, nodePool *NodePool, surge int) error {
+func (r *RollingUpdateStrategy) terminateCordonedNodes(ctx context.Context, nodePoolDesc *api.NodePool, nodePool *NodePool, surge int) error {
 	oldNodes, _ := r.splitOldNewNodes(nodePool)
 	nodesToTerminate := filterNodesToTerminate(oldNodes)
 	r.logger.Debugf("Found %d nodes to be terminated", len(nodesToTerminate))
@@ -65,7 +65,7 @@ func (r *RollingUpdateStrategy) terminateCordonedNodes(ctx context.Context, node
 		// scale when terminating node.
 		scaleDown := numOldNodes <= surge
 
-		err := r.nodePoolManager.TerminateNode(ctx, node, scaleDown)
+		err := r.nodePoolManager.TerminateNode(ctx, nodePoolDesc, node, scaleDown)
 		if err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ func (r *RollingUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.No
 		// terminate all cordoned nodes and conditionally scale
 		// down the node pool in case there are less than surge old
 		// nodes left to update
-		err = r.terminateCordonedNodes(ctx, nodePool, surge)
+		err = r.terminateCordonedNodes(ctx, nodePoolDesc, nodePool, surge)
 		if err != nil {
 			return err
 		}

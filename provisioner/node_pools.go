@@ -225,7 +225,7 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 	return false
 }
 
-func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatestrategy.UpdateStrategy) error {
+func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 
 	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, p.k8sClients)
@@ -237,11 +237,43 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, _ updatest
 		return err
 	}
 	for _, pr := range existingProvisioners.Items {
-		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
+		nodePool := api.NodePool{Name: pr.GetName(), Profile: karpenterNodePoolProfile}
+		if !inNodePoolList(&nodePool, karpenterPools) {
 			err := p.k8sClients.Delete(ctx, crdResolver.NodePoolCRDName, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	nodes, err := p.k8sClients.List(ctx, "nodes", "", metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("karpenter.sh/nodepool"),
+	})
+	if err != nil {
+		return err
+	}
+
+	// also engage the updateStrategy mechanisms (rolling update, CLC) to speed up the decommissioning process,
+	// enforcing node force decommissioning SLAs since karpenter will wait indefinitely for the pod disruption budgets
+	// the list of obsolete node pools is derived from nodes and not relying on karpenter CRDs
+	// in case the CRD objects are deleted already
+	var obsoleteNodePools []*api.NodePool
+	checkedNodePools := make(map[string]interface{})
+	for _, node := range nodes.Items {
+		nodePoolName := node.GetLabels()["karpenter.sh/nodepool"]
+		if _, ok := checkedNodePools[nodePoolName]; ok {
+			continue
+		}
+		checkedNodePools[nodePoolName] = nil
+		nodePool := api.NodePool{Name: nodePoolName, Profile: karpenterNodePoolProfile}
+		if !inNodePoolList(&nodePool, karpenterPools) {
+			obsoleteNodePools = append(obsoleteNodePools, &nodePool)
+		}
+	}
+	for _, nodePool := range obsoleteNodePools {
+		err := updater.PrepareForRemoval(ctx, nodePool)
+		if err != nil {
+			return err
 		}
 	}
 

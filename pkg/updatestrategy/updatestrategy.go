@@ -19,7 +19,7 @@ type ProviderNodePoolsBackend interface {
 	Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error)
 	Scale(ctx context.Context, nodePool *api.NodePool, replicas int) error
 	MarkForDecommission(ctx context.Context, nodePool *api.NodePool) error
-	Terminate(ctx context.Context, node *Node, decrementDesired bool) error
+	Terminate(ctx context.Context, nodePool *api.NodePool, node *Node, decrementDesired bool) error
 }
 
 // NodePool defines a node pool including all nodes.
@@ -108,6 +108,10 @@ func (n *ProfileNodePoolProvisioner) Scale(ctx context.Context, nodePool *api.No
 }
 
 // Terminate terminates a node pool using the default provisioner.
-func (n *ProfileNodePoolProvisioner) Terminate(ctx context.Context, node *Node, decrementDesired bool) error {
-	return n.defaultProvisioner.Terminate(ctx, node, decrementDesired)
+func (n *ProfileNodePoolProvisioner) Terminate(ctx context.Context, nodePool *api.NodePool, node *Node, decrementDesired bool) error {
+	if provisioner, ok := n.profileMapping[nodePool.Profile]; ok {
+		return provisioner.Terminate(ctx, nodePool, node, decrementDesired)
+	}
+
+	return n.defaultProvisioner.Terminate(ctx, nodePool, node, decrementDesired)
 }

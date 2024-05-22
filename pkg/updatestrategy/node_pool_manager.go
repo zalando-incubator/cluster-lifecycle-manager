@@ -45,7 +45,7 @@ type NodePoolManager interface {
 	MarkNodeForDecommission(ctx context.Context, node *Node) error
 	AbortNodeDecommissioning(ctx context.Context, node *Node) error
 	ScalePool(ctx context.Context, nodePool *api.NodePool, replicas int) error
-	TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error
+	TerminateNode(ctx context.Context, nodePool *api.NodePool, node *Node, decrementDesired bool) error
 	MarkPoolForDecommission(ctx context.Context, nodePool *api.NodePool) error
 	DisableReplacementNodeProvisioning(ctx context.Context, node *Node) error
 	CordonNode(ctx context.Context, node *Node) error
@@ -333,7 +333,7 @@ func (m *KubernetesNodePoolManager) taintNode(ctx context.Context, node *Node, t
 // TerminateNode terminates a node and optionally decrement the desired size of
 // the node pool. Before a node is terminated it's drained to ensure that pods
 // running on the nodes are gracefully terminated.
-func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Node, decrementDesired bool) error {
+func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, nodePool *api.NodePool, node *Node, decrementDesired bool) error {
 	err := m.drain(ctx, node)
 	if err != nil {
 		return err
@@ -345,7 +345,7 @@ func (m *KubernetesNodePoolManager) TerminateNode(ctx context.Context, node *Nod
 
 	m.logger.WithField("node", node.Name).Info("Terminating node")
 
-	return m.backend.Terminate(ctx, node, decrementDesired)
+	return m.backend.Terminate(ctx, nodePool, node, decrementDesired)
 }
 
 func (m *KubernetesNodePoolManager) MarkPoolForDecommission(ctx context.Context, nodePool *api.NodePool) error {
@@ -408,7 +408,7 @@ func (m *KubernetesNodePoolManager) ScalePool(ctx context.Context, nodePool *api
 				return err
 			}
 
-			err = m.TerminateNode(ctx, node, true)
+			err = m.TerminateNode(ctx, nodePool, node, true)
 			if err != nil {
 				return err
 			}

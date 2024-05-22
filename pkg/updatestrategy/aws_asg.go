@@ -285,7 +285,7 @@ func (n *ASGNodePoolsBackend) deleteTags(nodePool *api.NodePool, tags map[string
 // In case the new desired capacity is less then the current min size of the
 // ASG, it will also decrease the ASG minSize.
 // This function will not return until the instance has been terminated in AWS.
-func (n *ASGNodePoolsBackend) Terminate(_ context.Context, node *Node, decrementDesired bool) error {
+func (n *ASGNodePoolsBackend) Terminate(_ context.Context, _ *api.NodePool, node *Node, decrementDesired bool) error {
 	instanceID := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
 
 	// if desired should be decremented check if we also need to decrement
