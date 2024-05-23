@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/luci/go-render/render"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -203,7 +204,17 @@ func (n *EC2NodePoolBackend) Scale(context.Context, *api.NodePool, int) error {
 	return nil
 }
 
-func (n *EC2NodePoolBackend) Terminate(context.Context, *Node, bool) error {
+func (n *EC2NodePoolBackend) Terminate(ctx context.Context, pool *api.NodePool, node *Node, _ bool) error {
+	// terminating the instance using AWS api, it will also trigger karpenter interruption controller to
+	// delete the node and nodeClaim objects
+	instanceID := instanceIDFromProviderID(node.ProviderID, node.FailureDomain)
+	params := &ec2.TerminateInstancesInput{
+		InstanceIds: []*string{&instanceID},
+	}
+	_, err := n.ec2Client.TerminateInstancesWithContext(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to terminate EC2 instances of the node pool '%s': %w", render.Render(pool), err)
+	}
 	return nil
 }
 

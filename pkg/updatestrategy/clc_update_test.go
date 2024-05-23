@@ -140,7 +140,7 @@ func (m *mockNodePoolManagerCLC) ScalePool(_ context.Context, _ *api.NodePool, _
 	panic("should not be called")
 }
 
-func (m *mockNodePoolManagerCLC) TerminateNode(_ context.Context, _ *Node, _ bool) error {
+func (m *mockNodePoolManagerCLC) TerminateNode(_ context.Context, _ *api.NodePool, _ *Node, _ bool) error {
 	panic("should not be called")
 }
 

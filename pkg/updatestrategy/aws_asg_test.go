@@ -758,7 +758,7 @@ func TestScale(t *testing.T) {
 		asgClient: &mockASGAPI{err: errors.New("failed")},
 		ec2Client: &mockEC2API{err: errors.New("failed")},
 	}
-	err = backend.Terminate(context.Background(), &Node{}, true)
+	err = backend.Terminate(context.Background(), nil, &Node{}, true)
 	assert.Error(t, err)
 }
 
@@ -850,7 +850,7 @@ func TestTerminate(t *testing.T) {
 			},
 		},
 	}
-	err := backend.Terminate(context.Background(), &Node{}, true)
+	err := backend.Terminate(context.Background(), nil, &Node{}, true)
 	assert.NoError(t, err)
 
 	// test getting error
@@ -858,7 +858,7 @@ func TestTerminate(t *testing.T) {
 		asgClient: &mockASGAPI{err: errors.New("failed")},
 		ec2Client: &mockEC2API{err: errors.New("failed")},
 	}
-	err = backend.Terminate(context.Background(), &Node{}, true)
+	err = backend.Terminate(context.Background(), nil, &Node{}, true)
 	assert.Error(t, err)
 
 	// test already terminated
@@ -875,7 +875,7 @@ func TestTerminate(t *testing.T) {
 			},
 		}},
 	}
-	err = backend.Terminate(context.Background(), &Node{}, false)
+	err = backend.Terminate(context.Background(), nil, &Node{}, false)
 	assert.NoError(t, err)
 }
 
