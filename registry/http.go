@@ -10,6 +10,7 @@ import (
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/samber/lo"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	apiclient "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client"
@@ -186,13 +187,18 @@ func convertFromClusterModel(cluster *models.Cluster) (*api.Cluster, error) {
 // converts a NodePool model generated from the cluster-registry swagger spec
 // into an *api.NodePool struct.
 func convertFromNodePoolModel(nodePool *models.NodePool) (*api.NodePool, error) {
-	if len(nodePool.InstanceTypes) == 0 {
+	var instanceType string
+	if lo.FromPtr(nodePool.Profile) == "worker-karpenter" && len(nodePool.InstanceTypes) == 0 {
+		instanceType = ""
+	} else if len(nodePool.InstanceTypes) == 0 {
 		return nil, fmt.Errorf("no instance types for pool %s", *nodePool.Name)
+	} else {
+		instanceType = nodePool.InstanceTypes[0]
 	}
 	return &api.NodePool{
 		DiscountStrategy: *nodePool.DiscountStrategy,
 		InstanceTypes:    nodePool.InstanceTypes,
-		InstanceType:     nodePool.InstanceTypes[0],
+		InstanceType:     instanceType,
 		Name:             *nodePool.Name,
 		Profile:          *nodePool.Profile,
 		MinSize:          *nodePool.MinSize,
