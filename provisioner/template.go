@@ -127,6 +127,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"awsValidID":                            awsValidID,
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
+		"list":                                  list,
 		"scaleQuantity":                         scaleQuantity,
 		"instanceTypeCPUQuantity": func(instanceType string) (string, error) {
 			return instanceTypeCPUQuantity(context, instanceType)
@@ -273,6 +274,10 @@ func dict(args ...interface{}) (map[string]interface{}, error) {
 		dict[key] = args[i+1]
 	}
 	return dict, nil
+}
+
+func list(args ...interface{}) []interface{} {
+	return args
 }
 
 // accountID returns just the ID part of an account

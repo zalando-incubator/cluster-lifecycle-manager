@@ -1253,6 +1253,29 @@ func TestDictInvalidArgs(t *testing.T) {
 	}
 }
 
+func TestList(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`
+{{- $alist := list
+	"foo"
+	"bar"
+	1
+}}
+{{- range $i, $v := $alist }}
+{{ $i }}={{ $v }}
+{{- end }}
+`,
+		nil)
+
+	require.NoError(t, err)
+	require.EqualValues(t, `
+0=foo
+1=bar
+2=1
+`, result)
+}
+
 func TestScaleQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
