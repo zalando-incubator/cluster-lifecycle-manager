@@ -84,27 +84,18 @@ type manifestPackage struct {
 
 // NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
 func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
-	provisioner := &clusterpyProvisioner{
-		awsConfig:       awsConfig,
-		execManager:     execManager,
-		secretDecrypter: secretDecrypter,
-		assumedRole:     assumedRole,
-		tokenSource:     tokenSource,
-	}
-
-	if options != nil {
-		provisioner.dryRun = options.DryRun
-		provisioner.applyOnly = options.ApplyOnly
-		provisioner.updateStrategy = options.UpdateStrategy
-		provisioner.removeVolumes = options.RemoveVolumes
-		provisioner.manageEtcdStack = options.ManageEtcdStack
-	}
-
-	return provisioner
+	return newClusterpyProvisioner(
+		execManager,
+		tokenSource,
+		secretDecrypter,
+		assumedRole,
+		awsConfig,
+		options,
+	)
 }
 
 func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(ZalandoAWSProvider) || cluster.Provider == string(ZalandoEKSProvider)
+	return cluster.Provider == string(ZalandoAWSProvider)
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
