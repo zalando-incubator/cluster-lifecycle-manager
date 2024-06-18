@@ -214,20 +214,25 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 	cluster := clusterInfo.Cluster
 	clusterLog := c.logger.WithField("cluster", cluster.Alias).WithField("worker", workerNum)
 
-	clusterLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
+	versionedLog := clusterLog
+	if clusterInfo.NextVersion != nil {
+		versionedLog = clusterLog.WithField("version", clusterInfo.NextVersion.String())
+	}
+
+	versionedLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
 	err := c.doProcessCluster(updateCtx, clusterLog, clusterInfo)
 
 	// log the error and resolve the special error cases
 	if err != nil {
-		clusterLog.Errorf("Failed to process cluster: %s", err)
+		versionedLog.Errorf("Failed to process cluster: %s", err)
 
 		// treat "provider not supported" as no error
 		if err == provisioner.ErrProviderNotSupported {
 			err = nil
 		}
 	} else {
-		clusterLog.Infof("Finished processing cluster")
+		versionedLog.Infof("Finished processing cluster")
 	}
 
 	// update the cluster state in the registry
@@ -255,7 +260,7 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 		}
 		err = c.registry.UpdateCluster(cluster)
 		if err != nil {
-			clusterLog.Errorf("Unable to update cluster state: %s", err)
+			versionedLog.Errorf("Unable to update cluster state: %s", err)
 		}
 	}
 }
