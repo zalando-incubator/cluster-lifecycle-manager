@@ -6,6 +6,7 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *GetClusterOK) Code() int {
 }
 
 func (o *GetClusterOK) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK %s", 200, payload)
 }
 
 func (o *GetClusterOK) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterOK %s", 200, payload)
 }
 
 func (o *GetClusterOK) GetPayload() *models.Cluster {
@@ -170,11 +173,11 @@ func (o *GetClusterUnauthorized) Code() int {
 }
 
 func (o *GetClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterUnauthorized", 401)
 }
 
 func (o *GetClusterUnauthorized) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterUnauthorized", 401)
 }
 
 func (o *GetClusterUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -226,11 +229,11 @@ func (o *GetClusterForbidden) Code() int {
 }
 
 func (o *GetClusterForbidden) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterForbidden", 403)
 }
 
 func (o *GetClusterForbidden) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterForbidden", 403)
 }
 
 func (o *GetClusterForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -282,11 +285,11 @@ func (o *GetClusterNotFound) Code() int {
 }
 
 func (o *GetClusterNotFound) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterNotFound ", 404)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterNotFound", 404)
 }
 
 func (o *GetClusterNotFound) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterNotFound ", 404)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterNotFound", 404)
 }
 
 func (o *GetClusterNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -339,11 +342,13 @@ func (o *GetClusterInternalServerError) Code() int {
 }
 
 func (o *GetClusterInternalServerError) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError %s", 500, payload)
 }
 
 func (o *GetClusterInternalServerError) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}][%d] getClusterInternalServerError %s", 500, payload)
 }
 
 func (o *GetClusterInternalServerError) GetPayload() *models.Error {

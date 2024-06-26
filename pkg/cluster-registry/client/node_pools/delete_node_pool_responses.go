@@ -6,6 +6,7 @@ package node_pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -108,11 +109,11 @@ func (o *DeleteNodePoolNoContent) Code() int {
 }
 
 func (o *DeleteNodePoolNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent", 204)
 }
 
 func (o *DeleteNodePoolNoContent) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNoContent", 204)
 }
 
 func (o *DeleteNodePoolNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -165,11 +166,13 @@ func (o *DeleteNodePoolBadRequest) Code() int {
 }
 
 func (o *DeleteNodePoolBadRequest) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *DeleteNodePoolBadRequest) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *DeleteNodePoolBadRequest) GetPayload() *models.Error {
@@ -232,11 +235,11 @@ func (o *DeleteNodePoolUnauthorized) Code() int {
 }
 
 func (o *DeleteNodePoolUnauthorized) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized", 401)
 }
 
 func (o *DeleteNodePoolUnauthorized) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolUnauthorized", 401)
 }
 
 func (o *DeleteNodePoolUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -288,11 +291,11 @@ func (o *DeleteNodePoolForbidden) Code() int {
 }
 
 func (o *DeleteNodePoolForbidden) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden", 403)
 }
 
 func (o *DeleteNodePoolForbidden) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolForbidden", 403)
 }
 
 func (o *DeleteNodePoolForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -344,11 +347,11 @@ func (o *DeleteNodePoolNotFound) Code() int {
 }
 
 func (o *DeleteNodePoolNotFound) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound", 404)
 }
 
 func (o *DeleteNodePoolNotFound) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolNotFound", 404)
 }
 
 func (o *DeleteNodePoolNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -401,11 +404,13 @@ func (o *DeleteNodePoolInternalServerError) Code() int {
 }
 
 func (o *DeleteNodePoolInternalServerError) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteNodePoolInternalServerError) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] deleteNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteNodePoolInternalServerError) GetPayload() *models.Error {

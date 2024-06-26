@@ -6,6 +6,7 @@ package infrastructure_accounts
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -109,11 +110,13 @@ func (o *CreateInfrastructureAccountCreated) Code() int {
 }
 
 func (o *CreateInfrastructureAccountCreated) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated %s", 201, payload)
 }
 
 func (o *CreateInfrastructureAccountCreated) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountCreated %s", 201, payload)
 }
 
 func (o *CreateInfrastructureAccountCreated) GetPayload() *models.InfrastructureAccount {
@@ -176,11 +179,11 @@ func (o *CreateInfrastructureAccountBadRequest) Code() int {
 }
 
 func (o *CreateInfrastructureAccountBadRequest) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest ", 400)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest", 400)
 }
 
 func (o *CreateInfrastructureAccountBadRequest) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest ", 400)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountBadRequest", 400)
 }
 
 func (o *CreateInfrastructureAccountBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -232,11 +235,11 @@ func (o *CreateInfrastructureAccountUnauthorized) Code() int {
 }
 
 func (o *CreateInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *CreateInfrastructureAccountUnauthorized) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *CreateInfrastructureAccountUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -288,11 +291,11 @@ func (o *CreateInfrastructureAccountForbidden) Code() int {
 }
 
 func (o *CreateInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden", 403)
 }
 
 func (o *CreateInfrastructureAccountForbidden) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountForbidden", 403)
 }
 
 func (o *CreateInfrastructureAccountForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -344,11 +347,11 @@ func (o *CreateInfrastructureAccountConflict) Code() int {
 }
 
 func (o *CreateInfrastructureAccountConflict) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict ", 409)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict", 409)
 }
 
 func (o *CreateInfrastructureAccountConflict) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict ", 409)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountConflict", 409)
 }
 
 func (o *CreateInfrastructureAccountConflict) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -401,11 +404,13 @@ func (o *CreateInfrastructureAccountInternalServerError) Code() int {
 }
 
 func (o *CreateInfrastructureAccountInternalServerError) Error() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *CreateInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /infrastructure-accounts][%d] createInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *CreateInfrastructureAccountInternalServerError) GetPayload() *models.Error {
