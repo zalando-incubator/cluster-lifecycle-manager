@@ -47,7 +47,7 @@ type InfrastructureAccount struct {
 
 	// Lifecycle Status is used to describe the current status of the account.
 	// Required: true
-	// Enum: [requested creating ready decommissioned]
+	// Enum: ["requested","creating","ready","decommissioned"]
 	LifecycleStatus *string `json:"lifecycle_status"`
 
 	// Name of the infrastructure account

@@ -6,6 +6,7 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -108,11 +109,11 @@ func (o *DeleteClusterNoContent) Code() int {
 }
 
 func (o *DeleteClusterNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent", 204)
 }
 
 func (o *DeleteClusterNoContent) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNoContent", 204)
 }
 
 func (o *DeleteClusterNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -165,11 +166,13 @@ func (o *DeleteClusterBadRequest) Code() int {
 }
 
 func (o *DeleteClusterBadRequest) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest %s", 400, payload)
 }
 
 func (o *DeleteClusterBadRequest) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterBadRequest %s", 400, payload)
 }
 
 func (o *DeleteClusterBadRequest) GetPayload() *models.Error {
@@ -232,11 +235,11 @@ func (o *DeleteClusterUnauthorized) Code() int {
 }
 
 func (o *DeleteClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized", 401)
 }
 
 func (o *DeleteClusterUnauthorized) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterUnauthorized", 401)
 }
 
 func (o *DeleteClusterUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -289,11 +292,13 @@ func (o *DeleteClusterForbidden) Code() int {
 }
 
 func (o *DeleteClusterForbidden) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden %s", 403, payload)
 }
 
 func (o *DeleteClusterForbidden) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden  %+v", 403, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterForbidden %s", 403, payload)
 }
 
 func (o *DeleteClusterForbidden) GetPayload() *models.Error {
@@ -356,11 +361,11 @@ func (o *DeleteClusterNotFound) Code() int {
 }
 
 func (o *DeleteClusterNotFound) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound", 404)
 }
 
 func (o *DeleteClusterNotFound) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterNotFound", 404)
 }
 
 func (o *DeleteClusterNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -413,11 +418,13 @@ func (o *DeleteClusterInternalServerError) Code() int {
 }
 
 func (o *DeleteClusterInternalServerError) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteClusterInternalServerError) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}][%d] deleteClusterInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteClusterInternalServerError) GetPayload() *models.Error {

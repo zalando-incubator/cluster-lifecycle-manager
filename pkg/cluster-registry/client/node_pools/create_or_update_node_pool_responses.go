@@ -6,6 +6,7 @@ package node_pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *CreateOrUpdateNodePoolOK) Code() int {
 }
 
 func (o *CreateOrUpdateNodePoolOK) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK %s", 200, payload)
 }
 
 func (o *CreateOrUpdateNodePoolOK) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolOK %s", 200, payload)
 }
 
 func (o *CreateOrUpdateNodePoolOK) GetPayload() *models.NodePool {
@@ -171,11 +174,13 @@ func (o *CreateOrUpdateNodePoolBadRequest) Code() int {
 }
 
 func (o *CreateOrUpdateNodePoolBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *CreateOrUpdateNodePoolBadRequest) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *CreateOrUpdateNodePoolBadRequest) GetPayload() *models.Error {
@@ -238,11 +243,11 @@ func (o *CreateOrUpdateNodePoolUnauthorized) Code() int {
 }
 
 func (o *CreateOrUpdateNodePoolUnauthorized) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized", 401)
 }
 
 func (o *CreateOrUpdateNodePoolUnauthorized) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolUnauthorized", 401)
 }
 
 func (o *CreateOrUpdateNodePoolUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -294,11 +299,11 @@ func (o *CreateOrUpdateNodePoolForbidden) Code() int {
 }
 
 func (o *CreateOrUpdateNodePoolForbidden) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden", 403)
 }
 
 func (o *CreateOrUpdateNodePoolForbidden) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolForbidden", 403)
 }
 
 func (o *CreateOrUpdateNodePoolForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -351,11 +356,13 @@ func (o *CreateOrUpdateNodePoolInternalServerError) Code() int {
 }
 
 func (o *CreateOrUpdateNodePoolInternalServerError) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *CreateOrUpdateNodePoolInternalServerError) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] createOrUpdateNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *CreateOrUpdateNodePoolInternalServerError) GetPayload() *models.Error {

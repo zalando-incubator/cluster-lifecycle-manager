@@ -6,6 +6,7 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *UpdateClusterOK) Code() int {
 }
 
 func (o *UpdateClusterOK) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK %s", 200, payload)
 }
 
 func (o *UpdateClusterOK) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterOK %s", 200, payload)
 }
 
 func (o *UpdateClusterOK) GetPayload() *models.Cluster {
@@ -170,11 +173,11 @@ func (o *UpdateClusterUnauthorized) Code() int {
 }
 
 func (o *UpdateClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized", 401)
 }
 
 func (o *UpdateClusterUnauthorized) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterUnauthorized", 401)
 }
 
 func (o *UpdateClusterUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -226,11 +229,11 @@ func (o *UpdateClusterForbidden) Code() int {
 }
 
 func (o *UpdateClusterForbidden) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden ", 403)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden", 403)
 }
 
 func (o *UpdateClusterForbidden) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden ", 403)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterForbidden", 403)
 }
 
 func (o *UpdateClusterForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -282,11 +285,11 @@ func (o *UpdateClusterNotFound) Code() int {
 }
 
 func (o *UpdateClusterNotFound) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound ", 404)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound", 404)
 }
 
 func (o *UpdateClusterNotFound) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound ", 404)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterNotFound", 404)
 }
 
 func (o *UpdateClusterNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -339,11 +342,13 @@ func (o *UpdateClusterInternalServerError) Code() int {
 }
 
 func (o *UpdateClusterInternalServerError) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateClusterInternalServerError) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}][%d] updateClusterInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateClusterInternalServerError) GetPayload() *models.Error {

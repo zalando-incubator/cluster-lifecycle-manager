@@ -7,6 +7,7 @@ package clusters
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -101,11 +102,13 @@ func (o *ListClustersOK) Code() int {
 }
 
 func (o *ListClustersOK) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK %s", 200, payload)
 }
 
 func (o *ListClustersOK) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersOK %s", 200, payload)
 }
 
 func (o *ListClustersOK) GetPayload() *ListClustersOKBody {
@@ -168,11 +171,11 @@ func (o *ListClustersUnauthorized) Code() int {
 }
 
 func (o *ListClustersUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersUnauthorized", 401)
 }
 
 func (o *ListClustersUnauthorized) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersUnauthorized", 401)
 }
 
 func (o *ListClustersUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -224,11 +227,11 @@ func (o *ListClustersForbidden) Code() int {
 }
 
 func (o *ListClustersForbidden) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersForbidden", 403)
 }
 
 func (o *ListClustersForbidden) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersForbidden", 403)
 }
 
 func (o *ListClustersForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -281,11 +284,13 @@ func (o *ListClustersInternalServerError) Code() int {
 }
 
 func (o *ListClustersInternalServerError) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersInternalServerError %s", 500, payload)
 }
 
 func (o *ListClustersInternalServerError) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters][%d] listClustersInternalServerError %s", 500, payload)
 }
 
 func (o *ListClustersInternalServerError) GetPayload() *models.Error {

@@ -69,7 +69,7 @@ type Cluster struct {
 	// Status of the cluster.
 	// Example: ready
 	// Required: true
-	// Enum: [requested creating ready decommission-requested decommissioned]
+	// Enum: ["requested","creating","ready","decommission-requested","decommissioned"]
 	LifecycleStatus *string `json:"lifecycle_status"`
 
 	// Cluster identifier which is local to the region

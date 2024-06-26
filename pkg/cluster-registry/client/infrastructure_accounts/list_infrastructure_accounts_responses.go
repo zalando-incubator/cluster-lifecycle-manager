@@ -7,6 +7,7 @@ package infrastructure_accounts
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -101,11 +102,13 @@ func (o *ListInfrastructureAccountsOK) Code() int {
 }
 
 func (o *ListInfrastructureAccountsOK) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK %s", 200, payload)
 }
 
 func (o *ListInfrastructureAccountsOK) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsOK %s", 200, payload)
 }
 
 func (o *ListInfrastructureAccountsOK) GetPayload() *ListInfrastructureAccountsOKBody {
@@ -168,11 +171,11 @@ func (o *ListInfrastructureAccountsUnauthorized) Code() int {
 }
 
 func (o *ListInfrastructureAccountsUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized ", 401)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized", 401)
 }
 
 func (o *ListInfrastructureAccountsUnauthorized) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized ", 401)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsUnauthorized", 401)
 }
 
 func (o *ListInfrastructureAccountsUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -224,11 +227,11 @@ func (o *ListInfrastructureAccountsForbidden) Code() int {
 }
 
 func (o *ListInfrastructureAccountsForbidden) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden ", 403)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden", 403)
 }
 
 func (o *ListInfrastructureAccountsForbidden) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden ", 403)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsForbidden", 403)
 }
 
 func (o *ListInfrastructureAccountsForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -281,11 +284,13 @@ func (o *ListInfrastructureAccountsInternalServerError) Code() int {
 }
 
 func (o *ListInfrastructureAccountsInternalServerError) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError %s", 500, payload)
 }
 
 func (o *ListInfrastructureAccountsInternalServerError) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts][%d] listInfrastructureAccountsInternalServerError %s", 500, payload)
 }
 
 func (o *ListInfrastructureAccountsInternalServerError) GetPayload() *models.Error {
