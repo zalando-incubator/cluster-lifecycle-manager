@@ -40,6 +40,10 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 
 	for _, cluster := range fileClusters.Clusters {
 		for _, nodePool := range cluster.NodePools {
+			if nodePool.Profile == "worker-karpenter" && len(nodePool.InstanceTypes) == 0 {
+				nodePool.InstanceType = ""
+				continue
+			}
 			if len(nodePool.InstanceTypes) == 0 {
 				return nil, fmt.Errorf("no instance types for cluster %s, pool %s", cluster.ID, nodePool.Name)
 			}
