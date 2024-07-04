@@ -953,6 +953,7 @@ func (p *clusterpyProvisioner) updater(logger *log.Entry, awsAdapter *awsAdapter
 // specified namespace.
 func (p *clusterpyProvisioner) downscaleDeployments(ctx context.Context, logger *log.Entry, cluster *api.Cluster, tokenSource oauth2.TokenSource, clusterCA []byte, namespace string) error {
 	// TODO: support EKS
+	// TODO: provide the Kubernets client as a parameter to the function
 	client, err := kubernetes.NewClient(cluster.APIServerURL, tokenSource, clusterCA)
 	if err != nil {
 		return err

@@ -150,11 +150,31 @@ func main() {
 		os.Exit(0)
 	}
 
+	ps := map[provisioner.ProviderID]provisioner.Provisioner{
+		provisioner.ZalandoAWSProvider: p,
+		provisioner.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
+			DryRun:          cfg.DryRun,
+			ApplyOnly:       cfg.ApplyOnly,
+			UpdateStrategy:  cfg.UpdateStrategy,
+			RemoveVolumes:   cfg.RemoveVolumes,
+			ManageEtcdStack: cfg.ManageEtcdStack,
+		}),
+	}
+
 	clusters, err := clusterRegistry.ListClusters(registry.Filter{})
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
 	for _, cluster := range clusters {
+		prov, ok := ps[provisioner.ProviderID(cluster.Provider)]
+		if !ok {
+			log.Debugf(
+				"Unsupported provider for cluster %s, skipping: %s",
+				cluster.ID,
+				cluster.Provider,
+			)
+		}
+
 		if !cfg.AccountFilter.Allowed(cluster.InfrastructureAccount) {
 			log.Debugf("Skipping %s cluster, infrastructure account does not match provided filter.", cluster.ID)
 			continue
@@ -192,14 +212,14 @@ func main() {
 		switch cmd {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
-			err = p.Provision(context.Background(), rootLogger, cluster, config)
+			err = prov.Provision(context.Background(), rootLogger, cluster, config)
 			if err != nil {
 				log.Fatalf("Fail to provision: %v", err)
 			}
 			log.Infof("Provisioning done for cluster %s", cluster.ID)
 		case decommissionCmd.FullCommand():
 			log.Infof("Decommissioning cluster %s", cluster.ID)
-			err = p.Decommission(context.Background(), rootLogger, cluster)
+			err = prov.Decommission(context.Background(), rootLogger, cluster)
 			if err != nil {
 				log.Fatalf("Fail to decommission: %v", err)
 			}
