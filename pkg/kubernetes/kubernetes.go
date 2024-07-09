@@ -29,7 +29,17 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
-func newConfig(host string, tokenSrc oauth2.TokenSource, ca []byte) *rest.Config {
+// Options are options which can be used to configure the Kubernetes client when
+// it is initialized.
+type Options struct {
+	CAData []byte
+}
+
+func newConfig(
+	host string,
+	tokenSrc oauth2.TokenSource,
+	options *Options,
+) *rest.Config {
 	config := &rest.Config{
 		Host: host,
 		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
@@ -41,25 +51,32 @@ func newConfig(host string, tokenSrc oauth2.TokenSource, ca []byte) *rest.Config
 		Burst: 100,
 	}
 
-	if len(ca) > 0 {
+	if options != nil && len(options.CAData) > 0 {
 		config.TLSClientConfig = rest.TLSClientConfig{
-			CAData: ca,
+			CAData: options.CAData,
 		}
 	}
 
 	return config
 }
 
-// NewClient initializes a Kubernetes client with the
-// specified token source.
-func NewClient(host string, tokenSrc oauth2.TokenSource, ca []byte) (kubernetes.Interface, error) {
-	return kubernetes.NewForConfig(newConfig(host, tokenSrc, ca))
+// NewClient initializes a Kubernetes client with the specified token source and
+// options.
+func NewClient(host string, tokenSrc oauth2.TokenSource, options *Options) (
+	kubernetes.Interface,
+	error,
+) {
+	return kubernetes.NewForConfig(newConfig(host, tokenSrc, options))
 }
 
-// NewDynamicClient initializes a dynamic Kubernetes client with the
-// specified token source.
-func NewDynamicClient(host string, tokenSrc oauth2.TokenSource, ca []byte) (dynamic.Interface, error) {
-	return dynamic.NewForConfig(newConfig(host, tokenSrc, ca))
+// NewDynamicClient initializes a dynamic Kubernetes client with the specified
+// token source and options.
+func NewDynamicClient(
+	host string,
+	tokenSrc oauth2.TokenSource,
+	options *Options,
+) (dynamic.Interface, error) {
+	return dynamic.NewForConfig(newConfig(host, tokenSrc, options))
 }
 
 type Labels map[string]string
@@ -129,8 +146,12 @@ type ClientsCollection struct {
 	Mapper        meta.RESTMapper
 }
 
-func NewClientsCollection(host string, tokenSrc oauth2.TokenSource, ca []byte) (*ClientsCollection, error) {
-	cfg := newConfig(host, tokenSrc, ca)
+func NewClientsCollection(
+	host string,
+	tokenSrc oauth2.TokenSource,
+	options *Options,
+) (*ClientsCollection, error) {
+	cfg := newConfig(host, tokenSrc, options)
 	typedClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err

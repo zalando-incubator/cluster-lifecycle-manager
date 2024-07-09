@@ -6,6 +6,7 @@ package clusters
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -109,11 +110,13 @@ func (o *CreateClusterCreated) Code() int {
 }
 
 func (o *CreateClusterCreated) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated %s", 201, payload)
 }
 
 func (o *CreateClusterCreated) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated  %+v", 201, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterCreated %s", 201, payload)
 }
 
 func (o *CreateClusterCreated) GetPayload() *models.Cluster {
@@ -177,11 +180,13 @@ func (o *CreateClusterBadRequest) Code() int {
 }
 
 func (o *CreateClusterBadRequest) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest %s", 400, payload)
 }
 
 func (o *CreateClusterBadRequest) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterBadRequest %s", 400, payload)
 }
 
 func (o *CreateClusterBadRequest) GetPayload() *models.Error {
@@ -244,11 +249,11 @@ func (o *CreateClusterUnauthorized) Code() int {
 }
 
 func (o *CreateClusterUnauthorized) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized ", 401)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized", 401)
 }
 
 func (o *CreateClusterUnauthorized) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized ", 401)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterUnauthorized", 401)
 }
 
 func (o *CreateClusterUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -300,11 +305,11 @@ func (o *CreateClusterForbidden) Code() int {
 }
 
 func (o *CreateClusterForbidden) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden ", 403)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden", 403)
 }
 
 func (o *CreateClusterForbidden) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden ", 403)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterForbidden", 403)
 }
 
 func (o *CreateClusterForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -356,11 +361,11 @@ func (o *CreateClusterConflict) Code() int {
 }
 
 func (o *CreateClusterConflict) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict ", 409)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict", 409)
 }
 
 func (o *CreateClusterConflict) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict ", 409)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterConflict", 409)
 }
 
 func (o *CreateClusterConflict) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -413,11 +418,13 @@ func (o *CreateClusterInternalServerError) Code() int {
 }
 
 func (o *CreateClusterInternalServerError) Error() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError %s", 500, payload)
 }
 
 func (o *CreateClusterInternalServerError) String() string {
-	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /kubernetes-clusters][%d] createClusterInternalServerError %s", 500, payload)
 }
 
 func (o *CreateClusterInternalServerError) GetPayload() *models.Error {

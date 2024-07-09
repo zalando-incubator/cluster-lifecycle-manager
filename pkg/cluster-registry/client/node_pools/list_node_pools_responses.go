@@ -7,6 +7,7 @@ package node_pools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -101,11 +102,13 @@ func (o *ListNodePoolsOK) Code() int {
 }
 
 func (o *ListNodePoolsOK) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK %s", 200, payload)
 }
 
 func (o *ListNodePoolsOK) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsOK %s", 200, payload)
 }
 
 func (o *ListNodePoolsOK) GetPayload() *ListNodePoolsOKBody {
@@ -168,11 +171,11 @@ func (o *ListNodePoolsUnauthorized) Code() int {
 }
 
 func (o *ListNodePoolsUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized", 401)
 }
 
 func (o *ListNodePoolsUnauthorized) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized ", 401)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsUnauthorized", 401)
 }
 
 func (o *ListNodePoolsUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -224,11 +227,11 @@ func (o *ListNodePoolsForbidden) Code() int {
 }
 
 func (o *ListNodePoolsForbidden) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden", 403)
 }
 
 func (o *ListNodePoolsForbidden) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden ", 403)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsForbidden", 403)
 }
 
 func (o *ListNodePoolsForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -281,11 +284,13 @@ func (o *ListNodePoolsInternalServerError) Code() int {
 }
 
 func (o *ListNodePoolsInternalServerError) Error() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError %s", 500, payload)
 }
 
 func (o *ListNodePoolsInternalServerError) String() string {
-	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /kubernetes-clusters/{cluster_id}/node-pools][%d] listNodePoolsInternalServerError %s", 500, payload)
 }
 
 func (o *ListNodePoolsInternalServerError) GetPayload() *models.Error {

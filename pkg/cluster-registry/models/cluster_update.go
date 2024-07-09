@@ -63,7 +63,7 @@ type ClusterUpdate struct {
 
 	// Status of the cluster.
 	// Example: ready
-	// Enum: [requested creating ready decommission-requested decommissioned]
+	// Enum: ["requested","creating","ready","decommission-requested","decommissioned"]
 	LifecycleStatus string `json:"lifecycle_status,omitempty"`
 
 	// Cluster identifier which is local to the region

@@ -160,7 +160,13 @@ type KarpenterNodePoolProvisioner struct {
 }
 
 func NewKarpenterNodePoolProvisioner(n NodePoolTemplateRenderer, e *command.ExecManager, ts oauth2.TokenSource, clusterCA []byte) (*KarpenterNodePoolProvisioner, error) {
-	c, err := kubernetes.NewClientsCollection(n.cluster.APIServerURL, ts, clusterCA)
+	c, err := kubernetes.NewClientsCollection(
+		n.cluster.APIServerURL,
+		ts,
+		&kubernetes.Options{
+			CAData: clusterCA,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}

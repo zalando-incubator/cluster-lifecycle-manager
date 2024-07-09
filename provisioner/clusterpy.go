@@ -679,7 +679,13 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
 	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
-		k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, eksTokenSource, decodedCA)
+		k8sClients, err := kubernetes.NewClientsCollection(
+			cluster.APIServerURL,
+			eksTokenSource,
+			&kubernetes.Options{
+				CAData: decodedCA,
+			},
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -883,7 +889,13 @@ func (p *clusterpyProvisioner) updater(logger *log.Entry, awsAdapter *awsAdapter
 		return nil, err
 	}
 	eksTokenSource := eks.NewTokenSource(awsAdapter.session, eksID(cluster.ID))
-	client, err := kubernetes.NewClient(cluster.APIServerURL, eksTokenSource, decodedCA)
+	client, err := kubernetes.NewClient(
+		cluster.APIServerURL,
+		eksTokenSource,
+		&kubernetes.Options{
+			CAData: decodedCA,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +933,13 @@ func (p *clusterpyProvisioner) updater(logger *log.Entry, awsAdapter *awsAdapter
 	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
-	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, eksTokenSource, decodedCA)
+	k8sClients, err := kubernetes.NewClientsCollection(
+		cluster.APIServerURL,
+		eksTokenSource,
+		&kubernetes.Options{
+			CAData: decodedCA,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -954,7 +972,13 @@ func (p *clusterpyProvisioner) updater(logger *log.Entry, awsAdapter *awsAdapter
 func (p *clusterpyProvisioner) downscaleDeployments(ctx context.Context, logger *log.Entry, cluster *api.Cluster, tokenSource oauth2.TokenSource, clusterCA []byte, namespace string) error {
 	// TODO: support EKS
 	// TODO: provide the Kubernets client as a parameter to the function
-	client, err := kubernetes.NewClient(cluster.APIServerURL, tokenSource, clusterCA)
+	client, err := kubernetes.NewClient(
+		cluster.APIServerURL,
+		tokenSource,
+		&kubernetes.Options{
+			CAData: clusterCA,
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -1058,7 +1082,13 @@ type deletions struct {
 // Deletions deletes the provided kubernetes resources from the cluster.
 func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, clusterCA []byte, tokenSource oauth2.TokenSource, cluster *api.Cluster, deletions []*kubernetes.Resource) error {
 	// TODO: non-eks support
-	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, tokenSource, clusterCA)
+	k8sClients, err := kubernetes.NewClientsCollection(
+		cluster.APIServerURL,
+		tokenSource,
+		&kubernetes.Options{
+			CAData: clusterCA,
+		},
+	)
 	if err != nil {
 		return err
 	}

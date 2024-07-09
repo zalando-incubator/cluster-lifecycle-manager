@@ -6,6 +6,7 @@ package node_pool_config_items
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -108,11 +109,11 @@ func (o *DeleteNodePoolConfigItemNoContent) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNoContent", 204)
 }
 
 func (o *DeleteNodePoolConfigItemNoContent) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNoContent", 204)
 }
 
 func (o *DeleteNodePoolConfigItemNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -165,11 +166,13 @@ func (o *DeleteNodePoolConfigItemBadRequest) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemBadRequest) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *DeleteNodePoolConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *DeleteNodePoolConfigItemBadRequest) GetPayload() *models.Error {
@@ -232,11 +235,11 @@ func (o *DeleteNodePoolConfigItemUnauthorized) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemUnauthorized", 401)
 }
 
 func (o *DeleteNodePoolConfigItemUnauthorized) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemUnauthorized", 401)
 }
 
 func (o *DeleteNodePoolConfigItemUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -288,11 +291,11 @@ func (o *DeleteNodePoolConfigItemForbidden) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemForbidden", 403)
 }
 
 func (o *DeleteNodePoolConfigItemForbidden) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemForbidden", 403)
 }
 
 func (o *DeleteNodePoolConfigItemForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -344,11 +347,11 @@ func (o *DeleteNodePoolConfigItemNotFound) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemNotFound) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNotFound", 404)
 }
 
 func (o *DeleteNodePoolConfigItemNotFound) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemNotFound", 404)
 }
 
 func (o *DeleteNodePoolConfigItemNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -401,11 +404,13 @@ func (o *DeleteNodePoolConfigItemInternalServerError) Code() int {
 }
 
 func (o *DeleteNodePoolConfigItemInternalServerError) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteNodePoolConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] deleteNodePoolConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteNodePoolConfigItemInternalServerError) GetPayload() *models.Error {

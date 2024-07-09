@@ -6,6 +6,7 @@ package infrastructure_accounts
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *UpdateInfrastructureAccountOK) Code() int {
 }
 
 func (o *UpdateInfrastructureAccountOK) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK %s", 200, payload)
 }
 
 func (o *UpdateInfrastructureAccountOK) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountOK %s", 200, payload)
 }
 
 func (o *UpdateInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
@@ -170,11 +173,11 @@ func (o *UpdateInfrastructureAccountUnauthorized) Code() int {
 }
 
 func (o *UpdateInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *UpdateInfrastructureAccountUnauthorized) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *UpdateInfrastructureAccountUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -226,11 +229,11 @@ func (o *UpdateInfrastructureAccountForbidden) Code() int {
 }
 
 func (o *UpdateInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden", 403)
 }
 
 func (o *UpdateInfrastructureAccountForbidden) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountForbidden", 403)
 }
 
 func (o *UpdateInfrastructureAccountForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -282,11 +285,11 @@ func (o *UpdateInfrastructureAccountNotFound) Code() int {
 }
 
 func (o *UpdateInfrastructureAccountNotFound) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound ", 404)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound", 404)
 }
 
 func (o *UpdateInfrastructureAccountNotFound) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound ", 404)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountNotFound", 404)
 }
 
 func (o *UpdateInfrastructureAccountNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -339,11 +342,13 @@ func (o *UpdateInfrastructureAccountInternalServerError) Code() int {
 }
 
 func (o *UpdateInfrastructureAccountInternalServerError) Error() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /infrastructure-accounts/{account_id}][%d] updateInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateInfrastructureAccountInternalServerError) GetPayload() *models.Error {

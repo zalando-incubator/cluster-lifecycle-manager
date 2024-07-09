@@ -111,15 +111,20 @@ func (z *ZalandoEKSProvisioner) Provision(
 	return nil
 }
 
-// func (z *ZalandoEKSProvisioner) Decommission(
-// 	ctx context.Context,
-// 	logger *log.Entry,
-// 	cluster *api.Cluster,
-// ) error {
-// 	if !z.Supports(cluster) {
-// 		return ErrProviderNotSupported
-// 	}
+func (z *ZalandoEKSProvisioner) Decommission(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+) error {
+	if !z.Supports(cluster) {
+		return ErrProviderNotSupported
+	}
 
-// 	logger.Infof("Decommissioning EKS cluster: %s (%s)", cluster.Alias, cluster.ID)
+	logger.Infof(
+		"Decommissioning EKS cluster: %s (%s)",
+		cluster.Alias,
+		cluster.ID,
+	)
 
-// }
+	return nil
+}

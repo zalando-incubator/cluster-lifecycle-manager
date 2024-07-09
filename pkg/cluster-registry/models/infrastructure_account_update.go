@@ -44,7 +44,7 @@ type InfrastructureAccountUpdate struct {
 	ID string `json:"id,omitempty"`
 
 	// Lifecycle Status is used to describe the current status of the account.
-	// Enum: [requested creating ready decommissioned]
+	// Enum: ["requested","creating","ready","decommissioned"]
 	LifecycleStatus string `json:"lifecycle_status,omitempty"`
 
 	// Name of the infrastructure account

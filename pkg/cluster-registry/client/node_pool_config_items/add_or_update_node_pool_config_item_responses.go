@@ -6,6 +6,7 @@ package node_pool_config_items
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *AddOrUpdateNodePoolConfigItemOK) Code() int {
 }
 
 func (o *AddOrUpdateNodePoolConfigItemOK) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK %s", 200, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemOK) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemOK %s", 200, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemOK) GetPayload() *models.ConfigValue {
@@ -171,11 +174,13 @@ func (o *AddOrUpdateNodePoolConfigItemBadRequest) Code() int {
 }
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemBadRequest) GetPayload() *models.Error {
@@ -238,11 +243,11 @@ func (o *AddOrUpdateNodePoolConfigItemUnauthorized) Code() int {
 }
 
 func (o *AddOrUpdateNodePoolConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized", 401)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemUnauthorized) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemUnauthorized", 401)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -294,11 +299,11 @@ func (o *AddOrUpdateNodePoolConfigItemForbidden) Code() int {
 }
 
 func (o *AddOrUpdateNodePoolConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden", 403)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemForbidden) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemForbidden", 403)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -351,11 +356,13 @@ func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Code() int {
 }
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}/config-items/{config_key}][%d] addOrUpdateNodePoolConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *AddOrUpdateNodePoolConfigItemInternalServerError) GetPayload() *models.Error {
