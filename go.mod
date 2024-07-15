@@ -2,7 +2,7 @@ module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/aws/aws-sdk-go v1.54.15
+	github.com/aws/aws-sdk-go v1.54.19
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-openapi/analysis v0.23.0 // indirect
@@ -40,7 +40,7 @@ require (
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
-	github.com/samber/lo v1.44.0
+	github.com/samber/lo v1.45.0
 )
 
 require (
