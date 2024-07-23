@@ -34,6 +34,7 @@ func NewZalandoAWSProvisioner(
 			assumedRole:       assumedRole,
 			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
+			tokenSource:       tokenSource,
 			manageMasterNodes: true,
 		},
 	}
@@ -77,15 +78,15 @@ func (z *ZalandoAWSProvisioner) Provision(
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
-func (p *ZalandoAWSProvisioner) Decommission(
+func (z *ZalandoAWSProvisioner) Decommission(
 	ctx context.Context,
 	logger *log.Entry,
 	cluster *api.Cluster,
 ) error {
-	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
+	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
-	return p.decommission(ctx, logger, awsAdapter, p.tokenSource, cluster, nil)
+	return z.decommission(ctx, logger, awsAdapter, z.tokenSource, cluster, nil)
 }
