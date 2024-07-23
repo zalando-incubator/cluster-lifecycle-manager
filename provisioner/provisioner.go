@@ -4,16 +4,64 @@ import (
 	"context"
 	"errors"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type (
 	// A provider ID is a string that identifies a cluster provider.
 	ProviderID string
+
+	// Provisioner is an interface describing how to provision or decommission
+	// clusters.
+	Provisioner interface {
+		Supports(cluster *api.Cluster) bool
+
+		Provision(
+			ctx context.Context,
+			logger *log.Entry,
+			cluster *api.Cluster,
+			channelConfig channel.Config,
+		) error
+
+		Decommission(
+			ctx context.Context,
+			logger *log.Entry,
+			cluster *api.Cluster,
+		) error
+	}
+
+	// ProvisionModifier is an interface that provisioners can use to update
+	// configuration during provisioning.
+	//
+	// This is useful to pass additional configuration only known in a later
+	// stage provision. For example, when provisioning an EKS cluster, the
+	// provisioner only knows what is e.g. the API Server URL after applying the
+	// initial CloudFormation.
+	ProvisionModifier interface {
+		// GetPostOptions returns configuration parameters that a provisioner
+		// can use while provisioning a cluster.
+		GetPostOptions(
+			adapter *awsAdapter,
+			cluster *api.Cluster,
+			cloudFormationOutput map[string]string,
+		) (
+			*PostOptions,
+			error,
+		)
+	}
+
+	// PostOptions contain configuration parameters that a provisioner can use
+	// in a later stage of provisionment.
+	PostOptions struct {
+		APIServerURL   string
+		AZInfo         *AZInfo
+		CAData         []byte
+		ConfigItems    map[string]string
+		TemplateValues map[string]interface{}
+	}
 
 	// Options is the options that can be passed to a provisioner when initialized.
 	Options struct {
@@ -22,6 +70,7 @@ type (
 		UpdateStrategy  config.UpdateStrategy
 		RemoveVolumes   bool
 		ManageEtcdStack bool
+		Modifier        ProvisionModifier
 	}
 )
 
@@ -37,11 +86,3 @@ var (
 	// they don't support the cluster provider defined.
 	ErrProviderNotSupported = errors.New("unsupported provider type")
 )
-
-// Provisioner is an interface describing how to provision or decommission
-// clusters.
-type Provisioner interface {
-	Supports(cluster *api.Cluster) bool
-	Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error
-	Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error
-}

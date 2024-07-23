@@ -30,7 +30,12 @@ func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
 	return cluster.Provider == mockProvider
 }
 
-func (p *mockProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
+func (p *mockProvisioner) Provision(
+	_ context.Context,
+	_ *log.Entry,
+	_ *api.Cluster,
+	_ channel.Config,
+) error {
 	return nil
 }
 
@@ -44,7 +49,12 @@ func (p *mockErrProvisioner) Supports(_ *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
+func (p *mockErrProvisioner) Provision(
+	_ context.Context,
+	_ *log.Entry,
+	_ *api.Cluster,
+	_ channel.Config,
+) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -58,7 +68,12 @@ func (p *mockErrCreateProvisioner) Supports(_ *api.Cluster) bool {
 	return true
 }
 
-func (p *mockErrCreateProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
+func (p *mockErrCreateProvisioner) Provision(
+	_ context.Context,
+	_ *log.Entry,
+	_ *api.Cluster,
+	_ channel.Config,
+) error {
 	return fmt.Errorf("failed to provision")
 }
 
@@ -71,7 +86,12 @@ func (p *mockCountingErrProvisioner) Supports(_ *api.Cluster) bool {
 	return true
 }
 
-func (p *mockCountingErrProvisioner) Provision(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) error {
+func (p *mockCountingErrProvisioner) Provision(
+	_ context.Context,
+	_ *log.Entry,
+	_ *api.Cluster,
+	_ channel.Config,
+) error {
 	p.attempt++
 	return fmt.Errorf("attempt %d failed to provision", p.attempt)
 }
@@ -263,7 +283,16 @@ func TestProcessCluster(t *testing.T) {
 			success:       false,
 		},
 	} {
-		controller := New(defaultLogger, command.NewExecManager(1), ti.registry, ti.provisioner, ti.channelSource, ti.options)
+		controller := New(
+			defaultLogger,
+			command.NewExecManager(1),
+			ti.registry,
+			map[provisioner.ProviderID]provisioner.Provisioner{
+				provisioner.ZalandoAWSProvider: ti.provisioner,
+			},
+			ti.channelSource,
+			ti.options,
+		)
 		err := controller.refresh()
 		assert.NoError(t, err)
 
@@ -286,7 +315,16 @@ func TestProcessCluster(t *testing.T) {
 func TestIgnoreUnsupportedProvider(t *testing.T) {
 	registry := createMockRegistry("ready", nil)
 	registry.theCluster.Provider = "<unsupported>"
-	controller := New(defaultLogger, command.NewExecManager(1), registry, &mockProvisioner{}, MockChannelSource(false, false), defaultOptions)
+	controller := New(
+		defaultLogger,
+		command.NewExecManager(1),
+		registry,
+		map[provisioner.ProviderID]provisioner.Provisioner{
+			"<supported>": &mockProvisioner{},
+		},
+		MockChannelSource(false, false),
+		defaultOptions,
+	)
 
 	err := controller.refresh()
 	require.NoError(t, err)
@@ -298,7 +336,16 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 func TestCoalesceFailures(t *testing.T) {
 	t.Run("limits various problems", func(t *testing.T) {
 		registry := createMockRegistry("ready", nil)
-		controller := New(defaultLogger, command.NewExecManager(1), registry, &mockCountingErrProvisioner{}, MockChannelSource(false, false), defaultOptions)
+		controller := New(
+			defaultLogger,
+			command.NewExecManager(1),
+			registry,
+			map[provisioner.ProviderID]provisioner.Provisioner{
+				"<supported>": &mockCountingErrProvisioner{},
+			},
+			MockChannelSource(false, false),
+			defaultOptions,
+		)
 
 		for i := 0; i < 100; i++ {
 			err := controller.refresh()
@@ -317,7 +364,16 @@ func TestCoalesceFailures(t *testing.T) {
 
 	t.Run("compacts repeating problems", func(t *testing.T) {
 		registry := createMockRegistry("ready", nil)
-		controller := New(defaultLogger, command.NewExecManager(1), registry, &mockErrProvisioner{}, MockChannelSource(false, false), defaultOptions)
+		controller := New(
+			defaultLogger,
+			command.NewExecManager(1),
+			registry,
+			map[provisioner.ProviderID]provisioner.Provisioner{
+				"<supported>": &mockErrProvisioner{},
+			},
+			MockChannelSource(false, false),
+			defaultOptions,
+		)
 
 		for i := 0; i < 100; i++ {
 			err := controller.refresh()

@@ -115,13 +115,40 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
-	p := provisioner.NewClusterpyProvisioner(execManager, clusterTokenSource, secretDecrypter, cfg.AssumedRole, awsConfig, &provisioner.Options{
-		DryRun:          cfg.DryRun,
-		ApplyOnly:       cfg.ApplyOnly,
-		UpdateStrategy:  cfg.UpdateStrategy,
-		RemoveVolumes:   cfg.RemoveVolumes,
-		ManageEtcdStack: cfg.ManageEtcdStack,
-	})
+	provisioners := map[provisioner.ProviderID]provisioner.Provisioner{}
+	for _, provider := range cfg.Providers {
+		switch provider {
+		case string(provisioner.ZalandoAWSProvider):
+			provisioners[provisioner.ZalandoAWSProvider] = provisioner.NewZalandoAWSProvisioner(
+				execManager,
+				clusterTokenSource,
+				secretDecrypter,
+				cfg.AssumedRole,
+				awsConfig,
+				&provisioner.Options{
+					DryRun:          cfg.DryRun,
+					ApplyOnly:       cfg.ApplyOnly,
+					UpdateStrategy:  cfg.UpdateStrategy,
+					RemoveVolumes:   cfg.RemoveVolumes,
+					ManageEtcdStack: cfg.ManageEtcdStack,
+				},
+			)
+		case string(provisioner.ZalandoEKSProvider):
+			provisioners[provisioner.ZalandoEKSProvider] = provisioner.NewZalandoEKSProvisioner(
+				execManager,
+				secretDecrypter,
+				cfg.AssumedRole,
+				awsConfig,
+				&provisioner.Options{
+					DryRun:         cfg.DryRun,
+					ApplyOnly:      cfg.ApplyOnly,
+					UpdateStrategy: cfg.UpdateStrategy,
+					RemoveVolumes:  cfg.RemoveVolumes,
+					Modifier:       &provisioner.ZalandoEKSModifier{},
+				},
+			)
+		}
+	}
 
 	configSource, err := setupConfigSource(execManager, cfg)
 	if err != nil {
@@ -141,7 +168,14 @@ func main() {
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
 		}
 
-		ctrl := controller.New(rootLogger, execManager, clusterRegistry, p, configSource, opts)
+		ctrl := controller.New(
+			rootLogger,
+			execManager,
+			clusterRegistry,
+			provisioners,
+			configSource,
+			opts,
+		)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go handleSigterm(cancel)
@@ -189,10 +223,24 @@ func main() {
 			cluster.ConfigItems[key] = decryptedValue
 		}
 
+		p, ok := provisioners[provisioner.ProviderID(cluster.Provider)]
+		if !ok {
+			log.Fatalf(
+				"Cluster %s: unknown provider %q",
+				cluster.ID,
+				cluster.Provider,
+			)
+		}
+
 		switch cmd {
 		case provisionCmd.FullCommand():
 			log.Infof("Provisioning cluster %s", cluster.ID)
-			err = p.Provision(context.Background(), rootLogger, cluster, config)
+			err = p.Provision(
+				context.Background(),
+				rootLogger,
+				cluster,
+				config,
+			)
 			if err != nil {
 				log.Fatalf("Fail to provision: %v", err)
 			}

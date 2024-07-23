@@ -1,0 +1,91 @@
+package provisioner
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/aws/aws-sdk-go/aws"
+	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"golang.org/x/oauth2"
+)
+
+type ZalandoAWSProvisioner struct {
+	clusterpyProvisioner
+}
+
+// NewZalandoAWSProvisioner returns a new provisioner by passing its location
+// and and IAM role to use.
+func NewZalandoAWSProvisioner(
+	execManager *command.ExecManager,
+	tokenSource oauth2.TokenSource,
+	secretDecrypter decrypter.Decrypter,
+	assumedRole string,
+	awsConfig *aws.Config,
+	options *Options,
+) Provisioner {
+	provisioner := &ZalandoAWSProvisioner{
+		clusterpyProvisioner: clusterpyProvisioner{
+			provider:          ZalandoAWSProvider,
+			awsConfig:         awsConfig,
+			assumedRole:       assumedRole,
+			execManager:       execManager,
+			secretDecrypter:   secretDecrypter,
+			manageMasterNodes: true,
+		},
+	}
+
+	if options != nil {
+		provisioner.dryRun = options.DryRun
+		provisioner.applyOnly = options.ApplyOnly
+		provisioner.updateStrategy = options.UpdateStrategy
+		provisioner.removeVolumes = options.RemoveVolumes
+		provisioner.manageEtcdStack = options.ManageEtcdStack
+	}
+
+	return provisioner
+}
+
+func (z *ZalandoAWSProvisioner) Provision(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+) error {
+	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
+	}
+
+	logger.Infof(
+		"clusterpy: Prepare for provisioning cluster %s (%s)..",
+		cluster.ID,
+		cluster.LifecycleStatus,
+	)
+
+	return z.provision(
+		ctx,
+		logger,
+		awsAdapter,
+		z.tokenSource,
+		cluster,
+		channelConfig,
+	)
+}
+
+// Decommission decommissions a cluster provisioned in AWS.
+func (p *ZalandoAWSProvisioner) Decommission(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+) error {
+	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
+	}
+
+	return p.decommission(ctx, logger, awsAdapter, p.tokenSource, cluster, nil)
+}

@@ -524,7 +524,7 @@ func TestProvisionDoesNotSupportProvider(t *testing.T) {
 		Provider: "zalando-eks",
 	}
 
-	p := clusterpyProvisioner{}
+	p := ZalandoEKSProvisioner{}
 	err := p.Provision(context.TODO(), nil, cluster, nil)
 	assert.Equal(t, ErrProviderNotSupported, err)
 }
@@ -533,7 +533,7 @@ func TestDecommissionDoesNotSupportProvider(t *testing.T) {
 		Provider: "zalando-eks",
 	}
 
-	p := clusterpyProvisioner{}
+	p := ZalandoEKSProvisioner{}
 	err := p.Decommission(context.TODO(), nil, cluster)
 	assert.Equal(t, ErrProviderNotSupported, err)
 }

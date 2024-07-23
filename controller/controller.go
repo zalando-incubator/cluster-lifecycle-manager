@@ -44,7 +44,7 @@ type Controller struct {
 	logger               *log.Entry
 	execManager          *command.ExecManager
 	registry             registry.Registry
-	provisioner          provisioner.Provisioner
+	provisioners         map[provisioner.ProviderID]provisioner.Provisioner
 	providers            []string
 	channelConfigSourcer channel.ConfigSource
 	interval             time.Duration
@@ -54,12 +54,19 @@ type Controller struct {
 }
 
 // New initializes a new controller.
-func New(logger *log.Entry, execManager *command.ExecManager, registry registry.Registry, provisioner provisioner.Provisioner, channelConfigSourcer channel.ConfigSource, options *Options) *Controller {
+func New(
+	logger *log.Entry,
+	execManager *command.ExecManager,
+	registry registry.Registry,
+	provisioners map[provisioner.ProviderID]provisioner.Provisioner,
+	channelConfigSourcer channel.ConfigSource,
+	options *Options,
+) *Controller {
 	return &Controller{
 		logger:               logger,
 		execManager:          execManager,
 		registry:             registry,
-		provisioner:          provisioner,
+		provisioners:         provisioners,
 		providers:            options.Providers,
 		channelConfigSourcer: channel.NewCachingSource(channelConfigSourcer),
 		interval:             options.Interval,
@@ -136,11 +143,19 @@ func (c *Controller) refresh() error {
 func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 	result := make([]*api.Cluster, 0, len(clusters))
 	for _, cluster := range clusters {
-		if !c.provisioner.Supports(cluster) {
+		supports := false
+		for _, provisioner := range c.provisioners {
+			if provisioner.Supports(cluster) {
+				supports = true
+				result = append(result, cluster)
+				break
+			}
+		}
+
+		if !supports {
 			log.Debugf("Unsupported cluster: %s", cluster.ID)
 			continue
 		}
-		result = append(result, cluster)
 	}
 	return result
 }
@@ -169,6 +184,15 @@ func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, cl
 		}
 	}()
 
+	provisioner, ok := c.provisioners[provisioner.ProviderID(cluster.Provider)]
+	if !ok {
+		return fmt.Errorf(
+			"cluster %s: unknown provider %q",
+			cluster.ID,
+			cluster.Provider,
+		)
+	}
+
 	switch cluster.LifecycleStatus {
 	case statusRequested, statusReady:
 		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
@@ -179,7 +203,7 @@ func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, cl
 			}
 		}
 
-		err = c.provisioner.Provision(ctx, logger, cluster, config)
+		err = provisioner.Provision(ctx, logger, cluster, config)
 		if err != nil {
 			return err
 		}
@@ -190,7 +214,7 @@ func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, cl
 		cluster.Status.NextVersion = ""
 		cluster.Status.Problems = []*api.Problem{}
 	case statusDecommissionRequested:
-		err = c.provisioner.Decommission(ctx, logger, cluster)
+		err = provisioner.Decommission(ctx, logger, cluster)
 		if err != nil {
 			return err
 		}
