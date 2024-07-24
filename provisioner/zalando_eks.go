@@ -60,6 +60,10 @@ func (z *ZalandoEKSProvisioner) Provision(
 	cluster *api.Cluster,
 	channelConfig channel.Config,
 ) error {
+	if !z.Supports(cluster) {
+		return ErrProviderNotSupported
+	}
+
 	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
@@ -88,6 +92,10 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	logger *log.Entry,
 	cluster *api.Cluster,
 ) error {
+	if !z.Supports(cluster) {
+		return ErrProviderNotSupported
+	}
+
 	logger.Infof(
 		"Decommissioning EKS cluster: %s (%s)",
 		cluster.Alias,

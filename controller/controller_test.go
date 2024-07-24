@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	nextVersion  = "version"
-	mockProvider = "<mock>"
+	nextVersion                         = "version"
+	mockProvider provisioner.ProviderID = "<mock>"
 )
 
 var defaultLogger = log.WithFields(map[string]interface{}{})
@@ -27,7 +27,7 @@ var defaultLogger = log.WithFields(map[string]interface{}{})
 type mockProvisioner struct{}
 
 func (p *mockProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == mockProvider
+	return cluster.Provider == string(mockProvider)
 }
 
 func (p *mockProvisioner) Provision(
@@ -115,7 +115,7 @@ func createMockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mock
 		Channel:               "alpha",
 		LifecycleStatus:       lifecycleStatus,
 		Status:                status,
-		Provider:              mockProvider,
+		Provider:              string(mockProvider),
 	}
 	return &mockRegistry{theCluster: cluster}
 }
@@ -288,7 +288,7 @@ func TestProcessCluster(t *testing.T) {
 			command.NewExecManager(1),
 			ti.registry,
 			map[provisioner.ProviderID]provisioner.Provisioner{
-				provisioner.ZalandoAWSProvider: ti.provisioner,
+				mockProvider: ti.provisioner,
 			},
 			ti.channelSource,
 			ti.options,
@@ -341,7 +341,7 @@ func TestCoalesceFailures(t *testing.T) {
 			command.NewExecManager(1),
 			registry,
 			map[provisioner.ProviderID]provisioner.Provisioner{
-				"<supported>": &mockCountingErrProvisioner{},
+				mockProvider: &mockCountingErrProvisioner{},
 			},
 			MockChannelSource(false, false),
 			defaultOptions,
@@ -369,7 +369,7 @@ func TestCoalesceFailures(t *testing.T) {
 			command.NewExecManager(1),
 			registry,
 			map[provisioner.ProviderID]provisioner.Provisioner{
-				"<supported>": &mockErrProvisioner{},
+				mockProvider: &mockErrProvisioner{},
 			},
 			MockChannelSource(false, false),
 			defaultOptions,
