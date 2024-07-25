@@ -33,7 +33,6 @@ func NewZalandoEKSProvisioner(
 ) Provisioner {
 	provisioner := &ZalandoEKSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
-			provider:          ZalandoEKSProvider,
 			awsConfig:         awsConfig,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
@@ -52,6 +51,10 @@ func NewZalandoEKSProvisioner(
 	}
 
 	return provisioner
+}
+
+func (z *ZalandoEKSProvisioner) Supports(cluster *api.Cluster) bool {
+	return cluster.Provider == string(ZalandoEKSProvider)
 }
 
 func (z *ZalandoEKSProvisioner) Provision(

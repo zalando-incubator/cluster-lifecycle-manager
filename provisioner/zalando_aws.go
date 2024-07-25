@@ -29,7 +29,6 @@ func NewZalandoAWSProvisioner(
 ) Provisioner {
 	provisioner := &ZalandoAWSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
-			provider:          ZalandoAWSProvider,
 			awsConfig:         awsConfig,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
@@ -48,6 +47,10 @@ func NewZalandoAWSProvisioner(
 	}
 
 	return provisioner
+}
+
+func (z *ZalandoAWSProvisioner) Supports(cluster *api.Cluster) bool {
+	return cluster.Provider == string(ZalandoAWSProvider)
 }
 
 func (z *ZalandoAWSProvisioner) Provision(

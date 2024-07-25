@@ -63,7 +63,6 @@ const (
 )
 
 type clusterpyProvisioner struct {
-	provider          ProviderID
 	awsConfig         *aws.Config
 	execManager       *command.ExecManager
 	secretDecrypter   decrypter.Decrypter
@@ -81,10 +80,6 @@ type clusterpyProvisioner struct {
 type manifestPackage struct {
 	name      string
 	manifests []string
-}
-
-func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(p.provider)
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
@@ -162,10 +157,6 @@ func (p *clusterpyProvisioner) provision(
 	cluster *api.Cluster,
 	channelConfig channel.Config,
 ) error {
-	if !p.Supports(cluster) {
-		return ErrProviderNotSupported
-	}
-
 	// fetch instance data that will be used by all the render functions
 	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
 	if err != nil {
@@ -670,10 +661,6 @@ func (p *clusterpyProvisioner) decommission(
 	cluster *api.Cluster,
 	caData []byte,
 ) error {
-	if !p.Supports(cluster) {
-		return ErrProviderNotSupported
-	}
-
 	logger.Infof("Decommissioning cluster: %s (%s)", cluster.Alias, cluster.ID)
 
 	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
