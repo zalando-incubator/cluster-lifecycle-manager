@@ -664,15 +664,10 @@ func (p *clusterpyProvisioner) decommission(
 ) error {
 	logger.Infof("Decommissioning cluster: %s (%s)", cluster.Alias, cluster.ID)
 
-	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
-	if err != nil {
-		return err
-	}
-
 	// scale down kube-system deployments
 	// This is done to ensure controllers stop running so they don't
 	// recreate resources we delete in the next step
-	err = backoff.Retry(
+	err := backoff.Retry(
 		func() error {
 			err := p.downscaleDeployments(
 				ctx,
