@@ -115,39 +115,34 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
-	provisioners := map[provisioner.ProviderID]provisioner.Provisioner{}
-	for _, provider := range cfg.Providers {
-		switch provider {
-		case string(provisioner.ZalandoAWSProvider):
-			provisioners[provisioner.ZalandoAWSProvider] = provisioner.NewZalandoAWSProvisioner(
-				execManager,
-				clusterTokenSource,
-				secretDecrypter,
-				cfg.AssumedRole,
-				awsConfig,
-				&provisioner.Options{
-					DryRun:          cfg.DryRun,
-					ApplyOnly:       cfg.ApplyOnly,
-					UpdateStrategy:  cfg.UpdateStrategy,
-					RemoveVolumes:   cfg.RemoveVolumes,
-					ManageEtcdStack: cfg.ManageEtcdStack,
-				},
-			)
-		case string(provisioner.ZalandoEKSProvider):
-			provisioners[provisioner.ZalandoEKSProvider] = provisioner.NewZalandoEKSProvisioner(
-				execManager,
-				secretDecrypter,
-				cfg.AssumedRole,
-				awsConfig,
-				&provisioner.Options{
-					DryRun:         cfg.DryRun,
-					ApplyOnly:      cfg.ApplyOnly,
-					UpdateStrategy: cfg.UpdateStrategy,
-					RemoveVolumes:  cfg.RemoveVolumes,
-					Modifier:       &provisioner.ZalandoEKSModifier{},
-				},
-			)
-		}
+	provisioners := map[provisioner.ProviderID]provisioner.Provisioner{
+		provisioner.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
+			execManager,
+			clusterTokenSource,
+			secretDecrypter,
+			cfg.AssumedRole,
+			awsConfig,
+			&provisioner.Options{
+				DryRun:          cfg.DryRun,
+				ApplyOnly:       cfg.ApplyOnly,
+				UpdateStrategy:  cfg.UpdateStrategy,
+				RemoveVolumes:   cfg.RemoveVolumes,
+				ManageEtcdStack: cfg.ManageEtcdStack,
+			},
+		),
+		provisioner.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(
+			execManager,
+			secretDecrypter,
+			cfg.AssumedRole,
+			awsConfig,
+			&provisioner.Options{
+				DryRun:         cfg.DryRun,
+				ApplyOnly:      cfg.ApplyOnly,
+				UpdateStrategy: cfg.UpdateStrategy,
+				RemoveVolumes:  cfg.RemoveVolumes,
+				Modifier:       &provisioner.ZalandoEKSModifier{},
+			},
+		),
 	}
 
 	configSource, err := setupConfigSource(execManager, cfg)
