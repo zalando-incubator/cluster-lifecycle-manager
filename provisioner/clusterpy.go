@@ -387,12 +387,13 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	// err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
-	// if err != nil {
-	// 	return err
-	// }
+	if p.manageMasterNodes {
+		err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
+		if err != nil {
+			return err
+		}
+	}
 
-	// TODO: EKS?
 	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
