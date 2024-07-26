@@ -6,6 +6,7 @@ package config_items
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -108,11 +109,11 @@ func (o *DeleteConfigItemNoContent) Code() int {
 }
 
 func (o *DeleteConfigItemNoContent) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNoContent", 204)
 }
 
 func (o *DeleteConfigItemNoContent) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNoContent ", 204)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNoContent", 204)
 }
 
 func (o *DeleteConfigItemNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -165,11 +166,13 @@ func (o *DeleteConfigItemBadRequest) Code() int {
 }
 
 func (o *DeleteConfigItemBadRequest) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *DeleteConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *DeleteConfigItemBadRequest) GetPayload() *models.Error {
@@ -232,11 +235,11 @@ func (o *DeleteConfigItemUnauthorized) Code() int {
 }
 
 func (o *DeleteConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemUnauthorized", 401)
 }
 
 func (o *DeleteConfigItemUnauthorized) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemUnauthorized", 401)
 }
 
 func (o *DeleteConfigItemUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -288,11 +291,11 @@ func (o *DeleteConfigItemForbidden) Code() int {
 }
 
 func (o *DeleteConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemForbidden", 403)
 }
 
 func (o *DeleteConfigItemForbidden) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemForbidden ", 403)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemForbidden", 403)
 }
 
 func (o *DeleteConfigItemForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -344,11 +347,11 @@ func (o *DeleteConfigItemNotFound) Code() int {
 }
 
 func (o *DeleteConfigItemNotFound) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNotFound", 404)
 }
 
 func (o *DeleteConfigItemNotFound) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNotFound ", 404)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemNotFound", 404)
 }
 
 func (o *DeleteConfigItemNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -401,11 +404,13 @@ func (o *DeleteConfigItemInternalServerError) Code() int {
 }
 
 func (o *DeleteConfigItemInternalServerError) Error() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] deleteConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *DeleteConfigItemInternalServerError) GetPayload() *models.Error {

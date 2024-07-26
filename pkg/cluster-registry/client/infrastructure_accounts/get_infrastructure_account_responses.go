@@ -6,6 +6,7 @@ package infrastructure_accounts
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *GetInfrastructureAccountOK) Code() int {
 }
 
 func (o *GetInfrastructureAccountOK) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK %s", 200, payload)
 }
 
 func (o *GetInfrastructureAccountOK) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountOK %s", 200, payload)
 }
 
 func (o *GetInfrastructureAccountOK) GetPayload() *models.InfrastructureAccount {
@@ -170,11 +173,11 @@ func (o *GetInfrastructureAccountUnauthorized) Code() int {
 }
 
 func (o *GetInfrastructureAccountUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *GetInfrastructureAccountUnauthorized) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized ", 401)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountUnauthorized", 401)
 }
 
 func (o *GetInfrastructureAccountUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -226,11 +229,11 @@ func (o *GetInfrastructureAccountForbidden) Code() int {
 }
 
 func (o *GetInfrastructureAccountForbidden) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden", 403)
 }
 
 func (o *GetInfrastructureAccountForbidden) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden ", 403)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountForbidden", 403)
 }
 
 func (o *GetInfrastructureAccountForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -282,11 +285,11 @@ func (o *GetInfrastructureAccountNotFound) Code() int {
 }
 
 func (o *GetInfrastructureAccountNotFound) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound ", 404)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound", 404)
 }
 
 func (o *GetInfrastructureAccountNotFound) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound ", 404)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountNotFound", 404)
 }
 
 func (o *GetInfrastructureAccountNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -339,11 +342,13 @@ func (o *GetInfrastructureAccountInternalServerError) Code() int {
 }
 
 func (o *GetInfrastructureAccountInternalServerError) Error() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *GetInfrastructureAccountInternalServerError) String() string {
-	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /infrastructure-accounts/{account_id}][%d] getInfrastructureAccountInternalServerError %s", 500, payload)
 }
 
 func (o *GetInfrastructureAccountInternalServerError) GetPayload() *models.Error {

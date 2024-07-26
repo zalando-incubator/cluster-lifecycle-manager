@@ -3,8 +3,11 @@ package api
 import (
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
 // NodePool describes a node pool in a kubernetes cluster.
@@ -46,4 +49,27 @@ func (np NodePool) Taints() []*corev1.Taint {
 		}
 	}
 	return taints
+}
+
+func (np NodePool) KarpenterRequirements() []v1.NodeSelectorRequirementApplyConfiguration {
+	conf, exist := np.ConfigItems["requirements"]
+	if !exist {
+		return nil
+	}
+	var requirements []v1.NodeSelectorRequirementApplyConfiguration
+	err := yaml.Unmarshal([]byte(conf), &requirements)
+	if err != nil {
+		log.Errorf("Error unmarshalling requirements: %v", err)
+	}
+	return requirements
+}
+
+func (np NodePool) KarpenterInstanceTypeStrategy() string {
+	if len(np.InstanceTypes) == 0 {
+		return "not-specified"
+	}
+	if len(np.InstanceTypes) == 1 && np.InstanceTypes[0] == "default-for-karpenter" {
+		return "default-for-karpenter"
+	}
+	return "custom"
 }

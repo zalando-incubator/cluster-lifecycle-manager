@@ -126,7 +126,7 @@ func (p *clusterpyProvisioner) decryptConfigItems(cluster *api.Cluster) error {
 	for key, item := range cluster.ConfigItems {
 		plaintext, err := p.secretDecrypter.Decrypt(item)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to decrypt config-item: %s: %w", key, err)
 		}
 		cluster.ConfigItems[key] = plaintext
 	}

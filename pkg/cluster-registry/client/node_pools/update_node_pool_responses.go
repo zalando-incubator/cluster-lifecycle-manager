@@ -6,6 +6,7 @@ package node_pools
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *UpdateNodePoolOK) Code() int {
 }
 
 func (o *UpdateNodePoolOK) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK %s", 200, payload)
 }
 
 func (o *UpdateNodePoolOK) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolOK %s", 200, payload)
 }
 
 func (o *UpdateNodePoolOK) GetPayload() *models.NodePool {
@@ -171,11 +174,13 @@ func (o *UpdateNodePoolBadRequest) Code() int {
 }
 
 func (o *UpdateNodePoolBadRequest) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *UpdateNodePoolBadRequest) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolBadRequest %s", 400, payload)
 }
 
 func (o *UpdateNodePoolBadRequest) GetPayload() *models.Error {
@@ -238,11 +243,11 @@ func (o *UpdateNodePoolUnauthorized) Code() int {
 }
 
 func (o *UpdateNodePoolUnauthorized) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized", 401)
 }
 
 func (o *UpdateNodePoolUnauthorized) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized ", 401)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolUnauthorized", 401)
 }
 
 func (o *UpdateNodePoolUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -294,11 +299,11 @@ func (o *UpdateNodePoolForbidden) Code() int {
 }
 
 func (o *UpdateNodePoolForbidden) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden ", 403)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden", 403)
 }
 
 func (o *UpdateNodePoolForbidden) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden ", 403)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolForbidden", 403)
 }
 
 func (o *UpdateNodePoolForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -351,11 +356,13 @@ func (o *UpdateNodePoolInternalServerError) Code() int {
 }
 
 func (o *UpdateNodePoolInternalServerError) Error() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateNodePoolInternalServerError) String() string {
-	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PATCH /kubernetes-clusters/{cluster_id}/node-pools/{node_pool_name}][%d] updateNodePoolInternalServerError %s", 500, payload)
 }
 
 func (o *UpdateNodePoolInternalServerError) GetPayload() *models.Error {

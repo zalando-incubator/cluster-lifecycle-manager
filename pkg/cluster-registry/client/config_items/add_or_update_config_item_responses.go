@@ -6,6 +6,7 @@ package config_items
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -103,11 +104,13 @@ func (o *AddOrUpdateConfigItemOK) Code() int {
 }
 
 func (o *AddOrUpdateConfigItemOK) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK %s", 200, payload)
 }
 
 func (o *AddOrUpdateConfigItemOK) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemOK %s", 200, payload)
 }
 
 func (o *AddOrUpdateConfigItemOK) GetPayload() *models.ConfigValue {
@@ -171,11 +174,13 @@ func (o *AddOrUpdateConfigItemBadRequest) Code() int {
 }
 
 func (o *AddOrUpdateConfigItemBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *AddOrUpdateConfigItemBadRequest) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemBadRequest %s", 400, payload)
 }
 
 func (o *AddOrUpdateConfigItemBadRequest) GetPayload() *models.Error {
@@ -238,11 +243,11 @@ func (o *AddOrUpdateConfigItemUnauthorized) Code() int {
 }
 
 func (o *AddOrUpdateConfigItemUnauthorized) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized", 401)
 }
 
 func (o *AddOrUpdateConfigItemUnauthorized) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized ", 401)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemUnauthorized", 401)
 }
 
 func (o *AddOrUpdateConfigItemUnauthorized) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -294,11 +299,11 @@ func (o *AddOrUpdateConfigItemForbidden) Code() int {
 }
 
 func (o *AddOrUpdateConfigItemForbidden) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden", 403)
 }
 
 func (o *AddOrUpdateConfigItemForbidden) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden ", 403)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemForbidden", 403)
 }
 
 func (o *AddOrUpdateConfigItemForbidden) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -351,11 +356,13 @@ func (o *AddOrUpdateConfigItemInternalServerError) Code() int {
 }
 
 func (o *AddOrUpdateConfigItemInternalServerError) Error() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *AddOrUpdateConfigItemInternalServerError) String() string {
-	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError  %+v", 500, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /kubernetes-clusters/{cluster_id}/config-items/{config_key}][%d] addOrUpdateConfigItemInternalServerError %s", 500, payload)
 }
 
 func (o *AddOrUpdateConfigItemInternalServerError) GetPayload() *models.Error {

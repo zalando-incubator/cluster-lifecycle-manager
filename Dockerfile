@@ -5,8 +5,8 @@ ARG TARGETARCH
 
 RUN apk add --no-cache --update curl tar coreutils && \
     if [ "${TARGETARCH}" == "" ]; then TARGETARCH=amd64; fi; \
-    curl -L -s --fail "https://dl.k8s.io/v1.29.4/kubernetes-client-linux-${TARGETARCH}.tar.gz" -o "kubernetes-client-linux-${TARGETARCH}.tar.gz" && \
-    printf "c13235bd929eaaf4d0eaaa9ba883e95ce27a402ca7256c634e20a027fbf72db8834de8ea2ca7238e1fe92859e0edc7384a1cec7fbe2b7a5adf07b2e5cf99b04f kubernetes-client-linux-amd64.tar.gz\n614cd5b5881c583505d089c09c221e4a06da0dc8b5ac70b3d93d7e2a58c8b439446a646d0bb53396c2a48535808503daa6aa1a37f43affe22176c2211fdc2cc4 kubernetes-client-linux-arm64.tar.gz" | grep "${TARGETARCH}" | sha512sum -c - && \
+    curl -L -s --fail "https://dl.k8s.io/v1.30.2/kubernetes-client-linux-${TARGETARCH}.tar.gz" -o "kubernetes-client-linux-${TARGETARCH}.tar.gz" && \
+    printf "3e3a18138e0436c055322e433398d7ae375e03862cabae71b51883bb78cf969846b9968e426b816e3543c978a4af542e0b292428b00b481d7196e52cf366edbe kubernetes-client-linux-amd64.tar.gz\ncfe9bf3aa4188813607b2c7cad3333dbc1d8a72b1828751261cdd7b21e6ae8c641addd48940bb08cc193ce6901bbf372ad2006e30d0c66b6affbecd5a730b6cf kubernetes-client-linux-arm64.tar.gz" | grep "${TARGETARCH}" | sha512sum -c - && \
     tar xvf "kubernetes-client-linux-${TARGETARCH}.tar.gz" --strip-components 3 kubernetes/client/bin/ && \
     rm "kubernetes-client-linux-${TARGETARCH}.tar.gz"
 
