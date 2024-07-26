@@ -17,19 +17,6 @@ pipeline:
     cmd: |
       make lint
       make test
-  - desc: build
-    cmd: |
-      make build.docker
-  - desc: push
-    cmd: |
-      if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
-        IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager
-        VERSION=$(git describe --tags --always --dirty)
-      else
-        IMAGE=registry-write.opensource.zalan.do/teapot/cluster-lifecycle-manager-test
-        VERSION=$CDP_BUILD_VERSION
-      fi
-      IMAGE=$IMAGE VERSION=$VERSION make build.push
   - desc: Build and push image to Zalando's registry
     cmd: |
       if [[ $CDP_TARGET_BRANCH == master && ! $CDP_PULL_REQUEST_NUMBER ]]; then
@@ -42,5 +29,5 @@ pipeline:
       make build.linux.amd64 build.linux.arm64
 
       docker buildx create --config /etc/cdp-buildkitd.toml --driver-opt network=host --bootstrap --use
-      docker buildx build --rm --build-arg BASE_IMAGE=container-registry.zalando.net/library/alpine-3:latest -t "${IMAGE}:${VERSION}" --platform linux/amd64,linux/arm64 --push .
+      docker buildx build --rm --build-arg BASE_IMAGE=container-registry.zalando.net/library/amazonlinux-2023-slim:latest -t "${IMAGE}:${VERSION}" --platform linux/amd64,linux/arm64 --push .
       cdp-promote-image "${IMAGE}:${VERSION}"
