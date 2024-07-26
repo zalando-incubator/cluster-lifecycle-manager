@@ -34,7 +34,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"golang.org/x/oauth2"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -100,14 +99,13 @@ type awsAdapter struct {
 	eksClient            eksiface.EKSAPI
 	region               string
 	apiServer            string
-	tokenSrc             oauth2.TokenSource
 	dryRun               bool
 	logger               *log.Entry
 	kmsClient            kmsiface.KMSAPI
 }
 
 // newAWSAdapter initializes a new awsAdapter.
-func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, tokenSrc oauth2.TokenSource, dryRun bool) (*awsAdapter, error) {
+func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, dryRun bool) *awsAdapter {
 	return &awsAdapter{
 		session:              sess,
 		cloudformationClient: cloudformation.New(sess),
@@ -120,11 +118,10 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		eksClient:            eks.New(sess),
 		region:               region,
 		apiServer:            apiServer,
-		tokenSrc:             tokenSrc,
 		dryRun:               dryRun,
 		logger:               logger,
 		kmsClient:            kms.New(sess),
-	}, nil
+	}
 }
 
 func (a *awsAdapter) VerifyAccount(accountID string) error {

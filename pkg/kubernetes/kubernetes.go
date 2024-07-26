@@ -129,8 +129,16 @@ type ClientsCollection struct {
 	Mapper        meta.RESTMapper
 }
 
-func NewClientsCollection(host string, tokenSrc oauth2.TokenSource, ca []byte) (*ClientsCollection, error) {
-	cfg := newConfig(host, tokenSrc, ca)
+// NewClientsCollection returns a collection with dynamic and typed Kubernetes
+// clients, configured for the specified host.
+//
+// caData is an optional CA certificate data for the Kubernetes API server.
+func NewClientsCollection(
+	host string,
+	tokenSrc oauth2.TokenSource,
+	caData []byte,
+) (*ClientsCollection, error) {
+	cfg := newConfig(host, tokenSrc, caData)
 	typedClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -384,11 +392,18 @@ type KubeCTLRunner struct {
 	tokenSource oauth2.TokenSource
 	logger      *logrus.Entry
 	k8sAPIURL   string
-	clusterCA   []byte // TODO: eks support
+	clusterCA   []byte
 	maxRetries  uint64
 }
 
-func NewKubeCTLRunner(e *command.ExecManager, ts oauth2.TokenSource, l *logrus.Entry, k8sAPIURL string, clusterCA []byte, maxRetries uint64) *KubeCTLRunner {
+func NewKubeCTLRunner(
+	e *command.ExecManager,
+	ts oauth2.TokenSource,
+	l *logrus.Entry,
+	k8sAPIURL string,
+	maxRetries uint64,
+	clusterCA []byte,
+) *KubeCTLRunner {
 	return &KubeCTLRunner{
 		execManager: e,
 		tokenSource: ts,
@@ -405,35 +420,42 @@ func (k *KubeCTLRunner) KubectlExecute(ctx context.Context, args []string, stdin
 		return "", err
 	}
 
-	// if EKS write CA
-	tmpfile, err := os.CreateTemp("", "cluster_*.ca.crt")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmpfile.Name())
-
-	_, err = tmpfile.Write(k.clusterCA)
-	if err != nil {
-		return "", err
-	}
-
-	err = tmpfile.Close()
-	if err != nil {
-		return "", err
-	}
-
-	args = append([]string{
-		"kubectl",
+	kubeCtlOpts := []string{
 		fmt.Sprintf("--server=%s", k.k8sAPIURL),
 		fmt.Sprintf("--token=%s", token.AccessToken),
-		fmt.Sprintf("--certificate-authority=%s", tmpfile.Name()), // TODO: eks
-	}, args...)
+	}
+
+	// Use custom CA if provided
+	if len(k.clusterCA) != 0 {
+		tmpfile, err := os.CreateTemp("", "cluster_*.ca.crt")
+		if err != nil {
+			return "", err
+		}
+		defer os.Remove(tmpfile.Name())
+
+		_, err = tmpfile.Write(k.clusterCA)
+		if err != nil {
+			return "", err
+		}
+
+		err = tmpfile.Close()
+		if err != nil {
+			return "", err
+		}
+
+		kubeCtlOpts = append(
+			kubeCtlOpts,
+			fmt.Sprintf("--certificate-authority=%s", tmpfile.Name()),
+		)
+	}
+
+	args = append(kubeCtlOpts, args...)
 	if stdin != "" {
 		args = append(args, "-f", "-")
 	}
 
 	newCommand := func() *exec.Cmd {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command("kubectl", args[0:]...)
 		// prevent kubectl to find the in-cluster config
 		cmd.Env = []string{}
 		return cmd
