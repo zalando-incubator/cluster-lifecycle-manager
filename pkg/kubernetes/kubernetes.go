@@ -455,7 +455,7 @@ func (k *KubeCTLRunner) KubectlExecute(ctx context.Context, args []string, stdin
 	}
 
 	newCommand := func() *exec.Cmd {
-		cmd := exec.Command("kubectl", args[1:]...)
+		cmd := exec.Command("kubectl", args[0:]...)
 		// prevent kubectl to find the in-cluster config
 		cmd.Env = []string{}
 		return cmd
