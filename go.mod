@@ -40,8 +40,8 @@ require (
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
-	sigs.k8s.io/aws-iam-authenticator v0.6.17
 	github.com/samber/lo v1.46.0
+	sigs.k8s.io/aws-iam-authenticator v0.6.17
 )
 
 require (
