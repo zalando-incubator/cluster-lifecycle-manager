@@ -154,7 +154,7 @@ func (z *ZalandoEKSModifier) GetPostOptions(
 	res.APIServerURL = clusterInfo.Endpoint
 	res.CAData = decodedCA
 	res.ConfigItems = map[string]string{
-		"eks_endpoint":                  clusterInfo.Endpoint,
+		"eks_endpoint":                   clusterInfo.Endpoint,
 		"eks_certificate_authority_data": clusterInfo.CertificateAuthority,
 	}
 

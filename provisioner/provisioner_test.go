@@ -36,7 +36,7 @@ func TestGetPostOptions(t *testing.T) {
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
-					"eks_endpoint":                  "https://api.cluster.local",
+					"eks_endpoint":                   "https://api.cluster.local",
 					"eks_certificate_authority_data": "YmxhaA==",
 				},
 				AZInfo: &AZInfo{
@@ -61,7 +61,7 @@ func TestGetPostOptions(t *testing.T) {
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
-					"eks_endpoint":                  "https://api.cluster.local",
+					"eks_endpoint":                   "https://api.cluster.local",
 					"eks_certificate_authority_data": "YmxhaA==",
 				},
 			},
