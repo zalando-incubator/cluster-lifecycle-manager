@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/oauth2"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -99,6 +101,34 @@ func (f *fakeRESTMapper) RESTMappings(_ schema.GroupKind, _ ...string) ([]*meta.
 
 func (f *fakeRESTMapper) ResourceSingularizer(_ string) (singular string, err error) {
 	return "", nil
+}
+
+func TestNewConfig(t *testing.T) {
+	for _, tc := range []struct {
+		caData     []byte
+		expectedCA []byte
+	}{
+		{
+			caData:     []byte("foo"),
+			expectedCA: []byte("foo"),
+		},
+		{
+			caData:     []byte{},
+			expectedCA: nil,
+		},
+		{
+			caData:     nil,
+			expectedCA: nil,
+		},
+	} {
+		conf := newConfig(
+			"https://www.teapot.com",
+			oauth2.StaticTokenSource(&oauth2.Token{}),
+			tc.caData,
+		)
+
+		assert.Equal(t, tc.expectedCA, conf.CAData)
+	}
 }
 
 func TestPerformDeletion(t *testing.T) {

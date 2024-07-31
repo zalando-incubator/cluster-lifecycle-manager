@@ -388,7 +388,13 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	if p.manageMasterNodes {
-		err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
+		err = nodePoolGroups["masters"].provisionNodePoolGroup(
+			ctx,
+			values,
+			updater,
+			cluster,
+			p.applyOnly,
+		)
 		if err != nil {
 			return err
 		}
