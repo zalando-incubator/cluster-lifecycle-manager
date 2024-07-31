@@ -44,7 +44,7 @@ type (
 		// GetPostOptions returns configuration parameters that a provisioner
 		// can use while provisioning a cluster.
 		GetPostOptions(
-			adapter *awsAdapter,
+			adapter awsInterface,
 			cluster *api.Cluster,
 			cloudFormationOutput map[string]string,
 		) (

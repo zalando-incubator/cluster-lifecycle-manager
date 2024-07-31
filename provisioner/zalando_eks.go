@@ -134,7 +134,7 @@ func (z *ZalandoEKSProvisioner) Decommission(
 }
 
 func (z *ZalandoEKSModifier) GetPostOptions(
-	adapter *awsAdapter,
+	adapter awsInterface,
 	cluster *api.Cluster,
 	cloudFormationOutput map[string]string,
 ) (*PostOptions, error) {

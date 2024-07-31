@@ -70,39 +70,64 @@ var (
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
 )
 
-// s3API is a minimal interface containing only the methods we use from the S3 API
-type s3API interface {
-	CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketOutput, error)
-}
+type (
+	// s3API is a minimal interface containing only the methods we use from the
+	// S3 API
+	s3API interface {
+		CreateBucket(
+			input *s3.CreateBucketInput,
+		) (*s3.CreateBucketOutput, error)
+	}
 
-type autoscalingAPI interface {
-	DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
-	UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error)
-	SuspendProcesses(input *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error)
-	ResumeProcesses(*autoscaling.ScalingProcessQuery) (*autoscaling.ResumeProcessesOutput, error)
-	TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
-}
+	autoscalingAPI interface {
+		DescribeAutoScalingGroups(
+			input *autoscaling.DescribeAutoScalingGroupsInput,
+		) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
+		UpdateAutoScalingGroup(
+			input *autoscaling.UpdateAutoScalingGroupInput,
+		) (*autoscaling.UpdateAutoScalingGroupOutput, error)
+		SuspendProcesses(
+			input *autoscaling.ScalingProcessQuery,
+		) (*autoscaling.SuspendProcessesOutput, error)
+		ResumeProcesses(
+			*autoscaling.ScalingProcessQuery,
+		) (*autoscaling.ResumeProcessesOutput, error)
+		TerminateInstanceInAutoScalingGroup(
+			*autoscaling.TerminateInstanceInAutoScalingGroupInput,
+		) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
+	}
 
-type s3UploaderAPI interface {
-	Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
-}
+	s3UploaderAPI interface {
+		Upload(
+			input *s3manager.UploadInput,
+			options ...func(*s3manager.Uploader),
+		) (*s3manager.UploadOutput, error)
+	}
 
-type awsAdapter struct {
-	session              *session.Session
-	cloudformationClient cloudformationiface.CloudFormationAPI
-	s3Client             s3API
-	s3Uploader           s3UploaderAPI
-	autoscalingClient    autoscalingAPI
-	iamClient            iamiface.IAMAPI
-	ec2Client            ec2iface.EC2API
-	acmClient            acmiface.ACMAPI
-	eksClient            eksiface.EKSAPI
-	region               string
-	apiServer            string
-	dryRun               bool
-	logger               *log.Entry
-	kmsClient            kmsiface.KMSAPI
-}
+	awsAdapter struct {
+		session              *session.Session
+		cloudformationClient cloudformationiface.CloudFormationAPI
+		s3Client             s3API
+		s3Uploader           s3UploaderAPI
+		autoscalingClient    autoscalingAPI
+		iamClient            iamiface.IAMAPI
+		ec2Client            ec2iface.EC2API
+		acmClient            acmiface.ACMAPI
+		eksClient            eksiface.EKSAPI
+		region               string
+		apiServer            string
+		dryRun               bool
+		logger               *log.Entry
+		kmsClient            kmsiface.KMSAPI
+	}
+
+	// awsInterface is an interface containing methods of an AWS Adapter.
+	//
+	// ProvisionModifier uses this interface in the GetPostOptions method.
+	awsInterface interface {
+		GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error)
+	}
+)
 
 // newAWSAdapter initializes a new awsAdapter.
 func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, dryRun bool) *awsAdapter {
