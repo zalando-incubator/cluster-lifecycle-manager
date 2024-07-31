@@ -37,7 +37,7 @@ func TestGetPostOptions(t *testing.T) {
 				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
 					"eks_endpoint":                  "https://api.cluster.local",
-					"eks_certficate_authority_data": "YmxhaA==",
+					"eks_certificate_authority_data": "YmxhaA==",
 				},
 				AZInfo: &AZInfo{
 					subnets: map[string]string{
@@ -62,7 +62,7 @@ func TestGetPostOptions(t *testing.T) {
 				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
 					"eks_endpoint":                  "https://api.cluster.local",
-					"eks_certficate_authority_data": "YmxhaA==",
+					"eks_certificate_authority_data": "YmxhaA==",
 				},
 			},
 		},

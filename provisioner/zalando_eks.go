@@ -155,7 +155,7 @@ func (z *ZalandoEKSModifier) GetPostOptions(
 	res.CAData = decodedCA
 	res.ConfigItems = map[string]string{
 		"eks_endpoint":                  clusterInfo.Endpoint,
-		"eks_certficate_authority_data": clusterInfo.CertificateAuthority,
+		"eks_certificate_authority_data": clusterInfo.CertificateAuthority,
 	}
 
 	subnets := map[string]string{}
