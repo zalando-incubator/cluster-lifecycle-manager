@@ -11,7 +11,7 @@ type (
 	mockAWSAdapter struct {}
 )
 
-func (m *mockAWSAdapter) GetEKSClusterCA(cluster *api.Cluster) (
+func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
 	*EKSClusterInfo,
 	error,
 ) {
