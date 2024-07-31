@@ -3,12 +3,12 @@ package provisioner
 import (
 	"testing"
 
-	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
 
 type (
-	mockAWSAdapter struct {}
+	mockAWSAdapter struct{}
 )
 
 func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
@@ -16,7 +16,7 @@ func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
 	error,
 ) {
 	return &EKSClusterInfo{
-		Endpoint: "https://api.cluster.local",
+		Endpoint:             "https://api.cluster.local",
 		CertificateAuthority: "YmxhaA==",
 	}, nil
 }
@@ -34,9 +34,9 @@ func TestGetPostOptions(t *testing.T) {
 			},
 			expected: &PostOptions{
 				APIServerURL: "https://api.cluster.local",
-				CAData: []byte("blah"),
+				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
-					"eks_endpoint": "https://api.cluster.local",
+					"eks_endpoint":                  "https://api.cluster.local",
 					"eks_certficate_authority_data": "YmxhaA==",
 				},
 				AZInfo: &AZInfo{
@@ -59,14 +59,14 @@ func TestGetPostOptions(t *testing.T) {
 			cfOutput: map[string]string{},
 			expected: &PostOptions{
 				APIServerURL: "https://api.cluster.local",
-				CAData: []byte("blah"),
+				CAData:       []byte("blah"),
 				ConfigItems: map[string]string{
-					"eks_endpoint": "https://api.cluster.local",
+					"eks_endpoint":                  "https://api.cluster.local",
 					"eks_certficate_authority_data": "YmxhaA==",
 				},
 			},
 		},
-	}{
+	} {
 		z := &ZalandoEKSModifier{}
 		res, err := z.GetPostOptions(
 			&mockAWSAdapter{},
