@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -28,8 +29,8 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
-func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
-	return &rest.Config{
+func newConfig(host string, tokenSrc oauth2.TokenSource, ca []byte) *rest.Config {
+	config := &rest.Config{
 		Host: host,
 		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
 			return &oauth2.Transport{
@@ -39,18 +40,26 @@ func newConfig(host string, tokenSrc oauth2.TokenSource) *rest.Config {
 		},
 		Burst: 100,
 	}
+
+	if len(ca) > 0 {
+		config.TLSClientConfig = rest.TLSClientConfig{
+			CAData: ca,
+		}
+	}
+
+	return config
 }
 
 // NewClient initializes a Kubernetes client with the
 // specified token source.
-func NewClient(host string, tokenSrc oauth2.TokenSource) (kubernetes.Interface, error) {
-	return kubernetes.NewForConfig(newConfig(host, tokenSrc))
+func NewClient(host string, tokenSrc oauth2.TokenSource, ca []byte) (kubernetes.Interface, error) {
+	return kubernetes.NewForConfig(newConfig(host, tokenSrc, ca))
 }
 
 // NewDynamicClient initializes a dynamic Kubernetes client with the
 // specified token source.
-func NewDynamicClient(host string, tokenSrc oauth2.TokenSource) (dynamic.Interface, error) {
-	return dynamic.NewForConfig(newConfig(host, tokenSrc))
+func NewDynamicClient(host string, tokenSrc oauth2.TokenSource, ca []byte) (dynamic.Interface, error) {
+	return dynamic.NewForConfig(newConfig(host, tokenSrc, ca))
 }
 
 type Labels map[string]string
@@ -120,8 +129,16 @@ type ClientsCollection struct {
 	Mapper        meta.RESTMapper
 }
 
-func NewClientsCollection(host string, tokenSrc oauth2.TokenSource) (*ClientsCollection, error) {
-	cfg := newConfig(host, tokenSrc)
+// NewClientsCollection returns a collection with dynamic and typed Kubernetes
+// clients, configured for the specified host.
+//
+// caData is an optional CA certificate data for the Kubernetes API server.
+func NewClientsCollection(
+	host string,
+	tokenSrc oauth2.TokenSource,
+	caData []byte,
+) (*ClientsCollection, error) {
+	cfg := newConfig(host, tokenSrc, caData)
 	typedClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -375,15 +392,24 @@ type KubeCTLRunner struct {
 	tokenSource oauth2.TokenSource
 	logger      *logrus.Entry
 	k8sAPIURL   string
+	clusterCA   []byte
 	maxRetries  uint64
 }
 
-func NewKubeCTLRunner(e *command.ExecManager, ts oauth2.TokenSource, l *logrus.Entry, k8sAPIURL string, maxRetries uint64) *KubeCTLRunner {
+func NewKubeCTLRunner(
+	e *command.ExecManager,
+	ts oauth2.TokenSource,
+	l *logrus.Entry,
+	k8sAPIURL string,
+	maxRetries uint64,
+	clusterCA []byte,
+) *KubeCTLRunner {
 	return &KubeCTLRunner{
 		execManager: e,
 		tokenSource: ts,
 		logger:      l,
 		k8sAPIURL:   k8sAPIURL,
+		clusterCA:   clusterCA,
 		maxRetries:  maxRetries,
 	}
 }
@@ -394,17 +420,42 @@ func (k *KubeCTLRunner) KubectlExecute(ctx context.Context, args []string, stdin
 		return "", err
 	}
 
-	args = append([]string{
-		"kubectl",
+	kubeCtlOpts := []string{
 		fmt.Sprintf("--server=%s", k.k8sAPIURL),
 		fmt.Sprintf("--token=%s", token.AccessToken),
-	}, args...)
+	}
+
+	// Use custom CA if provided
+	if len(k.clusterCA) != 0 {
+		tmpfile, err := os.CreateTemp("", "cluster_*.ca.crt")
+		if err != nil {
+			return "", err
+		}
+		defer os.Remove(tmpfile.Name())
+
+		_, err = tmpfile.Write(k.clusterCA)
+		if err != nil {
+			return "", err
+		}
+
+		err = tmpfile.Close()
+		if err != nil {
+			return "", err
+		}
+
+		kubeCtlOpts = append(
+			kubeCtlOpts,
+			fmt.Sprintf("--certificate-authority=%s", tmpfile.Name()),
+		)
+	}
+
+	args = append(kubeCtlOpts, args...)
 	if stdin != "" {
 		args = append(args, "-f", "-")
 	}
 
 	newCommand := func() *exec.Cmd {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command("kubectl", args[0:]...)
 		// prevent kubectl to find the in-cluster config
 		cmd.Env = []string{}
 		return cmd

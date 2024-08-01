@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -32,7 +34,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
-	"golang.org/x/oauth2"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -59,7 +60,7 @@ const (
 )
 
 var (
-	maxWaitTimeout            = 15 * time.Minute
+	maxWaitTimeout            = 25 * time.Minute
 	errCreateFailed           = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusCreateFailed)
 	errRollbackComplete       = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusRollbackComplete)
 	errUpdateRollbackComplete = fmt.Errorf("wait for stack failed with %s", cloudformation.StackStatusUpdateRollbackComplete)
@@ -69,42 +70,67 @@ var (
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
 )
 
-// s3API is a minimal interface containing only the methods we use from the S3 API
-type s3API interface {
-	CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketOutput, error)
-}
+type (
+	// s3API is a minimal interface containing only the methods we use from the
+	// S3 API
+	s3API interface {
+		CreateBucket(
+			input *s3.CreateBucketInput,
+		) (*s3.CreateBucketOutput, error)
+	}
 
-type autoscalingAPI interface {
-	DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
-	UpdateAutoScalingGroup(input *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error)
-	SuspendProcesses(input *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error)
-	ResumeProcesses(*autoscaling.ScalingProcessQuery) (*autoscaling.ResumeProcessesOutput, error)
-	TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
-}
+	autoscalingAPI interface {
+		DescribeAutoScalingGroups(
+			input *autoscaling.DescribeAutoScalingGroupsInput,
+		) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
+		UpdateAutoScalingGroup(
+			input *autoscaling.UpdateAutoScalingGroupInput,
+		) (*autoscaling.UpdateAutoScalingGroupOutput, error)
+		SuspendProcesses(
+			input *autoscaling.ScalingProcessQuery,
+		) (*autoscaling.SuspendProcessesOutput, error)
+		ResumeProcesses(
+			*autoscaling.ScalingProcessQuery,
+		) (*autoscaling.ResumeProcessesOutput, error)
+		TerminateInstanceInAutoScalingGroup(
+			*autoscaling.TerminateInstanceInAutoScalingGroupInput,
+		) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
+	}
 
-type s3UploaderAPI interface {
-	Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
-}
+	s3UploaderAPI interface {
+		Upload(
+			input *s3manager.UploadInput,
+			options ...func(*s3manager.Uploader),
+		) (*s3manager.UploadOutput, error)
+	}
 
-type awsAdapter struct {
-	session              *session.Session
-	cloudformationClient cloudformationiface.CloudFormationAPI
-	s3Client             s3API
-	s3Uploader           s3UploaderAPI
-	autoscalingClient    autoscalingAPI
-	iamClient            iamiface.IAMAPI
-	ec2Client            ec2iface.EC2API
-	acmClient            acmiface.ACMAPI
-	region               string
-	apiServer            string
-	tokenSrc             oauth2.TokenSource
-	dryRun               bool
-	logger               *log.Entry
-	kmsClient            kmsiface.KMSAPI
-}
+	awsAdapter struct {
+		session              *session.Session
+		cloudformationClient cloudformationiface.CloudFormationAPI
+		s3Client             s3API
+		s3Uploader           s3UploaderAPI
+		autoscalingClient    autoscalingAPI
+		iamClient            iamiface.IAMAPI
+		ec2Client            ec2iface.EC2API
+		acmClient            acmiface.ACMAPI
+		eksClient            eksiface.EKSAPI
+		region               string
+		apiServer            string
+		dryRun               bool
+		logger               *log.Entry
+		kmsClient            kmsiface.KMSAPI
+	}
+
+	// awsInterface is an interface containing methods of an AWS Adapter.
+	//
+	// ProvisionModifier uses this interface in the GetPostOptions method.
+	awsInterface interface {
+		GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error)
+	}
+)
 
 // newAWSAdapter initializes a new awsAdapter.
-func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, tokenSrc oauth2.TokenSource, dryRun bool) (*awsAdapter, error) {
+func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, dryRun bool) *awsAdapter {
 	return &awsAdapter{
 		session:              sess,
 		cloudformationClient: cloudformation.New(sess),
@@ -114,13 +140,13 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		autoscalingClient:    autoscaling.New(sess),
 		ec2Client:            ec2.New(sess),
 		acmClient:            acm.New(sess),
+		eksClient:            eks.New(sess),
 		region:               region,
 		apiServer:            apiServer,
-		tokenSrc:             tokenSrc,
 		dryRun:               dryRun,
 		logger:               logger,
 		kmsClient:            kms.New(sess),
-	}, nil
+	}
 }
 
 func (a *awsAdapter) VerifyAccount(accountID string) error {
@@ -740,4 +766,23 @@ func tagsToMap(tags []*ec2.Tag) map[string]string {
 		tagMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 	}
 	return tagMap
+}
+
+type EKSClusterInfo struct {
+	Endpoint             string
+	CertificateAuthority string
+}
+
+func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error) {
+	resp, err := a.eksClient.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(eksID(cluster.ID)),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &EKSClusterInfo{
+		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
+		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
+	}, nil
 }

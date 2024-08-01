@@ -278,6 +278,15 @@ func TestAccountIDFailsOnInvalid(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestEKSID(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		`{{ eksID "aws:000000:eu-north-1:kube-1" }}`,
+		"")
+	require.NoError(t, err)
+	require.EqualValues(t, "aws--000000--eu-north-1--kube-1", result)
+}
+
 func TestParsePortRanges(t *testing.T) {
 	testTemplate := `{{- if index .Values.data.portRanges -}}
 {{- range $index, $element := portRanges .Values.data.portRanges -}}

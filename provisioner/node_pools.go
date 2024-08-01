@@ -159,12 +159,28 @@ type KarpenterNodePoolProvisioner struct {
 	k8sClients *kubernetes.ClientsCollection
 }
 
-func NewKarpenterNodePoolProvisioner(n NodePoolTemplateRenderer, e *command.ExecManager, ts oauth2.TokenSource) (*KarpenterNodePoolProvisioner, error) {
-	c, err := kubernetes.NewClientsCollection(n.cluster.APIServerURL, ts)
+func NewKarpenterNodePoolProvisioner(
+	n NodePoolTemplateRenderer,
+	e *command.ExecManager,
+	ts oauth2.TokenSource,
+	options *PostOptions,
+) (*KarpenterNodePoolProvisioner, error) {
+	var caData []byte
+	if options != nil && len(options.CAData) > 0 {
+		caData = options.CAData
+	}
+	c, err := kubernetes.NewClientsCollection(n.cluster.APIServerURL, ts, caData)
 	if err != nil {
 		return nil, err
 	}
-	k := kubernetes.NewKubeCTLRunner(e, ts, n.logger, n.cluster.APIServerURL, maxApplyRetries)
+	k := kubernetes.NewKubeCTLRunner(
+		e,
+		ts,
+		n.logger,
+		n.cluster.APIServerURL,
+		maxApplyRetries,
+		caData,
+	)
 	return &KarpenterNodePoolProvisioner{
 		NodePoolTemplateRenderer: n,
 		k8sClients:               c,

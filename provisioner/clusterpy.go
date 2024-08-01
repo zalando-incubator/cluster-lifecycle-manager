@@ -63,46 +63,23 @@ const (
 )
 
 type clusterpyProvisioner struct {
-	awsConfig       *aws.Config
-	execManager     *command.ExecManager
-	secretDecrypter decrypter.Decrypter
-	assumedRole     string
-	dryRun          bool
-	tokenSource     oauth2.TokenSource
-	applyOnly       bool
-	updateStrategy  config.UpdateStrategy
-	removeVolumes   bool
-	manageEtcdStack bool
+	awsConfig         *aws.Config
+	execManager       *command.ExecManager
+	secretDecrypter   decrypter.Decrypter
+	assumedRole       string
+	dryRun            bool
+	tokenSource       oauth2.TokenSource
+	applyOnly         bool
+	updateStrategy    config.UpdateStrategy
+	modifier          ProvisionModifier
+	removeVolumes     bool
+	manageEtcdStack   bool
+	manageMasterNodes bool
 }
 
 type manifestPackage struct {
 	name      string
 	manifests []string
-}
-
-// NewClusterpyProvisioner returns a new ClusterPy provisioner by passing its location and and IAM role to use.
-func NewClusterpyProvisioner(execManager *command.ExecManager, tokenSource oauth2.TokenSource, secretDecrypter decrypter.Decrypter, assumedRole string, awsConfig *aws.Config, options *Options) Provisioner {
-	provisioner := &clusterpyProvisioner{
-		awsConfig:       awsConfig,
-		execManager:     execManager,
-		secretDecrypter: secretDecrypter,
-		assumedRole:     assumedRole,
-		tokenSource:     tokenSource,
-	}
-
-	if options != nil {
-		provisioner.dryRun = options.DryRun
-		provisioner.applyOnly = options.ApplyOnly
-		provisioner.updateStrategy = options.UpdateStrategy
-		provisioner.removeVolumes = options.RemoveVolumes
-		provisioner.manageEtcdStack = options.ManageEtcdStack
-	}
-
-	return provisioner
-}
-
-func (p *clusterpyProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(ZalandoAWSProvider)
 }
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
@@ -172,14 +149,26 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 	}
 }
 
-// Provision provisions/updates a cluster on AWS. Provision is an idempotent
-// operation for the same input.
-func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) error {
-	if !p.Supports(cluster) {
-		return ErrProviderNotSupported
+func (p *clusterpyProvisioner) provision(
+	ctx context.Context,
+	logger *log.Entry,
+	awsAdapter *awsAdapter,
+	tokenSource oauth2.TokenSource,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+) error {
+	// fetch instance data that will be used by all the render functions
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
+	if err != nil {
+		return fmt.Errorf("failed to fetch instance types from AWS")
 	}
 
-	instanceTypes, awsAdapter, updater, err := p.prepareProvision(logger, cluster, channelConfig)
+	err = p.applyDefaultsToManifests(
+		awsAdapter,
+		cluster,
+		channelConfig,
+		instanceTypes,
+	)
 	if err != nil {
 		return err
 	}
@@ -279,11 +268,6 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
-	manifests, err := renderManifests(channelConfig, cluster, values, awsAdapter, instanceTypes)
-	if err != nil {
-		return err
-	}
-
 	// create S3 bucket with AWS account ID to ensure uniqueness across
 	// accounts
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
@@ -314,6 +298,43 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		return err
 	}
 
+	var postOptions *PostOptions
+	if p.modifier != nil {
+		postOptions, err = p.modifier.GetPostOptions(
+			awsAdapter,
+			cluster,
+			outputs,
+		)
+		if err != nil {
+			return err
+		}
+
+		if postOptions.APIServerURL != "" {
+			cluster.APIServerURL = postOptions.APIServerURL
+		}
+		if postOptions.AZInfo != nil {
+			azInfo = postOptions.AZInfo
+		}
+		for k, v := range postOptions.ConfigItems {
+			cluster.ConfigItems[k] = v
+		}
+		for k, v := range postOptions.TemplateValues {
+			values[k] = v
+		}
+	}
+
+	// TODO: having it this late means late feedback on invalid manifests
+	manifests, err := renderManifests(
+		channelConfig,
+		cluster,
+		values,
+		awsAdapter,
+		instanceTypes,
+	)
+	if err != nil {
+		return err
+	}
+
 	// provision node pools
 	caNodePoolProvisioner := &AWSNodePoolProvisioner{
 		NodePoolTemplateRenderer: NodePoolTemplateRenderer{
@@ -337,7 +358,10 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 			logger:         logger,
 			encodeUserData: false,
 			instanceTypes:  instanceTypes,
-		}, p.execManager, p.tokenSource,
+		},
+		p.execManager,
+		tokenSource,
+		postOptions,
 	)
 	if err != nil {
 		return err
@@ -349,16 +373,28 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 		cluster,
 		caNodePoolProvisioner,
 		karpenterProvisioner,
-		p.tokenSource,
+		tokenSource,
 	)
 
-	err = nodePoolGroups["masters"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
+	updater, err := p.updater(
+		logger,
+		awsAdapter,
+		tokenSource,
+		cluster,
+		postOptions,
+	)
 	if err != nil {
 		return err
 	}
 
-	if karpenterProvisioner.isKarpenterEnabled() {
-		err = p.apply(ctx, logger, cluster, deletions, manifests)
+	if p.manageMasterNodes {
+		err = nodePoolGroups["masters"].provisionNodePoolGroup(
+			ctx,
+			values,
+			updater,
+			cluster,
+			p.applyOnly,
+		)
 		if err != nil {
 			return err
 		}
@@ -367,6 +403,21 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	err = nodePoolGroups["workers"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly)
 	if err != nil {
 		return err
+	}
+
+	if karpenterProvisioner.isKarpenterEnabled() {
+		err = p.apply(
+			ctx,
+			logger,
+			tokenSource,
+			cluster,
+			deletions,
+			manifests,
+			postOptions,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	if karpenterProvisioner.isKarpenterEnabled() {
@@ -388,7 +439,15 @@ func (p *clusterpyProvisioner) Provision(ctx context.Context, logger *log.Entry,
 	}
 
 	if !karpenterProvisioner.isKarpenterEnabled() {
-		err = p.apply(ctx, logger, cluster, deletions, manifests)
+		err = p.apply(
+			ctx,
+			logger,
+			tokenSource,
+			cluster,
+			deletions,
+			manifests,
+			postOptions,
+		)
 		if err != nil {
 			return err
 		}
@@ -601,24 +660,29 @@ func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 }
 
 // Decommission decommissions a cluster provisioned in AWS.
-func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Entry, cluster *api.Cluster) error {
-	if !p.Supports(cluster) {
-		return ErrProviderNotSupported
-	}
-
+func (p *clusterpyProvisioner) decommission(
+	ctx context.Context,
+	logger *log.Entry,
+	awsAdapter *awsAdapter,
+	tokenSource oauth2.TokenSource,
+	cluster *api.Cluster,
+	caData []byte,
+) error {
 	logger.Infof("Decommissioning cluster: %s (%s)", cluster.Alias, cluster.ID)
-
-	awsAdapter, err := p.setupAWSAdapter(logger, cluster)
-	if err != nil {
-		return err
-	}
 
 	// scale down kube-system deployments
 	// This is done to ensure controllers stop running so they don't
 	// recreate resources we delete in the next step
-	err = backoff.Retry(
+	err := backoff.Retry(
 		func() error {
-			err := p.downscaleDeployments(ctx, logger, cluster, "kube-system")
+			err := p.downscaleDeployments(
+				ctx,
+				logger,
+				cluster,
+				tokenSource,
+				caData,
+				"kube-system",
+			)
 			if err != nil {
 				logger.Debugf("Failed to downscale deployments, will retry: %s", err.Error())
 			}
@@ -631,7 +695,11 @@ func (p *clusterpyProvisioner) Decommission(ctx context.Context, logger *log.Ent
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
 	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
-		k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+		k8sClients, err := kubernetes.NewClientsCollection(
+			cluster.APIServerURL,
+			tokenSource,
+			caData,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -765,11 +833,7 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 		return nil, err
 	}
 
-	adapter, err := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.tokenSource, p.dryRun)
-	if err != nil {
-		return nil, err
-	}
-
+	adapter := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.dryRun)
 	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
 	if err != nil {
 		return nil, err
@@ -778,34 +842,36 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 	return adapter, nil
 }
 
-// prepareProvision checks that a cluster can be handled by the provisioner and
-// prepares to provision a cluster by initializing the aws adapter.
-// TODO: this is doing a lot of things to glue everything together, this should be refactored.
-func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config) (*awsUtils.InstanceTypes, *awsAdapter, updatestrategy.UpdateStrategy, error) {
-	logger.Infof("clusterpy: Prepare for provisioning cluster %s (%s)..", cluster.ID, cluster.LifecycleStatus)
-
-	adapter, err := p.setupAWSAdapter(logger, cluster)
+// applyDefaultsToManifests applies the default values to all manifests's Config
+// Items.
+func (p *clusterpyProvisioner) applyDefaultsToManifests(
+	adapter *awsAdapter,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+	instanceTypes *awsUtils.InstanceTypes,
+) error {
+	err := p.updateDefaults(cluster, channelConfig, adapter, instanceTypes)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
-	}
-
-	// fetch instance data that will be used by all the render functions
-	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(adapter.ec2Client)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to fetch instance types from AWS")
-	}
-
-	err = p.updateDefaults(cluster, channelConfig, adapter, instanceTypes)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to read configuration defaults: %v", err)
+		return fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
 	err = p.decryptConfigItems(cluster)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to decrypt config items: %v", err)
+		return fmt.Errorf("unable to decrypt config items: %v", err)
 	}
 
 	p.propagateConfigItemsToNodePools(cluster)
+
+	return nil
+}
+
+func (p *clusterpyProvisioner) updater(
+	logger *log.Entry,
+	awsAdapter *awsAdapter,
+	tokenSource oauth2.TokenSource,
+	cluster *api.Cluster,
+	options *PostOptions,
+) (updatestrategy.UpdateStrategy, error) {
 
 	// allow clusters to override their update strategy.
 	// use global update strategy if cluster doesn't define one.
@@ -823,9 +889,17 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		PollInterval:                   p.updateStrategy.PollInterval,
 	}
 
-	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
+	var decodedCA []byte
+	if options != nil {
+		decodedCA = options.CAData
+	}
+	client, err := kubernetes.NewClient(
+		cluster.APIServerURL,
+		tokenSource,
+		decodedCA,
+	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	// setup updater
@@ -845,7 +919,7 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 		if value, ok := cluster.ConfigItems[setting.key]; ok {
 			parsed, err := time.ParseDuration(value)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
+				return nil, fmt.Errorf("invalid value for %s: %v", setting.key, err)
 			}
 			setting.fn(parsed)
 		}
@@ -855,18 +929,22 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
-	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+	k8sClients, err := kubernetes.NewClientsCollection(
+		cluster.APIServerURL,
+		tokenSource,
+		decodedCA,
+	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, adapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
 			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
 		}),
 	}
 
-	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, adapter.session)
+	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, awsAdapter.session)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
@@ -877,16 +955,27 @@ func (p *clusterpyProvisioner) prepareProvision(logger *log.Entry, cluster *api.
 	case updateStrategyCLC:
 		updater = updatestrategy.NewCLCUpdateStrategy(logger, poolManager, clcPollingInterval)
 	default:
-		return nil, nil, nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
+		return nil, fmt.Errorf("unknown update strategy: %s", p.updateStrategy)
 	}
 
-	return instanceTypes, adapter, updater, nil
+	return updater, nil
 }
 
 // downscaleDeployments scales down all deployments of a cluster in the
 // specified namespace.
-func (p *clusterpyProvisioner) downscaleDeployments(ctx context.Context, logger *log.Entry, cluster *api.Cluster, namespace string) error {
-	client, err := kubernetes.NewClient(cluster.APIServerURL, p.tokenSource)
+func (p *clusterpyProvisioner) downscaleDeployments(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+	tokenSource oauth2.TokenSource,
+	caData []byte,
+	namespace string,
+) error {
+	client, err := kubernetes.NewClient(
+		cluster.APIServerURL,
+		tokenSource,
+		caData,
+	)
 	if err != nil {
 		return err
 	}
@@ -988,8 +1077,23 @@ type deletions struct {
 }
 
 // Deletions deletes the provided kubernetes resources from the cluster.
-func (p *clusterpyProvisioner) Deletions(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions []*kubernetes.Resource) error {
-	k8sClients, err := kubernetes.NewClientsCollection(cluster.APIServerURL, p.tokenSource)
+func (p *clusterpyProvisioner) Deletions(
+	ctx context.Context,
+	logger *log.Entry,
+	tokenSource oauth2.TokenSource,
+	cluster *api.Cluster,
+	deletions []*kubernetes.Resource,
+	options *PostOptions,
+) error {
+	var caData []byte
+	if options != nil {
+		caData = options.CAData
+	}
+	k8sClients, err := kubernetes.NewClientsCollection(
+		cluster.APIServerURL,
+		tokenSource,
+		caData,
+	)
 	if err != nil {
 		return err
 	}
@@ -1108,9 +1212,24 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 }
 
 // apply runs pre-apply deletions, applies pre-rendered manifests and then runs post-apply deletions
-func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, cluster *api.Cluster, deletions *deletions, renderedManifests []manifestPackage) error {
+func (p *clusterpyProvisioner) apply(
+	ctx context.Context,
+	logger *log.Entry,
+	tokenSource oauth2.TokenSource,
+	cluster *api.Cluster,
+	deletions *deletions,
+	renderedManifests []manifestPackage,
+	options *PostOptions,
+) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
-	err := p.Deletions(ctx, logger, cluster, deletions.PreApply)
+	err := p.Deletions(
+		ctx,
+		logger,
+		tokenSource,
+		cluster,
+		deletions.PreApply,
+		options,
+	)
 	if err != nil {
 		return err
 	}
@@ -1122,9 +1241,20 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 		return fmt.Errorf("wrong format for string InfrastructureAccount: %s", cluster.InfrastructureAccount)
 	}
 
+	var caData []byte
+	if options != nil {
+		caData = options.CAData
+	}
 	for _, m := range renderedManifests {
 		logger := logger.WithField("module", m.name)
-		kubectlRunner := kubernetes.NewKubeCTLRunner(p.execManager, p.tokenSource, logger, cluster.APIServerURL, maxApplyRetries)
+		kubectlRunner := kubernetes.NewKubeCTLRunner(
+			p.execManager,
+			tokenSource,
+			logger,
+			cluster.APIServerURL,
+			maxApplyRetries,
+			caData,
+		)
 		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.manifests, "---\n"), p.dryRun)
 		if err != nil {
 			return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
@@ -1132,7 +1262,14 @@ func (p *clusterpyProvisioner) apply(ctx context.Context, logger *log.Entry, clu
 	}
 
 	logger.Debugf("Running PostApply deletions (%d)", len(deletions.PostApply))
-	err = p.Deletions(ctx, logger, cluster, deletions.PostApply)
+	err = p.Deletions(
+		ctx,
+		logger,
+		tokenSource,
+		cluster,
+		deletions.PostApply,
+		options,
+	)
 	if err != nil {
 		return err
 	}
@@ -1176,13 +1313,19 @@ func groupNodePools(logger *log.Entry, cluster *api.Cluster, caProvisioner *AWSN
 			NodePools:   masters,
 			Provisioner: caProvisioner,
 			ReadyFn: func() error {
-				return waitForAPIServer(logger, cluster, 15*time.Minute, tokenSource)
+				return waitForAPIServer(
+					logger,
+					cluster,
+					15*time.Minute,
+					tokenSource,
+				)
 			},
 		},
 		"workers": {
 			NodePools:   workers,
 			Provisioner: caProvisioner,
 			ReadyFn: func() error {
+				// TODO: EKS wait for at least one node?
 				return nil
 			},
 		},
