@@ -59,7 +59,6 @@ type (
 		APIServerURL   string
 		AZInfo         *AZInfo
 		CAData         []byte
-		ConfigItems    map[string]string
 		TemplateValues map[string]interface{}
 	}
 

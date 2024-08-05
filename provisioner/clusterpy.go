@@ -315,9 +315,6 @@ func (p *clusterpyProvisioner) provision(
 		if postOptions.AZInfo != nil {
 			azInfo = postOptions.AZInfo
 		}
-		for k, v := range postOptions.ConfigItems {
-			cluster.ConfigItems[k] = v
-		}
 		for k, v := range postOptions.TemplateValues {
 			values[k] = v
 		}

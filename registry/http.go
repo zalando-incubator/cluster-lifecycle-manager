@@ -81,21 +81,42 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	return result, nil
 }
 
-// UpdateCluster updates the lifecycle_status and status field of a cluster in
-// the registry.
-func (r *httpRegistry) UpdateCluster(cluster *api.Cluster) error {
+// UpdateLifecycleStatus updates the lifecycle_status and status field of the
+// given cluster in the registry.
+func (r *httpRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
+	return r.updateCluster(
+		cluster.ID,
+		&models.ClusterUpdate{
+			LifecycleStatus: cluster.LifecycleStatus,
+			Status:          convertToClusterStatusModel(cluster.Status),
+		},
+	)
+}
+
+// UpdateConfigItems updates the config items of the given cluster in the
+// registry.
+func (r *httpRegistry) UpdateConfigItems(cluster *api.Cluster) error {
+	return r.updateCluster(
+		cluster.ID,
+		&models.ClusterUpdate{
+			ConfigItems: cluster.ConfigItems,
+		},
+	)
+}
+
+func (r *httpRegistry) updateCluster(
+	clusterID string,
+	update *models.ClusterUpdate,
+) error {
 	authInfo, err := newAuthInfo(r.tokenSource)
 	if err != nil {
 		return err
 	}
 
-	update := &models.ClusterUpdate{
-		LifecycleStatus: cluster.LifecycleStatus,
-		Status:          convertToClusterStatusModel(cluster.Status),
-	}
-
 	_, err = r.apiClient.Clusters.UpdateCluster(
-		clusters.NewUpdateClusterParams().WithClusterID(cluster.ID).WithCluster(update),
+		clusters.NewUpdateClusterParams().WithClusterID(
+			clusterID,
+		).WithCluster(update),
 		authInfo,
 	)
 

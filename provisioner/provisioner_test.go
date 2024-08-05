@@ -35,10 +35,6 @@ func TestGetPostOptions(t *testing.T) {
 			expected: &PostOptions{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
-				ConfigItems: map[string]string{
-					"eks_endpoint":                   "https://api.cluster.local",
-					"eks_certificate_authority_data": "YmxhaA==",
-				},
 				AZInfo: &AZInfo{
 					subnets: map[string]string{
 						"eu-central-1a": "subnet-123",
@@ -60,10 +56,6 @@ func TestGetPostOptions(t *testing.T) {
 			expected: &PostOptions{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
-				ConfigItems: map[string]string{
-					"eks_endpoint":                   "https://api.cluster.local",
-					"eks_certificate_authority_data": "YmxhaA==",
-				},
 			},
 		},
 	} {
