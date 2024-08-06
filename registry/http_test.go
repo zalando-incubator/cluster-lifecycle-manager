@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.bus.zalan.do/teapot/cluster-registry/models"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"golang.org/x/oauth2"
 )
 
@@ -20,7 +20,7 @@ const (
 func setupRegistry(clusterInRegistry *models.Cluster) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(
-		"/kubernetes-clusters/"+testClusterID,
+		"/kubernetes-clusters/"+*clusterInRegistry.ID,
 		func(res http.ResponseWriter, req *http.Request) {
 			var clusterUpdate models.ClusterUpdate
 			if req.Method != http.MethodPatch {
