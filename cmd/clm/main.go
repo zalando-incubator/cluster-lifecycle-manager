@@ -140,7 +140,7 @@ func main() {
 				ApplyOnly:      cfg.ApplyOnly,
 				UpdateStrategy: cfg.UpdateStrategy,
 				RemoveVolumes:  cfg.RemoveVolumes,
-				Modifier:       provisioner.NewZalandoEKSModifier(clusterRegistry),
+				Hook:           provisioner.NewZalandoEKSCreationHook(clusterRegistry),
 			},
 		),
 	}

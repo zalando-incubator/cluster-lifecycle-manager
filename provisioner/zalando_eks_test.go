@@ -41,7 +41,7 @@ func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
 func TestGetPostOptions(t *testing.T) {
 	for _, tc := range []struct {
 		cfOutput map[string]string
-		expected *PostOptions
+		expected *HookResponse
 	}{
 		{
 			cfOutput: map[string]string{
@@ -49,7 +49,7 @@ func TestGetPostOptions(t *testing.T) {
 				"EKSSubnetb": "subnet-456",
 				"EKSSubnetc": "subnet-789",
 			},
-			expected: &PostOptions{
+			expected: &HookResponse{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
 				AZInfo: &AZInfo{
@@ -70,14 +70,14 @@ func TestGetPostOptions(t *testing.T) {
 		},
 		{
 			cfOutput: map[string]string{},
-			expected: &PostOptions{
+			expected: &HookResponse{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
 			},
 		},
 	} {
-		z := NewZalandoEKSModifier(&mockRegistry{})
-		res, err := z.GetPostOptions(
+		z := NewZalandoEKSCreationHook(&mockRegistry{})
+		res, err := z.Execute(
 			&mockAWSAdapter{},
 			&api.Cluster{},
 			tc.cfOutput,

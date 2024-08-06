@@ -25,8 +25,8 @@ type (
 		clusterpyProvisioner
 	}
 
-	// ZalandoEKSModifier is a modifier specific for EKS cluster provisioning.
-	ZalandoEKSModifier struct {
+	// ZalandoEKSCreationHook is a hook specific for EKS cluster provisioning.
+	ZalandoEKSCreationHook struct {
 		clusterRegistry registry.Registry
 	}
 )
@@ -56,7 +56,7 @@ func NewZalandoEKSProvisioner(
 		provisioner.applyOnly = options.ApplyOnly
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
-		provisioner.modifier = options.Modifier
+		provisioner.hook = options.Hook
 	}
 
 	return provisioner
@@ -142,27 +142,28 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	)
 }
 
-// NewZalandoEKSModifier returns a new modifier for EKS cluster provisioning,
+// NewZalandoEKSCreationHook returns a new hook for EKS cluster provisioning,
 // configured to use the given cluster registry.
-func NewZalandoEKSModifier(
+func NewZalandoEKSCreationHook(
 	clusterRegistry registry.Registry,
-) ProvisionModifier {
-	return &ZalandoEKSModifier{
+) CreationHook {
+	return &ZalandoEKSCreationHook{
 		clusterRegistry: clusterRegistry,
 	}
 }
 
-// GetPostOptions returns the configuration only known after deploying the first
+// Execute updates the configuration only known after deploying the first
 // CloudFormation stack.
 //
-// This includes the API server URL, the Certificate Authority data, and the
-// subnets. Additionally GetPostOptions update the cluster
-func (z *ZalandoEKSModifier) GetPostOptions(
+// The method returns the API server URL, the Certificate Authority data,
+// and the. Additionally Execute updates the configured cluster registry with
+// the EKS API Server URL and the Certificate Authority data.
+func (z *ZalandoEKSCreationHook) Execute(
 	adapter awsInterface,
 	cluster *api.Cluster,
 	cloudFormationOutput map[string]string,
-) (*PostOptions, error) {
-	res := &PostOptions{}
+) (*HookResponse, error) {
+	res := &HookResponse{}
 
 	clusterInfo, err := adapter.GetEKSClusterCA(cluster)
 	if err != nil {

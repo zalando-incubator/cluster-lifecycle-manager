@@ -163,7 +163,7 @@ func NewKarpenterNodePoolProvisioner(
 	n NodePoolTemplateRenderer,
 	e *command.ExecManager,
 	ts oauth2.TokenSource,
-	options *PostOptions,
+	options *HookResponse,
 ) (*KarpenterNodePoolProvisioner, error) {
 	var caData []byte
 	if options != nil && len(options.CAData) > 0 {
