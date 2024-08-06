@@ -142,6 +142,16 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	)
 }
 
+// NewZalandoEKSModifier returns a new modifier for EKS cluster provisioning,
+// configured to use the given cluster registry.
+func NewZalandoEKSModifier(
+	clusterRegistry registry.Registry,
+) ProvisionModifier {
+	return &ZalandoEKSModifier{
+		clusterRegistry: clusterRegistry,
+	}
+}
+
 // GetPostOptions returns the configuration only known after deploying the first
 // CloudFormation stack.
 //
@@ -163,6 +173,10 @@ func (z *ZalandoEKSModifier) GetPostOptions(
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if cluster.ConfigItems == nil {
+		cluster.ConfigItems = map[string]string{}
 	}
 
 	// Update the cluster registry with the new configuration items

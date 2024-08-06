@@ -5,10 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
 
 type (
 	mockAWSAdapter struct{}
+	mockRegistry   struct{}
 )
 
 func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
@@ -19,6 +21,21 @@ func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
 		Endpoint:             "https://api.cluster.local",
 		CertificateAuthority: "YmxhaA==",
 	}, nil
+}
+
+func (r *mockRegistry) ListClusters(_ registry.Filter) (
+	[]*api.Cluster,
+	error,
+) {
+	return []*api.Cluster{}, nil
+}
+
+func (r *mockRegistry) UpdateLifecycleStatus(_ *api.Cluster) error {
+	return nil
+}
+
+func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
+	return nil
 }
 
 func TestGetPostOptions(t *testing.T) {
@@ -59,7 +76,7 @@ func TestGetPostOptions(t *testing.T) {
 			},
 		},
 	} {
-		z := &ZalandoEKSModifier{}
+		z := NewZalandoEKSModifier(&mockRegistry{})
 		res, err := z.GetPostOptions(
 			&mockAWSAdapter{},
 			&api.Cluster{},
