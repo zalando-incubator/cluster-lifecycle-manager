@@ -124,8 +124,11 @@ func createMockRegistry(lifecycleStatus string, status *api.ClusterStatus) *mock
 func (r *mockRegistry) ListClusters(_ registry.Filter) ([]*api.Cluster, error) {
 	return []*api.Cluster{r.theCluster}, nil
 }
-func (r *mockRegistry) UpdateCluster(cluster *api.Cluster) error {
+func (r *mockRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
 	r.lastUpdate = cluster
+	return nil
+}
+func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
 	return nil
 }
 

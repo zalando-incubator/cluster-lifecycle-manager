@@ -71,7 +71,7 @@ type clusterpyProvisioner struct {
 	tokenSource       oauth2.TokenSource
 	applyOnly         bool
 	updateStrategy    config.UpdateStrategy
-	modifier          ProvisionModifier
+	hook              CreationHook
 	removeVolumes     bool
 	manageEtcdStack   bool
 	manageMasterNodes bool
@@ -298,9 +298,9 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	var postOptions *PostOptions
-	if p.modifier != nil {
-		postOptions, err = p.modifier.GetPostOptions(
+	var postOptions *HookResponse
+	if p.hook != nil {
+		postOptions, err = p.hook.Execute(
 			awsAdapter,
 			cluster,
 			outputs,
@@ -314,9 +314,6 @@ func (p *clusterpyProvisioner) provision(
 		}
 		if postOptions.AZInfo != nil {
 			azInfo = postOptions.AZInfo
-		}
-		for k, v := range postOptions.ConfigItems {
-			cluster.ConfigItems[k] = v
 		}
 		for k, v := range postOptions.TemplateValues {
 			values[k] = v
@@ -870,7 +867,7 @@ func (p *clusterpyProvisioner) updater(
 	awsAdapter *awsAdapter,
 	tokenSource oauth2.TokenSource,
 	cluster *api.Cluster,
-	options *PostOptions,
+	options *HookResponse,
 ) (updatestrategy.UpdateStrategy, error) {
 
 	// allow clusters to override their update strategy.
@@ -1083,7 +1080,7 @@ func (p *clusterpyProvisioner) Deletions(
 	tokenSource oauth2.TokenSource,
 	cluster *api.Cluster,
 	deletions []*kubernetes.Resource,
-	options *PostOptions,
+	options *HookResponse,
 ) error {
 	var caData []byte
 	if options != nil {
@@ -1219,7 +1216,7 @@ func (p *clusterpyProvisioner) apply(
 	cluster *api.Cluster,
 	deletions *deletions,
 	renderedManifests []manifestPackage,
-	options *PostOptions,
+	options *HookResponse,
 ) error {
 	logger.Debugf("Running PreApply deletions (%d)", len(deletions.PreApply))
 	err := p.Deletions(

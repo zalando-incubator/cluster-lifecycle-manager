@@ -5,10 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
 
 type (
 	mockAWSAdapter struct{}
+	mockRegistry   struct{}
 )
 
 func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
@@ -21,10 +23,25 @@ func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
 	}, nil
 }
 
+func (r *mockRegistry) ListClusters(_ registry.Filter) (
+	[]*api.Cluster,
+	error,
+) {
+	return []*api.Cluster{}, nil
+}
+
+func (r *mockRegistry) UpdateLifecycleStatus(_ *api.Cluster) error {
+	return nil
+}
+
+func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
+	return nil
+}
+
 func TestGetPostOptions(t *testing.T) {
 	for _, tc := range []struct {
 		cfOutput map[string]string
-		expected *PostOptions
+		expected *HookResponse
 	}{
 		{
 			cfOutput: map[string]string{
@@ -32,13 +49,9 @@ func TestGetPostOptions(t *testing.T) {
 				"EKSSubnetb": "subnet-456",
 				"EKSSubnetc": "subnet-789",
 			},
-			expected: &PostOptions{
+			expected: &HookResponse{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
-				ConfigItems: map[string]string{
-					"eks_endpoint":                   "https://api.cluster.local",
-					"eks_certificate_authority_data": "YmxhaA==",
-				},
 				AZInfo: &AZInfo{
 					subnets: map[string]string{
 						"eu-central-1a": "subnet-123",
@@ -57,18 +70,14 @@ func TestGetPostOptions(t *testing.T) {
 		},
 		{
 			cfOutput: map[string]string{},
-			expected: &PostOptions{
+			expected: &HookResponse{
 				APIServerURL: "https://api.cluster.local",
 				CAData:       []byte("blah"),
-				ConfigItems: map[string]string{
-					"eks_endpoint":                   "https://api.cluster.local",
-					"eks_certificate_authority_data": "YmxhaA==",
-				},
 			},
 		},
 	} {
-		z := &ZalandoEKSModifier{}
-		res, err := z.GetPostOptions(
+		z := NewZalandoEKSCreationHook(&mockRegistry{})
+		res, err := z.Execute(
 			&mockAWSAdapter{},
 			&api.Cluster{},
 			tc.cfOutput,

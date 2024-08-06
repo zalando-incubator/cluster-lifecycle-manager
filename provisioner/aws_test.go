@@ -38,7 +38,7 @@ func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
 	error,
 ) {
 	return &ec2.DescribeVpcsOutput{
-		Vpcs: []*ec2.Vpc{&ec2.Vpc{IsDefault: aws.Bool(false)}},
+		Vpcs: []*ec2.Vpc{{IsDefault: aws.Bool(false)}},
 	}, nil
 }
 

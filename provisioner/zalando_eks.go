@@ -12,6 +12,12 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/eks"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
+)
+
+const (
+	KeyEKSEndpoint = "eks_endpoint"
+	KeyEKSCAData   = "eks_certificate_authority_data"
 )
 
 type (
@@ -19,7 +25,10 @@ type (
 		clusterpyProvisioner
 	}
 
-	ZalandoEKSModifier struct{}
+	// ZalandoEKSCreationHook is a hook specific for EKS cluster provisioning.
+	ZalandoEKSCreationHook struct {
+		clusterRegistry registry.Registry
+	}
 )
 
 // NewZalandoEKSProvisioner returns a new provisioner capable of provisioning
@@ -47,7 +56,7 @@ func NewZalandoEKSProvisioner(
 		provisioner.applyOnly = options.ApplyOnly
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
-		provisioner.modifier = options.Modifier
+		provisioner.hook = options.Hook
 	}
 
 	return provisioner
@@ -133,12 +142,28 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	)
 }
 
-func (z *ZalandoEKSModifier) GetPostOptions(
+// NewZalandoEKSCreationHook returns a new hook for EKS cluster provisioning,
+// configured to use the given cluster registry.
+func NewZalandoEKSCreationHook(
+	clusterRegistry registry.Registry,
+) CreationHook {
+	return &ZalandoEKSCreationHook{
+		clusterRegistry: clusterRegistry,
+	}
+}
+
+// Execute updates the configuration only known after deploying the first
+// CloudFormation stack.
+//
+// The method returns the API server URL, the Certificate Authority data,
+// and the subnets. Additionally Execute updates the configured cluster
+// registry with the EKS API Server URL and the Certificate Authority data.
+func (z *ZalandoEKSCreationHook) Execute(
 	adapter awsInterface,
 	cluster *api.Cluster,
 	cloudFormationOutput map[string]string,
-) (*PostOptions, error) {
-	res := &PostOptions{}
+) (*HookResponse, error) {
+	res := &HookResponse{}
 
 	clusterInfo, err := adapter.GetEKSClusterCA(cluster)
 	if err != nil {
@@ -151,12 +176,20 @@ func (z *ZalandoEKSModifier) GetPostOptions(
 		return nil, err
 	}
 
+	if cluster.ConfigItems == nil {
+		cluster.ConfigItems = map[string]string{}
+	}
+
+	// Update the cluster registry with the new configuration items
+	cluster.ConfigItems[KeyEKSEndpoint] = clusterInfo.Endpoint
+	cluster.ConfigItems[KeyEKSCAData] = clusterInfo.CertificateAuthority
+	err = z.clusterRegistry.UpdateConfigItems(cluster)
+	if err != nil {
+		return nil, err
+	}
+
 	res.APIServerURL = clusterInfo.Endpoint
 	res.CAData = decodedCA
-	res.ConfigItems = map[string]string{
-		"eks_endpoint":                   clusterInfo.Endpoint,
-		"eks_certificate_authority_data": clusterInfo.CertificateAuthority,
-	}
 
 	subnets := map[string]string{}
 	for key, az := range map[string]string{

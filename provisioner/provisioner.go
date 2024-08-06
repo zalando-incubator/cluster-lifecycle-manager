@@ -33,33 +33,32 @@ type (
 		) error
 	}
 
-	// ProvisionModifier is an interface that provisioners can use to update
-	// configuration during provisioning.
+	// CreationHook is an interface that provisioners can use while provisioning
+	// a cluster.
 	//
-	// This is useful to pass additional configuration only known in a later
-	// stage provision. For example, when provisioning an EKS cluster, the
-	// provisioner only knows what is e.g. the API Server URL after applying the
-	// initial CloudFormation.
-	ProvisionModifier interface {
-		// GetPostOptions returns configuration parameters that a provisioner
-		// can use while provisioning a cluster.
-		GetPostOptions(
+	// This is useful for example to pass additional configuration only known at
+	// a later stage of provisioning. For example, when provisioning an EKS
+	// cluster, the provisioner only knows what is the API Server URL after
+	// applying the initial CloudFormation.
+	CreationHook interface {
+		// Execute performs updates used by a provisioner during cluster
+		// creation.
+		Execute(
 			adapter awsInterface,
 			cluster *api.Cluster,
 			cloudFormationOutput map[string]string,
 		) (
-			*PostOptions,
+			*HookResponse,
 			error,
 		)
 	}
 
-	// PostOptions contain configuration parameters that a provisioner can use
-	// in a later stage of provisionment.
-	PostOptions struct {
+	// HookResponse contain configuration parameters that a provisioner can use
+	// at a later stage.
+	HookResponse struct {
 		APIServerURL   string
 		AZInfo         *AZInfo
 		CAData         []byte
-		ConfigItems    map[string]string
 		TemplateValues map[string]interface{}
 	}
 
@@ -70,7 +69,7 @@ type (
 		UpdateStrategy  config.UpdateStrategy
 		RemoveVolumes   bool
 		ManageEtcdStack bool
-		Modifier        ProvisionModifier
+		Hook            CreationHook
 	}
 )
 

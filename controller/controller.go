@@ -197,7 +197,7 @@ func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, cl
 	case statusRequested, statusReady:
 		cluster.Status.NextVersion = clusterInfo.NextVersion.String()
 		if !c.dryRun {
-			err = c.registry.UpdateCluster(cluster)
+			err = c.registry.UpdateLifecycleStatus(cluster)
 			if err != nil {
 				return err
 			}
@@ -282,7 +282,7 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 		} else {
 			cluster.Status.Problems = []*api.Problem{}
 		}
-		err = c.registry.UpdateCluster(cluster)
+		err = c.registry.UpdateLifecycleStatus(cluster)
 		if err != nil {
 			versionedLog.Errorf("Unable to update cluster state: %s", err)
 		}

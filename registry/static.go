@@ -26,6 +26,10 @@ func (r *staticRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 	return clusters, nil
 }
 
-func (r *staticRegistry) UpdateCluster(_ *api.Cluster) error {
+func (r *staticRegistry) UpdateLifecycleStatus(_ *api.Cluster) error {
+	return nil
+}
+
+func (r *staticRegistry) UpdateConfigItems(_ *api.Cluster) error {
 	return nil
 }

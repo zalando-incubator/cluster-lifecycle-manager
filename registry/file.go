@@ -54,7 +54,7 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 	return fileClusters.Clusters, nil
 }
 
-func (r *fileRegistry) UpdateCluster(cluster *api.Cluster) error {
+func (r *fileRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
 	if cluster == nil {
 		return fmt.Errorf("failed to update the cluster. Empty cluster is passed")
 	}
@@ -66,4 +66,26 @@ func (r *fileRegistry) UpdateCluster(cluster *api.Cluster) error {
 		}
 	}
 	return fmt.Errorf("failed to update the cluster: cluster %s not found", cluster.ID)
+}
+
+func (r *fileRegistry) UpdateConfigItems(cluster *api.Cluster) error {
+	if cluster == nil {
+		return fmt.Errorf(
+			"failed to update the cluster. Empty cluster is passed",
+		)
+	}
+	for _, c := range fileClusters.Clusters {
+		if c.ID == cluster.ID {
+			log.Debugf(
+				"[Cluster %s updated] Config Items: %v",
+				cluster.ID,
+				cluster.ConfigItems,
+			)
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"failed to update the cluster: cluster %s not found",
+		cluster.ID,
+	)
 }
