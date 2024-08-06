@@ -2,7 +2,7 @@ module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-openapi/analysis v0.23.0 // indirect
@@ -41,7 +41,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/samber/lo v1.46.0
-	sigs.k8s.io/aws-iam-authenticator v0.6.17
+	sigs.k8s.io/aws-iam-authenticator v0.6.22
 )
 
 require (
@@ -128,4 +128,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-go 1.22.0
+go 1.22.5
