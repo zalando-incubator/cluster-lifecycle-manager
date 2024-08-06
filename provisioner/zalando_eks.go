@@ -156,8 +156,8 @@ func NewZalandoEKSCreationHook(
 // CloudFormation stack.
 //
 // The method returns the API server URL, the Certificate Authority data,
-// and the. Additionally Execute updates the configured cluster registry with
-// the EKS API Server URL and the Certificate Authority data.
+// and the subnets. Additionally Execute updates the configured cluster
+// registry with the EKS API Server URL and the Certificate Authority data.
 func (z *ZalandoEKSCreationHook) Execute(
 	adapter awsInterface,
 	cluster *api.Cluster,
