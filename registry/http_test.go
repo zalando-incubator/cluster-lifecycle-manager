@@ -97,7 +97,7 @@ func TestUpdateConfigItems(t *testing.T) {
 
 		require.NoError(t, err)
 		for key := range tc.configItems {
-			require.Contains(t, tc.configItems, key)
+			require.Contains(t, clusterInRegistry.ConfigItems, key)
 			require.Equal(t, tc.configItems[key], clusterInRegistry.ConfigItems[key])
 		}
 	}
