@@ -128,4 +128,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-go 1.22.0
+go 1.22.5
