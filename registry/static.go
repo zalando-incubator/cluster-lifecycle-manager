@@ -30,6 +30,9 @@ func (r *staticRegistry) UpdateLifecycleStatus(_ *api.Cluster) error {
 	return nil
 }
 
-func (r *staticRegistry) UpdateConfigItems(_ *api.Cluster) error {
+func (r *staticRegistry) UpdateConfigItems(
+	_ *api.Cluster,
+	_ map[string]string,
+) error {
 	return nil
 }

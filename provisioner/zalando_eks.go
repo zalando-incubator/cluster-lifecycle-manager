@@ -180,10 +180,15 @@ func (z *ZalandoEKSCreationHook) Execute(
 		cluster.ConfigItems = map[string]string{}
 	}
 
-	// Update the cluster registry with the new configuration items
-	cluster.ConfigItems[KeyEKSEndpoint] = clusterInfo.Endpoint
-	cluster.ConfigItems[KeyEKSCAData] = clusterInfo.CertificateAuthority
-	err = z.clusterRegistry.UpdateConfigItems(cluster)
+	toUpdate := map[string]string{}
+	if cluster.ConfigItems[KeyEKSEndpoint] != clusterInfo.Endpoint {
+		toUpdate[KeyEKSEndpoint] = clusterInfo.Endpoint
+	}
+	if cluster.ConfigItems[KeyEKSCAData] != clusterInfo.CertificateAuthority {
+		toUpdate[KeyEKSCAData] = clusterInfo.CertificateAuthority
+	}
+
+	err = z.clusterRegistry.UpdateConfigItems(cluster, toUpdate)
 	if err != nil {
 		return nil, err
 	}

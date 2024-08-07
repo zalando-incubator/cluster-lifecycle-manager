@@ -15,6 +15,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	apiclient "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/clusters"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/config_items"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/infrastructure_accounts"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
@@ -84,30 +85,6 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 // UpdateLifecycleStatus updates the lifecycle_status and status field of the
 // given cluster in the registry.
 func (r *httpRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
-	return r.updateCluster(
-		cluster.ID,
-		&models.ClusterUpdate{
-			LifecycleStatus: cluster.LifecycleStatus,
-			Status:          convertToClusterStatusModel(cluster.Status),
-		},
-	)
-}
-
-// UpdateConfigItems updates the config items of the given cluster in the
-// registry.
-func (r *httpRegistry) UpdateConfigItems(cluster *api.Cluster) error {
-	return r.updateCluster(
-		cluster.ID,
-		&models.ClusterUpdate{
-			ConfigItems: cluster.ConfigItems,
-		},
-	)
-}
-
-func (r *httpRegistry) updateCluster(
-	clusterID string,
-	update *models.ClusterUpdate,
-) error {
 	authInfo, err := newAuthInfo(r.tokenSource)
 	if err != nil {
 		return err
@@ -115,12 +92,44 @@ func (r *httpRegistry) updateCluster(
 
 	_, err = r.apiClient.Clusters.UpdateCluster(
 		clusters.NewUpdateClusterParams().WithClusterID(
-			clusterID,
-		).WithCluster(update),
+			cluster.ID,
+		).WithCluster(
+			&models.ClusterUpdate{
+				LifecycleStatus: cluster.LifecycleStatus,
+				Status:          convertToClusterStatusModel(cluster.Status),
+			},
+		),
 		authInfo,
 	)
 
 	return err
+}
+
+// UpdateConfigItems updates the config items of the given cluster in the
+// registry.
+func (r *httpRegistry) UpdateConfigItems(
+	cluster *api.Cluster,
+	configItems map[string]string,
+) error {
+	authInfo, err := newAuthInfo(r.tokenSource)
+	if err != nil {
+		return err
+	}
+
+	for key, value := range configItems {
+		_, err = r.apiClient.ConfigItems.AddOrUpdateConfigItem(
+			config_items.NewAddOrUpdateConfigItemParams().WithClusterID(
+				cluster.ID,
+			).WithConfigKey(key).WithValue(&models.ConfigValue{Value: &value}),
+			authInfo,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getReadyInfrastructureAccounts gets all ready infrastructure accounts from
