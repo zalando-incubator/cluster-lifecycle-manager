@@ -34,7 +34,7 @@ func (r *mockRegistry) UpdateLifecycleStatus(_ *api.Cluster) error {
 	return nil
 }
 
-func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
+func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster, _ map[string]string) error {
 	return nil
 }
 

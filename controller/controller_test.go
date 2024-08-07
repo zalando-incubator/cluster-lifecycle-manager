@@ -128,7 +128,10 @@ func (r *mockRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
 	r.lastUpdate = cluster
 	return nil
 }
-func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster) error {
+func (r *mockRegistry) UpdateConfigItems(
+	_ *api.Cluster,
+	_ map[string]string,
+) error {
 	return nil
 }
 

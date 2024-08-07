@@ -68,7 +68,10 @@ func (r *fileRegistry) UpdateLifecycleStatus(cluster *api.Cluster) error {
 	return fmt.Errorf("failed to update the cluster: cluster %s not found", cluster.ID)
 }
 
-func (r *fileRegistry) UpdateConfigItems(cluster *api.Cluster) error {
+func (r *fileRegistry) UpdateConfigItems(
+	cluster *api.Cluster,
+	configItems map[string]string,
+) error {
 	if cluster == nil {
 		return fmt.Errorf(
 			"failed to update the cluster. Empty cluster is passed",
@@ -79,7 +82,7 @@ func (r *fileRegistry) UpdateConfigItems(cluster *api.Cluster) error {
 			log.Debugf(
 				"[Cluster %s updated] Config Items: %v",
 				cluster.ID,
-				cluster.ConfigItems,
+				configItems,
 			)
 			return nil
 		}

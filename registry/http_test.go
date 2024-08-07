@@ -17,7 +17,10 @@ const (
 	testClusterID = "testcluster"
 )
 
-func setupRegistry(clusterInRegistry *models.Cluster) *httptest.Server {
+func setupRegistry(
+	clusterInRegistry *models.Cluster,
+	configKeys []string,
+) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc(
 		"/kubernetes-clusters/"+*clusterInRegistry.ID,
@@ -39,11 +42,39 @@ func setupRegistry(clusterInRegistry *models.Cluster) *httptest.Server {
 				return
 			}
 
-			clusterInRegistry.ConfigItems = clusterUpdate.ConfigItems
 			clusterInRegistry.LifecycleStatus = &clusterUpdate.LifecycleStatus
 			clusterInRegistry.Status = clusterUpdate.Status
 		},
 	)
+
+	for _, key := range configKeys {
+		mux.HandleFunc(
+			"/kubernetes-clusters/"+*clusterInRegistry.ID+"/config-items/"+key,
+			func(res http.ResponseWriter, req *http.Request) {
+				var configValue models.ConfigValue
+				if req.Method != http.MethodPut {
+					res.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+
+				if req.Body == nil {
+					res.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				defer req.Body.Close()
+
+				if err := json.NewDecoder(req.Body).Decode(
+					&configValue,
+				); err != nil {
+
+					res.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				clusterInRegistry.ConfigItems[key] = *configValue.Value
+			},
+		)
+	}
 
 	ts := httptest.NewServer(mux)
 
@@ -78,7 +109,11 @@ func TestUpdateConfigItems(t *testing.T) {
 			},
 		}
 
-		ts := setupRegistry(clusterInRegistry)
+		keys := make([]string, 0, len(tc.configItems))
+		for key := range tc.configItems {
+			keys = append(keys, key)
+		}
+		ts := setupRegistry(clusterInRegistry, keys)
 		defer ts.Close()
 
 		registry := NewRegistry(
@@ -92,7 +127,8 @@ func TestUpdateConfigItems(t *testing.T) {
 		}
 
 		err := registry.UpdateConfigItems(
-			&api.Cluster{ID: testClusterID, ConfigItems: tc.configItems},
+			&api.Cluster{ID: testClusterID},
+			tc.configItems,
 		)
 
 		require.NoError(t, err)
@@ -135,7 +171,7 @@ func TestUpdateLifeCycleStatus(t *testing.T) {
 			},
 		}
 
-		ts := setupRegistry(clusterInRegistry)
+		ts := setupRegistry(clusterInRegistry, []string{})
 		defer ts.Close()
 
 		registry := NewRegistry(

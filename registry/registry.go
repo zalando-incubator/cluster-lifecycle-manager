@@ -20,7 +20,7 @@ type Filter struct {
 type Registry interface {
 	ListClusters(filter Filter) ([]*api.Cluster, error)
 	UpdateLifecycleStatus(cluster *api.Cluster) error
-	UpdateConfigItems(cluster *api.Cluster) error
+	UpdateConfigItems(cluster *api.Cluster, configItems map[string]string) error
 }
 
 // NewRegistry initializes a new registry source based on the uri.
