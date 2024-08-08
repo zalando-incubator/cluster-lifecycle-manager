@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	KeyEKSEndpoint = "eks_endpoint"
-	KeyEKSCAData   = "eks_certificate_authority_data"
+	KeyEKSEndpoint      = "eks_endpoint"
+	KeyEKSCAData        = "eks_certificate_authority_data"
+	KeyEKSOIDCIssuerURL = "eks_oidc_issuer_url"
 )
 
 type (
@@ -182,6 +183,9 @@ func (z *ZalandoEKSCreationHook) Execute(
 	}
 	if cluster.ConfigItems[KeyEKSCAData] != clusterInfo.CertificateAuthority {
 		toUpdate[KeyEKSCAData] = clusterInfo.CertificateAuthority
+	}
+	if cluster.ConfigItems[KeyEKSOIDCIssuerURL] != clusterInfo.OIDCIssuerURL {
+		toUpdate[KeyEKSOIDCIssuerURL] = clusterInfo.OIDCIssuerURL
 	}
 
 	err = z.clusterRegistry.UpdateConfigItems(cluster, toUpdate)

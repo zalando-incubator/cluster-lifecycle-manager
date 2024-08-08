@@ -771,6 +771,7 @@ func tagsToMap(tags []*ec2.Tag) map[string]string {
 type EKSClusterInfo struct {
 	Endpoint             string
 	CertificateAuthority string
+	OIDCIssuerURL        string
 }
 
 func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error) {
@@ -784,5 +785,6 @@ func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, err
 	return &EKSClusterInfo{
 		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
 		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
+		OIDCIssuerURL:        aws.StringValue(resp.Cluster.Identity.Oidc.Issuer),
 	}, nil
 }
