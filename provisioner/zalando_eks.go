@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	KeyEKSEndpoint = "eks_endpoint"
-	KeyEKSCAData   = "eks_certificate_authority_data"
+	KeyEKSEndpoint      = "eks_endpoint"
+	KeyEKSCAData        = "eks_certificate_authority_data"
+	KeyEKSOIDCIssuerURL = "eks_oidc_issuer_url"
 )
 
 type (
@@ -161,12 +162,12 @@ func (z *ZalandoEKSCreationHook) Execute(
 ) (*HookResponse, error) {
 	res := &HookResponse{}
 
-	clusterInfo, err := adapter.GetEKSClusterCA(cluster)
+	clusterDetails, err := adapter.GetEKSClusterDetails(cluster)
 	if err != nil {
 		return nil, err
 	}
 	decodedCA, err := base64.StdEncoding.DecodeString(
-		clusterInfo.CertificateAuthority,
+		clusterDetails.CertificateAuthority,
 	)
 	if err != nil {
 		return nil, err
@@ -177,11 +178,14 @@ func (z *ZalandoEKSCreationHook) Execute(
 	}
 
 	toUpdate := map[string]string{}
-	if cluster.ConfigItems[KeyEKSEndpoint] != clusterInfo.Endpoint {
-		toUpdate[KeyEKSEndpoint] = clusterInfo.Endpoint
+	if cluster.ConfigItems[KeyEKSEndpoint] != clusterDetails.Endpoint {
+		toUpdate[KeyEKSEndpoint] = clusterDetails.Endpoint
 	}
-	if cluster.ConfigItems[KeyEKSCAData] != clusterInfo.CertificateAuthority {
-		toUpdate[KeyEKSCAData] = clusterInfo.CertificateAuthority
+	if cluster.ConfigItems[KeyEKSCAData] != clusterDetails.CertificateAuthority {
+		toUpdate[KeyEKSCAData] = clusterDetails.CertificateAuthority
+	}
+	if cluster.ConfigItems[KeyEKSOIDCIssuerURL] != clusterDetails.OIDCIssuerURL {
+		toUpdate[KeyEKSOIDCIssuerURL] = clusterDetails.OIDCIssuerURL
 	}
 
 	err = z.clusterRegistry.UpdateConfigItems(cluster, toUpdate)
@@ -189,7 +193,7 @@ func (z *ZalandoEKSCreationHook) Execute(
 		return nil, err
 	}
 
-	res.APIServerURL = clusterInfo.Endpoint
+	res.APIServerURL = clusterDetails.Endpoint
 	res.CAData = decodedCA
 
 	subnets := map[string]string{}

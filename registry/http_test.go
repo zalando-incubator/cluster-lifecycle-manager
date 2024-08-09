@@ -99,6 +99,7 @@ func TestUpdateConfigItems(t *testing.T) {
 			configItems: map[string]string{
 				"eks_endpoint":                   "https://api.eks.eu-central-1.amazonaws.com",
 				"eks_certificate_authority_data": "YmxhaA==",
+				"eks_oidc_issuer_url":            "https://oidc.eks.eu-central-1.amazonaws.com/id/foo",
 			},
 		},
 	} {

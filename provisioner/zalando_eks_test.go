@@ -13,13 +13,14 @@ type (
 	mockRegistry   struct{}
 )
 
-func (m *mockAWSAdapter) GetEKSClusterCA(_ *api.Cluster) (
-	*EKSClusterInfo,
+func (m *mockAWSAdapter) GetEKSClusterDetails(_ *api.Cluster) (
+	*EKSClusterDetails,
 	error,
 ) {
-	return &EKSClusterInfo{
+	return &EKSClusterDetails{
 		Endpoint:             "https://api.cluster.local",
 		CertificateAuthority: "YmxhaA==",
+		OIDCIssuerURL:        "https://oidc.provider.local/id/foo",
 	}, nil
 }
 
@@ -38,7 +39,7 @@ func (r *mockRegistry) UpdateConfigItems(_ *api.Cluster, _ map[string]string) er
 	return nil
 }
 
-func TestGetPostOptions(t *testing.T) {
+func TestCreationHookExecute(t *testing.T) {
 	for _, tc := range []struct {
 		cfOutput map[string]string
 		expected *HookResponse

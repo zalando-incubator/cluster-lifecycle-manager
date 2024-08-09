@@ -123,9 +123,9 @@ type (
 
 	// awsInterface is an interface containing methods of an AWS Adapter.
 	//
-	// ProvisionModifier uses this interface in the GetPostOptions method.
+	// CreationHook uses this interface in the Execute method.
 	awsInterface interface {
-		GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error)
+		GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDetails, error)
 	}
 )
 
@@ -768,12 +768,14 @@ func tagsToMap(tags []*ec2.Tag) map[string]string {
 	return tagMap
 }
 
-type EKSClusterInfo struct {
+// EKSClusterDetails contains details of an EKS cluster that are only available after creation.
+type EKSClusterDetails struct {
 	Endpoint             string
 	CertificateAuthority string
+	OIDCIssuerURL        string
 }
 
-func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, error) {
+func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDetails, error) {
 	resp, err := a.eksClient.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(eksID(cluster.ID)),
 	})
@@ -781,8 +783,9 @@ func (a *awsAdapter) GetEKSClusterCA(cluster *api.Cluster) (*EKSClusterInfo, err
 		return nil, err
 	}
 
-	return &EKSClusterInfo{
+	return &EKSClusterDetails{
 		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
 		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
+		OIDCIssuerURL:        aws.StringValue(resp.Cluster.Identity.Oidc.Issuer),
 	}, nil
 }
