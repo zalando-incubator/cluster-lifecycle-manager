@@ -1,11 +1,12 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,9 +22,9 @@ const (
 
 type Instance struct {
 	InstanceType              string
-	VCPU                      int64
+	VCPU                      int32
 	Memory                    int64
-	InstanceStorageDevices    int64
+	InstanceStorageDevices    int32
 	InstanceStorageDeviceSize int64
 	Architecture              string
 }
@@ -32,7 +33,7 @@ func (i Instance) AvailableStorage(instanceStorageScaleFactor float64, rootVolum
 	if i.InstanceStorageDevices == 0 {
 		return int64(float64(rootVolumeSize) * rootVolumeScaleFactor)
 	}
-	return int64(instanceStorageScaleFactor * float64(i.InstanceStorageDevices*i.InstanceStorageDeviceSize))
+	return int64(instanceStorageScaleFactor * float64(int64(i.InstanceStorageDevices)*i.InstanceStorageDeviceSize))
 }
 
 func (i Instance) MemoryFraction(percent int64) int64 {
@@ -51,14 +52,23 @@ func NewInstanceTypes(instanceData []Instance) *InstanceTypes {
 	return &InstanceTypes{instances: result}
 }
 
-func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) {
+func NewInstanceTypesFromAWS(ec2client EC2API) (*InstanceTypes, error) {
 	instances := make(map[string]Instance)
 
 	var innerErr error
-	err := ec2client.DescribeInstanceTypesPages(&ec2.DescribeInstanceTypesInput{}, func(output *ec2.DescribeInstanceTypesOutput, _ bool) bool {
+
+	paginator := ec2.NewDescribeInstanceTypesPaginator(ec2client, &ec2.DescribeInstanceTypesInput{})
+
+pagination:
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			return nil, err
+		}
 		for _, instanceType := range output.InstanceTypes {
 			var (
-				deviceCount, deviceSize int64
+				deviceCount int32
+				deviceSize  int64
 			)
 
 			if instanceType.InstanceStorageInfo != nil {
@@ -67,12 +77,12 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 				case 0:
 					// do nothing
 				case 1:
-					deviceCount = aws.Int64Value(storageDisks[0].Count)
-					deviceSize = aws.Int64Value(storageDisks[0].SizeInGB) * gigabyte
+					deviceCount = aws.ToInt32(storageDisks[0].Count)
+					deviceSize = aws.ToInt64(storageDisks[0].SizeInGB) * gigabyte
 				default:
 					// doesn't happen at the moment, raise an error so we can decide how to handle this
-					innerErr = fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), aws.StringValue(instanceType.InstanceType))
-					return false
+					innerErr = fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), string(instanceType.InstanceType))
+					break pagination
 				}
 			}
 
@@ -84,24 +94,20 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 			}
 
 			info := Instance{
-				InstanceType:              aws.StringValue(instanceType.InstanceType),
-				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
-				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
+				InstanceType:              string(instanceType.InstanceType),
+				VCPU:                      aws.ToInt32(instanceType.VCpuInfo.DefaultVCpus),
+				Memory:                    aws.ToInt64(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
 				InstanceStorageDevices:    deviceCount,
 				InstanceStorageDeviceSize: deviceSize,
 				Architecture:              cpuArch,
 			}
 			instances[info.InstanceType] = info
 		}
-		return true
-	})
+
+	}
 	if innerErr != nil {
 		return nil, innerErr
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	log.Debugf("Loaded %d instance types from AWS", len(instances))
 	return &InstanceTypes{instances: instances}, nil
 }
@@ -155,27 +161,27 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 
 // getCompatibleCPUArchitecture returns a single compatible CPU architecture. It's either `amd64` or `arm64`.
 // Other intance types might return 32-bit or macos specific types which will be ignored.
-func getCompatibleCPUArchitecture(instanceType *ec2.InstanceTypeInfo) (string, error) {
-	supportedArchitectures := aws.StringValueSlice(instanceType.ProcessorInfo.SupportedArchitectures)
+func getCompatibleCPUArchitecture(instanceType types.InstanceTypeInfo) (string, error) {
+	supportedArchitectures := instanceType.ProcessorInfo.SupportedArchitectures
 
-	if contains(supportedArchitectures, archX86_64) {
+	if contains(supportedArchitectures, types.ArchitectureTypeX8664) {
 		return archAMD64, nil
 	}
-	if contains(supportedArchitectures, archARM64) {
+	if contains(supportedArchitectures, types.ArchitectureTypeArm64) {
 		return archARM64, nil
 	}
 
 	return "", fmt.Errorf("didn't find compatible cpu architecture within '%v'", supportedArchitectures)
 }
 
-func min(a int64, b int64) int64 {
+func min[T int64 | int32](a T, b T) T {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func contains(s []string, e string) bool {
+func contains[T string | types.ArchitectureType](s []T, e T) bool {
 	for _, a := range s {
 		if a == e {
 			return true
