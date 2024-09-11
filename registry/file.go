@@ -84,6 +84,9 @@ func (r *fileRegistry) UpdateConfigItems(
 				cluster.ID,
 				configItems,
 			)
+			for key, value := range configItems {
+				cluster.ConfigItems[key] = value
+			}
 			return nil
 		}
 	}
