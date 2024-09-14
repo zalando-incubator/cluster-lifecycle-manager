@@ -248,18 +248,12 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	etcdKMSKeyARN, err := awsAdapter.resolveKeyID(etcdKMSKeyAlias)
-	if err != nil {
-		return err
-	}
-
 	values := map[string]interface{}{
 		subnetsValueKey:             azInfo.SubnetsByAZ(),
 		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
-		"etcd_kms_key_arn":          etcdKMSKeyARN,
 	}
 
 	// render the manifests to find out if they're valid
@@ -277,7 +271,13 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// create or update the etcd stack
-	if p.manageEtcdStack {
+	if p.manageEtcdStack && cluster.Provider == string(ZalandoAWSProvider) {
+		etcdKMSKeyARN, err := awsAdapter.resolveKeyID(etcdKMSKeyAlias)
+		if err != nil {
+			return err
+		}
+		values["etcd_kms_key_arn"] = etcdKMSKeyARN
+
 		err = createOrUpdateEtcdStack(ctx, logger, channelConfig, cluster, values, etcdKMSKeyARN, awsAdapter, bucketName, instanceTypes)
 		if err != nil {
 			return err
