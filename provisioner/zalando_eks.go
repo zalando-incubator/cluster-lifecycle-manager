@@ -39,6 +39,7 @@ func NewZalandoEKSProvisioner(
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
 	awsConfig *aws.Config,
+	clusterRegistry registry.Registry,
 	options *Options,
 ) Provisioner {
 	provisioner := &ZalandoEKSProvisioner{
@@ -49,6 +50,7 @@ func NewZalandoEKSProvisioner(
 			secretDecrypter:   secretDecrypter,
 			manageMasterNodes: false,
 			manageEtcdStack:   false,
+			clusterRegistry:   clusterRegistry,
 		},
 	}
 
@@ -57,7 +59,6 @@ func NewZalandoEKSProvisioner(
 		provisioner.applyOnly = options.ApplyOnly
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
-		provisioner.hook = options.Hook
 	}
 
 	return provisioner
@@ -137,83 +138,4 @@ func (z *ZalandoEKSProvisioner) Decommission(
 		cluster,
 		caData,
 	)
-}
-
-// NewZalandoEKSCreationHook returns a new hook for EKS cluster provisioning,
-// configured to use the given cluster registry.
-func NewZalandoEKSCreationHook(
-	clusterRegistry registry.Registry,
-) CreationHook {
-	return &ZalandoEKSCreationHook{
-		clusterRegistry: clusterRegistry,
-	}
-}
-
-// Execute updates the configuration only known after deploying the first
-// CloudFormation stack.
-//
-// The method returns the API server URL, the Certificate Authority data,
-// and the subnets. Additionally Execute updates the configured cluster
-// registry with the EKS API Server URL and the Certificate Authority data.
-func (z *ZalandoEKSCreationHook) Execute(
-	adapter awsInterface,
-	cluster *api.Cluster,
-	cloudFormationOutput map[string]string,
-) (*HookResponse, error) {
-	res := &HookResponse{}
-
-	clusterDetails, err := adapter.GetEKSClusterDetails(cluster)
-	if err != nil {
-		return nil, err
-	}
-	decodedCA, err := base64.StdEncoding.DecodeString(
-		clusterDetails.CertificateAuthority,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if cluster.ConfigItems == nil {
-		cluster.ConfigItems = map[string]string{}
-	}
-
-	toUpdate := map[string]string{}
-	if cluster.ConfigItems[KeyEKSEndpoint] != clusterDetails.Endpoint {
-		toUpdate[KeyEKSEndpoint] = clusterDetails.Endpoint
-	}
-	if cluster.ConfigItems[KeyEKSCAData] != clusterDetails.CertificateAuthority {
-		toUpdate[KeyEKSCAData] = clusterDetails.CertificateAuthority
-	}
-	if cluster.ConfigItems[KeyEKSOIDCIssuerURL] != clusterDetails.OIDCIssuerURL {
-		toUpdate[KeyEKSOIDCIssuerURL] = clusterDetails.OIDCIssuerURL
-	}
-
-	err = z.clusterRegistry.UpdateConfigItems(cluster, toUpdate)
-	if err != nil {
-		return nil, err
-	}
-
-	res.APIServerURL = clusterDetails.Endpoint
-	res.CAData = decodedCA
-
-	subnets := map[string]string{}
-	for key, az := range map[string]string{
-		"EKSSubneta": "eu-central-1a",
-		"EKSSubnetb": "eu-central-1b",
-		"EKSSubnetc": "eu-central-1c",
-	} {
-		if v, ok := cloudFormationOutput[key]; ok {
-			subnets[az] = v
-		}
-	}
-	if len(subnets) > 0 {
-		res.AZInfo = &AZInfo{
-			subnets: subnets,
-		}
-		res.TemplateValues = map[string]interface{}{
-			subnetsValueKey: subnets,
-		}
-	}
-
-	return res, nil
 }

@@ -135,12 +135,12 @@ func main() {
 			secretDecrypter,
 			cfg.AssumedRole,
 			awsConfig,
+			clusterRegistry,
 			&provisioner.Options{
 				DryRun:         cfg.DryRun,
 				ApplyOnly:      cfg.ApplyOnly,
 				UpdateStrategy: cfg.UpdateStrategy,
 				RemoveVolumes:  cfg.RemoveVolumes,
-				Hook:           provisioner.NewZalandoEKSCreationHook(clusterRegistry),
 			},
 		),
 	}
