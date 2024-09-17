@@ -116,6 +116,10 @@ func (r *httpRegistry) UpdateConfigItems(
 		return err
 	}
 
+	if cluster.ConfigItems == nil {
+		cluster.ConfigItems = map[string]string{}
+	}
+
 	for key, value := range configItems {
 		_, err = r.apiClient.ConfigItems.AddOrUpdateConfigItem(
 			config_items.NewAddOrUpdateConfigItemParams().WithClusterID(
@@ -127,6 +131,8 @@ func (r *httpRegistry) UpdateConfigItems(
 		if err != nil {
 			return err
 		}
+
+		cluster.ConfigItems[key] = value
 	}
 
 	return nil
