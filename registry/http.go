@@ -75,6 +75,7 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 		}
 		if account, ok := accounts[c.InfrastructureAccount]; ok {
 			c.Owner = *account.Owner
+			c.AccountName = *account.Name
 		}
 		result = append(result, c)
 	}

@@ -33,6 +33,7 @@ type Cluster struct {
 	Region                string            `json:"region"                 yaml:"region"`
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
+	AccountName           string            `json:"account_name"           yaml:"account_name"`
 }
 
 // Version returns the version derived from a sha1 hash of the cluster struct

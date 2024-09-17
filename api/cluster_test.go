@@ -83,7 +83,7 @@ func TestVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, field := range fields {
-		if field == "Alias" || field == "NodePools" || field == "Owner" || field == "Status" {
+		if field == "Alias" || field == "NodePools" || field == "Owner" || field == "AccountName" || field == "Status" {
 			continue
 		}
 
