@@ -284,7 +284,7 @@ func TestEKSID(t *testing.T) {
 		`{{ eksID "aws:000000:eu-north-1:kube-1" }}`,
 		"")
 	require.NoError(t, err)
-	require.EqualValues(t, "aws--000000--eu-north-1--kube-1", result)
+	require.EqualValues(t, "kube-1", result)
 }
 
 func TestParsePortRanges(t *testing.T) {
