@@ -282,7 +282,8 @@ func list(args ...interface{}) []interface{} {
 }
 
 func eksID(id string) string {
-	return strings.Replace(id, ":", "--", -1)
+	parts := strings.Split(id, ":")
+	return parts[len(parts)-1]
 }
 
 // accountID returns just the ID part of an account
