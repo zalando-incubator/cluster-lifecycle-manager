@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.15.25
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.15.26
 	go.mongodb.org/mongo-driver v1.16.0 // indirect
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/sync v0.8.0
@@ -30,9 +30,9 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.31.0
-	k8s.io/apimachinery v0.31.0
-	k8s.io/client-go v0.31.0
+	k8s.io/api v0.31.1
+	k8s.io/apimachinery v0.31.1
+	k8s.io/client-go v0.31.1
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
 )
@@ -41,7 +41,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/samber/lo v1.47.0
-	sigs.k8s.io/aws-iam-authenticator v0.6.26
+	sigs.k8s.io/aws-iam-authenticator v0.6.27
 )
 
 require (
