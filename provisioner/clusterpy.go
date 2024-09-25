@@ -161,7 +161,7 @@ func (p *clusterpyProvisioner) provision(
 	// fetch instance data that will be used by all the render functions
 	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
 	if err != nil {
-		return fmt.Errorf("failed to fetch instance types from AWS")
+		return fmt.Errorf("failed to fetch instance types from AWS: %v", err)
 	}
 
 	err = p.applyDefaultsToManifests(
