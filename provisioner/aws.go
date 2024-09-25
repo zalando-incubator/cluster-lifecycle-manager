@@ -137,6 +137,10 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 	if err != nil {
 		logger.Fatalf("failed to load AWS config: %v", err)
 	}
+
+	ec2Client := ec2v2.NewFromConfig(cfg, func(o *ec2v2.Options) {
+		o.Region = region
+	})
 	return &awsAdapter{
 		session:              sess,
 		cloudformationClient: cloudformation.New(sess),
@@ -144,7 +148,7 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		s3Client:             s3.New(sess),
 		s3Uploader:           s3manager.NewUploader(sess),
 		autoscalingClient:    autoscaling.New(sess),
-		ec2Client:            ec2v2.NewFromConfig(cfg),
+		ec2Client:            ec2Client,
 		acmClient:            acm.New(sess),
 		eksClient:            eks.New(sess),
 		region:               region,
