@@ -33,26 +33,6 @@ type (
 		) error
 	}
 
-	// CreationHook is an interface that provisioners can use while provisioning
-	// a cluster.
-	//
-	// This is useful for example to pass additional configuration only known at
-	// a later stage of provisioning. For example, when provisioning an EKS
-	// cluster, the provisioner only knows what is the API Server URL after
-	// applying the initial CloudFormation.
-	CreationHook interface {
-		// Execute performs updates used by a provisioner during cluster
-		// creation.
-		Execute(
-			adapter awsInterface,
-			cluster *api.Cluster,
-			cloudFormationOutput map[string]string,
-		) (
-			*HookResponse,
-			error,
-		)
-	}
-
 	// HookResponse contain configuration parameters that a provisioner can use
 	// at a later stage.
 	HookResponse struct {
@@ -69,7 +49,6 @@ type (
 		UpdateStrategy  config.UpdateStrategy
 		RemoveVolumes   bool
 		ManageEtcdStack bool
-		Hook            CreationHook
 	}
 )
 

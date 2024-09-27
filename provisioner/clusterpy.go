@@ -3,6 +3,7 @@ package provisioner
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,6 +26,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
@@ -71,7 +73,7 @@ type clusterpyProvisioner struct {
 	tokenSource       oauth2.TokenSource
 	applyOnly         bool
 	updateStrategy    config.UpdateStrategy
-	hook              CreationHook
+	clusterRegistry   registry.Registry
 	removeVolumes     bool
 	manageEtcdStack   bool
 	manageMasterNodes bool
@@ -298,15 +300,60 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	var postOptions *HookResponse
-	if p.hook != nil {
-		postOptions, err = p.hook.Execute(
-			awsAdapter,
-			cluster,
-			outputs,
+	postOptions := &HookResponse{}
+
+	if cluster.Provider == string(ZalandoEKSProvider) {
+		clusterDetails, err := awsAdapter.GetEKSClusterDetails(cluster)
+		if err != nil {
+			return err
+		}
+		decodedCA, err := base64.StdEncoding.DecodeString(
+			clusterDetails.CertificateAuthority,
 		)
 		if err != nil {
 			return err
+		}
+
+		if cluster.ConfigItems == nil {
+			cluster.ConfigItems = map[string]string{}
+		}
+
+		toUpdate := map[string]string{}
+		if cluster.ConfigItems[KeyEKSEndpoint] != clusterDetails.Endpoint {
+			toUpdate[KeyEKSEndpoint] = clusterDetails.Endpoint
+		}
+		if cluster.ConfigItems[KeyEKSCAData] != clusterDetails.CertificateAuthority {
+			toUpdate[KeyEKSCAData] = clusterDetails.CertificateAuthority
+		}
+		if cluster.ConfigItems[KeyEKSOIDCIssuerURL] != clusterDetails.OIDCIssuerURL {
+			toUpdate[KeyEKSOIDCIssuerURL] = clusterDetails.OIDCIssuerURL
+		}
+
+		err = p.clusterRegistry.UpdateConfigItems(cluster, toUpdate)
+		if err != nil {
+			return err
+		}
+
+		postOptions.APIServerURL = clusterDetails.Endpoint
+		postOptions.CAData = decodedCA
+
+		subnets := map[string]string{}
+		for key, az := range map[string]string{
+			"EKSSubneta": "eu-central-1a",
+			"EKSSubnetb": "eu-central-1b",
+			"EKSSubnetc": "eu-central-1c",
+		} {
+			if v, ok := outputs[key]; ok {
+				subnets[az] = v
+			}
+		}
+		if len(subnets) > 0 {
+			postOptions.AZInfo = &AZInfo{
+				subnets: subnets,
+			}
+			postOptions.TemplateValues = map[string]interface{}{
+				subnetsValueKey: subnets,
+			}
 		}
 
 		if postOptions.APIServerURL != "" {
