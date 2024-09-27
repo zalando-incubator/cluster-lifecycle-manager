@@ -119,14 +119,20 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	if err != nil {
 		return err
 	}
+
+	clusterDetails, err := awsAdapter.GetEKSClusterDetails(cluster)
+	if err != nil {
+		return err
+	}
+	cluster.APIServerURL = clusterDetails.Endpoint
+
 	caData, err := base64.StdEncoding.DecodeString(
-		cluster.ConfigItems[KeyEKSCAData],
+		clusterDetails.CertificateAuthority,
 	)
 	if err != nil {
 		return err
 	}
 
-	cluster.APIServerURL = cluster.ConfigItems[KeyEKSEndpoint]
 	tokenSource := eks.NewTokenSource(awsAdapter.session, eksID(cluster.ID))
 
 	return z.decommission(
