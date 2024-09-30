@@ -164,7 +164,6 @@ func NewZalandoEKSCreationHook(
 func (z *ZalandoEKSCreationHook) Execute(
 	adapter awsInterface,
 	cluster *api.Cluster,
-	cloudFormationOutput map[string]string,
 ) (*HookResponse, error) {
 	res := &HookResponse{}
 
@@ -201,25 +200,7 @@ func (z *ZalandoEKSCreationHook) Execute(
 
 	res.APIServerURL = clusterDetails.Endpoint
 	res.CAData = decodedCA
-
-	subnets := map[string]string{}
-	for key, az := range map[string]string{
-		"EKSSubneta": "eu-central-1a",
-		"EKSSubnetb": "eu-central-1b",
-		"EKSSubnetc": "eu-central-1c",
-	} {
-		if v, ok := cloudFormationOutput[key]; ok {
-			subnets[az] = v
-		}
-	}
-	if len(subnets) > 0 {
-		res.AZInfo = &AZInfo{
-			subnets: subnets,
-		}
-		res.TemplateValues = map[string]interface{}{
-			subnetsValueKey: subnets,
-		}
-	}
+	res.ServiceIPv6CIDR = clusterDetails.ServiceIPv6CIDR
 
 	return res, nil
 }

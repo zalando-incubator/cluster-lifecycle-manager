@@ -45,6 +45,7 @@ const (
 	stackTagValueTrue                  = "true"
 	subnetsConfigItemKey               = "subnets"
 	subnetsValueKey                    = "subnets"
+	subnetIPV6CIDRsKey                 = "subnet_ipv6_cidrs"
 	availabilityZonesConfigItemKey     = "availability_zones"
 	availabilityZonesValueKey          = "availability_zones"
 	vpcIDConfigItemKey                 = "vpc_id"
@@ -254,6 +255,7 @@ func (p *clusterpyProvisioner) provision(
 	values := map[string]interface{}{
 		subnetsValueKey:             azInfo.SubnetsByAZ(),
 		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
+		subnetIPV6CIDRsKey:          strings.Join(azInfo.SubnetIPv6CIDRs(), ","),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
@@ -306,7 +308,6 @@ func (p *clusterpyProvisioner) provision(
 		postOptions, err = p.hook.Execute(
 			awsAdapter,
 			cluster,
-			outputs,
 		)
 		if err != nil {
 			return err
@@ -315,11 +316,8 @@ func (p *clusterpyProvisioner) provision(
 		if postOptions.APIServerURL != "" {
 			cluster.APIServerURL = postOptions.APIServerURL
 		}
-		if postOptions.AZInfo != nil {
-			azInfo = postOptions.AZInfo
-		}
-		for k, v := range postOptions.TemplateValues {
-			values[k] = v
+		if postOptions.ServiceIPv6CIDR != "" {
+			cluster.ConfigItems["service_ipv6_cidr"] = postOptions.ServiceIPv6CIDR
 		}
 	}
 
@@ -651,9 +649,15 @@ func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 		}
 	}
 
-	result := make(map[string]string, len(subnetsByAZ))
+	result := make(map[string]SubnetInfo, len(subnetsByAZ))
 	for az, subnet := range subnetsByAZ {
-		result[az] = aws.StringValue(subnet.SubnetId)
+		subnetInfo := SubnetInfo{
+			SubnetID: aws.StringValue(subnet.SubnetId),
+		}
+		for _, ipv6Cidr := range subnet.Ipv6CidrBlockAssociationSet {
+			subnetInfo.SubnetIPV6CIDRs = append(subnetInfo.SubnetIPV6CIDRs, aws.StringValue(ipv6Cidr.Ipv6CidrBlock))
+		}
+		result[az] = subnetInfo
 	}
 
 	return &AZInfo{subnets: result}

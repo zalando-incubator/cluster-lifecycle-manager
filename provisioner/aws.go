@@ -761,6 +761,7 @@ type EKSClusterDetails struct {
 	Endpoint             string
 	CertificateAuthority string
 	OIDCIssuerURL        string
+	ServiceIPv6CIDR      string
 }
 
 func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDetails, error) {
@@ -775,5 +776,6 @@ func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDeta
 		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
 		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
 		OIDCIssuerURL:        aws.StringValue(resp.Cluster.Identity.Oidc.Issuer),
+		ServiceIPv6CIDR:      aws.StringValue(resp.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr),
 	}, nil
 }

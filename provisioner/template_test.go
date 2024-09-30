@@ -1485,3 +1485,36 @@ func TestScalingTemplate(t *testing.T) {
 		})
 	}
 }
+
+func TestAddressNFromIPv6CIDR(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		cidr     string
+		input    string
+		expected string
+		err      bool
+	}{
+		{
+			name:     "50th address of IPv6 CIDR",
+			cidr:     "2a05:d014:9c0:bf05::/64",
+			input:    `{{ addressNFromIPv6CIDR .Values.data.cidr 50 }}`,
+			expected: "2a05:d014:9c0:bf05::32",
+		},
+		{
+			name:  "invalid CIDR causes error",
+			cidr:  "2a05:d014:9c0:bf05::/2000", // invalid CIDR
+			input: `{{ addressNFromIPv6CIDR .Values.data.cidr 50 }}`,
+			err:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := renderSingle(t, tc.input, map[string]string{"cidr": tc.cidr})
+			if tc.err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.EqualValues(t, tc.expected, result)
+			}
+		})
+	}
+}
