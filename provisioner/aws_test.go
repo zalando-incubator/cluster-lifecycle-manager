@@ -119,12 +119,6 @@ func (c *cloudFormationAPIStub) getStatus() *string {
 	return c.status
 }
 
-func (c *cloudFormationAPIStub) setStatusReason(statusReason string) {
-	c.statusMutex.Lock()
-	c.statusReason = &statusReason
-	c.statusMutex.Unlock()
-}
-
 func (c *cloudFormationAPIStub) getStatusReason() *string {
 	c.statusMutex.Lock()
 	defer c.statusMutex.Unlock()
