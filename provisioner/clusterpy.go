@@ -60,6 +60,9 @@ const (
 	customSubnetTag                    = "zalando.org/custom-subnet"
 	etcdKMSKeyAlias                    = "alias/etcd-cluster"
 	karpenterNodePoolProfile           = "worker-karpenter"
+
+	applicationTagKey = "application"
+	componentTagKey   = "component"
 )
 
 type clusterpyProvisioner struct {
@@ -923,7 +926,7 @@ func (p *clusterpyProvisioner) updater(
 	}
 
 	noScheduleTaint := false
-	if v, _ := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
+	if v := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
 	k8sClients, err := kubernetes.NewClientsCollection(

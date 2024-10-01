@@ -17,8 +17,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const kmsKeyPrefix = "arn:aws:kms"
-
 type FilesRenderer struct {
 	awsAdapter    *awsAdapter
 	cluster       *api.Cluster

@@ -70,6 +70,6 @@ func base64UrlEncode(input []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	trimmed := strings.TrimRight(string(buffer.Bytes()), "=")
+	trimmed := strings.TrimRight(buffer.String(), "=")
 	return []byte(trimmed), nil
 }

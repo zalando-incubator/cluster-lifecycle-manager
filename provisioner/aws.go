@@ -45,18 +45,6 @@ const (
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
 	stackUpdateRetryDuration    = time.Duration(5) * time.Minute
-
-	etcdInstanceTypeConfigItem      = "etcd_instance_type"
-	etcdInstanceCountConfigItem     = "etcd_instance_count"
-	etcdScalyrKeyConfigItem         = "etcd_scalyr_key"
-	etcdBackupBucketConfigItem      = "etcd_s3_backup_bucket"
-	etcdClientCAConfigItem          = "etcd_client_ca_cert"
-	etcdClientKeyConfigItem         = "etcd_client_server_key"
-	etcdClientCertificateConfigItem = "etcd_client_server_cert"
-	etcdImageConfigItem             = "etcd_image"
-
-	applicationTagKey = "application"
-	componentTagKey   = "component"
 )
 
 var (

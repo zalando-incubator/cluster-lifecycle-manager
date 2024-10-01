@@ -263,7 +263,7 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	}
 
 	nodes, err := p.k8sClients.List(ctx, "nodes", "", metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("karpenter.sh/nodepool"),
+		LabelSelector: "karpenter.sh/nodepool",
 	})
 	if err != nil {
 		return err
@@ -314,8 +314,7 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 // TODO: move AWS specific implementation to a separate file/package.
 type AWSNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
-	azInfo          *AZInfo
-	templateContext *templateContext
+	azInfo *AZInfo
 }
 
 // Provision provisions node pools of the cluster.
