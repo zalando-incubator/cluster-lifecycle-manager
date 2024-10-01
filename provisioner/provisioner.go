@@ -46,7 +46,6 @@ type (
 		Execute(
 			adapter awsInterface,
 			cluster *api.Cluster,
-			cloudFormationOutput map[string]string,
 		) (
 			*HookResponse,
 			error,
@@ -56,10 +55,9 @@ type (
 	// HookResponse contain configuration parameters that a provisioner can use
 	// at a later stage.
 	HookResponse struct {
-		APIServerURL   string
-		AZInfo         *AZInfo
-		CAData         []byte
-		TemplateValues map[string]interface{}
+		APIServerURL    string
+		CAData          []byte
+		ServiceIPv6CIDR string
 	}
 
 	// Options is the options that can be passed to a provisioner when initialized.
