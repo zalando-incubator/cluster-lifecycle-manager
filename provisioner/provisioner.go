@@ -55,9 +55,9 @@ type (
 	// HookResponse contain configuration parameters that a provisioner can use
 	// at a later stage.
 	HookResponse struct {
-		APIServerURL    string
-		CAData          []byte
-		ServiceIPv6CIDR string
+		APIServerURL string
+		CAData       []byte
+		ServiceCIDR  string
 	}
 
 	// Options is the options that can be passed to a provisioner when initialized.
