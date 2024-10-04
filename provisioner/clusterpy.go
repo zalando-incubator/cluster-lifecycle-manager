@@ -316,8 +316,8 @@ func (p *clusterpyProvisioner) provision(
 		if postOptions.APIServerURL != "" {
 			cluster.APIServerURL = postOptions.APIServerURL
 		}
-		if postOptions.ServiceIPv6CIDR != "" {
-			cluster.ConfigItems["service_ipv6_cidr"] = postOptions.ServiceIPv6CIDR
+		if postOptions.ServiceCIDR != "" {
+			cluster.ConfigItems["service_cidr"] = postOptions.ServiceCIDR
 		}
 	}
 

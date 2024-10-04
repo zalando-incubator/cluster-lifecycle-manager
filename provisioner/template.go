@@ -116,7 +116,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		},
 		"nodeCIDRMaxNodesPodCIDR":               nodeCIDRMaxNodes,
 		"nodeCIDRMaxPods":                       nodeCIDRMaxPods,
-		"addressNFromIPv6CIDR":                  addressNFromIPv6CIDR,
+		"nthAddressFromCIDR":                    nthAddressFromCIDR,
 		"parseInt64":                            parseInt64,
 		"generateJWKSDocument":                  generateJWKSDocument,
 		"generateOIDCDiscoveryDocument":         generateOIDCDiscoveryDocument,
@@ -582,22 +582,33 @@ func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
 	return maxPods, nil
 }
 
-// addressNFromIPv6CIDR takes an IPv6 CIDR and returns the Nth address in the
-// subnet.
-func addressNFromIPv6CIDR(cidr string, n int) (string, error) {
+// nthAddressFromCIDR takes an IPv4 or IPv6 CIDR and returns the Nth address in
+// the subnet.
+func nthAddressFromCIDR(cidr string, n int) (string, error) {
 	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return "", err
 	}
 
 	ip := ipNet.IP
-	ip = ip.To16()
-	if ip == nil {
-		return "", fmt.Errorf("invalid IP address: %s", ipNet.IP)
+
+	nthByte := 0
+	if ip.To4() != nil {
+		// ipv4 address
+		nthByte = 3
+		ip = ip.To4()
+	} else {
+		// ipv6 address
+		ip = ip.To16()
+		if ip == nil {
+			return "", fmt.Errorf("invalid IP address: %s", ipNet.IP)
+		}
+		nthByte = 15
 	}
+
 	ip = ip.Mask(ipNet.Mask)
 	for i := 0; i < n; i++ {
-		ip[15]++
+		ip[nthByte]++
 	}
 	return ip.String(), nil
 }

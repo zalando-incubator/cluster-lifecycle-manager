@@ -761,7 +761,7 @@ type EKSClusterDetails struct {
 	Endpoint             string
 	CertificateAuthority string
 	OIDCIssuerURL        string
-	ServiceIPv6CIDR      string
+	ServiceCIDR          string
 }
 
 func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDetails, error) {
@@ -772,10 +772,17 @@ func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDeta
 		return nil, err
 	}
 
-	return &EKSClusterDetails{
+	clusterDetails := &EKSClusterDetails{
 		Endpoint:             aws.StringValue(resp.Cluster.Endpoint),
 		CertificateAuthority: aws.StringValue(resp.Cluster.CertificateAuthority.Data),
 		OIDCIssuerURL:        aws.StringValue(resp.Cluster.Identity.Oidc.Issuer),
-		ServiceIPv6CIDR:      aws.StringValue(resp.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr),
-	}, nil
+	}
+
+	if aws.StringValue(resp.Cluster.KubernetesNetworkConfig.IpFamily) == "ipv4" {
+		clusterDetails.ServiceCIDR = aws.StringValue(resp.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr)
+	} else {
+		clusterDetails.ServiceCIDR = aws.StringValue(resp.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr)
+	}
+
+	return clusterDetails, nil
 }

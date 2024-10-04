@@ -1486,7 +1486,7 @@ func TestScalingTemplate(t *testing.T) {
 	}
 }
 
-func TestAddressNFromIPv6CIDR(t *testing.T) {
+func TestNthAddressFromCIDR(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		cidr     string
@@ -1495,15 +1495,27 @@ func TestAddressNFromIPv6CIDR(t *testing.T) {
 		err      bool
 	}{
 		{
+			name:     "50th address of IPv4 CIDR",
+			cidr:     "172.20.0.0/16",
+			input:    `{{ nthAddressFromCIDR .Values.data.cidr 50 }}`,
+			expected: "172.20.0.50",
+		},
+		{
+			name:  "invalid CIDR causes error",
+			cidr:  "172.20.0.0/100", // invalid CIDR
+			input: `{{ nthAddressFromCIDR .Values.data.cidr 50 }}`,
+			err:   true,
+		},
+		{
 			name:     "50th address of IPv6 CIDR",
 			cidr:     "2a05:d014:9c0:bf05::/64",
-			input:    `{{ addressNFromIPv6CIDR .Values.data.cidr 50 }}`,
+			input:    `{{ nthAddressFromCIDR .Values.data.cidr 50 }}`,
 			expected: "2a05:d014:9c0:bf05::32",
 		},
 		{
 			name:  "invalid CIDR causes error",
 			cidr:  "2a05:d014:9c0:bf05::/2000", // invalid CIDR
-			input: `{{ addressNFromIPv6CIDR .Values.data.cidr 50 }}`,
+			input: `{{ nthAddressFromCIDR .Values.data.cidr 50 }}`,
 			err:   true,
 		},
 	} {

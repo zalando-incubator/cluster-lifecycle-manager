@@ -200,7 +200,7 @@ func (z *ZalandoEKSCreationHook) Execute(
 
 	res.APIServerURL = clusterDetails.Endpoint
 	res.CAData = decodedCA
-	res.ServiceIPv6CIDR = clusterDetails.ServiceIPv6CIDR
+	res.ServiceCIDR = clusterDetails.ServiceCIDR
 
 	return res, nil
 }
