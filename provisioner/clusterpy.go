@@ -715,10 +715,15 @@ func (p *clusterpyProvisioner) decommission(
 		}
 		return updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
 	})
-	err = ec2Backend.DecommissionKarpenterNodes(ctx)
-	if err != nil {
-		logger.Errorf("Unable to decommission karpenter node-pools, proceeding anyway: %v", err)
+	for _, nodePool := range cluster.NodePools {
+		if nodePool.Profile == karpenterNodePoolProfile {
+			err := ec2Backend.DecommissionNodePool(ctx, nodePool)
+			if err != nil {
+				logger.Errorf("Unable to decommission karpenter node-pool '%s', proceeding anyway: %v", nodePool.Name, err)
+			}
+		}
 	}
+
 	// make E2E tests and deletions less flaky
 	// The problem is that we scale down kube-ingress-aws-controller deployment
 	// and just after that we delete CF stacks, but if the pod
