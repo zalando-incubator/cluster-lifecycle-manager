@@ -1285,6 +1285,30 @@ func TestList(t *testing.T) {
 `, result)
 }
 
+func TestJoin(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		data     interface{}
+		expected string
+	}{
+		{
+			name:     "join items",
+			template: `{{ .Values.data.items | join "," }}`,
+			data: map[string]interface{}{
+				"items": []interface{}{"a", "b", "c"},
+			},
+			expected: `a,b,c`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, tc.data)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
+}
+
 func TestScaleQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

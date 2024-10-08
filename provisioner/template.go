@@ -95,6 +95,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azID":                 azID,
 		"azCount":              azCount,
 		"split":                split,
+		"join":                 sprig.GenericFuncMap()["join"],
 		"eksID":                eksID,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,

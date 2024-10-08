@@ -252,6 +252,11 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
+	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
+	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
+		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.StringValue(ipv6Cidr.Ipv6CidrBlock))
+	}
+
 	values := map[string]interface{}{
 		subnetsValueKey:             azInfo.SubnetsByAZ(),
 		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
@@ -259,6 +264,7 @@ func (p *clusterpyProvisioner) provision(
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
+		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 
 	// render the manifests to find out if they're valid
