@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
+	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2v2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -25,20 +25,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	zaws "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type ec2APIStub struct {
-	ec2iface.EC2API
+	zaws.EC2API
 }
 
-func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
-	*ec2.DescribeVpcsOutput,
+func (e *ec2APIStub) DescribeVpcs(context.Context, *ec2v2.DescribeVpcsInput, ...func(*ec2v2.Options)) (
+	*ec2v2.DescribeVpcsOutput,
 	error,
 ) {
-	return &ec2.DescribeVpcsOutput{
-		Vpcs: []*ec2.Vpc{{IsDefault: aws.Bool(false)}},
+	return &ec2v2.DescribeVpcsOutput{
+		Vpcs: []ec2v2types.Vpc{{IsDefault: aws.Bool(false)}},
 	}, nil
 }
 

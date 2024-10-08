@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,8 +21,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
+	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2v2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -529,11 +531,11 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 		return "", fmt.Errorf("the ec2 client is not available")
 	}
 
-	input := ec2.DescribeImagesInput{Filters: []*ec2.Filter{
-		{Name: aws.String(describeImageFilterNameName), Values: aws.StringSlice([]string{imageName})},
-		{Name: aws.String(describeImageFilterNameOwner), Values: aws.StringSlice([]string{imageOwner})},
+	input := ec2v2.DescribeImagesInput{Filters: []ec2v2types.Filter{
+		{Name: aws.String(describeImageFilterNameName), Values: []string{imageName}},
+		{Name: aws.String(describeImageFilterNameOwner), Values: []string{imageOwner}},
 	}}
-	output, err := adapter.ec2Client.DescribeImages(&input)
+	output, err := adapter.ec2Client.DescribeImages(context.TODO(), &input)
 	if err != nil {
 		return "", fmt.Errorf("failed to describe image with name %s and owner %s: %v", imageName, imageOwner, err)
 	}

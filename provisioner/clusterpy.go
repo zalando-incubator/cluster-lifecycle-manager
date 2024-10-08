@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	ec2v2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -164,7 +165,7 @@ func (p *clusterpyProvisioner) provision(
 	// fetch instance data that will be used by all the render functions
 	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
 	if err != nil {
-		return fmt.Errorf("failed to fetch instance types from AWS")
+		return fmt.Errorf("failed to fetch instance types from AWS: %v", err)
 	}
 
 	err = p.applyDefaultsToManifests(
@@ -178,7 +179,7 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// get VPC information
-	var vpc *ec2.Vpc
+	var vpc *ec2v2types.Vpc
 	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
 	if !ok { // if vpcID is not defined, autodiscover it
 		vpc, err = awsAdapter.GetDefaultVPC()
@@ -579,8 +580,8 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 	return outputs, nil
 }
 
-func filterSubnets(subnets []*ec2.Subnet, filter func(*ec2.Subnet) bool) []*ec2.Subnet {
-	var filtered []*ec2.Subnet
+func filterSubnets(subnets []ec2v2types.Subnet, filter func(ec2v2types.Subnet) bool) []ec2v2types.Subnet {
+	var filtered []ec2v2types.Subnet
 	for _, subnet := range subnets {
 		if filter(subnet) {
 			filtered = append(filtered, subnet)
@@ -590,8 +591,8 @@ func filterSubnets(subnets []*ec2.Subnet, filter func(*ec2.Subnet) bool) []*ec2.
 	return filtered
 }
 
-func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
-	return func(subnet *ec2.Subnet) bool {
+func subnetIDIncluded(ids []string) func(ec2v2types.Subnet) bool {
+	return func(subnet ec2v2types.Subnet) bool {
 		for _, id := range ids {
 			if aws.StringValue(subnet.SubnetId) == id {
 				return true
@@ -602,7 +603,7 @@ func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
 	}
 }
 
-func isCustomSubnet(subnet *ec2.Subnet) bool {
+func isCustomSubnet(subnet ec2v2types.Subnet) bool {
 	for _, tag := range subnet.Tags {
 		if aws.StringValue(tag.Key) == customSubnetTag {
 			return true
@@ -612,8 +613,8 @@ func isCustomSubnet(subnet *ec2.Subnet) bool {
 	return false
 }
 
-func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
-	return func(s *ec2.Subnet) bool {
+func subnetNot(predicate func(ec2v2types.Subnet) bool) func(ec2v2types.Subnet) bool {
+	return func(s ec2v2types.Subnet) bool {
 		return !predicate(s)
 	}
 }
@@ -624,8 +625,8 @@ func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
 // kube-controller-manager when finding subnets for ELBs used for services of
 // type LoadBalancer.
 // https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
-func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
-	subnetsByAZ := make(map[string]*ec2.Subnet)
+func selectSubnetIDs(subnets []ec2v2types.Subnet) *AZInfo {
+	subnetsByAZ := make(map[string]ec2v2types.Subnet)
 	for _, subnet := range subnets {
 		az := aws.StringValue(subnet.AvailabilityZone)
 
@@ -771,16 +772,16 @@ func (p *clusterpyProvisioner) removeEBSVolumes(awsAdapter *awsAdapter, cluster 
 	}
 
 	for _, volume := range volumes {
-		switch aws.StringValue(volume.State) {
-		case ec2.VolumeStateDeleted, ec2.VolumeStateDeleting:
+		switch volume.State {
+		case ec2v2types.VolumeStateDeleted, ec2v2types.VolumeStateDeleting:
 			// skip
-		case ec2.VolumeStateAvailable:
+		case ec2v2types.VolumeStateAvailable:
 			err := awsAdapter.DeleteVolume(aws.StringValue(volume.VolumeId))
 			if err != nil {
 				return fmt.Errorf("failed to delete EBS volume %s: %s", aws.StringValue(volume.VolumeId), err)
 			}
 		default:
-			return fmt.Errorf("unable to delete EBS volume %s: volume in state %s", aws.StringValue(volume.VolumeId), aws.StringValue(volume.State))
+			return fmt.Errorf("unable to delete EBS volume %s: volume in state %s", aws.StringValue(volume.VolumeId), string(volume.State))
 		}
 	}
 
