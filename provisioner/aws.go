@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2v2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -18,8 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -32,6 +33,7 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	zaws "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	yaml "gopkg.in/yaml.v2"
@@ -99,7 +101,7 @@ type (
 		s3Uploader           s3UploaderAPI
 		autoscalingClient    autoscalingAPI
 		iamClient            iamiface.IAMAPI
-		ec2Client            ec2iface.EC2API
+		ec2Client            zaws.EC2API
 		acmClient            acmiface.ACMAPI
 		eksClient            eksiface.EKSAPI
 		region               string
@@ -119,6 +121,14 @@ type (
 
 // newAWSAdapter initializes a new awsAdapter.
 func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, dryRun bool) *awsAdapter {
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		logger.Fatalf("failed to load AWS config: %v", err)
+	}
+
+	ec2Client := ec2v2.NewFromConfig(cfg, func(o *ec2v2.Options) {
+		o.Region = region
+	})
 	return &awsAdapter{
 		session:              sess,
 		cloudformationClient: cloudformation.New(sess),
@@ -126,7 +136,7 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		s3Client:             s3.New(sess),
 		s3Uploader:           s3manager.NewUploader(sess),
 		autoscalingClient:    autoscaling.New(sess),
-		ec2Client:            ec2.New(sess),
+		ec2Client:            ec2Client,
 		acmClient:            acm.New(sess),
 		eksClient:            eks.New(sess),
 		region:               region,
@@ -545,17 +555,17 @@ func (a *awsAdapter) createS3Bucket(bucket string) error {
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 }
 
-func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
-	var filters []*ec2.Filter
+func (a *awsAdapter) GetVolumes(tags map[string]string) ([]ec2v2types.Volume, error) {
+	var filters []ec2v2types.Filter
 
 	for tagKey, tagValue := range tags {
-		filters = append(filters, &ec2.Filter{
+		filters = append(filters, ec2v2types.Filter{
 			Name:   aws.String(fmt.Sprintf("tag:%s", tagKey)),
-			Values: []*string{aws.String(tagValue)},
+			Values: []string{tagValue},
 		})
 	}
 
-	result, err := a.ec2Client.DescribeVolumes(&ec2.DescribeVolumesInput{Filters: filters})
+	result, err := a.ec2Client.DescribeVolumes(context.TODO(), &ec2v2.DescribeVolumesInput{Filters: filters})
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +573,7 @@ func (a *awsAdapter) GetVolumes(tags map[string]string) ([]*ec2.Volume, error) {
 }
 
 func (a *awsAdapter) DeleteVolume(id string) error {
-	_, err := a.ec2Client.DeleteVolume(&ec2.DeleteVolumeInput{
+	_, err := a.ec2Client.DeleteVolume(context.TODO(), &ec2v2.DeleteVolumeInput{
 		VolumeId: aws.String(id),
 	})
 	return err
@@ -620,21 +630,21 @@ func (a *awsAdapter) getCertificateSummaryFromACM(arn *string) (*certs.Certifica
 }
 
 // GetDefaultVPC gets the default VPC.
-func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
+func (a *awsAdapter) GetDefaultVPC() (*ec2v2types.Vpc, error) {
 	// find default VPC
-	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{})
+	vpcResp, err := a.ec2Client.DescribeVpcs(context.TODO(), &ec2v2.DescribeVpcsInput{})
 	if err != nil {
 		return nil, err
 	}
 
 	if len(vpcResp.Vpcs) == 1 {
-		return vpcResp.Vpcs[0], nil
+		return &vpcResp.Vpcs[0], nil
 	}
 
-	var defaultVpc *ec2.Vpc
+	var defaultVpc *ec2v2types.Vpc
 	for _, vpc := range vpcResp.Vpcs {
 		if aws.BoolValue(vpc.IsDefault) {
-			defaultVpc = vpc
+			defaultVpc = &vpc
 			break
 		}
 	}
@@ -647,10 +657,10 @@ func (a *awsAdapter) GetDefaultVPC() (*ec2.Vpc, error) {
 }
 
 // GetVPC gets VPC details for vpc specified by vpcID.
-func (a *awsAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
+func (a *awsAdapter) GetVPC(vpcID string) (*ec2v2types.Vpc, error) {
 	// find default VPC
-	vpcResp, err := a.ec2Client.DescribeVpcs(&ec2.DescribeVpcsInput{
-		VpcIds: []*string{aws.String(vpcID)},
+	vpcResp, err := a.ec2Client.DescribeVpcs(context.TODO(), &ec2v2.DescribeVpcsInput{
+		VpcIds: []string{vpcID},
 	})
 	if err != nil {
 		return nil, err
@@ -660,21 +670,21 @@ func (a *awsAdapter) GetVPC(vpcID string) (*ec2.Vpc, error) {
 		return nil, fmt.Errorf("found %d VPC for VPCID %s, expected 1", len(vpcResp.Vpcs), vpcID)
 	}
 
-	return vpcResp.Vpcs[0], nil
+	return &vpcResp.Vpcs[0], nil
 }
 
 // GetSubnets gets all subnets of the default VPC in the target account.
-func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
-	subnetParams := &ec2.DescribeSubnetsInput{
-		Filters: []*ec2.Filter{
+func (a *awsAdapter) GetSubnets(vpcID string) ([]ec2v2types.Subnet, error) {
+	subnetParams := &ec2v2.DescribeSubnetsInput{
+		Filters: []ec2v2types.Filter{
 			{
 				Name:   aws.String("vpc-id"),
-				Values: []*string{aws.String(vpcID)},
+				Values: []string{vpcID},
 			},
 		},
 	}
 
-	subnetResp, err := a.ec2Client.DescribeSubnets(subnetParams)
+	subnetResp, err := a.ec2Client.DescribeSubnets(context.TODO(), subnetParams)
 	if err != nil {
 		return nil, err
 	}
@@ -683,24 +693,24 @@ func (a *awsAdapter) GetSubnets(vpcID string) ([]*ec2.Subnet, error) {
 }
 
 // CreateTags adds or updates tags of a kubernetes.Resource.
-func (a *awsAdapter) CreateTags(resource string, tags []*ec2.Tag) error {
-	params := &ec2.CreateTagsInput{
-		Resources: []*string{aws.String(resource)},
+func (a *awsAdapter) CreateTags(resource string, tags []ec2v2types.Tag) error {
+	params := &ec2v2.CreateTagsInput{
+		Resources: []string{resource},
 		Tags:      tags,
 	}
 
-	_, err := a.ec2Client.CreateTags(params)
+	_, err := a.ec2Client.CreateTags(context.TODO(), params)
 	return err
 }
 
 // DeleteTags deletes tags from a kubernetes.Resource.
-func (a *awsAdapter) DeleteTags(resource string, tags []*ec2.Tag) error {
-	params := &ec2.DeleteTagsInput{
-		Resources: []*string{aws.String(resource)},
+func (a *awsAdapter) DeleteTags(resource string, tags []ec2v2types.Tag) error {
+	params := &ec2v2.DeleteTagsInput{
+		Resources: []string{resource},
 		Tags:      tags,
 	}
 
-	_, err := a.ec2Client.DeleteTags(params)
+	_, err := a.ec2Client.DeleteTags(context.TODO(), params)
 	return err
 }
 
@@ -748,7 +758,7 @@ func isStackUpdateInProgressErr(err error) bool {
 }
 
 // tagsToMap converts a list of ec2 tags to a map.
-func tagsToMap(tags []*ec2.Tag) map[string]string {
+func tagsToMap(tags []ec2v2types.Tag) map[string]string {
 	tagMap := make(map[string]string, len(tags))
 	for _, tag := range tags {
 		tagMap[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)

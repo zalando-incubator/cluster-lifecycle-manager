@@ -1,13 +1,14 @@
 package provisioner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
 
+	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2v2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -486,22 +487,22 @@ func TestStupsNATSubnetsErrors(t *testing.T) {
 }
 
 type mockEC2Client struct {
-	ec2iface.EC2API
+	awsUtils.EC2API
 	t               *testing.T
 	kubernetesImage string
 	ownerID         string
-	output          []*ec2.Image
+	output          []ec2v2types.Image
 }
 
-func (c mockEC2Client) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+func (c mockEC2Client) DescribeImages(_ context.Context, input *ec2v2.DescribeImagesInput, _ ...func(*ec2v2.Options)) (*ec2v2.DescribeImagesOutput, error) {
 	require.Len(c.t, input.Filters, 2)
 	require.Equal(c.t, describeImageFilterNameName, *input.Filters[0].Name)
 	require.Len(c.t, input.Filters[0].Values, 1)
-	require.Equal(c.t, c.kubernetesImage, *input.Filters[0].Values[0])
+	require.Equal(c.t, c.kubernetesImage, input.Filters[0].Values[0])
 	require.Equal(c.t, describeImageFilterNameOwner, *input.Filters[1].Name)
 	require.Len(c.t, input.Filters[1].Values, 1)
-	require.Equal(c.t, c.ownerID, *input.Filters[1].Values[0])
-	return &ec2.DescribeImagesOutput{Images: c.output}, nil
+	require.Equal(c.t, c.ownerID, input.Filters[1].Values[0])
+	return &ec2v2.DescribeImagesOutput{Images: c.output}, nil
 }
 
 func TestAmiID(t *testing.T) {
@@ -510,7 +511,7 @@ func TestAmiID(t *testing.T) {
 		imageName string
 		ownerID   string
 		imageID   string
-		output    []*ec2.Image
+		output    []ec2v2types.Image
 		expectErr bool
 	}{
 		{
@@ -518,14 +519,14 @@ func TestAmiID(t *testing.T) {
 			imageName: "kubernetes-image-ami",
 			ownerID:   "8085",
 			imageID:   "ami-0001dsf",
-			output:    []*ec2.Image{{ImageId: aws.String("ami-0001dsf")}},
+			output:    []ec2v2types.Image{{ImageId: aws.String("ami-0001dsf")}},
 			expectErr: false,
 		},
 		{
 			name:      "multiple images",
 			imageName: "kubernetes-image-ami",
 			ownerID:   "8085",
-			output:    []*ec2.Image{{ImageId: aws.String("ami-00232ccd")}, {ImageId: aws.String("ami-0001dsf")}},
+			output:    []ec2v2types.Image{{ImageId: aws.String("ami-00232ccd")}, {ImageId: aws.String("ami-0001dsf")}},
 			expectErr: true,
 		},
 	} {
