@@ -221,18 +221,18 @@ func (p *clusterpyProvisioner) provision(
 
 	// find the best subnet for each AZ
 	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
-	azInfoWorkers := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
 
 	// if availability zones are defined, filter the subnet list
 	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
 		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
-		azInfoWorkers = azInfoWorkers.RestrictAZs(strings.Split(azNames, ","))
+		azInfoNodes = azInfoNodes.RestrictAZs(strings.Split(azNames, ","))
 	}
 
 	// optional config item to hard-code subnets. This is useful for
 	// migrating between subnets.
 	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-		cluster.ConfigItems[subnetsConfigItemKey] = azInfoWorkers.SubnetsByAZ()[subnetAllAZName]
+		cluster.ConfigItems[subnetsConfigItemKey] = azInfoNodes.SubnetsByAZ()[subnetAllAZName]
 	}
 
 	apiURL, err := url.Parse(cluster.APIServerURL)
@@ -262,9 +262,9 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	values := map[string]interface{}{
-		subnetsValueKey:             azInfoWorkers.SubnetsByAZ(),
-		availabilityZonesValueKey:   azInfoWorkers.AvailabilityZones(),
-		subnetIPV6CIDRsKey:          strings.Join(azInfoWorkers.SubnetIPv6CIDRs(), ","),
+		subnetsValueKey:             azInfoNodes.SubnetsByAZ(),
+		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
+		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
 		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
@@ -355,7 +355,7 @@ func (p *clusterpyProvisioner) provision(
 			encodeUserData: true,
 			instanceTypes:  instanceTypes,
 		},
-		azInfo: azInfoWorkers,
+		azInfo: azInfoNodes,
 	}
 
 	karpenterProvisioner, err := NewKarpenterNodePoolProvisioner(
