@@ -39,6 +39,7 @@ const (
 	defaultNamespace                   = "default"
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
+	subnetWorkerRoleTagName            = "kubernetes.io/role/worker"
 	resourceLifecycleShared            = "shared"
 	resourceLifecycleOwned             = "owned"
 	mainStackTagKey                    = "cluster-lifecycle-controller.zalando.org/main-stack"
@@ -219,16 +220,18 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// find the best subnet for each AZ
-	azInfo := selectSubnetIDs(subnets)
+	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
+	azInfoWorkers := selectSubnetIDs(subnets, subnetWorkerRoleTagName)
 
 	// if availability zones are defined, filter the subnet list
 	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
-		azInfo = azInfo.RestrictAZs(strings.Split(azNames, ","))
+		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
+		azInfoWorkers = azInfoWorkers.RestrictAZs(strings.Split(azNames, ","))
 	}
 
 	// TODO legacy, remove once we switch to Values in all clusters
 	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-		cluster.ConfigItems[subnetsConfigItemKey] = azInfo.SubnetsByAZ()[subnetAllAZName]
+		cluster.ConfigItems[subnetsConfigItemKey] = azInfoWorkers.SubnetsByAZ()[subnetAllAZName]
 	}
 
 	apiURL, err := url.Parse(cluster.APIServerURL)
@@ -258,9 +261,10 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	values := map[string]interface{}{
-		subnetsValueKey:             azInfo.SubnetsByAZ(),
-		availabilityZonesValueKey:   azInfo.AvailabilityZones(),
-		subnetIPV6CIDRsKey:          strings.Join(azInfo.SubnetIPv6CIDRs(), ","),
+		subnetsValueKey:             azInfoWorkers.SubnetsByAZ(),
+		availabilityZonesValueKey:   azInfoWorkers.AvailabilityZones(),
+		subnetIPV6CIDRsKey:          strings.Join(azInfoWorkers.SubnetIPv6CIDRs(), ","),
+		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
@@ -350,7 +354,7 @@ func (p *clusterpyProvisioner) provision(
 			encodeUserData: true,
 			instanceTypes:  instanceTypes,
 		},
-		azInfo: azInfo,
+		azInfo: azInfoWorkers,
 	}
 
 	karpenterProvisioner, err := NewKarpenterNodePoolProvisioner(
@@ -618,13 +622,13 @@ func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
 	}
 }
 
-// selectSubnetIDs finds the best suiting subnets based on tags for each AZ.
+// selectSubnetIDs finds the best suiting subnets based on tag for each AZ.
 //
 // It follows almost the same logic for finding subnets as the
 // kube-controller-manager when finding subnets for ELBs used for services of
 // type LoadBalancer.
 // https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
-func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
+func selectSubnetIDs(subnets []*ec2.Subnet, tag string) *AZInfo {
 	subnetsByAZ := make(map[string]*ec2.Subnet)
 	for _, subnet := range subnets {
 		az := aws.StringValue(subnet.AvailabilityZone)
@@ -635,11 +639,11 @@ func selectSubnetIDs(subnets []*ec2.Subnet) *AZInfo {
 			continue
 		}
 
-		// prefer subnet with an ELB role tag
+		// prefer subnet with a tag
 		existingTags := tagsToMap(existing.Tags)
 		subnetTags := tagsToMap(subnet.Tags)
-		_, existingHasTag := existingTags[subnetELBRoleTagName]
-		_, subnetHasTag := subnetTags[subnetELBRoleTagName]
+		_, existingHasTag := existingTags[tag]
+		_, subnetHasTag := subnetTags[tag]
 
 		if existingHasTag != subnetHasTag {
 			if subnetHasTag {
