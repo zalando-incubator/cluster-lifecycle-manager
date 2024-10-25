@@ -229,7 +229,8 @@ func (p *clusterpyProvisioner) provision(
 		azInfoWorkers = azInfoWorkers.RestrictAZs(strings.Split(azNames, ","))
 	}
 
-	// TODO legacy, remove once we switch to Values in all clusters
+	// optional config item to hard-code subnets. This is useful for
+	// migrating between subnets.
 	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
 		cluster.ConfigItems[subnetsConfigItemKey] = azInfoWorkers.SubnetsByAZ()[subnetAllAZName]
 	}
