@@ -214,7 +214,7 @@ func convertFromClusterModel(cluster *models.Cluster) (*api.Cluster, error) {
 		LifecycleStatus:       *cluster.LifecycleStatus,
 		LocalID:               *cluster.LocalID,
 		NodePools:             nodePools,
-		Provider:              *cluster.Provider,
+		Provider:              api.ProviderID(*cluster.Provider),
 		Region:                *cluster.Region,
 		Status:                convertFromClusterStatusModel(cluster.Status),
 	}, nil

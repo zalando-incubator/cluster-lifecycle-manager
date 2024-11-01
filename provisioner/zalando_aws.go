@@ -50,7 +50,7 @@ func NewZalandoAWSProvisioner(
 }
 
 func (z *ZalandoAWSProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(ZalandoAWSProvider)
+	return cluster.Provider == api.ZalandoAWSProvider
 }
 
 func (z *ZalandoAWSProvisioner) Provision(

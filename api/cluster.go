@@ -12,8 +12,16 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 )
 
+// A provider ID is a string that identifies a cluster provider.
+type ProviderID string
+
 const (
 	overrideChannelConfigItem = "override_channel"
+
+	// ZalandoAWSProvider is the provider ID for Zalando managed AWS clusters.
+	ZalandoAWSProvider ProviderID = "zalando-aws"
+	// ZalandoEKSProvider is the provider ID for AWS EKS clusters.
+	ZalandoEKSProvider ProviderID = "zalando-eks"
 )
 
 // Cluster describes a kubernetes cluster and related configuration.
@@ -29,7 +37,7 @@ type Cluster struct {
 	LifecycleStatus       string            `json:"lifecycle_status"       yaml:"lifecycle_status"`
 	LocalID               string            `json:"local_id"               yaml:"local_id"`
 	NodePools             []*NodePool       `json:"node_pools"             yaml:"node_pools"`
-	Provider              string            `json:"provider"               yaml:"provider"`
+	Provider              ProviderID        `json:"provider"               yaml:"provider"`
 	Region                string            `json:"region"                 yaml:"region"`
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
@@ -73,7 +81,7 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 	if err != nil {
 		return nil, err
 	}
-	_, err = state.WriteString(cluster.Provider)
+	_, err = state.WriteString(string(cluster.Provider))
 	if err != nil {
 		return nil, err
 	}
@@ -194,4 +202,11 @@ func (cluster *Cluster) ASGBackedPools() []*NodePool {
 		}
 	}
 	return cp
+}
+
+func (cluster Cluster) Name() string {
+	if cluster.Provider == ZalandoEKSProvider {
+		return cluster.LocalID
+	}
+	return cluster.ID
 }

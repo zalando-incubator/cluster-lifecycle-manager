@@ -1554,3 +1554,38 @@ func TestNthAddressFromCIDR(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterName(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		cluster  api.Cluster
+		input    string
+		expected string
+	}{
+		{
+			name: "zalando-aws cluster has cluster.Name == ID",
+			cluster: api.Cluster{
+				Provider: api.ZalandoAWSProvider,
+				ID:       "aws:12345678910:eu-central-1:zalando-aws",
+				LocalID:  "zalando-aws",
+			},
+			expected: "aws:12345678910:eu-central-1:zalando-aws",
+			input:    `{{ .Values.data.cluster.Name }}`,
+		},
+		{
+			name: "zalando-eks cluster has cluster.Name == LocalID",
+			cluster: api.Cluster{
+				Provider: api.ZalandoEKSProvider,
+				ID:       "aws:12345678910:eu-central-1:zalando-eks",
+				LocalID:  "zalando-eks",
+			},
+			expected: "zalando-eks",
+			input:    `{{ .Values.data.cluster.Name }}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, _ := renderSingle(t, tc.input, map[string]interface{}{"cluster": tc.cluster})
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}

@@ -50,17 +50,17 @@ type ASGNodePoolsBackend struct {
 	asgClient autoscalingiface.AutoScalingAPI
 	ec2Client ec2iface.EC2API
 	elbClient elbiface.ELBAPI
-	clusterID string
+	cluster   *api.Cluster
 }
 
-// NewASGNodePoolsBackend initializes a new ASGNodePoolsBackend for the given clusterID and AWS
+// NewASGNodePoolsBackend initializes a new ASGNodePoolsBackend for the given cluster and AWS
 // session and.
-func NewASGNodePoolsBackend(clusterID string, sess *session.Session) *ASGNodePoolsBackend {
+func NewASGNodePoolsBackend(cluster *api.Cluster, sess *session.Session) *ASGNodePoolsBackend {
 	return &ASGNodePoolsBackend{
 		asgClient: autoscaling.New(sess),
 		ec2Client: ec2.New(sess),
 		elbClient: elb.New(sess),
-		clusterID: clusterID,
+		cluster:   cluster,
 	}
 }
 
@@ -432,7 +432,7 @@ func (n *ASGNodePoolsBackend) getNodePoolASGs(nodePool *api.NodePool) ([]*autosc
 
 	expectedTags := []*autoscaling.TagDescription{
 		{
-			Key:   aws.String(clusterIDTagPrefix + n.clusterID),
+			Key:   aws.String(clusterIDTagPrefix + n.cluster.Name()),
 			Value: aws.String(resourceLifecycleOwned),
 		},
 		{

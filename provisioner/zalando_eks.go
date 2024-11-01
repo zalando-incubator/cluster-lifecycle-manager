@@ -64,7 +64,7 @@ func NewZalandoEKSProvisioner(
 }
 
 func (z *ZalandoEKSProvisioner) Supports(cluster *api.Cluster) bool {
-	return cluster.Provider == string(ZalandoEKSProvider)
+	return cluster.Provider == api.ZalandoEKSProvider
 }
 
 func (z *ZalandoEKSProvisioner) Provision(
