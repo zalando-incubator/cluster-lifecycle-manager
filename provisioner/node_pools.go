@@ -375,11 +375,11 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.Replace(p.cluster.ID, ":", "-", -1))
 
 	tags := map[string]string{
-		tagNameKubernetesClusterPrefix + p.cluster.ID: resourceLifecycleOwned,
-		nodePoolRoleTagKey:                            "true",
-		nodePoolTagKey:                                nodePool.Name,
-		nodePoolTagKeyLegacy:                          nodePool.Name,
-		nodePoolProfileTagKey:                         nodePool.Profile,
+		tagNameKubernetesClusterPrefix + p.cluster.Name(): resourceLifecycleOwned,
+		nodePoolRoleTagKey:    "true",
+		nodePoolTagKey:        nodePool.Name,
+		nodePoolTagKeyLegacy:  nodePool.Name,
+		nodePoolProfileTagKey: nodePool.Profile,
 	}
 
 	err = p.awsAdapter.applyStack(stackName, template, "", tags, true, nil)
@@ -402,8 +402,8 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	// decommission orphaned node pools
 	tags := map[string]string{
-		tagNameKubernetesClusterPrefix + p.cluster.ID: resourceLifecycleOwned,
-		nodePoolRoleTagKey:                            "true",
+		tagNameKubernetesClusterPrefix + p.cluster.Name(): resourceLifecycleOwned,
+		nodePoolRoleTagKey: "true",
 	}
 
 	nodePoolStacks, err := p.awsAdapter.ListStacks(tags, nil)

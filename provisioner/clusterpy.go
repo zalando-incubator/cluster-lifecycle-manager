@@ -287,7 +287,7 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// create or update the etcd stack
-	if p.manageEtcdStack && cluster.Provider == string(ZalandoAWSProvider) {
+	if p.manageEtcdStack && cluster.Provider == api.ZalandoAWSProvider {
 		etcdKMSKeyARN, err := awsAdapter.resolveKeyID(etcdKMSKeyAlias)
 		if err != nil {
 			return err
@@ -709,7 +709,7 @@ func (p *clusterpyProvisioner) decommission(
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
 		k8sClients, err := kubernetes.NewClientsCollection(
 			cluster.APIServerURL,
 			tokenSource,
@@ -769,7 +769,7 @@ func (p *clusterpyProvisioner) decommission(
 }
 
 func (p *clusterpyProvisioner) removeEBSVolumes(awsAdapter *awsAdapter, cluster *api.Cluster) error {
-	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", cluster.ID)
+	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", cluster.Name())
 	volumes, err := awsAdapter.GetVolumes(map[string]string{clusterTag: "owned"})
 	if err != nil {
 		return err
@@ -954,12 +954,12 @@ func (p *clusterpyProvisioner) updater(
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster.ID, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
 			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
 		}),
 	}
 
-	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster.ID, awsAdapter.session)
+	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster, awsAdapter.session)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
@@ -1018,7 +1018,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(
 
 func (p *clusterpyProvisioner) listClusterStacks(_ context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]*cloudformation.Stack, error) {
 	includeTags := map[string]string{
-		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
+		tagNameKubernetesClusterPrefix + cluster.Name(): resourceLifecycleOwned,
 	}
 	excludeTags := map[string]string{
 		mainStackTagKey: stackTagValueTrue,

@@ -1563,24 +1563,24 @@ func TestClusterName(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "zalando-aws cluster has clusterName == ID",
+			name: "zalando-aws cluster has cluster.Name == ID",
 			cluster: api.Cluster{
-				Provider: string(ZalandoAWSProvider),
+				Provider: api.ZalandoAWSProvider,
 				ID:       "aws:12345678910:eu-central-1:zalando-aws",
 				LocalID:  "zalando-aws",
 			},
 			expected: "aws:12345678910:eu-central-1:zalando-aws",
-			input:    `{{ .Values.data.cluster | clusterName }}`,
+			input:    `{{ .Values.data.cluster.Name }}`,
 		},
 		{
-			name: "zalando-eks cluster has clusterName == LocalID",
+			name: "zalando-eks cluster has cluster.Name == LocalID",
 			cluster: api.Cluster{
-				Provider: string(ZalandoEKSProvider),
+				Provider: api.ZalandoEKSProvider,
 				ID:       "aws:12345678910:eu-central-1:zalando-eks",
 				LocalID:  "zalando-eks",
 			},
 			expected: "zalando-eks",
-			input:    `{{ .Values.data.cluster | clusterName }}`,
+			input:    `{{ .Values.data.cluster.Name }}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

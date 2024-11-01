@@ -116,3 +116,21 @@ func TestVersion(t *testing.T) {
 		require.NotEqual(t, version, newVersion, "cluster field: %s", field)
 	}
 }
+
+func TestName(t *testing.T) {
+	cluster := &Cluster{
+		ID:       "aws:123456789012:eu-central-1:test-cluster",
+		LocalID:  "test-cluster",
+		Provider: ZalandoAWSProvider,
+	}
+
+	require.Equal(t, cluster.ID, cluster.Name())
+
+	cluster = &Cluster{
+		ID:       "aws:123456789012:eu-central-1:test-cluster",
+		LocalID:  "test-cluster",
+		Provider: ZalandoEKSProvider,
+	}
+
+	require.Equal(t, cluster.LocalID, cluster.Name())
+}

@@ -65,15 +65,15 @@ func InstanceConfigUpToDate(instanceConfig, poolConfig *InstanceConfig) bool {
 type EC2NodePoolBackend struct {
 	crdResolver *util.LazyOf[*KarpenterCRDNameResolver]
 	ec2Client   ec2iface.EC2API
-	clusterID   string
+	cluster     *api.Cluster
 }
 
 // NewEC2NodePoolBackend initializes a new EC2NodePoolBackend for
 // the given clusterID and AWS session and.
-func NewEC2NodePoolBackend(clusterID string, sess *session.Session, crdResolverInitializer func() (*KarpenterCRDNameResolver, error)) *EC2NodePoolBackend {
+func NewEC2NodePoolBackend(cluster *api.Cluster, sess *session.Session, crdResolverInitializer func() (*KarpenterCRDNameResolver, error)) *EC2NodePoolBackend {
 	return &EC2NodePoolBackend{
 		ec2Client:   ec2.New(sess),
-		clusterID:   clusterID,
+		cluster:     cluster,
 		crdResolver: util.NewLazyOf[*KarpenterCRDNameResolver](crdResolverInitializer),
 	}
 }
@@ -134,7 +134,7 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 func (n *EC2NodePoolBackend) filterWithNodePool(nodePool *api.NodePool) []*ec2.Filter {
 	return []*ec2.Filter{
 		{
-			Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
+			Name: aws.String("tag:" + clusterIDTagPrefix + n.cluster.Name()),
 			Values: []*string{
 				aws.String(resourceLifecycleOwned),
 			},
@@ -230,7 +230,7 @@ func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) err
 	}
 	return n.decommission(ctx, []*ec2.Filter{
 		{
-			Name: aws.String("tag:" + clusterIDTagPrefix + n.clusterID),
+			Name: aws.String("tag:" + clusterIDTagPrefix + n.cluster.Name()),
 			Values: []*string{
 				aws.String(resourceLifecycleOwned),
 			},

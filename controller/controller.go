@@ -44,7 +44,7 @@ type Controller struct {
 	logger               *log.Entry
 	execManager          *command.ExecManager
 	registry             registry.Registry
-	provisioners         map[provisioner.ProviderID]provisioner.Provisioner
+	provisioners         map[api.ProviderID]provisioner.Provisioner
 	providers            []string
 	channelConfigSourcer channel.ConfigSource
 	interval             time.Duration
@@ -58,7 +58,7 @@ func New(
 	logger *log.Entry,
 	execManager *command.ExecManager,
 	registry registry.Registry,
-	provisioners map[provisioner.ProviderID]provisioner.Provisioner,
+	provisioners map[api.ProviderID]provisioner.Provisioner,
 	channelConfigSourcer channel.ConfigSource,
 	options *Options,
 ) *Controller {
@@ -184,7 +184,7 @@ func (c *Controller) doProcessCluster(ctx context.Context, logger *log.Entry, cl
 		}
 	}()
 
-	provisioner, ok := c.provisioners[provisioner.ProviderID(cluster.Provider)]
+	provisioner, ok := c.provisioners[api.ProviderID(cluster.Provider)]
 	if !ok {
 		return fmt.Errorf(
 			"cluster %s: unknown provider %q",

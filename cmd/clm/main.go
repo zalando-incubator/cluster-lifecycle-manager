@@ -12,6 +12,7 @@ import (
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/controller"
@@ -115,8 +116,8 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
-	provisioners := map[provisioner.ProviderID]provisioner.Provisioner{
-		provisioner.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
+	provisioners := map[api.ProviderID]provisioner.Provisioner{
+		api.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
 			execManager,
 			clusterTokenSource,
 			secretDecrypter,
@@ -130,7 +131,7 @@ func main() {
 				ManageEtcdStack: cfg.ManageEtcdStack,
 			},
 		),
-		provisioner.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(
+		api.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(
 			execManager,
 			secretDecrypter,
 			cfg.AssumedRole,
@@ -218,7 +219,7 @@ func main() {
 			cluster.ConfigItems[key] = decryptedValue
 		}
 
-		p, ok := provisioners[provisioner.ProviderID(cluster.Provider)]
+		p, ok := provisioners[cluster.Provider]
 		if !ok {
 			log.Fatalf(
 				"Cluster %s: unknown provider %q",

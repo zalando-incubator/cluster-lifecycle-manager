@@ -11,9 +11,6 @@ import (
 )
 
 type (
-	// A provider ID is a string that identifies a cluster provider.
-	ProviderID string
-
 	// Provisioner is an interface describing how to provision or decommission
 	// clusters.
 	Provisioner interface {
@@ -69,13 +66,6 @@ type (
 		ManageEtcdStack bool
 		Hook            CreationHook
 	}
-)
-
-const (
-	// ZalandoAWSProvider is the provider ID for Zalando managed AWS clusters.
-	ZalandoAWSProvider ProviderID = "zalando-aws"
-	// ZalandoEKSProvider is the provider ID for AWS EKS clusters.
-	ZalandoEKSProvider ProviderID = "zalando-eks"
 )
 
 var (

@@ -97,7 +97,6 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"split":                split,
 		"join":                 sprig.GenericFuncMap()["join"],
 		"eksID":                eksID,
-		"clusterName":          clusterName,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
@@ -839,13 +838,4 @@ func scaleQuantity(quantityStr string, factor float32) (string, error) {
 		quantity.Set(scaledValue)
 	}
 	return quantity.String(), nil
-}
-
-// clusterName returns the canonical cluster name based on the cluster
-// provider.
-func clusterName(cluster api.Cluster) (string, error) {
-	if cluster.Provider == string(ZalandoEKSProvider) {
-		return cluster.LocalID, nil
-	}
-	return cluster.ID, nil
 }

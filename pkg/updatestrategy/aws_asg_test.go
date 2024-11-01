@@ -248,7 +248,7 @@ func TestGet(tt *testing.T) {
 				asgClient: tc.asgClient,
 				ec2Client: tc.ec2Client,
 				elbClient: tc.elbClient,
-				clusterID: "",
+				cluster:   &api.Cluster{},
 			}
 
 			_, err := backend.Get(context.Background(), &api.NodePool{Name: "test"})
@@ -670,7 +670,7 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 						},
 					},
 				},
-				clusterID: "",
+				cluster: &api.Cluster{},
 			}
 
 			res, err := backend.Get(context.Background(), &api.NodePool{Name: "test"})
@@ -689,6 +689,7 @@ func TestScale(t *testing.T) {
 	// test not getting the ASGs
 	backend := &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{},
+		cluster:   &api.Cluster{},
 	}
 	err := backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 10)
 	assert.Error(t, err)
@@ -719,6 +720,7 @@ func TestScale(t *testing.T) {
 				},
 			},
 		},
+		cluster: &api.Cluster{},
 	}
 	err = backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 10)
 	assert.NoError(t, err)
@@ -749,6 +751,7 @@ func TestScale(t *testing.T) {
 				},
 			},
 		},
+		cluster: &api.Cluster{},
 	}
 	err = backend.Scale(context.Background(), &api.NodePool{Name: "test"}, 1)
 	assert.NoError(t, err)
@@ -806,7 +809,7 @@ func TestDeleteTags(tt *testing.T) {
 		tt.Run(tc.msg, func(t *testing.T) {
 			backend := &ASGNodePoolsBackend{
 				asgClient: tc.asgClient,
-				clusterID: "",
+				cluster:   &api.Cluster{},
 			}
 
 			err := backend.deleteTags(tc.nodePool, tc.tags)
