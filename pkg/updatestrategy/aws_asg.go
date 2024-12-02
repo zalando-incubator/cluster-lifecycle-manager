@@ -193,14 +193,14 @@ func (n *ASGNodePoolsBackend) Scale(_ context.Context, nodePool *api.NodePool, r
 	}
 
 	for _, asg := range asgs {
-		min := int64(math.Min(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MinSize))))
-		max := int64(math.Max(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MaxSize))))
+		minSize := int64(math.Min(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MinSize))))
+		maxSize := int64(math.Max(float64(aws.Int64Value(asg.DesiredCapacity)), float64(aws.Int64Value(asg.MaxSize))))
 
 		params := &autoscaling.UpdateAutoScalingGroupInput{
 			AutoScalingGroupName: asg.AutoScalingGroupName,
 			DesiredCapacity:      asg.DesiredCapacity,
-			MinSize:              aws.Int64(min),
-			MaxSize:              aws.Int64(max),
+			MinSize:              aws.Int64(minSize),
+			MaxSize:              aws.Int64(maxSize),
 		}
 
 		_, err := n.asgClient.UpdateAutoScalingGroup(params)
