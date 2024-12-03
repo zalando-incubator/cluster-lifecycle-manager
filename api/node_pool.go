@@ -65,7 +65,7 @@ func (np NodePool) KarpenterRequirements() []v1.NodeSelectorRequirementApplyConf
 }
 
 func (np NodePool) KarpenterInstanceTypeStrategy() string {
-	if len(np.InstanceTypes) == 0 {
+	if len(np.InstanceTypes) == 1 && np.InstanceTypes[0] == "not-specified" {
 		return "not-specified"
 	}
 	if len(np.InstanceTypes) == 1 && np.InstanceTypes[0] == "default-for-karpenter" {
