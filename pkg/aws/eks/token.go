@@ -27,7 +27,6 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 
 	tokenOpts := &awsiamtoken.GetTokenOptions{
 		ClusterID: ts.clusterName,
-		Session:   ts.session,
 	}
 	awsToken, err := gen.GetWithOptions(tokenOpts)
 	if err != nil {
