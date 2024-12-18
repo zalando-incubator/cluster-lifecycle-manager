@@ -40,6 +40,7 @@ const (
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
 	subnetNodeRoleTagName              = "kubernetes.io/role/node"
+	subnetPodRoleTagName               = "kubernetes.io/role/pod"
 	resourceLifecycleShared            = "shared"
 	resourceLifecycleOwned             = "owned"
 	mainStackTagKey                    = "cluster-lifecycle-controller.zalando.org/main-stack"
@@ -222,6 +223,7 @@ func (p *clusterpyProvisioner) provision(
 	// find the best subnet for each AZ
 	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
 	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+	azInfoPods := selectSubnetIDs(subnets, subnetPodRoleTagName)
 
 	// if availability zones are defined, filter the subnet list
 	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
@@ -266,6 +268,7 @@ func (p *clusterpyProvisioner) provision(
 		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
 		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
 		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
+		"pod_subnets":               azInfoPods.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
