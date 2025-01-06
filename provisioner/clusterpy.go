@@ -848,7 +848,7 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 		return nil, err
 	}
 
-	adapter := newAWSAdapter(logger, cluster.APIServerURL, cluster.Region, sess, p.dryRun)
+	adapter := newAWSAdapter(logger, cluster.Region, sess, p.dryRun)
 	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
 	if err != nil {
 		return nil, err
