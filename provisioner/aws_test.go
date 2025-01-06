@@ -176,7 +176,6 @@ func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
 		s3Uploader:           &s3UploaderAPIStub{},
 		ec2Client:            &ec2APIStub{},
 		autoscalingClient:    &autoscalingAPIStub{groupName: groupName},
-		apiServer:            "",
 		dryRun:               false,
 		logger:               logger,
 	}

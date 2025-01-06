@@ -103,7 +103,6 @@ type (
 		acmClient            acmiface.ACMAPI
 		eksClient            eksiface.EKSAPI
 		region               string
-		apiServer            string
 		dryRun               bool
 		logger               *log.Entry
 		kmsClient            kmsiface.KMSAPI
@@ -118,7 +117,7 @@ type (
 )
 
 // newAWSAdapter initializes a new awsAdapter.
-func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *session.Session, dryRun bool) *awsAdapter {
+func newAWSAdapter(logger *log.Entry, region string, sess *session.Session, dryRun bool) *awsAdapter {
 	return &awsAdapter{
 		session:              sess,
 		cloudformationClient: cloudformation.New(sess),
@@ -130,7 +129,6 @@ func newAWSAdapter(logger *log.Entry, apiServer string, region string, sess *ses
 		acmClient:            acm.New(sess),
 		eksClient:            eks.New(sess),
 		region:               region,
-		apiServer:            apiServer,
 		dryRun:               dryRun,
 		logger:               logger,
 		kmsClient:            kms.New(sess),

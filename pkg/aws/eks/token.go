@@ -2,6 +2,7 @@ package eks
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"golang.org/x/oauth2"
 	awsiamtoken "sigs.k8s.io/aws-iam-authenticator/pkg/token"
 )
@@ -25,10 +26,9 @@ func (ts *TokenSource) Token() (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	tokenOpts := &awsiamtoken.GetTokenOptions{
-		ClusterID: ts.clusterName,
-	}
-	awsToken, err := gen.GetWithOptions(tokenOpts)
+	stsAPI := sts.New(ts.session)
+
+	awsToken, err := gen.GetWithSTS(ts.clusterName, stsAPI)
 	if err != nil {
 		return nil, err
 	}
