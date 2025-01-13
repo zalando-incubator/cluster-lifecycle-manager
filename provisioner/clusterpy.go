@@ -40,6 +40,7 @@ const (
 	tagNameKubernetesClusterPrefix     = "kubernetes.io/cluster/"
 	subnetELBRoleTagName               = "kubernetes.io/role/elb"
 	subnetNodeRoleTagName              = "kubernetes.io/role/node"
+	subnetInternalNodeRoleTagName      = "kubernetes.io/role/internal-node"
 	resourceLifecycleShared            = "shared"
 	resourceLifecycleOwned             = "owned"
 	mainStackTagKey                    = "cluster-lifecycle-controller.zalando.org/main-stack"
@@ -222,11 +223,13 @@ func (p *clusterpyProvisioner) provision(
 	// find the best subnet for each AZ
 	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
 	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+	azInfoIntenalNodes := selectSubnetIDs(subnets, subnetInternalNodeRoleTagName)
 
 	// if availability zones are defined, filter the subnet list
 	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
 		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
 		azInfoNodes = azInfoNodes.RestrictAZs(strings.Split(azNames, ","))
+		azInfoIntenalNodes = azInfoIntenalNodes.RestrictAZs(strings.Split(azNames, ","))
 	}
 
 	// optional config item to hard-code subnets. This is useful for
@@ -266,6 +269,7 @@ func (p *clusterpyProvisioner) provision(
 		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
 		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
 		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
+		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
 		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
