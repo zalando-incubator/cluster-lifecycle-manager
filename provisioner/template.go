@@ -131,6 +131,7 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"indent":                                sprig.GenericFuncMap()["indent"],
 		"dict":                                  dict,
 		"list":                                  list,
+		"append":                                strAppend,
 		"scaleQuantity":                         scaleQuantity,
 		"instanceTypeCPUQuantity": func(instanceType string) (string, error) {
 			return instanceTypeCPUQuantity(context, instanceType)
@@ -281,6 +282,10 @@ func dict(args ...interface{}) (map[string]interface{}, error) {
 
 func list(args ...interface{}) []interface{} {
 	return args
+}
+
+func strAppend(list []string, items ...string) []string {
+	return append(list, items...)
 }
 
 func eksID(id string) string {
