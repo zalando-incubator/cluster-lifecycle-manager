@@ -1309,6 +1309,40 @@ func TestJoin(t *testing.T) {
 	}
 }
 
+func TestStrAppend(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		data     interface{}
+		expected string
+	}{
+		{
+			name:     "append to list",
+			template: `{{ append .Values.data.items .Values.data.item }}`,
+			data: map[string]interface{}{
+				"items": []string{"a", "b"},
+				"item":  "c",
+			},
+			expected: "[a b c]",
+		}, {
+			name:     "append multiple items to list",
+			template: `{{ append .Values.data.items .Values.data.item .Values.data.item2 }}`,
+			data: map[string]interface{}{
+				"items": []string{"a", "b"},
+				"item":  "c",
+				"item2": "d",
+			},
+			expected: "[a b c d]",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, tc.data)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
+}
+
 func TestScaleQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
