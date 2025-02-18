@@ -7,9 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/luci/go-render/render"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -91,20 +93,20 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 
 	crdResolver, err := n.crdResolver.Value()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get CRD resolver: %w", err)
 	}
 
 	nodes := make([]*Node, 0)
 	nodePoolConfig, err := crdResolver.NodePoolConfigGetter(ctx, nodePool) // in case of decommission nodePoolConfig is nil, and all nodes are deleted anyway
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get nodePool config for pool %q: %w", nodePool.Name, err)
 	}
 	for _, instance := range instances {
 		instanceID := aws.StringValue(instance.InstanceId)
 
 		instanceConfig, err := n.getInstanceConfig(instance)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get instance config for instance %q: %w", instanceID, err)
 		}
 		generation := currentNodeGeneration
 
@@ -344,14 +346,25 @@ func (r *KarpenterCRDNameResolver) getInstanceTag() string {
 
 func (r *KarpenterCRDNameResolver) NodePoolConfigGetter(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error) {
 	// CLM assumes that the node pool name is used for both the node-pool and the node-template that it references
-	NodeTemplate, err := r.k8sClients.Get(ctx, r.NodeTemplateCRDName(), "", nodePool.Name, v1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		// the node pool have been deleted. thus returning nil nodePoolConfig will result in labeling all nodes for decommission
-		return nil, nil
+	var NodeTemplate *unstructured.Unstructured
+	getEC2NodeClass := func() error {
+		var err error
+		NodeTemplate, err = r.k8sClients.Get(ctx, r.NodeTemplateCRDName(), "", nodePool.Name, v1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// the node pool have been deleted. thus returning nil nodePoolConfig will result in labeling all nodes for decommission
+				return nil
+			}
+			return err
+		}
+		return nil
 	}
+
+	err := backoff.Retry(getEC2NodeClass, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 	if err != nil {
 		return nil, err
 	}
+
 	spec, ok := NodeTemplate.Object["spec"]
 	if !ok {
 		return nil, errors.New("could not find spec in the %s object" + r.NodeTemplateCRDName())
