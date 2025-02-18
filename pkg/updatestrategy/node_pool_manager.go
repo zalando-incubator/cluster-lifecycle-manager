@@ -101,7 +101,7 @@ func NewKubernetesNodePoolManager(logger *log.Entry, kubeClient kubernetes.Inter
 func (m *KubernetesNodePoolManager) GetPool(ctx context.Context, nodePoolDesc *api.NodePool) (*NodePool, error) {
 	nodePool, err := m.backend.Get(ctx, nodePoolDesc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get node pool details: %#v", err)
+		return nil, fmt.Errorf("failed to get node pool details: %w", err)
 	}
 
 	var (
