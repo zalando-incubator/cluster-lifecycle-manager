@@ -784,3 +784,43 @@ func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDeta
 
 	return clusterDetails, nil
 }
+
+// DeleteLeakedAWSVPCCNIENIs deletes leaked AWS VPC CNI ENIs for a cluster.
+// Leaked ENIs are identified those having a tag
+// `cluster.k8s.amazonaws.com/name` with the cluster name and status
+// `available`.
+func (a *awsAdapter) DeleteLeakedAWSVPCCNIENIs(ctx context.Context, cluster *api.Cluster) error {
+	var enis []*ec2.NetworkInterface
+	err := a.ec2Client.DescribeNetworkInterfacesPagesWithContext(ctx, &ec2.DescribeNetworkInterfacesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("tag:cluster.k8s.amazonaws.com/name"),
+				Values: []*string{aws.String(cluster.Name())},
+			},
+			{
+				Name:   aws.String("status"),
+				Values: []*string{aws.String("available")},
+			},
+		},
+	}, func(page *ec2.DescribeNetworkInterfacesOutput, _ bool) bool {
+		for _, eni := range page.NetworkInterfaces {
+			enis = append(enis, eni)
+		}
+		return true
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list AWS VPC CNI ENIs for cluster %q: %w", cluster.Name(), err)
+	}
+
+	for _, eni := range enis {
+		_, err := a.ec2Client.DeleteNetworkInterfaceWithContext(ctx, &ec2.DeleteNetworkInterfaceInput{
+			NetworkInterfaceId: eni.NetworkInterfaceId,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete ENI %s: %w", aws.StringValue(eni.NetworkInterfaceId), err)
+		}
+		log.Infof("Deleted AWS VPC ENI %q, from cluster %q", aws.StringValue(eni.NetworkInterfaceId), cluster.Name())
+	}
+
+	return nil
+}

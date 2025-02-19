@@ -689,6 +689,7 @@ func (p *clusterpyProvisioner) decommission(
 	tokenSource oauth2.TokenSource,
 	cluster *api.Cluster,
 	caData []byte,
+	preClusterStackDeletionHooks ...func(ctx context.Context, cluster *api.Cluster) error,
 ) error {
 	logger.Infof("Decommissioning cluster: %s (%s)", cluster.Alias, cluster.ID)
 
@@ -747,6 +748,14 @@ func (p *clusterpyProvisioner) decommission(
 	}
 	if err != nil {
 		return err
+	}
+
+	// execute provider specific hooks, pre cluster stack deletion.
+	for _, hook := range preClusterStackDeletionHooks {
+		err := hook(ctx, cluster)
+		if err != nil {
+			return err
+		}
 	}
 
 	stack := &cloudformation.Stack{

@@ -142,6 +142,7 @@ func (z *ZalandoEKSProvisioner) Decommission(
 		tokenSource,
 		cluster,
 		caData,
+		awsAdapter.DeleteLeakedAWSVPCCNIENIs,
 	)
 }
 
