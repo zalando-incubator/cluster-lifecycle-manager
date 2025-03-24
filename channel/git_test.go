@@ -14,7 +14,7 @@ import (
 
 // helper function to setup a test repository.
 func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
-	err := exec.Command("git", "-C", dir, "init").Run()
+	err := exec.Command("git", "-C", dir, "init", "-b", "main").Run()
 	require.NoError(t, err)
 
 	execManager := command.NewExecManager(1)
@@ -76,9 +76,9 @@ func TestGitGet(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	// check master channel
-	master := checkout(t, logger, c, "master")
-	verifyExampleConfig(t, master, "testsrc", "channel1")
+	// check main channel
+	main := checkout(t, logger, c, "main")
+	verifyExampleConfig(t, main, "testsrc", "channel1")
 
 	// check another channel
 	channel2 := checkout(t, logger, c, "channel2")
@@ -90,7 +90,7 @@ func TestGitGet(t *testing.T) {
 		"-C",
 		repoTempDir,
 		"rev-parse",
-		"master",
+		"main",
 	).Output()
 	require.NoError(t, err)
 
