@@ -24,13 +24,10 @@ import (
 )
 
 const (
-	karpenterProvisionerTag          = "karpenter.sh/provisioner-name"
-	karpenterNodePoolTag             = "karpenter.sh/nodepool"
-	karpenterProvisionerResource     = "provisioners.karpenter.sh"
-	karpenterAWSNodeTemplateResource = "awsnodetemplates.karpenter.k8s.aws"
-	karpenterNodePoolResource        = "nodepools.karpenter.sh"
-	KarpenterEC2NodeClassResource    = "ec2nodeclasses.karpenter.k8s.aws"
-	crd                              = "CustomResourceDefinition"
+	KarpenterNodePoolTag          = "karpenter.sh/nodepool"
+	KarpenterNodePoolResource     = "nodepools.karpenter.sh"
+	KarpenterEC2NodeClassResource = "ec2nodeclasses.karpenter.k8s.aws"
+	crd                           = "CustomResourceDefinition"
 )
 
 type InstanceConfig struct {
@@ -65,18 +62,18 @@ func InstanceConfigUpToDate(instanceConfig, poolConfig *InstanceConfig) bool {
 // EC2NodePoolBackend defines a node pool consisting of EC2 instances
 // managed externally by some component e.g. Karpenter.
 type EC2NodePoolBackend struct {
-	crdResolver *util.LazyOf[*KarpenterCRDNameResolver]
-	ec2Client   ec2iface.EC2API
-	cluster     *api.Cluster
+	karpenterClient *KarpenterNodePoolClient
+	ec2Client       ec2iface.EC2API
+	cluster         *api.Cluster
 }
 
 // NewEC2NodePoolBackend initializes a new EC2NodePoolBackend for
 // the given clusterID and AWS session and.
-func NewEC2NodePoolBackend(cluster *api.Cluster, sess *session.Session, crdResolverInitializer func() (*KarpenterCRDNameResolver, error)) *EC2NodePoolBackend {
+func NewEC2NodePoolBackend(cluster *api.Cluster, sess *session.Session, karpenterClient *KarpenterNodePoolClient) *EC2NodePoolBackend {
 	return &EC2NodePoolBackend{
-		ec2Client:   ec2.New(sess),
-		cluster:     cluster,
-		crdResolver: util.NewLazyOf[*KarpenterCRDNameResolver](crdResolverInitializer),
+		ec2Client:       ec2.New(sess),
+		cluster:         cluster,
+		karpenterClient: karpenterClient,
 	}
 }
 
@@ -91,13 +88,8 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 		return nil, fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
 	}
 
-	crdResolver, err := n.crdResolver.Value()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CRD resolver: %w", err)
-	}
-
 	nodes := make([]*Node, 0)
-	nodePoolConfig, err := crdResolver.NodePoolConfigGetter(ctx, nodePool) // in case of decommission nodePoolConfig is nil, and all nodes are deleted anyway
+	nodePoolConfig, err := n.karpenterClient.NodePoolConfigGetter(ctx, nodePool) // in case of decommission nodePoolConfig is nil, and all nodes are deleted anyway
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nodePool config for pool %q: %w", nodePool.Name, err)
 	}
@@ -226,10 +218,6 @@ func (n *EC2NodePoolBackend) DecommissionNodePool(ctx context.Context, nodePool 
 }
 
 func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) error {
-	crdResolver, err := n.crdResolver.Value()
-	if err != nil {
-		return err
-	}
 	return n.decommission(ctx, []*ec2.Filter{
 		{
 			Name: aws.String("tag:" + clusterIDTagPrefix + n.cluster.Name()),
@@ -240,7 +228,7 @@ func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) err
 		{
 			Name: aws.String("tag-key"),
 			Values: []*string{
-				aws.String(crdResolver.getInstanceTag()),
+				aws.String(KarpenterNodePoolTag),
 			},
 		},
 	})
@@ -288,68 +276,33 @@ func (n *EC2NodePoolBackend) decommission(ctx context.Context, filters []*ec2.Fi
 	}
 }
 
-type KarpenterCRDNameResolver struct {
-	NodePoolCRDName string
-	k8sClients      *kubernetes.ClientsCollection
+type KarpenterNodePoolClient struct {
+	k8sClients *kubernetes.ClientsCollection
 }
 
-func NewKarpenterCRDResolver(ctx context.Context, k8sClients *kubernetes.ClientsCollection) (*KarpenterCRDNameResolver, error) {
-	exists, err := k8sClients.Exists(ctx, crd, "", karpenterNodePoolResource, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return &KarpenterCRDNameResolver{
-			NodePoolCRDName: karpenterNodePoolResource,
-			k8sClients:      k8sClients,
-		}, nil
-	}
-	return &KarpenterCRDNameResolver{
-		NodePoolCRDName: karpenterProvisionerResource,
-		k8sClients:      k8sClients,
-	}, nil
-}
-
-func (r *KarpenterCRDNameResolver) NodeTemplateCRDName() string {
-	switch r.NodePoolCRDName {
-	case karpenterNodePoolResource:
-		return KarpenterEC2NodeClassResource
-	default:
-		return karpenterAWSNodeTemplateResource
+func NewKarpenterNodePoolClient(k8sClients *kubernetes.ClientsCollection) *KarpenterNodePoolClient {
+	return &KarpenterNodePoolClient{
+		k8sClients: k8sClients,
 	}
 }
 
-func (r *KarpenterCRDNameResolver) getAMIsFromSpec(spec interface{}) string {
-	switch r.NodePoolCRDName {
-	case karpenterNodePoolResource:
-		amiSelectorTerms := spec.(map[string]interface{})["amiSelectorTerms"].([]interface{})
-		var amis []string
-		for _, amiSelectorTerm := range amiSelectorTerms {
-			if amiSelectorTerm.(map[string]interface{})["id"] != nil {
-				amis = append(amis, amiSelectorTerm.(map[string]interface{})["id"].(string))
-			}
+func (r *KarpenterNodePoolClient) getAMIsFromSpec(spec interface{}) string {
+	amiSelectorTerms := spec.(map[string]interface{})["amiSelectorTerms"].([]interface{})
+	var amis []string
+	for _, amiSelectorTerm := range amiSelectorTerms {
+		if amiSelectorTerm.(map[string]interface{})["id"] != nil {
+			amis = append(amis, amiSelectorTerm.(map[string]interface{})["id"].(string))
 		}
-		return strings.Join(amis, ",")
-	default:
-		return spec.(map[string]interface{})["amiSelector"].(map[string]interface{})["aws-ids"].(string)
 	}
+	return strings.Join(amis, ",")
 }
 
-func (r *KarpenterCRDNameResolver) getInstanceTag() string {
-	switch r.NodePoolCRDName {
-	case karpenterNodePoolResource:
-		return karpenterNodePoolTag
-	default:
-		return karpenterProvisionerTag
-	}
-}
-
-func (r *KarpenterCRDNameResolver) NodePoolConfigGetter(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error) {
+func (r *KarpenterNodePoolClient) NodePoolConfigGetter(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error) {
 	// CLM assumes that the node pool name is used for both the node-pool and the node-template that it references
 	var NodeTemplate *unstructured.Unstructured
 	getEC2NodeClass := func() error {
 		var err error
-		NodeTemplate, err = r.k8sClients.Get(ctx, r.NodeTemplateCRDName(), "", nodePool.Name, v1.GetOptions{})
+		NodeTemplate, err = r.k8sClients.Get(ctx, KarpenterEC2NodeClassResource, "", nodePool.Name, v1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// the node pool have been deleted. thus returning nil nodePoolConfig will result in labeling all nodes for decommission
@@ -367,7 +320,7 @@ func (r *KarpenterCRDNameResolver) NodePoolConfigGetter(ctx context.Context, nod
 
 	spec, ok := NodeTemplate.Object["spec"]
 	if !ok {
-		return nil, errors.New("could not find spec in the %s object" + r.NodeTemplateCRDName())
+		return nil, errors.New("could not find spec in the %s object" + KarpenterEC2NodeClassResource)
 	}
 	tags := make(map[string]string)
 	for k, v := range spec.(map[string]interface{})["tags"].(map[string]interface{}) {
