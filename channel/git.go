@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -115,9 +116,12 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 }
 
 func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error) {
-	sha, err := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel).Output()
+	stderr := new(bytes.Buffer)
+	cmd := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel)
+	cmd.Stderr = stderr
+	sha, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute git: %s: %w", stderr.String(), err)
 	}
 
 	return &gitVersion{
