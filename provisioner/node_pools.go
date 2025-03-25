@@ -244,18 +244,14 @@ func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 
-	crdResolver, err := updatestrategy.NewKarpenterCRDResolver(ctx, p.k8sClients)
+	existingNodePools, err := p.k8sClients.List(ctx, updatestrategy.KarpenterNodePoolResource, "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	existingProvisioners, err := p.k8sClients.List(ctx, crdResolver.NodePoolCRDName, "", metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, pr := range existingProvisioners.Items {
+	for _, pr := range existingNodePools.Items {
 		nodePool := api.NodePool{Name: pr.GetName(), Profile: karpenterNodePoolProfile}
 		if !inNodePoolList(&nodePool, karpenterPools) {
-			err := p.k8sClients.Delete(ctx, crdResolver.NodePoolCRDName, "", pr.GetName(), metav1.DeleteOptions{})
+			err := p.k8sClients.Delete(ctx, updatestrategy.KarpenterNodePoolResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -263,7 +259,7 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	}
 
 	nodes, err := p.k8sClients.List(ctx, "nodes", "", metav1.ListOptions{
-		LabelSelector: "karpenter.sh/nodepool",
+		LabelSelector: updatestrategy.KarpenterNodePoolTag,
 	})
 	if err != nil {
 		return err
@@ -276,7 +272,7 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	var obsoleteNodePools []*api.NodePool
 	checkedNodePools := make(map[string]interface{})
 	for _, node := range nodes.Items {
-		nodePoolName := node.GetLabels()["karpenter.sh/nodepool"]
+		nodePoolName := node.GetLabels()[updatestrategy.KarpenterNodePoolTag]
 		if _, ok := checkedNodePools[nodePoolName]; ok {
 			continue
 		}
@@ -293,14 +289,14 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 		}
 	}
 
-	existingNodeTemplates, err := p.k8sClients.List(ctx, crdResolver.NodeTemplateCRDName(), "", metav1.ListOptions{})
+	existingNodeTemplates, err := p.k8sClients.List(ctx, updatestrategy.KarpenterEC2NodeClassResource, "", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, pr := range existingNodeTemplates.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err = p.k8sClients.Delete(ctx, crdResolver.NodeTemplateCRDName(), "", pr.GetName(), metav1.DeleteOptions{})
+			err = p.k8sClients.Delete(ctx, updatestrategy.KarpenterEC2NodeClassResource, "", pr.GetName(), metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

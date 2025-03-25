@@ -717,17 +717,7 @@ func (p *clusterpyProvisioner) decommission(
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
-		k8sClients, err := kubernetes.NewClientsCollection(
-			cluster.APIServerURL,
-			tokenSource,
-			caData,
-		)
-		if err != nil {
-			return nil, err
-		}
-		return updatestrategy.NewKarpenterCRDResolver(ctx, k8sClients)
-	})
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, nil)
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
 		logger.Errorf("Unable to decommission karpenter node-pools, proceeding anyway: %v", err)
@@ -970,9 +960,7 @@ func (p *clusterpyProvisioner) updater(
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, func() (*updatestrategy.KarpenterCRDNameResolver, error) {
-			return updatestrategy.NewKarpenterCRDResolver(context.Background(), k8sClients)
-		}),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, updatestrategy.NewKarpenterNodePoolClient(k8sClients)),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster, awsAdapter.session)
