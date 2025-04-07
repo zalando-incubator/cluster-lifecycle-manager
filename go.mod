@@ -22,8 +22,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/zalando-incubator/kube-ingress-aws-controller v0.15.35
 	go.mongodb.org/mongo-driver v1.17.0 // indirect
-	golang.org/x/oauth2 v0.28.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/oauth2 v0.29.0
+	golang.org/x/sync v0.13.0
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
@@ -41,7 +41,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/samber/lo v1.49.1
-	sigs.k8s.io/aws-iam-authenticator v0.6.30
+	sigs.k8s.io/aws-iam-authenticator v0.6.31
 )
 
 require (
