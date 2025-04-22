@@ -234,13 +234,6 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	return nil
 }
 
-func (p *KarpenterNodePoolProvisioner) isKarpenterEnabled() bool {
-	if v, found := p.cluster.ConfigItems["karpenter_pools_enabled"]; found && v == "true" {
-		return true
-	}
-	return false
-}
-
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 

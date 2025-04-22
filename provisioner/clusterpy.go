@@ -421,25 +421,21 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	if karpenterProvisioner.isKarpenterEnabled() {
-		err = p.apply(
-			ctx,
-			logger,
-			tokenSource,
-			cluster,
-			deletions,
-			manifests,
-			postOptions,
-		)
-		if err != nil {
-			return err
-		}
+	err = p.apply(
+		ctx,
+		logger,
+		tokenSource,
+		cluster,
+		deletions,
+		manifests,
+		postOptions,
+	)
+	if err != nil {
+		return err
 	}
 
-	if karpenterProvisioner.isKarpenterEnabled() {
-		if err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly); err != nil {
-			return err
-		}
+	if err = nodePoolGroups["karpenterPools"].provisionNodePoolGroup(ctx, values, updater, cluster, p.applyOnly); err != nil {
+		return err
 	}
 
 	// clean up removed node pools
@@ -447,27 +443,11 @@ func (p *clusterpyProvisioner) provision(
 	if err != nil {
 		return err
 	}
-	if karpenterProvisioner.isKarpenterEnabled() {
-		err = karpenterProvisioner.Reconcile(ctx, updater)
-		if err != nil {
-			return err
-		}
+	err = karpenterProvisioner.Reconcile(ctx, updater)
+	if err != nil {
+		return err
 	}
 
-	if !karpenterProvisioner.isKarpenterEnabled() {
-		err = p.apply(
-			ctx,
-			logger,
-			tokenSource,
-			cluster,
-			deletions,
-			manifests,
-			postOptions,
-		)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
