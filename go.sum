@@ -239,8 +239,8 @@ github.com/xhit/go-str2duration/v2 v2.1.0 h1:lxklc02Drh6ynqX+DdPyp5pCKLUQpRT8bp8
 github.com/xhit/go-str2duration/v2 v2.1.0/go.mod h1:ohY8p+0f07DiV6Em5LKB0s2YpLtXVyJfNt1+BlmyAsU=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.17.3 h1:xKpvfRIrxhOk+IxnQatDgz1dbou598A0OJV6uWb0fI0=
-github.com/zalando-incubator/kube-ingress-aws-controller v0.17.3/go.mod h1:YbLpF7n4UECUeEgQIZFj5zNK7W7YBqT8oWEIwUlUbZQ=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.17.5 h1:MLK5sIxzZYqKt3hm9lfGbI2tfKVBb0lEVPpCI1a7UDA=
+github.com/zalando-incubator/kube-ingress-aws-controller v0.17.5/go.mod h1:YbLpF7n4UECUeEgQIZFj5zNK7W7YBqT8oWEIwUlUbZQ=
 go.mongodb.org/mongo-driver v1.17.0 h1:Hp4q2MCjvY19ViwimTs00wHi7G4yzxh4/2+nTx8r40k=
 go.mongodb.org/mongo-driver v1.17.0/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=

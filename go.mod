@@ -19,7 +19,7 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.17.3
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.17.5
 	go.mongodb.org/mongo-driver v1.17.0 // indirect
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.14.0
