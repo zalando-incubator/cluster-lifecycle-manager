@@ -12,17 +12,17 @@ require (
 	github.com/go-openapi/swag v0.23.1
 	github.com/go-openapi/validate v0.24.0
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-swagger/go-swagger v0.31.0
+	github.com/go-swagger/go-swagger v0.32.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/zalando-incubator/kube-ingress-aws-controller v0.17.3
+	github.com/zalando-incubator/kube-ingress-aws-controller v0.17.5
 	go.mongodb.org/mongo-driver v1.17.0 // indirect
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.15.0
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
