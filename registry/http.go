@@ -63,6 +63,7 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	}
 
 	var result []*api.Cluster
+	clustersByAccount := map[string][]*api.Cluster{}
 
 	for _, cluster := range resp.Payload.Items {
 		if !filter.Includes(cluster) {
@@ -78,6 +79,12 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 			c.AccountName = *account.Name
 		}
 		result = append(result, c)
+
+		clustersByAccount[c.InfrastructureAccount] = append(clustersByAccount[c.InfrastructureAccount], c)
+	}
+
+	for i := range result {
+		result[i].AccountClusters = clustersByAccount[result[i].InfrastructureAccount]
 	}
 
 	return result, nil

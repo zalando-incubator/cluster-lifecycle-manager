@@ -1623,3 +1623,39 @@ func TestClusterName(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterOIDCProvider(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		cluster  api.Cluster
+		input    string
+		expected string
+	}{
+		{
+			name: "zalando-aws cluster",
+			cluster: api.Cluster{
+				Provider:     api.ZalandoAWSProvider,
+				LocalID:      "kube-1",
+				APIServerURL: "https://kube-1.example.zalan.do",
+			},
+			expected: "kube-1.example.zalan.do",
+			input:    `{{ .Values.data.cluster.OIDCProvider }}`,
+		},
+		{
+			name: "zalando-eks cluster",
+			cluster: api.Cluster{
+				Provider: api.ZalandoEKSProvider,
+				ConfigItems: map[string]string{
+					"eks_oidc_issuer_url": "https://oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888",
+				},
+			},
+			expected: "oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888",
+			input:    `{{ .Values.data.cluster.OIDCProvider }}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, _ := renderSingle(t, tc.input, map[string]interface{}{"cluster": tc.cluster})
+			require.EqualValues(t, tc.expected, result)
+		})
+	}
+}

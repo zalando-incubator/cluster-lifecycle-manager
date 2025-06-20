@@ -22,6 +22,7 @@ func (r *staticRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 			LifecycleStatus:       "ready",
 		},
 	}
+	clusters[0].AccountClusters = []*api.Cluster{clusters[0]}
 
 	return clusters, nil
 }
