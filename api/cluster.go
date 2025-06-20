@@ -5,11 +5,14 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 
 // A provider ID is a string that identifies a cluster provider.
@@ -42,6 +45,19 @@ type Cluster struct {
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
 	AccountName           string            `json:"account_name"           yaml:"account_name"`
+	AccountClusters       []*Cluster
+}
+
+type AssumeRolePolicyDocument struct {
+	Version   string
+	Statement []Statement
+}
+
+type Statement struct {
+	Effect    string
+	Principal map[string]string
+	Action    string
+	Condition map[string]map[string]string `json:",omitempty"`
 }
 
 // Version returns the version derived from a sha1 hash of the cluster struct
@@ -209,4 +225,88 @@ func (cluster Cluster) Name() string {
 		return cluster.LocalID
 	}
 	return cluster.ID
+}
+
+func (cluster Cluster) InfrastructureAccountID() string {
+	return strings.TrimPrefix(cluster.InfrastructureAccount, "aws:")
+}
+
+func (cluster Cluster) WorkerRoleARN() string {
+	return fmt.Sprintf("arn:aws:iam::%s:role/%s-worker", cluster.InfrastructureAccountID(), cluster.LocalID)
+}
+
+func (cluster Cluster) OIDCProvider() string {
+	if cluster.Provider == ZalandoEKSProvider {
+		return strings.TrimPrefix(cluster.ConfigItems["eks_oidc_issuer_url"], "https://")
+	}
+
+	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return fmt.Sprintf("%s.%s", cluster.LocalID, hostedZone)
+}
+
+func (cluster Cluster) OIDCProviderARN() string {
+	return fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", cluster.InfrastructureAccountID(), cluster.OIDCProvider())
+}
+
+func (cluster Cluster) OIDCSubjectKey() string {
+	return fmt.Sprintf("%s:sub", cluster.OIDCProvider())
+}
+
+func (cluster Cluster) IAMRoleTrustRelationshipTemplate() string {
+	trustRelationship := trustRelationship(cluster.AccountClusters)
+	trustRelationshipJSON, err := json.Marshal(trustRelationship)
+	if err != nil {
+		log.Fatalf("Error while marshalling trust relationship for %s: %v", cluster.Alias, err)
+	}
+
+	return string(trustRelationshipJSON)
+}
+
+func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {
+	policyDocument := AssumeRolePolicyDocument{
+		Version: "2012-10-17",
+		Statement: []Statement{
+			{
+				Effect: "Allow",
+				Principal: map[string]string{
+					"Service": "ec2.amazonaws.com",
+				},
+				Action: "sts:AssumeRole",
+			},
+		},
+	}
+
+	for _, cluster := range clusters {
+		policyDocument.Statement = append(policyDocument.Statement, policyStatements(cluster.WorkerRoleARN(), cluster.OIDCProviderARN(), cluster.OIDCSubjectKey())...)
+	}
+
+	return policyDocument
+}
+
+func policyStatements(workerRole string, identityProvider string, subjectKey string) []Statement {
+	return []Statement{
+		{
+			Effect: "Allow",
+			Principal: map[string]string{
+				"AWS": workerRole,
+			},
+			Action: "sts:AssumeRole",
+		},
+		{
+			Effect: "Allow",
+			Principal: map[string]string{
+				"Federated": identityProvider,
+			},
+			Action: "sts:AssumeRoleWithWebIdentity",
+			Condition: map[string]map[string]string{
+				"StringLike": {
+					subjectKey: "system:serviceaccount:${SERVICE_ACCOUNT}",
+				},
+			},
+		},
+	}
 }

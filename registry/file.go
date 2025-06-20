@@ -49,6 +49,7 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 			}
 			nodePool.InstanceType = nodePool.InstanceTypes[0]
 		}
+		cluster.AccountClusters = []*api.Cluster{cluster}
 	}
 
 	return fileClusters.Clusters, nil

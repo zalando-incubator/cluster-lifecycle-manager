@@ -24,6 +24,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
@@ -246,7 +247,7 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// TODO: should this be done like this or via a config item?
-	hostedZone, err := getHostedZone(cluster.APIServerURL)
+	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
 	if err != nil {
 		return err
 	}
