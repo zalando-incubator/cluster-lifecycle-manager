@@ -38,6 +38,8 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 		return nil, err
 	}
 
+	clustersByAccount := map[string][]*api.Cluster{}
+
 	for _, cluster := range fileClusters.Clusters {
 		for _, nodePool := range cluster.NodePools {
 			if nodePool.Profile == "worker-karpenter" && len(nodePool.InstanceTypes) == 0 {
@@ -49,7 +51,13 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 			}
 			nodePool.InstanceType = nodePool.InstanceTypes[0]
 		}
-		cluster.AccountClusters = []*api.Cluster{cluster}
+		clustersByAccount[cluster.InfrastructureAccount] = append(clustersByAccount[cluster.InfrastructureAccount], cluster)
+	}
+	for _, cluster := range fileClusters.Clusters {
+		cluster.AccountClusters = clustersByAccount[cluster.InfrastructureAccount]
+		if err := cluster.InitOIDCProvider(); err != nil {
+			return nil, err
+		}
 	}
 
 	return fileClusters.Clusters, nil

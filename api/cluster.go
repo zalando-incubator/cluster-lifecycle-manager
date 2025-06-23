@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
@@ -45,7 +44,10 @@ type Cluster struct {
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
 	AccountName           string            `json:"account_name"           yaml:"account_name"`
-	AccountClusters       []*Cluster
+	// Local fields to hold information about the OIDC provider.
+	AccountClusters                  []*Cluster
+	OIDCProvider                     string
+	IAMRoleTrustRelationshipTemplate string
 }
 
 type AssumeRolePolicyDocument struct {
@@ -58,6 +60,27 @@ type Statement struct {
 	Principal map[string]string
 	Action    string
 	Condition map[string]map[string]string `json:",omitempty"`
+}
+
+func (cluster *Cluster) InitOIDCProvider() error {
+	if cluster.Provider == ZalandoEKSProvider {
+		cluster.OIDCProvider = strings.TrimPrefix(cluster.ConfigItems["eks_oidc_issuer_url"], "https://")
+	} else {
+		hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
+		if err != nil {
+			return fmt.Errorf("error while getting trust relationship for %s: %v", cluster.Alias, err)
+		}
+		cluster.OIDCProvider = fmt.Sprintf("%s.%s", cluster.LocalID, hostedZone)
+	}
+
+	trustRelationship := trustRelationship(cluster.AccountClusters)
+	trustRelationshipJSON, err := json.Marshal(trustRelationship)
+	if err != nil {
+		return fmt.Errorf("error while marshalling trust relationship for %s: %v", cluster.Alias, err)
+	}
+
+	cluster.IAMRoleTrustRelationshipTemplate = string(trustRelationshipJSON)
+	return nil
 }
 
 // Version returns the version derived from a sha1 hash of the cluster struct
@@ -235,35 +258,12 @@ func (cluster Cluster) WorkerRoleARN() string {
 	return fmt.Sprintf("arn:aws:iam::%s:role/%s-worker", cluster.InfrastructureAccountID(), cluster.LocalID)
 }
 
-func (cluster Cluster) OIDCProvider() string {
-	if cluster.Provider == ZalandoEKSProvider {
-		return strings.TrimPrefix(cluster.ConfigItems["eks_oidc_issuer_url"], "https://")
-	}
-
-	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return fmt.Sprintf("%s.%s", cluster.LocalID, hostedZone)
-}
-
 func (cluster Cluster) OIDCProviderARN() string {
-	return fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", cluster.InfrastructureAccountID(), cluster.OIDCProvider())
+	return fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", cluster.InfrastructureAccountID(), cluster.OIDCProvider)
 }
 
 func (cluster Cluster) OIDCSubjectKey() string {
-	return fmt.Sprintf("%s:sub", cluster.OIDCProvider())
-}
-
-func (cluster Cluster) IAMRoleTrustRelationshipTemplate() string {
-	trustRelationship := trustRelationship(cluster.AccountClusters)
-	trustRelationshipJSON, err := json.Marshal(trustRelationship)
-	if err != nil {
-		log.Fatalf("Error while marshalling trust relationship for %s: %v", cluster.Alias, err)
-	}
-
-	return string(trustRelationshipJSON)
+	return fmt.Sprintf("%s:sub", cluster.OIDCProvider)
 }
 
 func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {

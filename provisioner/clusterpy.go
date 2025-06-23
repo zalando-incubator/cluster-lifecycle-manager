@@ -340,6 +340,10 @@ func (p *clusterpyProvisioner) provision(
 		}
 	}
 
+	if err := cluster.InitOIDCProvider(); err != nil {
+		return err
+	}
+
 	// TODO: having it this late means late feedback on invalid manifests
 	manifests, err := renderManifests(
 		channelConfig,

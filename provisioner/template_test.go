@@ -1654,7 +1654,10 @@ func TestClusterOIDCProvider(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := renderSingle(t, tc.input, map[string]interface{}{"cluster": tc.cluster})
+			err := tc.cluster.InitOIDCProvider()
+			require.NoError(t, err)
+			result, err := renderSingle(t, tc.input, map[string]interface{}{"cluster": tc.cluster})
+			require.NoError(t, err)
 			require.EqualValues(t, tc.expected, result)
 		})
 	}
