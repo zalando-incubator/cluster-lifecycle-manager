@@ -22,6 +22,12 @@ func (r *staticRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 			LifecycleStatus:       "ready",
 		},
 	}
+	for _, cluster := range clusters {
+		cluster.AccountClusters = clusters
+		if err := cluster.InitOIDCProvider(); err != nil {
+			return nil, err
+		}
+	}
 
 	return clusters, nil
 }

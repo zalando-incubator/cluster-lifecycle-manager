@@ -8,8 +8,10 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 func fieldNames(value interface{}) ([]string, error) {
@@ -83,7 +85,8 @@ func TestVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, field := range fields {
-		if field == "Alias" || field == "NodePools" || field == "Owner" || field == "AccountName" || field == "Status" {
+		switch field {
+		case "Alias", "NodePools", "Owner", "AccountName", "AccountClusters", "OIDCProvider", "IAMRoleTrustRelationshipTemplate", "Status":
 			continue
 		}
 
@@ -133,4 +136,112 @@ func TestName(t *testing.T) {
 	}
 
 	require.Equal(t, cluster.LocalID, cluster.Name())
+}
+
+func TestInfrastructureAccountID(t *testing.T) {
+	cluster := &Cluster{InfrastructureAccount: "aws:123456789012"}
+	assert.Equal(t, "123456789012", cluster.InfrastructureAccountID())
+}
+func TestWorkerRoleARN(t *testing.T) {
+	cluster := &Cluster{InfrastructureAccount: "aws:123456789012", LocalID: "kube-1"}
+	assert.Equal(t, "arn:aws:iam::123456789012:role/kube-1-worker", cluster.WorkerRoleARN())
+}
+
+func TestOIDCProvider(t *testing.T) {
+	cluster := &Cluster{
+		Provider:     ZalandoAWSProvider,
+		LocalID:      "kube-1",
+		APIServerURL: "https://kube-1.example.zalan.do",
+	}
+	err := cluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, "kube-1.example.zalan.do", cluster.OIDCProvider)
+
+	cluster = &Cluster{
+		Provider: ZalandoEKSProvider,
+		ConfigItems: map[string]string{
+			"eks_oidc_issuer_url": "https://oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888",
+		},
+	}
+	err = cluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, "oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888", cluster.OIDCProvider)
+}
+
+func TestOIDCProviderARN(t *testing.T) {
+	cluster := &Cluster{
+		InfrastructureAccount: "aws:123456789012",
+		OIDCProvider:          "kube-1.example.zalan.do",
+	}
+	assert.Equal(t, "arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do", cluster.OIDCProviderARN())
+}
+
+func TestOIDCSubjectKey(t *testing.T) {
+	cluster := &Cluster{OIDCProvider: "kube-1.example.zalan.do"}
+	assert.Equal(t, "kube-1.example.zalan.do:sub", cluster.OIDCSubjectKey())
+}
+
+func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
+	legacyCluster := &Cluster{
+		Provider:              ZalandoAWSProvider,
+		LocalID:               "kube-1",
+		InfrastructureAccount: "aws:123456789012",
+		APIServerURL:          "https://kube-1.example.zalan.do",
+		LifecycleStatus:       models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{legacyCluster}
+	err := legacyCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	legacyTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+	assert.Equal(t, legacyTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
+
+	eksCluster := &Cluster{
+		Provider:              ZalandoEKSProvider,
+		LocalID:               "teapot-euc1",
+		InfrastructureAccount: "aws:123456789012",
+		ConfigItems: map[string]string{
+			"eks_oidc_issuer_url": "https://oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888",
+		},
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster.AccountClusters = []*Cluster{eksCluster}
+	err = eksCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	eksTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+	assert.Equal(t, eksTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
+
+	combinedAccountClusters := []*Cluster{legacyCluster, eksCluster}
+	combinedTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+
+	legacyCluster.AccountClusters = combinedAccountClusters
+	err = legacyCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
+
+	eksCluster.AccountClusters = combinedAccountClusters
+	err = eksCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
+
+	withDecommissionedClusters := append(combinedAccountClusters, &Cluster{
+		LifecycleStatus: models.ClusterLifecycleStatusDecommissioned,
+	})
+
+	legacyCluster.AccountClusters = withDecommissionedClusters
+	err = legacyCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
+
+	eksCluster.AccountClusters = withDecommissionedClusters
+	err = eksCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
 }
