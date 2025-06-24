@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 func fieldNames(value interface{}) ([]string, error) {
@@ -188,6 +189,7 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 		LocalID:               "kube-1",
 		InfrastructureAccount: "aws:123456789012",
 		APIServerURL:          "https://kube-1.example.zalan.do",
+		LifecycleStatus:       models.ClusterLifecycleStatusReady,
 	}
 	legacyCluster.AccountClusters = []*Cluster{legacyCluster}
 	err := legacyCluster.InitOIDCProvider()
@@ -203,6 +205,7 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 		ConfigItems: map[string]string{
 			"eks_oidc_issuer_url": "https://oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888",
 		},
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
 	}
 	eksCluster.AccountClusters = []*Cluster{eksCluster}
 	err = eksCluster.InitOIDCProvider()
@@ -221,6 +224,22 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	assert.Equal(t, combinedTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
 
 	eksCluster.AccountClusters = combinedAccountClusters
+	err = eksCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
+
+	withDecommissionedClusters := append(combinedAccountClusters, &Cluster{
+		LifecycleStatus: models.ClusterLifecycleStatusDecommissioned,
+	})
+
+	legacyCluster.AccountClusters = withDecommissionedClusters
+	err = legacyCluster.InitOIDCProvider()
+	require.NoError(t, err)
+
+	assert.Equal(t, combinedTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
+
+	eksCluster.AccountClusters = withDecommissionedClusters
 	err = eksCluster.InitOIDCProvider()
 	require.NoError(t, err)
 

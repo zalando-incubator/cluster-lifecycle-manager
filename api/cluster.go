@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 
@@ -281,7 +282,9 @@ func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {
 	}
 
 	for _, cluster := range clusters {
-		policyDocument.Statement = append(policyDocument.Statement, policyStatements(cluster.WorkerRoleARN(), cluster.OIDCProviderARN(), cluster.OIDCSubjectKey())...)
+		if cluster.LifecycleStatus == models.ClusterLifecycleStatusReady {
+			policyDocument.Statement = append(policyDocument.Statement, policyStatements(cluster.WorkerRoleARN(), cluster.OIDCProviderARN(), cluster.OIDCSubjectKey())...)
+		}
 	}
 
 	return policyDocument
