@@ -12,12 +12,12 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/samber/lo"
 
+	apiclient "github.com/zalando-build/cluster-registry/client"
+	"github.com/zalando-build/cluster-registry/client/clusters"
+	"github.com/zalando-build/cluster-registry/client/config_items"
+	"github.com/zalando-build/cluster-registry/client/infrastructure_accounts"
+	"github.com/zalando-build/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	apiclient "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/clusters"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/config_items"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/client/infrastructure_accounts"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 type httpRegistry struct {

@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando-build/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
 func fieldNames(value interface{}) ([]string, error) {

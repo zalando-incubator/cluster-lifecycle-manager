@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/zalando-build/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 )
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
+	"github.com/zalando-build/cluster-registry/models"
 )
 
 func TestFilter(t *testing.T) {
