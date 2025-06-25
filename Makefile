@@ -21,11 +21,11 @@ clean:
 	rm -rf $(CR_CLIENT)
 	rm -rf $(AWS_INSTANCE_DATA)
 
-test: $(CR_CLIENT) $(AWS_INSTANCE_DATA)
+test: $(AWS_INSTANCE_DATA)
 	$(GO) test -v -race -coverprofile=profile.cov $(GOPKGS)
 	$(GO) vet -v $(GOPKGS)
 
-lint: $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
+lint: $(SOURCES) $(AWS_INSTANCE_DATA)
 	$(GO) mod download
 	golangci-lint -v run ./...
 
@@ -36,20 +36,16 @@ $(AWS_DATA_SRC):
 	mkdir -p $(dir $@)
 	curl -L -s --fail https://www.ec2instances.info/instances.json | jq '[.[] | {instance_type, vCPU, memory, storage: (if .storage == null then null else .storage | {devices, size, nvme_ssd} end)}] | sort_by(.instance_type)' > "$@"
 
-$(CR_CLIENT): $(SPEC)
-	mkdir -p $@
-	go run github.com/go-swagger/go-swagger/cmd/swagger generate client --name cluster-registry --principal oauth.User --spec docs/cluster-registry.yaml --target ./$(CR_CLIENT)
-
 build.local: build/$(BINARY)
 build.linux: build/linux/$(BINARY)
 build.osx: build/osx/$(BINARY)
 build.linux.amd64: build/linux/amd64/$(BINARY)
 build.linux.arm64: build/linux/arm64/$(BINARY)
 
-build/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
+build/$(BINARY): $(SOURCES) $(AWS_INSTANCE_DATA)
 	CGO_ENABLED=0 $(GO) build -o build/$(BINARY) $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
 
-build/linux/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
+build/linux/$(BINARY): $(SOURCES) $(AWS_INSTANCE_DATA)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/linux/$(BINARY) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
 
 build/linux/amd64/%: go.mod $(SOURCES)
@@ -58,7 +54,7 @@ build/linux/amd64/%: go.mod $(SOURCES)
 build/linux/arm64/%: go.mod $(SOURCES)
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/linux/arm64/$(notdir $@) -ldflags "$(LDFLAGS)" ./cmd/$(notdir $@)
 
-build/osx/$(BINARY): $(CR_CLIENT) $(SOURCES) $(AWS_INSTANCE_DATA)
+build/osx/$(BINARY): $(SOURCES) $(AWS_INSTANCE_DATA)
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 $(GO) build $(BUILD_FLAGS) -o build/osx/$(BINARY) -ldflags "$(LDFLAGS)" ./cmd/$(BINARY)
 
 build.docker: build.linux

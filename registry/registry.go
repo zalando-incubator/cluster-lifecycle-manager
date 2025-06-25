@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/url"
 
+	"github.com/zalando-build/cluster-registry/models"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 	"golang.org/x/oauth2"
 )
 
