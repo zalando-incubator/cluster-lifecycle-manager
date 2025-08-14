@@ -487,6 +487,7 @@ func createOrUpdateEtcdStack(
 		nodePool:      nil,
 		instanceTypes: instanceTypes,
 	}
+	values["instance_types_info"] = instanceTypes
 
 	s3Path, err := renderer.RenderAndUploadFiles(values, bucketName, etcdKmsKeyARN)
 	if err != nil {
@@ -495,12 +496,6 @@ func createOrUpdateEtcdStack(
 
 	logger.Debugf("Uploaded generated files to %s", s3Path)
 	values[s3GeneratedFilesPathValuesKey] = s3Path
-
-	etcdInstanceInfo, err := instanceTypes.InstanceInfo(cluster.ConfigItems["etcd_instance_type"])
-	if err != nil {
-		return err
-	}
-	values["etcd_instance_type_info"] = etcdInstanceInfo.InstanceType
 
 	rendered, err := renderSingleTemplate(template, cluster, nil, values, adapter, instanceTypes)
 	if err != nil {
