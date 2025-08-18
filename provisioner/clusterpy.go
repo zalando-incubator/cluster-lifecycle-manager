@@ -491,7 +491,7 @@ func createOrUpdateEtcdStack(
 	if err != nil {
 		return err
 	}
-	values["etcd_instance_type_info"] = etcdInstanceInfo.InstanceType
+	values["etcd_instance_type_info"] = etcdInstanceInfo
 
 	s3Path, err := renderer.RenderAndUploadFiles(values, bucketName, etcdKmsKeyARN)
 	if err != nil {
