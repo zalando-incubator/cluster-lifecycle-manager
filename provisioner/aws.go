@@ -712,6 +712,15 @@ func isDoesNotExistsErr(err error) bool {
 	return false
 }
 
+func isClusterNotFoundErr(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok {
+		if strings.Contains(awsErr.Message(), "No cluster found") {
+			return true
+		}
+	}
+	return false
+}
+
 // isWrongStackStatusErr returns true if the error is of type awserr.Error and
 // describes a failure because of wrong Cloudformation stack status.
 func isWrongStackStatusErr(err error) bool {
