@@ -42,6 +42,7 @@ const (
 	stackMaxSize                = 51200
 	cloudformationValidationErr = "ValidationError"
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
+	eksResourceNotFoundErr      = "ResourceNotFoundException"
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
 	stackUpdateRetryDuration    = time.Duration(5) * time.Minute
@@ -714,7 +715,7 @@ func isDoesNotExistsErr(err error) bool {
 
 func isClusterNotFoundErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
-		if strings.Contains(awsErr.Message(), "No cluster found") {
+		if awsErr.Code() == eksResourceNotFoundErr && strings.Contains(awsErr.Message(), "No cluster found") {
 			return true
 		}
 	}
