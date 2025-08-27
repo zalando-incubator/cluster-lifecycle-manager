@@ -42,6 +42,7 @@ const (
 	stackMaxSize                = 51200
 	cloudformationValidationErr = "ValidationError"
 	cloudformationNoUpdateMsg   = "No updates are to be performed."
+	eksResourceNotFoundErr      = "ResourceNotFoundException"
 	clmCFBucketPattern          = "cluster-lifecycle-manager-%s-%s"
 	lifecycleStatusReady        = "ready"
 	stackUpdateRetryDuration    = time.Duration(5) * time.Minute
@@ -706,6 +707,15 @@ func isDoesNotExistsErr(err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok {
 		if awsErr.Code() == cloudformationValidationErr && strings.Contains(awsErr.Message(), "does not exist") {
 			//we wanted to delete a stack and it does not exist (or was removed while we were waiting, we can hide the error)
+			return true
+		}
+	}
+	return false
+}
+
+func isClusterNotFoundErr(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok {
+		if awsErr.Code() == eksResourceNotFoundErr && strings.Contains(awsErr.Message(), "No cluster found") {
 			return true
 		}
 	}

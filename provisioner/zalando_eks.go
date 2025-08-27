@@ -122,6 +122,10 @@ func (z *ZalandoEKSProvisioner) Decommission(
 
 	clusterDetails, err := awsAdapter.GetEKSClusterDetails(cluster)
 	if err != nil {
+		if isClusterNotFoundErr(err) {
+			logger.Infof("EKS cluster not found: %s", cluster.ID)
+			return nil
+		}
 		return err
 	}
 	cluster.APIServerURL = clusterDetails.Endpoint
