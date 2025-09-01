@@ -122,20 +122,22 @@ func TestVersion(t *testing.T) {
 
 func TestName(t *testing.T) {
 	cluster := &Cluster{
-		ID:       "aws:123456789012:eu-central-1:test-cluster",
-		LocalID:  "test-cluster",
+		ID:       "aws:123456789012:eu-central-1:kube-test-1",
+		Alias:    "teapot-test",
+		LocalID:  "kube-test-1",
 		Provider: ZalandoAWSProvider,
 	}
 
 	require.Equal(t, cluster.ID, cluster.Name())
 
 	cluster = &Cluster{
-		ID:       "aws:123456789012:eu-central-1:test-cluster",
-		LocalID:  "test-cluster",
+		ID:       "aws:123456789012:eu-central-1:kube-test-1",
+		Alias:    "teapot-test",
+		LocalID:  "kube-test-1",
 		Provider: ZalandoEKSProvider,
 	}
 
-	require.Equal(t, cluster.LocalID, cluster.Name())
+	require.Equal(t, cluster.Alias, cluster.Name())
 }
 
 func TestInfrastructureAccountID(t *testing.T) {
