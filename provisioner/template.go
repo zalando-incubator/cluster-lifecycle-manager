@@ -96,7 +96,6 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"azCount":              azCount,
 		"split":                split,
 		"join":                 sprig.GenericFuncMap()["join"],
-		"eksID":                eksID,
 		"mountUnitName":        mountUnitName,
 		"accountID":            accountID,
 		"portRanges":           portRanges,
@@ -287,11 +286,6 @@ func list(args ...interface{}) []interface{} {
 func strAppend(list []string, item string, moreItems ...string) []string {
 	items := append(list, item)
 	return append(items, moreItems...)
-}
-
-func eksID(id string) string {
-	parts := strings.Split(id, ":")
-	return parts[len(parts)-1]
 }
 
 // accountID returns just the ID part of an account
