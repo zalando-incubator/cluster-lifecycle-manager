@@ -246,7 +246,7 @@ func (cluster *Cluster) ASGBackedPools() []*NodePool {
 
 func (cluster Cluster) Name() string {
 	if cluster.Provider == ZalandoEKSProvider {
-		return cluster.LocalID
+		return cluster.Alias
 	}
 	return cluster.ID
 }

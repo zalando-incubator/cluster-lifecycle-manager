@@ -774,7 +774,7 @@ type EKSClusterDetails struct {
 
 func (a *awsAdapter) GetEKSClusterDetails(cluster *api.Cluster) (*EKSClusterDetails, error) {
 	resp, err := a.eksClient.DescribeCluster(&eks.DescribeClusterInput{
-		Name: aws.String(eksID(cluster.ID)),
+		Name: aws.String(cluster.Alias),
 	})
 	if err != nil {
 		return nil, err

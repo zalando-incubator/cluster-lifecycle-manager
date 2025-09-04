@@ -82,7 +82,7 @@ func (z *ZalandoEKSProvisioner) Provision(
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
-	eksTokenSource := eks.NewTokenSource(awsAdapter.session, eksID(cluster.ID))
+	eksTokenSource := eks.NewTokenSource(awsAdapter.session, cluster.Alias)
 
 	logger.Infof(
 		"clusterpy: Prepare for provisioning EKS cluster %s (%s)..",
@@ -137,7 +137,7 @@ func (z *ZalandoEKSProvisioner) Decommission(
 		return err
 	}
 
-	tokenSource := eks.NewTokenSource(awsAdapter.session, eksID(cluster.ID))
+	tokenSource := eks.NewTokenSource(awsAdapter.session, cluster.Alias)
 
 	return z.decommission(
 		ctx,
