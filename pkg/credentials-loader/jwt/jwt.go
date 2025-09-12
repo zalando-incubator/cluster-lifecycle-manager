@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	jwt "github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 // Claims defines the claims of a jwt token.
@@ -39,7 +39,9 @@ func ParseClaims(token string) (*Claims, error) {
 		return nil, fmt.Errorf("token contains an invalid number of segments")
 	}
 
-	d, err := jwt.DecodeSegment(parts[1])
+	parser := jwt.NewParser()
+
+	d, err := parser.DecodeSegment(parts[1])
 	if err != nil {
 		return nil, err
 	}
