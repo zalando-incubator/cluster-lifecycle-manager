@@ -13,7 +13,6 @@ require (
 	github.com/go-openapi/validate v0.24.0
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-swagger/go-swagger v0.32.3
-	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
@@ -38,6 +37,7 @@ require (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/samber/lo v1.51.0
 	sigs.k8s.io/aws-iam-authenticator v0.7.2
