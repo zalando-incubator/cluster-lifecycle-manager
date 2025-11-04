@@ -144,6 +144,16 @@ func TestSha256(t *testing.T) {
 	require.EqualValues(t, "2cf24dba5fb0a30e26e83b2ac5b9e29e", result)
 }
 
+func TestMD5Sum(t *testing.T) {
+	result, err := renderSingle(
+		t,
+		"{{ .Values.data | md5Sum }}",
+		"abc123")
+
+	require.NoError(t, err)
+	require.EqualValues(t, "e99a18c428cb38d5f260853678922e03", result)
+}
+
 func TestASGSize(t *testing.T) {
 	result, err := renderSingle(
 		t,

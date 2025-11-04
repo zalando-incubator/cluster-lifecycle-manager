@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"bytes"
+	"crypto/md5"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -90,6 +91,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		},
 		"sha256": func(value string) (string, error) {
 			return fmt.Sprintf("%x", sha256.Sum256([]byte(value))), nil
+		},
+		"md5Sum": func(value string) (string, error) {
+			return fmt.Sprintf("%x", md5.Sum([]byte(value))), nil
 		},
 		"asgSize":              asgSize,
 		"azID":                 azID,
