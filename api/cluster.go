@@ -313,3 +313,30 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 		},
 	}
 }
+
+func (cluster Cluster) MainCluster() bool {
+	var (
+		firstLegacy string
+		firstEKS    string
+	)
+
+	for _, c := range cluster.AccountClusters {
+		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
+			if firstLegacy == "" && c.Provider == ZalandoAWSProvider {
+				firstLegacy = c.ID
+			}
+			if firstEKS == "" && c.Provider == ZalandoEKSProvider {
+				firstEKS = c.ID
+			}
+		}
+	}
+
+	if firstLegacy != "" {
+		return cluster.ID == firstLegacy
+	}
+	if firstEKS != "" {
+		return cluster.ID == firstEKS
+	}
+
+	return false
+}
