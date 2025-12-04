@@ -110,7 +110,7 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 		var defaults map[string]string
 		err = yaml.Unmarshal([]byte(result), &defaults)
 		if err != nil {
-			return err
+			return fmt.Errorf("unmarshal defaults file %s: %w", file.Path, err)
 		}
 
 		for k, v := range defaults {
@@ -1135,7 +1135,7 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 		var deletions deletions
 		err = yaml.Unmarshal([]byte(res), &deletions)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unmarshal deletions file %s: %w", deletionsFile.Path , err)
 		}
 
 		result.PreApply = append(result.PreApply, deletions.PreApply...)
