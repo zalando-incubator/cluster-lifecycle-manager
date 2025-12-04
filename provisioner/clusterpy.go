@@ -1135,7 +1135,7 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 		var deletions deletions
 		err = yaml.Unmarshal([]byte(res), &deletions)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal deletions file %s: %w", deletionsFile.Path , err)
+			return nil, fmt.Errorf("unmarshal deletions file %s: %w", deletionsFile.Path, err)
 		}
 
 		result.PreApply = append(result.PreApply, deletions.PreApply...)
