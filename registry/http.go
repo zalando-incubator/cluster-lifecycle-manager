@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"net/url"
+	"sort"
 
 	"golang.org/x/oauth2"
 
@@ -55,6 +56,12 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
+	clusters := resp.Payload.Items
+
+	// sort by alias
+	sort.Slice(clusters, func(i, j int) bool {
+		return *clusters[i].Alias < *clusters[j].Alias
+	})
 
 	// get all ready infrastructure accounts to lookup owner for clusters
 	accounts, err := r.getReadyInfrastructureAccounts()
@@ -65,7 +72,7 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	var result []*api.Cluster
 	clustersByAccount := map[string][]*api.Cluster{}
 
-	for _, cluster := range resp.Payload.Items {
+	for _, cluster := range clusters {
 		if !filter.Includes(cluster) {
 			continue
 		}
