@@ -35,7 +35,7 @@ func (r *fileRegistry) ListClusters(_ Filter) ([]*api.Cluster, error) {
 
 	err = yaml.Unmarshal(fileContent, &fileClusters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse file %s: %w", r.filePath, err)
 	}
 
 	clustersByAccount := map[string][]*api.Cluster{}
