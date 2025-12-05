@@ -247,3 +247,216 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 
 	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
 }
+
+func TestMainClusterLegacySingle(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{legacyCluster}
+
+	assert.True(t, legacyCluster.MainCluster())
+}
+
+func TestMainClusterLegacySingleNonready(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	decommissionedCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-2",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusDecommissioned,
+	}
+	legacyCluster.AccountClusters = []*Cluster{decommissionedCluster, legacyCluster}
+	decommissionedCluster.AccountClusters = []*Cluster{decommissionedCluster, legacyCluster}
+
+	assert.True(t, legacyCluster.MainCluster())
+	assert.False(t, decommissionedCluster.MainCluster())
+}
+
+func TestMainClusterLegacyMulti1(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-2",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{legacyCluster, legacyCluster2}
+	legacyCluster2.AccountClusters = []*Cluster{legacyCluster, legacyCluster2}
+
+	assert.True(t, legacyCluster.MainCluster())
+	assert.False(t, legacyCluster2.MainCluster())
+}
+
+func TestMainClusterLegacyMulti2(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-2",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{legacyCluster2, legacyCluster}
+	legacyCluster2.AccountClusters = []*Cluster{legacyCluster2, legacyCluster}
+
+	assert.False(t, legacyCluster.MainCluster())
+	assert.True(t, legacyCluster2.MainCluster())
+}
+
+func TestMainClusterEKSSingle(t *testing.T) {
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster.AccountClusters = []*Cluster{eksCluster}
+
+	assert.True(t, eksCluster.MainCluster())
+}
+
+func TestMainClusterEKSMulti1(t *testing.T) {
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-2",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster.AccountClusters = []*Cluster{eksCluster, eksCluster2}
+	eksCluster2.AccountClusters = []*Cluster{eksCluster, eksCluster2}
+
+	assert.True(t, eksCluster.MainCluster())
+	assert.False(t, eksCluster2.MainCluster())
+}
+
+func TestMainClusterEKSMulti2(t *testing.T) {
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-2",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	eksCluster.AccountClusters = []*Cluster{eksCluster2, eksCluster}
+	eksCluster2.AccountClusters = []*Cluster{eksCluster2, eksCluster}
+
+	assert.False(t, eksCluster.MainCluster())
+	assert.True(t, eksCluster2.MainCluster())
+}
+
+func TestMainClusterLegacyAndEKS(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{legacyCluster, eksCluster}
+	eksCluster.AccountClusters = []*Cluster{legacyCluster, eksCluster}
+
+	assert.True(t, legacyCluster.MainCluster())
+	assert.False(t, eksCluster.MainCluster())
+}
+
+func TestMainClusterLegacyAndEKS2(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster.AccountClusters = []*Cluster{eksCluster, legacyCluster}
+	eksCluster.AccountClusters = []*Cluster{eksCluster, legacyCluster}
+
+	assert.True(t, legacyCluster.MainCluster())
+	assert.False(t, eksCluster.MainCluster())
+}
+
+func TestMainClusterLegacyAndEKS3(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-2",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	legacyCluster.AccountClusters = []*Cluster{eksCluster, legacyCluster, eksCluster2}
+	eksCluster.AccountClusters = []*Cluster{eksCluster, legacyCluster, eksCluster2}
+	eksCluster2.AccountClusters = []*Cluster{eksCluster, legacyCluster, eksCluster2}
+
+	assert.True(t, legacyCluster.MainCluster())
+	assert.False(t, eksCluster.MainCluster())
+	assert.False(t, eksCluster2.MainCluster())
+}
+
+func TestMainClusterLegacyAndEKS4(t *testing.T) {
+	legacyCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-1",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+	legacyCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-2",
+		Provider:        ZalandoAWSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-1",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	eksCluster2 := &Cluster{
+		ID:              "aws:123456789012:eu-central-1:kube-test-eks-2",
+		Provider:        ZalandoEKSProvider,
+		LifecycleStatus: models.ClusterLifecycleStatusReady,
+	}
+
+	legacyCluster.AccountClusters = []*Cluster{eksCluster, eksCluster2, legacyCluster2, legacyCluster}
+	legacyCluster2.AccountClusters = []*Cluster{eksCluster, eksCluster2, legacyCluster2, legacyCluster}
+	eksCluster.AccountClusters = []*Cluster{eksCluster, eksCluster2, legacyCluster2, legacyCluster}
+	eksCluster2.AccountClusters = []*Cluster{eksCluster, eksCluster2, legacyCluster2, legacyCluster}
+
+	assert.False(t, legacyCluster.MainCluster())
+	assert.True(t, legacyCluster2.MainCluster())
+	assert.False(t, eksCluster.MainCluster())
+	assert.False(t, eksCluster2.MainCluster())
+}
