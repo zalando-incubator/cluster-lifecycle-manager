@@ -86,7 +86,7 @@ func TestVersion(t *testing.T) {
 
 	for _, field := range fields {
 		switch field {
-		case "Alias", "NodePools", "Owner", "AccountName", "AccountClusters", "OIDCProvider", "IAMRoleTrustRelationshipTemplate", "Status":
+		case "Alias", "NodePools", "Owner", "AccountName", "AccountClusters", "OIDCProvider", "IAMRoleTrustRelationshipTemplate", "Status", "CreatedAt":
 			continue
 		}
 
