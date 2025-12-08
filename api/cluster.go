@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
@@ -45,6 +46,7 @@ type Cluster struct {
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
 	AccountName           string            `json:"account_name"           yaml:"account_name"`
+	CreatedAt             time.Time         `json:"created_at"             yaml:"created_at"`
 	// Local fields to hold information about the OIDC provider.
 	AccountClusters                  []*Cluster
 	OIDCProvider                     string
@@ -314,29 +316,16 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 	}
 }
 
+// MainCluster returns true if the cluster is the main cluster in its account.
+// A main cluster is defined as the oldest ready cluster in the account.
+// It assumes that AccountClusters is sorted by creation time.
+// If there are no other clusters, the cluster is considered the main cluster by default.
 func (cluster Cluster) MainCluster() bool {
-	var (
-		firstLegacy string
-		firstEKS    string
-	)
-
 	for _, c := range cluster.AccountClusters {
 		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
-			if firstLegacy == "" && c.Provider == ZalandoAWSProvider {
-				firstLegacy = c.ID
-			}
-			if firstEKS == "" && c.Provider == ZalandoEKSProvider {
-				firstEKS = c.ID
-			}
+			return cluster.ID == c.ID
 		}
 	}
 
-	if firstLegacy != "" {
-		return cluster.ID == firstLegacy
-	}
-	if firstEKS != "" {
-		return cluster.ID == firstEKS
-	}
-
-	return false
+	return len(cluster.AccountClusters) == 0
 }
