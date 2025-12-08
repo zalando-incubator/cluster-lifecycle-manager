@@ -316,11 +316,11 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 	}
 }
 
-// MainCluster returns true if the cluster is the main cluster in its account.
+// IsMainCluster returns true if the cluster is the main cluster in its account.
 // A main cluster is defined as the oldest ready cluster in the account.
 // It assumes that AccountClusters is sorted by creation time.
 // If there are no other clusters, the cluster is considered the main cluster by default.
-func (cluster Cluster) MainCluster() bool {
+func (cluster Cluster) IsMainCluster() bool {
 	for _, c := range cluster.AccountClusters {
 		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
 			return cluster.ID == c.ID

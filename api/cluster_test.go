@@ -248,8 +248,8 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
 }
 
-// TestMainCluster tests that the first cluster is identified as the main cluster.
-func TestMainCluster(t *testing.T) {
+// TestIsMainCluster tests that the first cluster is identified as the main cluster.
+func TestIsMainCluster(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -264,12 +264,12 @@ func TestMainCluster(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.True(t, clusters[0].MainCluster())
-	assert.False(t, clusters[1].MainCluster())
+	assert.True(t, clusters[0].IsMainCluster())
+	assert.False(t, clusters[1].IsMainCluster())
 }
 
-// TestMainClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as main clusters.
-func TestMainClusterIgnoreNonReayClusters(t *testing.T) {
+// TestIsMainClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as main clusters.
+func TestIsMainClusterIgnoreNonReayClusters(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -284,12 +284,12 @@ func TestMainClusterIgnoreNonReayClusters(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.False(t, clusters[0].MainCluster())
-	assert.True(t, clusters[1].MainCluster())
+	assert.False(t, clusters[0].IsMainCluster())
+	assert.True(t, clusters[1].IsMainCluster())
 }
 
-// TestMainClusterNoAccountClusters tests that clusters with no sibling clusters are identified as main clusters.
-func TestMainClusterNoAccountClusters(t *testing.T) {
+// TestIsMainClusterNoAccountClusters tests that clusters with no sibling clusters are identified as main clusters.
+func TestIsMainClusterNoAccountClusters(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -301,6 +301,6 @@ func TestMainClusterNoAccountClusters(t *testing.T) {
 		},
 	}
 
-	assert.True(t, clusters[0].MainCluster())
-	assert.True(t, clusters[1].MainCluster())
+	assert.True(t, clusters[0].IsMainCluster())
+	assert.True(t, clusters[1].IsMainCluster())
 }
