@@ -219,7 +219,7 @@ func (a *awsAdapter) applyStack(stackName string, stackTemplate string, stackTem
 	// parse tags from stack template
 	stackTemplateTags, err := tagsFromStackTemplate(stackTemplate)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse tags from stack template %s: %v", stackName, err)
 	}
 
 	tags = mergeTags(stackTemplateTags, tags)
