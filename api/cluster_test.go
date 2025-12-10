@@ -248,8 +248,8 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
 }
 
-// TestIsMainCluster tests that the first cluster is identified as the main cluster.
-func TestIsMainCluster(t *testing.T) {
+// TestIsOldestReadyCluster tests that the first cluster is identified as the oldest cluster.
+func TestIsOldestReadyCluster(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -264,12 +264,12 @@ func TestIsMainCluster(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.True(t, clusters[0].IsMainCluster())
-	assert.False(t, clusters[1].IsMainCluster())
+	assert.True(t, clusters[0].IsOldestReadyCluster())
+	assert.False(t, clusters[1].IsOldestReadyCluster())
 }
 
-// TestIsMainClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as main clusters.
-func TestIsMainClusterIgnoreNonReayClusters(t *testing.T) {
+// TestIsOldestReadyClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as oldest clusters.
+func TestIsOldestReadyClusterIgnoreNonReayClusters(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -284,12 +284,12 @@ func TestIsMainClusterIgnoreNonReayClusters(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.False(t, clusters[0].IsMainCluster())
-	assert.True(t, clusters[1].IsMainCluster())
+	assert.False(t, clusters[0].IsOldestReadyCluster())
+	assert.True(t, clusters[1].IsOldestReadyCluster())
 }
 
-// TestIsMainClusterNoAccountClusters tests that clusters with no sibling clusters are identified as main clusters.
-func TestIsMainClusterNoAccountClusters(t *testing.T) {
+// TestIsOldestReadyClusterNoAccountClusters tests that clusters with no sibling clusters are identified as oldest clusters.
+func TestIsOldestReadyClusterNoAccountClusters(t *testing.T) {
 	clusters := []*Cluster{
 		{
 			ID:              "aws:123456789012:eu-central-1:kube-test-1",
@@ -301,6 +301,6 @@ func TestIsMainClusterNoAccountClusters(t *testing.T) {
 		},
 	}
 
-	assert.True(t, clusters[0].IsMainCluster())
-	assert.True(t, clusters[1].IsMainCluster())
+	assert.True(t, clusters[0].IsOldestReadyCluster())
+	assert.True(t, clusters[1].IsOldestReadyCluster())
 }
