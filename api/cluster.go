@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
@@ -45,6 +46,7 @@ type Cluster struct {
 	Status                *ClusterStatus    `json:"status"                 yaml:"status"`
 	Owner                 string            `json:"owner"                  yaml:"owner"`
 	AccountName           string            `json:"account_name"           yaml:"account_name"`
+	CreatedAt             time.Time         `json:"created_at"             yaml:"created_at"`
 	// Local fields to hold information about the OIDC provider.
 	AccountClusters                  []*Cluster
 	OIDCProvider                     string
@@ -312,4 +314,17 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 			},
 		},
 	}
+}
+
+// IsOldestReadyCluster returns true if the cluster is the oldest ready cluster in its account.
+// It assumes that AccountClusters is sorted by creation time.
+// If there are no other clusters, the cluster is considered the oldest ready cluster by default.
+func (cluster Cluster) IsOldestReadyCluster() bool {
+	for _, c := range cluster.AccountClusters {
+		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
+			return cluster.ID == c.ID
+		}
+	}
+
+	return len(cluster.AccountClusters) == 0
 }

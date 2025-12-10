@@ -3,6 +3,8 @@ package registry
 import (
 	"fmt"
 	"net/url"
+	"sort"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -55,6 +57,11 @@ func (r *httpRegistry) ListClusters(filter Filter) ([]*api.Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// sort by creation time
+	sort.Slice(resp.Payload.Items, func(i, j int) bool {
+		return time.Time(resp.Payload.Items[i].CreatedAt).Before(time.Time(resp.Payload.Items[j].CreatedAt))
+	})
 
 	// get all ready infrastructure accounts to lookup owner for clusters
 	accounts, err := r.getReadyInfrastructureAccounts()

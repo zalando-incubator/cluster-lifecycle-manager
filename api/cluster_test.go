@@ -86,7 +86,7 @@ func TestVersion(t *testing.T) {
 
 	for _, field := range fields {
 		switch field {
-		case "Alias", "NodePools", "Owner", "AccountName", "AccountClusters", "OIDCProvider", "IAMRoleTrustRelationshipTemplate", "Status":
+		case "Alias", "NodePools", "Owner", "AccountName", "AccountClusters", "OIDCProvider", "IAMRoleTrustRelationshipTemplate", "Status", "CreatedAt":
 			continue
 		}
 
@@ -246,4 +246,61 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, combinedTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
+}
+
+// TestIsOldestReadyCluster tests that the first cluster is identified as the oldest cluster.
+func TestIsOldestReadyCluster(t *testing.T) {
+	clusters := []*Cluster{
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-1",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+		},
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-2",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+		},
+	}
+	for _, cluster := range clusters {
+		cluster.AccountClusters = clusters
+	}
+
+	assert.True(t, clusters[0].IsOldestReadyCluster())
+	assert.False(t, clusters[1].IsOldestReadyCluster())
+}
+
+// TestIsOldestReadyClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as oldest clusters.
+func TestIsOldestReadyClusterIgnoreNonReayClusters(t *testing.T) {
+	clusters := []*Cluster{
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-1",
+			LifecycleStatus: models.ClusterLifecycleStatusDecommissioned,
+		},
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-2",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+		},
+	}
+	for _, cluster := range clusters {
+		cluster.AccountClusters = clusters
+	}
+
+	assert.False(t, clusters[0].IsOldestReadyCluster())
+	assert.True(t, clusters[1].IsOldestReadyCluster())
+}
+
+// TestIsOldestReadyClusterNoAccountClusters tests that clusters with no sibling clusters are identified as oldest clusters.
+func TestIsOldestReadyClusterNoAccountClusters(t *testing.T) {
+	clusters := []*Cluster{
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-1",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+		},
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-2",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+		},
+	}
+
+	assert.True(t, clusters[0].IsOldestReadyCluster())
+	assert.True(t, clusters[1].IsOldestReadyCluster())
 }

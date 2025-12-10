@@ -864,6 +864,11 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/NodePool'
+      created_at:
+        type: string
+        format: date-time
+        example: "2024-02-28T09:00:00+00:00"
+        description: Timestamp when the cluster was created.
     required:
       - id
       - alias

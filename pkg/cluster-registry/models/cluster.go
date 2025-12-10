@@ -45,6 +45,11 @@ type Cluster struct {
 	// Example: {"product_x_key":"abcde","product_y_key":"12345"}
 	ConfigItems map[string]string `json:"config_items,omitempty"`
 
+	// Timestamp when the cluster was created.
+	// Example: 2024-02-28T09:00:00+00:00
+	// Format: date-time
+	CreatedAt strfmt.DateTime `json:"created_at,omitempty"`
+
 	// Level of criticality as defined by tech controlling. 1 is non critical, 2 is standard production, 3 is PCI.
 	// Example: 2
 	// Required: true
@@ -107,6 +112,10 @@ func (m *Cluster) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateChannel(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCreatedAt(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -181,6 +190,18 @@ func (m *Cluster) validateAPIServerURL(formats strfmt.Registry) error {
 func (m *Cluster) validateChannel(formats strfmt.Registry) error {
 
 	if err := validate.Required("channel", "body", m.Channel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Cluster) validateCreatedAt(formats strfmt.Registry) error {
+	if swag.IsZero(m.CreatedAt) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("created_at", "body", "date-time", m.CreatedAt.String(), formats); err != nil {
 		return err
 	}
 
