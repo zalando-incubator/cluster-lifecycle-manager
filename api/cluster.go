@@ -316,10 +316,10 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 	}
 }
 
-// IsOldestReadyCluster returns true if the cluster is the oldest ready cluster in its account.
+// IsOldestReadyClusterInTheRegion returns true if the cluster is the oldest ready cluster in its account and region.
 // It assumes that AccountClusters is sorted by creation time.
 // If there are no other clusters, the cluster is considered the oldest ready cluster by default.
-func (cluster Cluster) IsOldestReadyCluster() bool {
+func (cluster Cluster) IsOldestReadyClusterInTheRegion() bool {
 	for _, c := range cluster.AccountClusters {
 		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
 			if cluster.Region == c.Region {
@@ -329,4 +329,9 @@ func (cluster Cluster) IsOldestReadyCluster() bool {
 	}
 
 	return len(cluster.AccountClusters) == 0
+}
+
+// IsOldestReadyCluster is an alias for IsOldestReadyClusterInTheRegion.
+func (cluster Cluster) IsOldestReadyCluster() bool {
+	return cluster.IsOldestReadyClusterInTheRegion()
 }
