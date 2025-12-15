@@ -264,8 +264,8 @@ func TestIsOldestReadyCluster(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.True(t, clusters[0].IsOldestReadyCluster())
-	assert.False(t, clusters[1].IsOldestReadyCluster())
+	assert.True(t, clusters[0].IsOldestReadyClusterInTheRegion())
+	assert.False(t, clusters[1].IsOldestReadyClusterInTheRegion())
 }
 
 // TestIsOldestReadyClusterIgnoreNonReayClusters tests that non-ready clusters are not identified as oldest clusters.
@@ -284,8 +284,8 @@ func TestIsOldestReadyClusterIgnoreNonReayClusters(t *testing.T) {
 		cluster.AccountClusters = clusters
 	}
 
-	assert.False(t, clusters[0].IsOldestReadyCluster())
-	assert.True(t, clusters[1].IsOldestReadyCluster())
+	assert.False(t, clusters[0].IsOldestReadyClusterInTheRegion())
+	assert.True(t, clusters[1].IsOldestReadyClusterInTheRegion())
 }
 
 // TestIsOldestReadyClusterNoAccountClusters tests that clusters with no sibling clusters are identified as oldest clusters.
@@ -301,6 +301,34 @@ func TestIsOldestReadyClusterNoAccountClusters(t *testing.T) {
 		},
 	}
 
-	assert.True(t, clusters[0].IsOldestReadyCluster())
-	assert.True(t, clusters[1].IsOldestReadyCluster())
+	assert.True(t, clusters[0].IsOldestReadyClusterInTheRegion())
+	assert.True(t, clusters[1].IsOldestReadyClusterInTheRegion())
+}
+
+// TestIsOldestReadyClusterPerRegion tests that the oldest cluster per region is identified as the oldest cluster.
+func TestIsOldestReadyClusterPerRegion(t *testing.T) {
+	clusters := []*Cluster{
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-1",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+			Region:          "eu-central-1",
+		},
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-2",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+			Region:          "eu-west-1",
+		},
+		{
+			ID:              "aws:123456789012:eu-central-1:kube-test-3",
+			LifecycleStatus: models.ClusterLifecycleStatusReady,
+			Region:          "eu-west-1",
+		},
+	}
+	for _, cluster := range clusters {
+		cluster.AccountClusters = clusters
+	}
+
+	assert.True(t, clusters[0].IsOldestReadyClusterInTheRegion())
+	assert.True(t, clusters[1].IsOldestReadyClusterInTheRegion())
+	assert.False(t, clusters[2].IsOldestReadyClusterInTheRegion())
 }
