@@ -322,7 +322,9 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 func (cluster Cluster) IsOldestReadyCluster() bool {
 	for _, c := range cluster.AccountClusters {
 		if c.LifecycleStatus == models.ClusterLifecycleStatusReady {
-			return cluster.ID == c.ID
+			if cluster.Region == c.Region {
+				return cluster.ID == c.ID
+			}
 		}
 	}
 
