@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -71,7 +72,6 @@ const (
 )
 
 type clusterpyProvisioner struct {
-	awsConfig         *aws.Config
 	execManager       *command.ExecManager
 	secretDecrypter   decrypter.Decrypter
 	assumedRole       string
@@ -130,9 +130,9 @@ func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfi
 // decryptConfigItems tries to decrypt encrypted config items in the cluster
 // config and modifies the passed cluster config so encrypted items has been
 // decrypted.
-func (p *clusterpyProvisioner) decryptConfigItems(cluster *api.Cluster) error {
+func (p *clusterpyProvisioner) decryptConfigItems(ctx context.Context, cluster *api.Cluster) error {
 	for key, item := range cluster.ConfigItems {
-		plaintext, err := p.secretDecrypter.Decrypt(item)
+		plaintext, err := p.secretDecrypter.Decrypt(ctx, item)
 		if err != nil {
 			return fmt.Errorf("failed to decrypt config-item: %s: %w", key, err)
 		}
@@ -166,12 +166,13 @@ func (p *clusterpyProvisioner) provision(
 	channelConfig channel.Config,
 ) error {
 	// fetch instance data that will be used by all the render functions
-	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(awsAdapter.ec2Client)
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(ctx, awsAdapter.ec2Client)
 	if err != nil {
 		return fmt.Errorf("failed to fetch instance types from AWS")
 	}
 
 	err = p.applyDefaultsToManifests(
+		ctx,
 		awsAdapter,
 		cluster,
 		channelConfig,
@@ -182,17 +183,17 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// get VPC information
-	var vpc *ec2.Vpc
+	var vpc *ec2types.Vpc
 	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
 	if !ok { // if vpcID is not defined, autodiscover it
-		vpc, err = awsAdapter.GetDefaultVPC()
+		vpc, err = awsAdapter.GetDefaultVPC(ctx)
 		if err != nil {
 			return err
 		}
-		vpcID = aws.StringValue(vpc.VpcId)
+		vpcID = aws.ToString(vpc.VpcId)
 		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
 	} else {
-		vpc, err = awsAdapter.GetVPC(vpcID)
+		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
 		if err != nil {
 			return err
 		}
@@ -202,7 +203,7 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	subnets, err := awsAdapter.GetSubnets(vpcID)
+	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
 	if err != nil {
 		return err
 	}
@@ -252,7 +253,7 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	certificates, err := awsAdapter.GetCertificates()
+	certificates, err := awsAdapter.GetCertificates(ctx)
 	if err != nil {
 		return err
 	}
@@ -264,7 +265,7 @@ func (p *clusterpyProvisioner) provision(
 
 	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
 	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
-		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.StringValue(ipv6Cidr.Ipv6CidrBlock))
+		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
 	}
 
 	values := map[string]interface{}{
@@ -276,7 +277,7 @@ func (p *clusterpyProvisioner) provision(
 		"pod_subnets":               azInfoPods.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
 		"load_balancer_certificate": loadBalancerCert.ID(),
-		"vpc_ipv4_cidr":             aws.StringValue(vpc.CidrBlock),
+		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
 		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 
@@ -289,14 +290,14 @@ func (p *clusterpyProvisioner) provision(
 	// create S3 bucket with AWS account ID to ensure uniqueness across
 	// accounts
 	bucketName := fmt.Sprintf(clmCFBucketPattern, strings.TrimPrefix(cluster.InfrastructureAccount, "aws:"), cluster.Region)
-	err = awsAdapter.createS3Bucket(bucketName)
+	err = awsAdapter.createS3Bucket(ctx, bucketName)
 	if err != nil {
 		return err
 	}
 
 	// create or update the etcd stack
 	if p.manageEtcdStack && cluster.Provider == api.ZalandoAWSProvider {
-		etcdKMSKeyARN, err := awsAdapter.resolveKeyID(etcdKMSKeyAlias)
+		etcdKMSKeyARN, err := awsAdapter.resolveKeyID(ctx, etcdKMSKeyAlias)
 		if err != nil {
 			return err
 		}
@@ -325,6 +326,7 @@ func (p *clusterpyProvisioner) provision(
 	var postOptions *HookResponse
 	if p.hook != nil {
 		postOptions, err = p.hook.Execute(
+			ctx,
 			awsAdapter,
 			cluster,
 		)
@@ -487,13 +489,13 @@ func createOrUpdateEtcdStack(
 		nodePool:      nil,
 		instanceTypes: instanceTypes,
 	}
-	etcdInstanceInfo, err := instanceTypes.InstanceInfo(cluster.ConfigItems["etcd_instance_type"])
+	etcdInstanceInfo, err := instanceTypes.InstanceInfo(ec2types.InstanceType(cluster.ConfigItems["etcd_instance_type"]))
 	if err != nil {
 		return err
 	}
 	values["etcd_instance_type_info"] = etcdInstanceInfo
 
-	s3Path, err := renderer.RenderAndUploadFiles(values, bucketName, etcdKmsKeyARN)
+	s3Path, err := renderer.RenderAndUploadFiles(ctx, values, bucketName, etcdKmsKeyARN)
 	if err != nil {
 		return err
 	}
@@ -511,7 +513,7 @@ func createOrUpdateEtcdStack(
 		componentTagKey:   "etcd-cluster",
 	}
 
-	err = adapter.applyStack(etcdStackName, rendered, "", tags, true, &stackPolicy{
+	err = adapter.applyStack(ctx, etcdStackName, rendered, "", tags, true, &stackPolicy{
 		Statements: []stackPolicyStatement{
 			{
 				Effect:    stackPolicyEffectAllow,
@@ -556,7 +558,7 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 		return nil, err
 	}
 
-	err = adapter.applyClusterStack(cluster.LocalID, rendered, cluster, bucketName)
+	err = adapter.applyClusterStack(ctx, cluster.LocalID, rendered, cluster, bucketName)
 	if err != nil {
 		return nil, err
 	}
@@ -568,23 +570,23 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 		return nil, err
 	}
 
-	clusterStack, err := adapter.getStackByName(cluster.LocalID)
+	clusterStack, err := adapter.getStackByName(ctx, cluster.LocalID)
 	if err != nil {
 		return nil, err
 	}
 
 	outputs := map[string]string{}
 	for _, o := range clusterStack.Outputs {
-		outputs[aws.StringValue(o.OutputKey)] = aws.StringValue(o.OutputValue)
+		outputs[aws.ToString(o.OutputKey)] = aws.ToString(o.OutputValue)
 	}
 
 	return outputs, nil
 }
 
-func filterSubnets(subnets []*ec2.Subnet, filter func(*ec2.Subnet) bool) []*ec2.Subnet {
-	var filtered []*ec2.Subnet
+func filterSubnets(subnets []ec2types.Subnet, filter func(*ec2types.Subnet) bool) []ec2types.Subnet {
+	var filtered []ec2types.Subnet
 	for _, subnet := range subnets {
-		if filter(subnet) {
+		if filter(&subnet) {
 			filtered = append(filtered, subnet)
 		}
 	}
@@ -592,10 +594,10 @@ func filterSubnets(subnets []*ec2.Subnet, filter func(*ec2.Subnet) bool) []*ec2.
 	return filtered
 }
 
-func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
-	return func(subnet *ec2.Subnet) bool {
+func subnetIDIncluded(ids []string) func(*ec2types.Subnet) bool {
+	return func(subnet *ec2types.Subnet) bool {
 		for _, id := range ids {
-			if aws.StringValue(subnet.SubnetId) == id {
+			if aws.ToString(subnet.SubnetId) == id {
 				return true
 			}
 		}
@@ -604,9 +606,9 @@ func subnetIDIncluded(ids []string) func(*ec2.Subnet) bool {
 	}
 }
 
-func isCustomSubnet(subnet *ec2.Subnet) bool {
+func isCustomSubnet(subnet *ec2types.Subnet) bool {
 	for _, tag := range subnet.Tags {
-		if aws.StringValue(tag.Key) == customSubnetTag {
+		if aws.ToString(tag.Key) == customSubnetTag {
 			return true
 		}
 	}
@@ -614,8 +616,8 @@ func isCustomSubnet(subnet *ec2.Subnet) bool {
 	return false
 }
 
-func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
-	return func(s *ec2.Subnet) bool {
+func subnetNot(predicate func(*ec2types.Subnet) bool) func(*ec2types.Subnet) bool {
+	return func(s *ec2types.Subnet) bool {
 		return !predicate(s)
 	}
 }
@@ -626,10 +628,10 @@ func subnetNot(predicate func(*ec2.Subnet) bool) func(*ec2.Subnet) bool {
 // kube-controller-manager when finding subnets for ELBs used for services of
 // type LoadBalancer.
 // https://github.com/kubernetes/kubernetes/blob/65efeee64f772e0f38037e91a677138a335a7570/pkg/cloudprovider/providers/aws/aws.go#L2949-L3027
-func selectSubnetIDs(subnets []*ec2.Subnet, tag string) *AZInfo {
-	subnetsByAZ := make(map[string]*ec2.Subnet)
+func selectSubnetIDs(subnets []ec2types.Subnet, tag string) *AZInfo {
+	subnetsByAZ := make(map[string]ec2types.Subnet)
 	for _, subnet := range subnets {
-		az := aws.StringValue(subnet.AvailabilityZone)
+		az := aws.ToString(subnet.AvailabilityZone)
 
 		existing, ok := subnetsByAZ[az]
 		if !ok {
@@ -652,7 +654,7 @@ func selectSubnetIDs(subnets []*ec2.Subnet, tag string) *AZInfo {
 
 		// If we have two subnets for the same AZ we arbitrarily choose
 		// the one that is first lexicographically.
-		if strings.Compare(aws.StringValue(existing.SubnetId), aws.StringValue(subnet.SubnetId)) > 0 {
+		if strings.Compare(aws.ToString(existing.SubnetId), aws.ToString(subnet.SubnetId)) > 0 {
 			subnetsByAZ[az] = subnet
 		}
 	}
@@ -660,10 +662,10 @@ func selectSubnetIDs(subnets []*ec2.Subnet, tag string) *AZInfo {
 	result := make(map[string]SubnetInfo, len(subnetsByAZ))
 	for az, subnet := range subnetsByAZ {
 		subnetInfo := SubnetInfo{
-			SubnetID: aws.StringValue(subnet.SubnetId),
+			SubnetID: aws.ToString(subnet.SubnetId),
 		}
 		for _, ipv6Cidr := range subnet.Ipv6CidrBlockAssociationSet {
-			subnetInfo.SubnetIPV6CIDRs = append(subnetInfo.SubnetIPV6CIDRs, aws.StringValue(ipv6Cidr.Ipv6CidrBlock))
+			subnetInfo.SubnetIPV6CIDRs = append(subnetInfo.SubnetIPV6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
 		}
 		result[az] = subnetInfo
 	}
@@ -707,7 +709,7 @@ func (p *clusterpyProvisioner) decommission(
 	}
 
 	// decommission karpenter node-pools, since karpenter controller is decommissioned. we need to clean up ec2 resources
-	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, nil)
+	ec2Backend := updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.config, nil)
 	err = ec2Backend.DecommissionKarpenterNodes(ctx)
 	if err != nil {
 		logger.Errorf("Unable to decommission karpenter node-pools, proceeding anyway: %v", err)
@@ -738,7 +740,7 @@ func (p *clusterpyProvisioner) decommission(
 		}
 	}
 
-	stack := &cloudformation.Stack{
+	stack := &cftypes.Stack{
 		StackName: aws.String(cluster.LocalID),
 	}
 
@@ -753,7 +755,7 @@ func (p *clusterpyProvisioner) decommission(
 		backoffCfg.MaxElapsedTime = defaultMaxRetryTime
 		err = backoff.Retry(
 			func() error {
-				return p.removeEBSVolumes(awsAdapter, cluster)
+				return p.removeEBSVolumes(ctx, awsAdapter, cluster)
 			},
 			backoffCfg)
 		if err != nil {
@@ -764,24 +766,24 @@ func (p *clusterpyProvisioner) decommission(
 	return nil
 }
 
-func (p *clusterpyProvisioner) removeEBSVolumes(awsAdapter *awsAdapter, cluster *api.Cluster) error {
+func (p *clusterpyProvisioner) removeEBSVolumes(ctx context.Context, awsAdapter *awsAdapter, cluster *api.Cluster) error {
 	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", cluster.Name())
-	volumes, err := awsAdapter.GetVolumes(map[string]string{clusterTag: "owned"})
+	volumes, err := awsAdapter.GetVolumes(ctx, map[string]string{clusterTag: "owned"})
 	if err != nil {
 		return err
 	}
 
 	for _, volume := range volumes {
-		switch aws.StringValue(volume.State) {
-		case ec2.VolumeStateDeleted, ec2.VolumeStateDeleting:
+		switch volume.State {
+		case ec2types.VolumeStateDeleted, ec2types.VolumeStateDeleting:
 			// skip
-		case ec2.VolumeStateAvailable:
-			err := awsAdapter.DeleteVolume(aws.StringValue(volume.VolumeId))
+		case ec2types.VolumeStateAvailable:
+			err := awsAdapter.DeleteVolume(ctx, aws.ToString(volume.VolumeId))
 			if err != nil {
-				return fmt.Errorf("failed to delete EBS volume %s: %s", aws.StringValue(volume.VolumeId), err)
+				return fmt.Errorf("failed to delete EBS volume %s: %s", aws.ToString(volume.VolumeId), err)
 			}
 		default:
-			return fmt.Errorf("unable to delete EBS volume %s: volume in state %s", aws.StringValue(volume.VolumeId), aws.StringValue(volume.State))
+			return fmt.Errorf("unable to delete EBS volume %s: volume in state %s", aws.ToString(volume.VolumeId), volume.State)
 		}
 	}
 
@@ -822,7 +824,7 @@ func waitForAPIServer(logger *log.Entry, cluster *api.Cluster, maxTimeout time.D
 }
 
 // setupAWSAdapter sets up the AWS Adapter used for communicating with AWS.
-func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.Cluster) (*awsAdapter, error) {
+func (p *clusterpyProvisioner) setupAWSAdapter(ctx context.Context, logger *log.Entry, cluster *api.Cluster) (*awsAdapter, error) {
 	infrastructureAccount := strings.Split(cluster.InfrastructureAccount, ":")
 	if len(infrastructureAccount) != 2 {
 		return nil, fmt.Errorf("clusterpy: Unknown format for infrastructure account '%s", cluster.InfrastructureAccount)
@@ -837,15 +839,13 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 		roleArn = fmt.Sprintf("arn:aws:iam::%s:role/%s", infrastructureAccount[1], p.assumedRole)
 	}
 
-	awsConfig := p.awsConfig.Copy()
-	awsConfig.Region = aws.String(cluster.Region)
-	sess, err := awsUtils.Session(awsConfig, roleArn)
+	cfg, err := awsUtils.Config(ctx, roleArn, awsconfig.WithRegion(cluster.Region))
 	if err != nil {
 		return nil, err
 	}
 
-	adapter := newAWSAdapter(logger, cluster.Region, sess, p.dryRun)
-	err = adapter.VerifyAccount(cluster.InfrastructureAccount)
+	adapter := newAWSAdapter(logger, cluster.Region, cfg, p.dryRun)
+	err = adapter.VerifyAccount(ctx, cluster.InfrastructureAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -856,6 +856,7 @@ func (p *clusterpyProvisioner) setupAWSAdapter(logger *log.Entry, cluster *api.C
 // applyDefaultsToManifests applies the default values to all manifests's Config
 // Items.
 func (p *clusterpyProvisioner) applyDefaultsToManifests(
+	ctx context.Context,
 	adapter *awsAdapter,
 	cluster *api.Cluster,
 	channelConfig channel.Config,
@@ -866,7 +867,7 @@ func (p *clusterpyProvisioner) applyDefaultsToManifests(
 		return fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
-	err = p.decryptConfigItems(cluster)
+	err = p.decryptConfigItems(ctx, cluster)
 	if err != nil {
 		return fmt.Errorf("unable to decrypt config items: %v", err)
 	}
@@ -950,10 +951,10 @@ func (p *clusterpyProvisioner) updater(
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.session, updatestrategy.NewKarpenterNodePoolClient(k8sClients)),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.config, updatestrategy.NewKarpenterNodePoolClient(k8sClients)),
 	}
 
-	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster, awsAdapter.session)
+	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster, awsAdapter.config)
 	poolBackend := updatestrategy.NewProfileNodePoolsBackend(asgBackend, additionalBackends)
 	poolManager := updatestrategy.NewKubernetesNodePoolManager(logger, client, poolBackend, drainConfig, noScheduleTaint)
 
@@ -1010,7 +1011,7 @@ func (p *clusterpyProvisioner) downscaleDeployments(
 	return nil
 }
 
-func (p *clusterpyProvisioner) listClusterStacks(_ context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]*cloudformation.Stack, error) {
+func (p *clusterpyProvisioner) listClusterStacks(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) ([]cftypes.Stack, error) {
 	includeTags := map[string]string{
 		tagNameKubernetesClusterPrefix + cluster.Name(): resourceLifecycleOwned,
 	}
@@ -1018,7 +1019,7 @@ func (p *clusterpyProvisioner) listClusterStacks(_ context.Context, adapter *aws
 		mainStackTagKey: stackTagValueTrue,
 	}
 
-	return adapter.ListStacks(includeTags, excludeTags)
+	return adapter.ListStacks(ctx, includeTags, excludeTags)
 }
 
 // deleteClusterStacks deletes all stacks tagged by the cluster id.
@@ -1030,13 +1031,10 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 	errorsc := make(chan error, len(stacks))
 
 	for _, stack := range stacks {
-		go func(stack cloudformation.Stack, errorsc chan error) {
+		go func(stack cftypes.Stack, errorsc chan error) {
 			deleteStack := func() error {
 				err := adapter.DeleteStack(ctx, &stack)
 				if err != nil {
-					if isWrongStackStatusErr(err) {
-						return err
-					}
 					return backoff.Permanent(err)
 				}
 				return nil
@@ -1046,10 +1044,10 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 			backoffCfg.MaxElapsedTime = defaultMaxRetryTime
 			err := backoff.Retry(deleteStack, backoffCfg)
 			if err != nil {
-				err = fmt.Errorf("failed to delete stack %s: %s", aws.StringValue(stack.StackName), err)
+				err = fmt.Errorf("failed to delete stack %s: %s", aws.ToString(stack.StackName), err)
 			}
 			errorsc <- err
-		}(*stack, errorsc)
+		}(stack, errorsc)
 	}
 
 	errorStrs := make([]string, 0, len(stacks))
@@ -1068,10 +1066,10 @@ func (p *clusterpyProvisioner) deleteClusterStacks(ctx context.Context, adapter 
 }
 
 // hasTag returns true if tag is found in list of tags.
-func hasTag(tags []*ec2.Tag, tag *ec2.Tag) bool {
+func hasTag(tags []ec2types.Tag, tag ec2types.Tag) bool {
 	for _, t := range tags {
-		if aws.StringValue(t.Key) == aws.StringValue(tag.Key) &&
-			aws.StringValue(t.Value) == aws.StringValue(tag.Value) {
+		if aws.ToString(t.Key) == aws.ToString(tag.Key) &&
+			aws.ToString(t.Value) == aws.ToString(tag.Value) {
 			return true
 		}
 	}

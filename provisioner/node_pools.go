@@ -10,8 +10,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -71,7 +72,7 @@ type NodePoolTemplateRenderer struct {
 // prepareCloudInit prepares the user data by rendering the golang template.
 // It also uploads the dynamically generated files needed for the nodes in the pool
 // A EC2 UserData ready base64 string will be returned.
-func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, values map[string]interface{}) (string, error) {
+func (r *NodePoolTemplateRenderer) prepareCloudInit(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) (string, error) {
 	var (
 		keyName, poolKind string
 	)
@@ -83,7 +84,7 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, valu
 		poolKind = "worker"
 	}
 
-	kmsKey, err := getPKIKMSKey(r.awsAdapter, r.cluster.LocalID, keyName)
+	kmsKey, err := getPKIKMSKey(ctx, r.awsAdapter, r.cluster.LocalID, keyName)
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +98,7 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, valu
 		instanceTypes: r.instanceTypes,
 	}
 
-	s3Path, err := renderer.RenderAndUploadFiles(values, r.bucketName, kmsKey)
+	s3Path, err := renderer.RenderAndUploadFiles(ctx, values, r.bucketName, kmsKey)
 	if err != nil {
 		return "", err
 	}
@@ -132,11 +133,11 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(nodePool *api.NodePool, valu
 	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
 }
 
-func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
+func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
 	var renderedUserData string
 	var err error
 
-	renderedUserData, err = r.prepareCloudInit(nodePool, values)
+	renderedUserData, err = r.prepareCloudInit(ctx, nodePool, values)
 	if err != nil {
 		return "", err
 	}
@@ -220,7 +221,7 @@ func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools 
 }
 
 func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
-	template, err := p.generateNodePoolTemplate(nodePool, values, provisionersFileName)
+	template, err := p.generateNodePoolTemplate(ctx, nodePool, values, provisionersFileName)
 	if err != nil {
 		return err
 	}
@@ -355,7 +356,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolTemplate(nodePool, values, stackFileName)
+	template, err := p.generateNodePoolTemplate(ctx, nodePool, values, stackFileName)
 	if err != nil {
 		return err
 	}
@@ -371,7 +372,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		nodePoolProfileTagKey: nodePool.Profile,
 	}
 
-	err = p.awsAdapter.applyStack(stackName, template, "", tags, true, nil)
+	err = p.awsAdapter.applyStack(ctx, stackName, template, "", tags, true, nil)
 	if err != nil {
 		return err
 	}
@@ -395,7 +396,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		nodePoolRoleTagKey: "true",
 	}
 
-	nodePoolStacks, err := p.awsAdapter.ListStacks(tags, nil)
+	nodePoolStacks, err := p.awsAdapter.ListStacks(ctx, tags, nil)
 	if err != nil {
 		return err
 	}
@@ -408,7 +409,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 	}
 
 	for _, stack := range orphaned {
-		nodePool := nodePoolStackToNodePool(stack)
+		nodePool := nodePoolStackToNodePool(&stack)
 
 		err := updater.PrepareForRemoval(ctx, nodePool)
 		if err != nil {
@@ -416,7 +417,7 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 		}
 
 		// delete node pool stack
-		err = p.awsAdapter.DeleteStack(ctx, stack)
+		err = p.awsAdapter.DeleteStack(ctx, &stack)
 		if err != nil {
 			return err
 		}
@@ -426,9 +427,9 @@ func (p *AWSNodePoolProvisioner) Reconcile(ctx context.Context, updater updatest
 }
 
 // supportsT2Unlimited used to configure CPU credits in the CF template if a pool only has t2 instances
-func supportsT2Unlimited(instanceTypes []string) bool {
+func supportsT2Unlimited(instanceTypes []types.InstanceType) bool {
 	for _, instanceType := range instanceTypes {
-		if !strings.HasPrefix(instanceType, "t2.") {
+		if !strings.HasPrefix(string(instanceType), "t2.") {
 			return false
 		}
 	}
@@ -446,8 +447,8 @@ func generateDataHash(userData []byte) (string, error) {
 	return fmt.Sprintf("%s.userdata", sha), nil
 }
 
-func getPKIKMSKey(adapter *awsAdapter, clusterID string, keyName string) (string, error) {
-	clusterStack, err := adapter.getStackByName(clusterID)
+func getPKIKMSKey(ctx context.Context, adapter *awsAdapter, clusterID string, keyName string) (string, error) {
+	clusterStack, err := adapter.getStackByName(ctx, clusterID)
 	if err != nil {
 		return "", err
 	}
@@ -459,10 +460,10 @@ func getPKIKMSKey(adapter *awsAdapter, clusterID string, keyName string) (string
 	return "", fmt.Errorf("failed to find the encryption key: %s", keyName)
 }
 
-func orphanedNodePoolStacks(nodePoolStacks []*cloudformation.Stack, nodePools []*api.NodePool) []*cloudformation.Stack {
-	orphaned := make([]*cloudformation.Stack, 0, len(nodePoolStacks))
+func orphanedNodePoolStacks(nodePoolStacks []cftypes.Stack, nodePools []*api.NodePool) []cftypes.Stack {
+	orphaned := make([]cftypes.Stack, 0, len(nodePoolStacks))
 	for _, stack := range nodePoolStacks {
-		np := nodePoolStackToNodePool(stack)
+		np := nodePoolStackToNodePool(&stack)
 		if !inNodePoolList(np, nodePools) {
 			orphaned = append(orphaned, stack)
 		}
@@ -479,16 +480,16 @@ func inNodePoolList(nodePool *api.NodePool, nodePools []*api.NodePool) bool {
 	return false
 }
 
-func nodePoolStackToNodePool(stack *cloudformation.Stack) *api.NodePool {
+func nodePoolStackToNodePool(stack *cftypes.Stack) *api.NodePool {
 	nodePool := &api.NodePool{}
 
 	for _, tag := range stack.Tags {
-		if aws.StringValue(tag.Key) == nodePoolTagKey {
-			nodePool.Name = aws.StringValue(tag.Value)
+		if aws.ToString(tag.Key) == nodePoolTagKey {
+			nodePool.Name = aws.ToString(tag.Value)
 		}
 
-		if aws.StringValue(tag.Key) == nodePoolProfileTagKey {
-			nodePool.Profile = aws.StringValue(tag.Value)
+		if aws.ToString(tag.Key) == nodePoolProfileTagKey {
+			nodePool.Profile = aws.ToString(tag.Value)
 		}
 	}
 	return nodePool

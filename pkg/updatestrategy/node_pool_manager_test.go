@@ -16,7 +16,7 @@ import (
 )
 
 func setupMockKubernetes(ctx context.Context, t *testing.T, nodes []*v1.Node, pods []*v1.Pod, pdbs []*policy.PodDisruptionBudget) kubernetes.Interface {
-	client := fake.NewSimpleClientset()
+	client := fake.NewClientset()
 
 	for _, node := range nodes {
 		_, err := client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})

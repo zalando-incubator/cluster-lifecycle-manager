@@ -6,52 +6,48 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/elb"
-	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingtypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
+	elbtypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 )
 
 type mockASGAPI struct {
-	autoscalingiface.AutoScalingAPI
+	iface.AutoScalingAPI
 	err    error
-	asgs   []*autoscaling.Group
+	asgs   []autoscalingtypes.AutoScalingGroup
 	descLB *autoscaling.DescribeLoadBalancersOutput
 }
 
-func (a *mockASGAPI) DescribeAutoScalingGroupsPages(_ *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
-	fn(&autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, true)
-	return a.err
-}
-
-func (a *mockASGAPI) DescribeAutoScalingGroups(_ *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (a *mockASGAPI) DescribeAutoScalingGroups(context.Context, *autoscaling.DescribeAutoScalingGroupsInput, ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: a.asgs}, a.err
 }
 
-func (a *mockASGAPI) UpdateAutoScalingGroup(_ *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+func (a *mockASGAPI) UpdateAutoScalingGroup(context.Context, *autoscaling.UpdateAutoScalingGroupInput, ...func(*autoscaling.Options)) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return nil, a.err
 }
 
-func (a *mockASGAPI) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
+func (a *mockASGAPI) TerminateInstanceInAutoScalingGroup(context.Context, *autoscaling.TerminateInstanceInAutoScalingGroupInput, ...func(*autoscaling.Options)) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
 	return nil, a.err
 }
 
-func (a *mockASGAPI) DescribeLoadBalancers(_ *autoscaling.DescribeLoadBalancersInput) (*autoscaling.DescribeLoadBalancersOutput, error) {
+func (a *mockASGAPI) DescribeLoadBalancers(context.Context, *autoscaling.DescribeLoadBalancersInput, ...func(*autoscaling.Options)) (*autoscaling.DescribeLoadBalancersOutput, error) {
 	return a.descLB, a.err
 }
 
-func (a *mockASGAPI) DeleteTags(_ *autoscaling.DeleteTagsInput) (*autoscaling.DeleteTagsOutput, error) {
+func (a *mockASGAPI) DeleteTags(context.Context, *autoscaling.DeleteTagsInput, ...func(*autoscaling.Options)) (*autoscaling.DeleteTagsOutput, error) {
 	return nil, a.err
 }
 
 type mockEC2API struct {
-	ec2iface.EC2API
+	iface.EC2API
 	err           error
 	descStatus    *ec2.DescribeInstanceStatusOutput
 	descLTVs      *ec2.DescribeLaunchTemplateVersionsOutput
@@ -59,53 +55,48 @@ type mockEC2API struct {
 	descInstances *ec2.DescribeInstancesOutput
 }
 
-func (e *mockEC2API) DescribeLaunchTemplateVersions(_ *ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+func (e *mockEC2API) DescribeLaunchTemplateVersions(context.Context, *ec2.DescribeLaunchTemplateVersionsInput, ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
 	return e.descLTVs, e.err
 }
 
-func (e *mockEC2API) DescribeInstanceStatus(_ *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+func (e *mockEC2API) DescribeInstanceStatus(context.Context, *ec2.DescribeInstanceStatusInput, ...func(*ec2.Options)) (*ec2.DescribeInstanceStatusOutput, error) {
 	return e.descStatus, e.err
 }
 
-func (e *mockEC2API) DescribeInstancesPages(_ *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
-	if e.err != nil {
-		return e.err
+func (e *mockEC2API) DescribeInstances(context.Context, *ec2.DescribeInstancesInput, ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+	if e.descInstances == nil {
+		return &ec2.DescribeInstancesOutput{
+			Reservations: []ec2types.Reservation{},
+		}, e.err
 	}
-	if e.descInstances != nil {
-		fn(e.descInstances, true)
-	}
-	return nil
+	return e.descInstances, e.err
 }
 
-func (e *mockEC2API) DescribeTagsPages(_ *ec2.DescribeTagsInput, fn func(*ec2.DescribeTagsOutput, bool) bool) error {
-	if e.err != nil {
-		return e.err
-	}
-	fn(e.descTags, true)
-	return nil
+func (e *mockEC2API) DescribeTags(context.Context, *ec2.DescribeTagsInput, ...func(*ec2.Options)) (*ec2.DescribeTagsOutput, error) {
+	return e.descTags, e.err
 }
 
 type mockELBAPI struct {
-	elbiface.ELBAPI
+	iface.ELBAPI
 	err                error
-	descLBs            *elb.DescribeLoadBalancersOutput
-	descInstanceHealth *elb.DescribeInstanceHealthOutput
+	descLBs            *elasticloadbalancing.DescribeLoadBalancersOutput
+	descInstanceHealth *elasticloadbalancing.DescribeInstanceHealthOutput
 }
 
-func (e *mockELBAPI) DescribeLoadBalancers(_ *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+func (e *mockELBAPI) DescribeLoadBalancers(context.Context, *elasticloadbalancing.DescribeLoadBalancersInput, ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeLoadBalancersOutput, error) {
 	return e.descLBs, e.err
 }
 
-func (e *mockELBAPI) DescribeInstanceHealth(_ *elb.DescribeInstanceHealthInput) (*elb.DescribeInstanceHealthOutput, error) {
+func (e *mockELBAPI) DescribeInstanceHealth(context.Context, *elasticloadbalancing.DescribeInstanceHealthInput, ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeInstanceHealthOutput, error) {
 	return e.descInstanceHealth, e.err
 }
 
 func TestGet(tt *testing.T) {
 	for _, tc := range []struct {
 		msg       string
-		asgClient autoscalingiface.AutoScalingAPI
-		ec2Client ec2iface.EC2API
-		elbClient elbiface.ELBAPI
+		asgClient iface.AutoScalingAPI
+		ec2Client iface.EC2API
+		elbClient iface.ELBAPI
 		success   bool
 	}{
 		{
@@ -117,29 +108,29 @@ func TestGet(tt *testing.T) {
 		{
 			msg: "test getting a new instance",
 			asgClient: &mockASGAPI{
-				asgs: []*autoscaling.Group{
+				asgs: []autoscalingtypes.AutoScalingGroup{
 					{
-						Tags: []*autoscaling.TagDescription{
+						Tags: []autoscalingtypes.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 						},
-						Instances: []*autoscaling.Instance{
+						Instances: []autoscalingtypes.Instance{
 							{
 								InstanceId: aws.String("instance_id"),
-								LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+								LaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 									LaunchTemplateName: aws.String("launch_template"),
 									Version:            aws.String("1"),
 								},
 							},
 						},
-						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+						LaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("launch_template"),
 							Version:            aws.String("2"),
 						},
 					},
 				},
 				descLB: &autoscaling.DescribeLoadBalancersOutput{
-					LoadBalancers: []*autoscaling.LoadBalancerState{
+					LoadBalancers: []autoscalingtypes.LoadBalancerState{
 						{
 							LoadBalancerName: aws.String("foo"),
 						},
@@ -148,18 +139,18 @@ func TestGet(tt *testing.T) {
 			},
 			ec2Client: &mockEC2API{
 				descLTVs: &ec2.DescribeLaunchTemplateVersionsOutput{
-					LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{{
-						LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
-							InstanceType: aws.String("m4.large"),
+					LaunchTemplateVersions: []ec2types.LaunchTemplateVersion{{
+						LaunchTemplateData: &ec2types.ResponseLaunchTemplateData{
+							InstanceType: ec2types.InstanceTypeM4Large,
 						},
 					}},
 				},
 			},
 			elbClient: &mockELBAPI{
-				descLBs: &elb.DescribeLoadBalancersOutput{
-					LoadBalancerDescriptions: []*elb.LoadBalancerDescription{
+				descLBs: &elasticloadbalancing.DescribeLoadBalancersOutput{
+					LoadBalancerDescriptions: []elbtypes.LoadBalancerDescription{
 						{
-							Instances: []*elb.Instance{
+							Instances: []elbtypes.Instance{
 								{
 									InstanceId: aws.String("foo"),
 								},
@@ -167,11 +158,11 @@ func TestGet(tt *testing.T) {
 						},
 					},
 				},
-				descInstanceHealth: &elb.DescribeInstanceHealthOutput{
-					InstanceStates: []*elb.InstanceState{
+				descInstanceHealth: &elasticloadbalancing.DescribeInstanceHealthOutput{
+					InstanceStates: []elbtypes.InstanceState{
 						{
 							InstanceId: aws.String("foo"),
-							State:      aws.String(autoscaling.LifecycleStateInService),
+							State:      aws.String(string(autoscalingtypes.LifecycleStateInService)),
 						},
 					},
 				},
@@ -181,29 +172,29 @@ func TestGet(tt *testing.T) {
 		{
 			msg: "test getting an old instance",
 			asgClient: &mockASGAPI{
-				asgs: []*autoscaling.Group{
+				asgs: []autoscalingtypes.AutoScalingGroup{
 					{
-						Tags: []*autoscaling.TagDescription{
+						Tags: []autoscalingtypes.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 						},
-						Instances: []*autoscaling.Instance{
+						Instances: []autoscalingtypes.Instance{
 							{
 								InstanceId: aws.String("instance_id"),
-								LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+								LaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 									LaunchTemplateName: aws.String("launch_template"),
 									Version:            aws.String("1"),
 								},
 							},
 						},
-						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+						LaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("launch_template"),
 							Version:            aws.String("1"),
 						},
 					},
 				},
 				descLB: &autoscaling.DescribeLoadBalancersOutput{
-					LoadBalancers: []*autoscaling.LoadBalancerState{
+					LoadBalancers: []autoscalingtypes.LoadBalancerState{
 						{
 							LoadBalancerName: aws.String("foo"),
 						},
@@ -212,18 +203,18 @@ func TestGet(tt *testing.T) {
 			},
 			ec2Client: &mockEC2API{
 				descLTVs: &ec2.DescribeLaunchTemplateVersionsOutput{
-					LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{{
-						LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
-							InstanceType: aws.String("m4.large"),
+					LaunchTemplateVersions: []ec2types.LaunchTemplateVersion{{
+						LaunchTemplateData: &ec2types.ResponseLaunchTemplateData{
+							InstanceType: ec2types.InstanceTypeM4Large,
 						},
 					}},
 				},
 			},
 			elbClient: &mockELBAPI{
-				descLBs: &elb.DescribeLoadBalancersOutput{
-					LoadBalancerDescriptions: []*elb.LoadBalancerDescription{
+				descLBs: &elasticloadbalancing.DescribeLoadBalancersOutput{
+					LoadBalancerDescriptions: []elbtypes.LoadBalancerDescription{
 						{
-							Instances: []*elb.Instance{
+							Instances: []elbtypes.Instance{
 								{
 									InstanceId: aws.String("foo"),
 								},
@@ -231,11 +222,11 @@ func TestGet(tt *testing.T) {
 						},
 					},
 				},
-				descInstanceHealth: &elb.DescribeInstanceHealthOutput{
-					InstanceStates: []*elb.InstanceState{
+				descInstanceHealth: &elasticloadbalancing.DescribeInstanceHealthOutput{
+					InstanceStates: []elbtypes.InstanceState{
 						{
 							InstanceId: aws.String("foo"),
-							State:      aws.String(autoscaling.LifecycleStateInService),
+							State:      aws.String(string(autoscalingtypes.LifecycleStateInService)),
 						},
 					},
 				},
@@ -262,50 +253,50 @@ func TestGet(tt *testing.T) {
 }
 
 func TestGetInstanceUpdateInfo(t *testing.T) {
-	autoscalingInstance := func(id string, launchTemplateName string, launchTemplateVersion string) *autoscaling.Instance {
-		return &autoscaling.Instance{
+	autoscalingInstance := func(id string, launchTemplateName string, launchTemplateVersion string) autoscalingtypes.Instance {
+		return autoscalingtypes.Instance{
 			InstanceId:       aws.String(id),
 			AvailabilityZone: aws.String("eu-central-1"),
-			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			LaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String(launchTemplateVersion),
 			},
 		}
 	}
-	ec2Instance := func(id string, instanceType string, spot bool) *ec2.Instance {
+	ec2Instance := func(id string, instanceType string, spot bool) ec2types.Instance {
 		var spotRequestID *string
 		if spot {
 			spotRequestID = aws.String(fmt.Sprintf("spot-%s", id))
 		}
-		return &ec2.Instance{
+		return ec2types.Instance{
 			InstanceId:            aws.String(id),
-			InstanceType:          aws.String(instanceType),
+			InstanceType:          ec2types.InstanceType(instanceType),
 			SpotInstanceRequestId: spotRequestID,
 		}
 	}
 
 	for _, tc := range []struct {
 		name                       string
-		autoscalingInstances       []*autoscaling.Instance
-		autoscalingLaunchTemplate  *autoscaling.LaunchTemplateSpecification
-		autoscalingMixedInstPolicy *autoscaling.MixedInstancesPolicy
-		ec2LaunchTemplate          *ec2.ResponseLaunchTemplateData
-		ec2Instances               []*ec2.Instance
+		autoscalingInstances       []autoscalingtypes.Instance
+		autoscalingLaunchTemplate  *autoscalingtypes.LaunchTemplateSpecification
+		autoscalingMixedInstPolicy *autoscalingtypes.MixedInstancesPolicy
+		ec2LaunchTemplate          *ec2types.ResponseLaunchTemplateData
+		ec2Instances               []ec2types.Instance
 		expectedGenerations        map[string]int
 	}{
 		{
 			name: "launch template, on demand, no change",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("1"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 			},
 			expectedGenerations: map[string]int{
@@ -314,20 +305,20 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "launch template, spot, no change",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("1"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptions{
-					MarketType: aws.String(ec2.MarketTypeSpot),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
+				InstanceMarketOptions: &ec2types.LaunchTemplateInstanceMarketOptions{
+					MarketType: ec2types.MarketTypeSpot,
 				},
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", true),
 			},
 			expectedGenerations: map[string]int{
@@ -336,18 +327,18 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "launch template, template changed",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "newlt", "2"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("2"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 			},
 			expectedGenerations: map[string]int{
@@ -357,18 +348,18 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "launch template, instance type changed",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("1"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m5.large", false),
 			},
@@ -379,21 +370,21 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "launch template, spot enabled",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("1"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptions{
-					MarketType: aws.String(ec2.MarketTypeSpot),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
+				InstanceMarketOptions: &ec2types.LaunchTemplateInstanceMarketOptions{
+					MarketType: ec2types.MarketTypeSpot,
 				},
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", true),
 				ec2Instance("i-2", "m4.large", false),
 			},
@@ -404,18 +395,18 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "launch template, spot disabled",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingLaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			autoscalingLaunchTemplate: &autoscalingtypes.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String("lt"),
 				Version:            aws.String("1"),
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m4.large", true),
 			},
@@ -426,29 +417,29 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, on demand, no change",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(100),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(100),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("1"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.large")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{
-				InstanceType: aws.String("m4.large"),
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{
+				InstanceType: ec2types.InstanceTypeM4Large,
 			},
-			ec2Instances: []*ec2.Instance{
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m5.large", false),
 			},
@@ -459,27 +450,27 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, spot, no change",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(0),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(0),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("1"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.large")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{},
-			ec2Instances: []*ec2.Instance{
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{},
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", true),
 				ec2Instance("i-2", "m5.large", true),
 			},
@@ -490,27 +481,27 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, template changed",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "newlt", "2"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(100),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(100),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("2"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.large")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{},
-			ec2Instances: []*ec2.Instance{
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{},
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m5.large", false),
 			},
@@ -521,27 +512,27 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, instance type changed",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(100),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(100),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("1"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.xlarge")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{},
-			ec2Instances: []*ec2.Instance{
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{},
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m5.large", false),
 			},
@@ -552,27 +543,27 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, spot enabled",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(0),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(0),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("1"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.large")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{},
-			ec2Instances: []*ec2.Instance{
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{},
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", true),
 				ec2Instance("i-2", "m5.large", false),
 			},
@@ -583,27 +574,27 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		},
 		{
 			name: "mixed instances, spot disabled",
-			autoscalingInstances: []*autoscaling.Instance{
+			autoscalingInstances: []autoscalingtypes.Instance{
 				autoscalingInstance("i-1", "lt", "1"),
 				autoscalingInstance("i-2", "lt", "1"),
 			},
-			autoscalingMixedInstPolicy: &autoscaling.MixedInstancesPolicy{
-				InstancesDistribution: &autoscaling.InstancesDistribution{
-					OnDemandPercentageAboveBaseCapacity: aws.Int64(100),
+			autoscalingMixedInstPolicy: &autoscalingtypes.MixedInstancesPolicy{
+				InstancesDistribution: &autoscalingtypes.InstancesDistribution{
+					OnDemandPercentageAboveBaseCapacity: aws.Int32(100),
 				},
-				LaunchTemplate: &autoscaling.LaunchTemplate{
-					LaunchTemplateSpecification: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplate: &autoscalingtypes.LaunchTemplate{
+					LaunchTemplateSpecification: &autoscalingtypes.LaunchTemplateSpecification{
 						LaunchTemplateName: aws.String("lt"),
 						Version:            aws.String("1"),
 					},
-					Overrides: []*autoscaling.LaunchTemplateOverrides{
+					Overrides: []autoscalingtypes.LaunchTemplateOverrides{
 						{InstanceType: aws.String("m4.large")},
 						{InstanceType: aws.String("m5.large")},
 					},
 				},
 			},
-			ec2LaunchTemplate: &ec2.ResponseLaunchTemplateData{},
-			ec2Instances: []*ec2.Instance{
+			ec2LaunchTemplate: &ec2types.ResponseLaunchTemplateData{},
+			ec2Instances: []ec2types.Instance{
 				ec2Instance("i-1", "m4.large", false),
 				ec2Instance("i-2", "m5.large", true),
 			},
@@ -616,9 +607,9 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			backend := &ASGNodePoolsBackend{
 				asgClient: &mockASGAPI{
-					asgs: []*autoscaling.Group{
+					asgs: []autoscalingtypes.AutoScalingGroup{
 						{
-							Tags: []*autoscaling.TagDescription{
+							Tags: []autoscalingtypes.TagDescription{
 								{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 								{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 							},
@@ -628,7 +619,7 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 						},
 					},
 					descLB: &autoscaling.DescribeLoadBalancersOutput{
-						LoadBalancers: []*autoscaling.LoadBalancerState{
+						LoadBalancers: []autoscalingtypes.LoadBalancerState{
 							{
 								LoadBalancerName: aws.String("foo"),
 							},
@@ -637,12 +628,12 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 				},
 				ec2Client: &mockEC2API{
 					descLTVs: &ec2.DescribeLaunchTemplateVersionsOutput{
-						LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{{
+						LaunchTemplateVersions: []ec2types.LaunchTemplateVersion{{
 							LaunchTemplateData: tc.ec2LaunchTemplate,
 						}},
 					},
 					descInstances: &ec2.DescribeInstancesOutput{
-						Reservations: []*ec2.Reservation{
+						Reservations: []ec2types.Reservation{
 							{
 								Instances: tc.ec2Instances,
 							},
@@ -650,10 +641,10 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 					},
 				},
 				elbClient: &mockELBAPI{
-					descLBs: &elb.DescribeLoadBalancersOutput{
-						LoadBalancerDescriptions: []*elb.LoadBalancerDescription{
+					descLBs: &elasticloadbalancing.DescribeLoadBalancersOutput{
+						LoadBalancerDescriptions: []elbtypes.LoadBalancerDescription{
 							{
-								Instances: []*elb.Instance{
+								Instances: []elbtypes.Instance{
 									{
 										InstanceId: aws.String("foo"),
 									},
@@ -661,11 +652,11 @@ func TestGetInstanceUpdateInfo(t *testing.T) {
 							},
 						},
 					},
-					descInstanceHealth: &elb.DescribeInstanceHealthOutput{
-						InstanceStates: []*elb.InstanceState{
+					descInstanceHealth: &elasticloadbalancing.DescribeInstanceHealthOutput{
+						InstanceStates: []elbtypes.InstanceState{
 							{
 								InstanceId: aws.String("foo"),
-								State:      aws.String(autoscaling.LifecycleStateInService),
+								State:      aws.String(string(autoscalingtypes.LifecycleStateInService)),
 							},
 						},
 					},
@@ -697,26 +688,26 @@ func TestScale(t *testing.T) {
 	// test scaling up
 	backend = &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{
-			asgs: []*autoscaling.Group{
+			asgs: []autoscalingtypes.AutoScalingGroup{
 				{
-					Tags: []*autoscaling.TagDescription{
+					Tags: []autoscalingtypes.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
-					Instances: []*autoscaling.Instance{
+					Instances: []autoscalingtypes.Instance{
 						{},
 					},
-					DesiredCapacity: aws.Int64(1),
+					DesiredCapacity: aws.Int32(1),
 				},
 				{
-					Tags: []*autoscaling.TagDescription{
+					Tags: []autoscalingtypes.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
-					Instances: []*autoscaling.Instance{
+					Instances: []autoscalingtypes.Instance{
 						{},
 					},
-					DesiredCapacity: aws.Int64(1),
+					DesiredCapacity: aws.Int32(1),
 				},
 			},
 		},
@@ -728,26 +719,26 @@ func TestScale(t *testing.T) {
 	// test scaling down
 	backend = &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{
-			asgs: []*autoscaling.Group{
+			asgs: []autoscalingtypes.AutoScalingGroup{
 				{
-					Tags: []*autoscaling.TagDescription{
+					Tags: []autoscalingtypes.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
-					Instances: []*autoscaling.Instance{
+					Instances: []autoscalingtypes.Instance{
 						{},
 					},
-					DesiredCapacity: aws.Int64(1),
+					DesiredCapacity: aws.Int32(1),
 				},
 				{
-					Tags: []*autoscaling.TagDescription{
+					Tags: []autoscalingtypes.TagDescription{
 						{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 						{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 					},
-					Instances: []*autoscaling.Instance{
+					Instances: []autoscalingtypes.Instance{
 						{},
 					},
-					DesiredCapacity: aws.Int64(1),
+					DesiredCapacity: aws.Int32(1),
 				},
 			},
 		},
@@ -768,7 +759,7 @@ func TestScale(t *testing.T) {
 func TestDeleteTags(tt *testing.T) {
 	for _, tc := range []struct {
 		msg       string
-		asgClient autoscalingiface.AutoScalingAPI
+		asgClient iface.AutoScalingAPI
 		nodePool  *api.NodePool
 		tags      map[string]string
 		success   bool
@@ -776,14 +767,14 @@ func TestDeleteTags(tt *testing.T) {
 		{
 			msg: "test removing tags",
 			asgClient: &mockASGAPI{
-				asgs: []*autoscaling.Group{
+				asgs: []autoscalingtypes.AutoScalingGroup{
 					{
-						Tags: []*autoscaling.TagDescription{
+						Tags: []autoscalingtypes.TagDescription{
 							{Key: aws.String(clusterIDTagPrefix), Value: aws.String(resourceLifecycleOwned)},
 							{Key: aws.String(nodePoolTagLegacy), Value: aws.String("test")},
 							{Key: aws.String("tag-to-remove"), Value: aws.String("test")},
 						},
-						Instances: []*autoscaling.Instance{
+						Instances: []autoscalingtypes.Instance{
 							{},
 						},
 					},
@@ -812,7 +803,7 @@ func TestDeleteTags(tt *testing.T) {
 				cluster:   &api.Cluster{},
 			}
 
-			err := backend.deleteTags(tc.nodePool, tc.tags)
+			err := backend.deleteTags(context.Background(), tc.nodePool, tc.tags)
 			if tc.success {
 				assert.NoError(t, err)
 			}
@@ -824,17 +815,17 @@ func TestTerminate(t *testing.T) {
 	// test success
 	backend := &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{
-			asgs: []*autoscaling.Group{
+			asgs: []autoscalingtypes.AutoScalingGroup{
 				{
 					AutoScalingGroupName: aws.String("asg-name"),
-					DesiredCapacity:      aws.Int64(3),
-					MinSize:              aws.Int64(3),
+					DesiredCapacity:      aws.Int32(3),
+					MinSize:              aws.Int32(3),
 				},
 			},
 		},
 		ec2Client: &mockEC2API{
 			descTags: &ec2.DescribeTagsOutput{
-				Tags: []*ec2.TagDescription{
+				Tags: []ec2types.TagDescription{
 					{
 						Key:   aws.String(ec2AutoscalingGroupTagKey),
 						Value: aws.String("asg-name"),
@@ -842,11 +833,11 @@ func TestTerminate(t *testing.T) {
 				},
 			},
 			descStatus: &ec2.DescribeInstanceStatusOutput{
-				InstanceStatuses: []*ec2.InstanceStatus{
+				InstanceStatuses: []ec2types.InstanceStatus{
 					{
-						InstanceState: &ec2.InstanceState{
-							Code: aws.Int64(48), // terminated
-							Name: aws.String("terminated"),
+						InstanceState: &ec2types.InstanceState{
+							Code: aws.Int32(48), // terminated
+							Name: ec2types.InstanceStateNameTerminated,
 						},
 					},
 				},
@@ -868,11 +859,11 @@ func TestTerminate(t *testing.T) {
 	backend = &ASGNodePoolsBackend{
 		asgClient: &mockASGAPI{err: errors.New("already terminated")},
 		ec2Client: &mockEC2API{descStatus: &ec2.DescribeInstanceStatusOutput{
-			InstanceStatuses: []*ec2.InstanceStatus{
+			InstanceStatuses: []ec2types.InstanceStatus{
 				{
-					InstanceState: &ec2.InstanceState{
-						Code: aws.Int64(48), // terminated
-						Name: aws.String("terminated"),
+					InstanceState: &ec2types.InstanceState{
+						Code: aws.Int32(48), // terminated
+						Name: ec2types.InstanceStateNameTerminated,
 					},
 				},
 			},
@@ -883,11 +874,11 @@ func TestTerminate(t *testing.T) {
 }
 
 func TestAsgHasAllTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{
+	expected := []autoscalingtypes.TagDescription{
 		{Key: aws.String("key-1"), Value: aws.String("value-1")},
 		{Key: aws.String("key-2"), Value: aws.String("value-2")},
 	}
-	tags := []*autoscaling.TagDescription{
+	tags := []autoscalingtypes.TagDescription{
 		{Key: aws.String("key-2"), Value: aws.String("value-2")},
 		{Key: aws.String("key-1"), Value: aws.String("value-1")},
 	}
@@ -895,15 +886,15 @@ func TestAsgHasAllTags(t *testing.T) {
 }
 
 func TestNotMatchingAsgHasAllTags(t *testing.T) {
-	expected := []*autoscaling.TagDescription{
+	expected := []autoscalingtypes.TagDescription{
 		{Key: aws.String("key"), Value: aws.String("value")},
 	}
-	tags := []*autoscaling.TagDescription{
+	tags := []autoscalingtypes.TagDescription{
 		{Key: aws.String("key"), Value: aws.String("bar")},
 	}
 	assert.False(t, asgHasAllTags(expected, tags))
 
-	expected = []*autoscaling.TagDescription{
+	expected = []autoscalingtypes.TagDescription{
 		{Key: aws.String("key"), Value: aws.String("value")},
 		{Key: aws.String("foo"), Value: aws.String("bar")},
 	}

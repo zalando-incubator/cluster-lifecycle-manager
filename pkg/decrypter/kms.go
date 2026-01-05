@@ -1,10 +1,11 @@
 package decrypter
 
 import (
+	"context"
 	"encoding/base64"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 )
 
 const (
@@ -15,18 +16,18 @@ const (
 
 // awsKMS is a decrypter which can decrypt kms encrypted secrets.
 type awsKMS struct {
-	kmsSvc *kms.KMS
+	kmsSvc *kms.Client
 }
 
 // NewAWSKMSDescrypter initializes a new awsKMS based Decrypter.
-func NewAWSKMSDescrypter(sess *session.Session) Decrypter {
+func NewAWSKMSDescrypter(cfg aws.Config) Decrypter {
 	return &awsKMS{
-		kmsSvc: kms.New(sess),
+		kmsSvc: kms.NewFromConfig(cfg),
 	}
 }
 
 // Decrypt decrypts a kms encrypted secret.
-func (a *awsKMS) Decrypt(secret string) (string, error) {
+func (a *awsKMS) Decrypt(ctx context.Context, secret string) (string, error) {
 	decodedSecret, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		return "", err
@@ -36,7 +37,7 @@ func (a *awsKMS) Decrypt(secret string) (string, error) {
 		CiphertextBlob: decodedSecret,
 	}
 
-	resp, err := a.kmsSvc.Decrypt(params)
+	resp, err := a.kmsSvc.Decrypt(ctx, params)
 	if err != nil {
 		return "", err
 	}

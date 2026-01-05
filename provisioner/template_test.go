@@ -1,16 +1,18 @@
 package provisioner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 )
 
 var instanceTypes = awsUtils.NewInstanceTypes([]awsUtils.Instance{
@@ -477,21 +479,21 @@ func TestStupsNATSubnetsErrors(t *testing.T) {
 }
 
 type mockEC2Client struct {
-	ec2iface.EC2API
+	iface.EC2API
 	t               *testing.T
 	kubernetesImage string
 	ownerID         string
-	output          []*ec2.Image
+	output          []ec2types.Image
 }
 
-func (c mockEC2Client) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
-	require.Len(c.t, input.Filters, 2)
-	require.Equal(c.t, describeImageFilterNameName, *input.Filters[0].Name)
-	require.Len(c.t, input.Filters[0].Values, 1)
-	require.Equal(c.t, c.kubernetesImage, *input.Filters[0].Values[0])
-	require.Equal(c.t, describeImageFilterNameOwner, *input.Filters[1].Name)
-	require.Len(c.t, input.Filters[1].Values, 1)
-	require.Equal(c.t, c.ownerID, *input.Filters[1].Values[0])
+func (c mockEC2Client) DescribeImages(_ context.Context, params *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
+	require.Len(c.t, params.Filters, 2)
+	require.Equal(c.t, describeImageFilterNameName, *params.Filters[0].Name)
+	require.Len(c.t, params.Filters[0].Values, 1)
+	require.Equal(c.t, c.kubernetesImage, params.Filters[0].Values[0])
+	require.Equal(c.t, describeImageFilterNameOwner, *params.Filters[1].Name)
+	require.Len(c.t, params.Filters[1].Values, 1)
+	require.Equal(c.t, c.ownerID, params.Filters[1].Values[0])
 	return &ec2.DescribeImagesOutput{Images: c.output}, nil
 }
 
@@ -501,7 +503,7 @@ func TestAmiID(t *testing.T) {
 		imageName string
 		ownerID   string
 		imageID   string
-		output    []*ec2.Image
+		output    []ec2types.Image
 		expectErr bool
 	}{
 		{
@@ -509,14 +511,14 @@ func TestAmiID(t *testing.T) {
 			imageName: "kubernetes-image-ami",
 			ownerID:   "8085",
 			imageID:   "ami-0001dsf",
-			output:    []*ec2.Image{{ImageId: aws.String("ami-0001dsf")}},
+			output:    []ec2types.Image{{ImageId: aws.String("ami-0001dsf")}},
 			expectErr: false,
 		},
 		{
 			name:      "multiple images",
 			imageName: "kubernetes-image-ami",
 			ownerID:   "8085",
-			output:    []*ec2.Image{{ImageId: aws.String("ami-00232ccd")}, {ImageId: aws.String("ami-0001dsf")}},
+			output:    []ec2types.Image{{ImageId: aws.String("ami-00232ccd")}, {ImageId: aws.String("ami-0001dsf")}},
 			expectErr: true,
 		},
 	} {
@@ -1415,24 +1417,24 @@ func TestInstanceTypeMemoryQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		input    string
-		data     map[string]string
+		data     map[string]ec2types.InstanceType
 		expected string
 	}{
 		{
 			name:     "m5.xlarge",
 			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "m5.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "m5.xlarge"},
 			expected: "16Gi",
 		},
 		{
 			name:     "c5d.xlarge",
 			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "c5d.xlarge"},
 			expected: "8Gi",
 		}, {
 			name:     "m6g.xlarge",
 			input:    `{{ instanceTypeMemoryQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "m6g.xlarge"},
 			expected: "16Gi",
 		},
 	} {
@@ -1457,24 +1459,24 @@ func TestInstanceTypeCPUQuantity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		input    string
-		data     map[string]string
+		data     map[string]ec2types.InstanceType
 		expected string
 	}{
 		{
 			name:     "m5.xlarge",
 			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "m5.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "m5.xlarge"},
 			expected: "4",
 		},
 		{
 			name:     "c5d.xlarge",
 			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "c5d.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "c5d.xlarge"},
 			expected: "4",
 		}, {
 			name:     "m6g.xlarge",
 			input:    `{{ instanceTypeCPUQuantity .Values.data.instance_type }}`,
-			data:     map[string]string{"instance_type": "m6g.xlarge"},
+			data:     map[string]ec2types.InstanceType{"instance_type": "m6g.xlarge"},
 			expected: "4",
 		},
 	} {
@@ -1498,31 +1500,31 @@ func TestScalingTemplate(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		input    string
-		data     map[string]string
+		data     map[string]ec2types.InstanceType
 		expected string
 	}{
 		{
 			name:  "m5.xlarge",
 			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.1 }}`,
-			data:  map[string]string{"instance_type": "m5.xlarge"},
+			data:  map[string]ec2types.InstanceType{"instance_type": "m5.xlarge"},
 			// 1.6Gi
 			expected: "1717986944",
 		}, {
 			name:  "c5d.xlarge",
 			input: `{{ scaleQuantity (instanceTypeMemoryQuantity .Values.data.instance_type) 0.3 }}`,
-			data:  map[string]string{"instance_type": "c5d.xlarge"},
+			data:  map[string]ec2types.InstanceType{"instance_type": "c5d.xlarge"},
 			// 2.4Gi
 			expected: "2576980480",
 		}, {
 			name:  "scale CPU evenly",
 			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.1 }}`,
-			data:  map[string]string{"instance_type": "m6g.xlarge"},
+			data:  map[string]ec2types.InstanceType{"instance_type": "m6g.xlarge"},
 			// This is interpreted as 4 * 0.1 = 0.4 => 400m, this is the preferred format for CPU
 			expected: "400m",
 		}, {
 			name:  "scale CPU unevenly",
 			input: `{{ scaleQuantity (instanceTypeCPUQuantity .Values.data.instance_type) 0.3 }}`,
-			data:  map[string]string{"instance_type": "m6g.xlarge"},
+			data:  map[string]ec2types.InstanceType{"instance_type": "m6g.xlarge"},
 			// This is intepreted as 4 * 0.3 = 1.2 => 1200m and not 4/3 = 1.33 => 1333m
 			expected: "1200m",
 		},

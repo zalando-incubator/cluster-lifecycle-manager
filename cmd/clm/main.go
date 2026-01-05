@@ -11,12 +11,15 @@ import (
 	"syscall"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/controller"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
+	zaws "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/credentials-loader/platformiam"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -101,18 +104,26 @@ func main() {
 
 	clusterRegistry := registry.NewRegistry(cfg.Registry, registryTokenSource, &registry.Options{Debug: cfg.DumpRequest})
 
-	awsConfig := aws.Config(cfg.AwsMaxRetries, cfg.AwsMaxRetryInterval)
+	ctx := context.Background()
 
-	// setup aws session
-	sess, err := aws.Session(awsConfig, "")
+	// setup aws config
+	awsConfig, err := zaws.Config(ctx, "", awsconfig.WithRetryer(func() aws.Retryer {
+		return retry.AddWithMaxBackoffDelay(
+			retry.AddWithMaxAttempts(
+				retry.NewStandard(),
+				cfg.AwsMaxRetries,
+			),
+			cfg.AwsMaxRetryInterval,
+		)
+	}))
 	if err != nil {
 		log.Fatalf("Failed to setup AWS session: %v", err)
 	}
 	secretDecrypter := decrypter.SecretDecrypter(map[string]decrypter.Decrypter{
-		decrypter.AWSKMSSecretPrefix: decrypter.NewAWSKMSDescrypter(sess),
+		decrypter.AWSKMSSecretPrefix: decrypter.NewAWSKMSDescrypter(awsConfig),
 	})
 
-	rootLogger := log.StandardLogger().WithFields(map[string]interface{}{})
+	rootLogger := log.StandardLogger().WithFields(map[string]any{})
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
@@ -122,7 +133,6 @@ func main() {
 			clusterTokenSource,
 			secretDecrypter,
 			cfg.AssumedRole,
-			awsConfig,
 			&provisioner.Options{
 				DryRun:          cfg.DryRun,
 				ApplyOnly:       cfg.ApplyOnly,
@@ -135,7 +145,6 @@ func main() {
 			execManager,
 			secretDecrypter,
 			cfg.AssumedRole,
-			awsConfig,
 			&provisioner.Options{
 				DryRun:         cfg.DryRun,
 				ApplyOnly:      cfg.ApplyOnly,
@@ -211,7 +220,7 @@ func main() {
 		}
 
 		for key, value := range cluster.ConfigItems {
-			decryptedValue, err := secretDecrypter.Decrypt(value)
+			decryptedValue, err := secretDecrypter.Decrypt(ctx, value)
 			if err != nil {
 				log.Fatalf("%+v", err)
 			}

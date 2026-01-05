@@ -1,5 +1,7 @@
 package api
 
+import "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 func SampleCluster() *Cluster {
 	return &Cluster{
 		ID:                    "aws:123456789012:eu-central-1:kube-1",
@@ -20,7 +22,7 @@ func SampleCluster() *Cluster {
 			{
 				Name:             "master-default",
 				Profile:          "master-default",
-				InstanceTypes:    []string{"m4.large"},
+				InstanceTypes:    []types.InstanceType{"m4.large"},
 				DiscountStrategy: "none",
 				MinSize:          2,
 				MaxSize:          2,
@@ -29,7 +31,7 @@ func SampleCluster() *Cluster {
 			{
 				Name:             "worker-default",
 				Profile:          "worker-default",
-				InstanceTypes:    []string{"m5.large", "m5.2xlarge"},
+				InstanceTypes:    []types.InstanceType{"m5.large", "m5.2xlarge"},
 				DiscountStrategy: "none",
 				MinSize:          3,
 				MaxSize:          21,

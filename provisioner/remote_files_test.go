@@ -4,14 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -63,11 +63,11 @@ files:
 `
 
 type testKMSClient struct {
-	kmsiface.KMSAPI
+	kmsAPI
 }
 
-func (testKMSClient) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, error) {
-	inputS := string(input.Plaintext)
+func (testKMSClient) Encrypt(_ context.Context, params *kms.EncryptInput, _ ...func(*kms.Options)) (*kms.EncryptOutput, error) {
+	inputS := string(params.Plaintext)
 	outputS := fmt.Sprintf("xx%sxx", inputS)
 	return &kms.EncryptOutput{CiphertextBlob: []byte(outputS)}, nil
 }
@@ -130,6 +130,7 @@ func TestRenderAndUploadFiles(t *testing.T) {
 		}
 
 		s3Location, err := renderer.RenderAndUploadFiles(
+			context.Background(),
 			map[string]interface{}{},
 			testBucket,
 			"arn:aws:kms:eu-central-1:xxxxxx:key/97sdhf9hsd978f",
@@ -175,6 +176,7 @@ func TestMakeArchive(t *testing.T) {
 		t.Run(tc.Message, func(t *testing.T) {
 			testKMSClient := &testKMSClient{}
 			archive, err := makeArchive(
+				context.Background(),
 				makeTestInput(tc.Path, tc.Data, tc.Permissions, tc.Encrypted),
 				"arn:aws:kms:eu-central-1:xxxxxx:key/97sdhf9hsd978f",
 				testKMSClient,

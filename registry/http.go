@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -249,13 +250,15 @@ func convertFromNodePoolModel(nodePool *models.NodePool) (*api.NodePool, error) 
 	}
 	return &api.NodePool{
 		DiscountStrategy: *nodePool.DiscountStrategy,
-		InstanceTypes:    nodePool.InstanceTypes,
-		InstanceType:     instanceType,
-		Name:             *nodePool.Name,
-		Profile:          *nodePool.Profile,
-		MinSize:          *nodePool.MinSize,
-		MaxSize:          *nodePool.MaxSize,
-		ConfigItems:      nodePool.ConfigItems,
+		InstanceTypes: lo.Map(nodePool.InstanceTypes, func(s string, _ int) types.InstanceType {
+			return types.InstanceType(s)
+		}),
+		InstanceType: types.InstanceType(instanceType),
+		Name:         *nodePool.Name,
+		Profile:      *nodePool.Profile,
+		MinSize:      *nodePool.MinSize,
+		MaxSize:      *nodePool.MaxSize,
+		ConfigItems:  nodePool.ConfigItems,
 	}, nil
 }
 
