@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -24,12 +23,10 @@ func NewZalandoAWSProvisioner(
 	tokenSource oauth2.TokenSource,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
-	awsConfig *aws.Config,
 	options *Options,
 ) Provisioner {
 	provisioner := &ZalandoAWSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
-			awsConfig:         awsConfig,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
@@ -63,7 +60,7 @@ func (z *ZalandoAWSProvisioner) Provision(
 		return ErrProviderNotSupported
 	}
 
-	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
@@ -94,7 +91,7 @@ func (z *ZalandoAWSProvisioner) Decommission(
 		return ErrProviderNotSupported
 	}
 
-	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}

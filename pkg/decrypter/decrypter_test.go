@@ -1,19 +1,20 @@
 package decrypter
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
 
 type mockDecrypter struct{}
 
-func (d mockDecrypter) Decrypt(_ string) (string, error) {
+func (d mockDecrypter) Decrypt(_ context.Context, _ string) (string, error) {
 	return "", nil
 }
 
 type mockErrDecrypter struct{}
 
-func (d mockErrDecrypter) Decrypt(_ string) (string, error) {
+func (d mockErrDecrypter) Decrypt(_ context.Context, _ string) (string, error) {
 	return "", fmt.Errorf("failed")
 }
 
@@ -50,7 +51,7 @@ func TestSecretDecrypterDecrypt(t *testing.T) {
 		},
 	} {
 		t.Run(ti.msg, func(t *testing.T) {
-			_, err := ti.decrypter.Decrypt(ti.secret)
+			_, err := ti.decrypter.Decrypt(context.Background(), ti.secret)
 			if err != nil && ti.success {
 				t.Errorf("should not fail: %s", err)
 			}

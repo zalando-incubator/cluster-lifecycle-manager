@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,8 +53,8 @@ func permute(value interface{}, field string) error {
 		}
 	case reflect.Slice:
 		switch fld.Interface().(type) {
-		case []string:
-			fld.Set(reflect.ValueOf([]string{"a", "b", "c"}))
+		case []ec2types.InstanceType:
+			fld.Set(reflect.ValueOf([]ec2types.InstanceType{"a", "b", "c"}))
 		default:
 			return fmt.Errorf("invalid slice type for %s", field)
 		}

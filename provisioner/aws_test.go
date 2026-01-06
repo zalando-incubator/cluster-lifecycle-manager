@@ -10,47 +10,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingtypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type ec2APIStub struct {
-	ec2iface.EC2API
+	iface.EC2API
 }
 
-func (e *ec2APIStub) DescribeVpcs(*ec2.DescribeVpcsInput) (
-	*ec2.DescribeVpcsOutput,
-	error,
-) {
+func (e *ec2APIStub) DescribeVpcs(context.Context, *ec2.DescribeVpcsInput, ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
 	return &ec2.DescribeVpcsOutput{
-		Vpcs: []*ec2.Vpc{{IsDefault: aws.Bool(false)}},
+		Vpcs: []ec2types.Vpc{{IsDefault: aws.Bool(false)}},
 	}, nil
 }
 
 type s3APIStub struct{}
 
-func (s *s3APIStub) CreateBucket(input *s3.CreateBucketInput) (*s3.CreateBucketOutput, error) {
-	if *input.Bucket == "existing" {
-		return nil, awserr.New(
-			s3.ErrCodeBucketAlreadyOwnedByYou,
-			"bucket already exists",
-			nil,
-		)
+func (s *s3APIStub) CreateBucket(_ context.Context, params *s3.CreateBucketInput, _ ...func(*s3.Options)) (*s3.CreateBucketOutput, error) {
+	if *params.Bucket == "existing" {
+		return nil, &s3types.BucketAlreadyOwnedByYou{}
 	}
 	return nil, nil
 }
@@ -59,14 +54,14 @@ type s3UploaderAPIStub struct {
 	err error
 }
 
-func (s *s3UploaderAPIStub) Upload(_ *s3manager.UploadInput, _ ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
-	return &s3manager.UploadOutput{Location: "url"}, s.err
+func (s *s3UploaderAPIStub) Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
+	return &manager.UploadOutput{Location: "url"}, s.err
 }
 
 type cloudFormationAPIStub struct {
-	cloudformationiface.CloudFormationAPI
+	cloudformationAPI
 	statusMutex         *sync.Mutex
-	status              *string
+	status              cftypes.StackStatus
 	statusReason        *string
 	onDescribeStackChan chan struct{}
 	createErr           error
@@ -75,45 +70,41 @@ type cloudFormationAPIStub struct {
 	onCreate            func(input *cloudformation.CreateStackInput)
 }
 
-func (c *cloudFormationAPIStub) DescribeStacks(_ *cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
+func (c *cloudFormationAPIStub) DescribeStacks(context.Context, *cloudformation.DescribeStacksInput, ...func(*cloudformation.Options)) (*cloudformation.DescribeStacksOutput, error) {
 	name := "foobar"
-	s := cloudformation.Stack{StackName: aws.String(name), StackStatus: c.getStatus(), StackStatusReason: c.getStatusReason()}
+	s := cftypes.Stack{StackName: aws.String(name), StackStatus: c.getStatus(), StackStatusReason: c.getStatusReason()}
 	if c.onDescribeStackChan != nil {
 		c.onDescribeStackChan <- struct{}{}
 	}
-	return &cloudformation.DescribeStacksOutput{Stacks: []*cloudformation.Stack{&s}}, nil
+	return &cloudformation.DescribeStacksOutput{Stacks: []cftypes.Stack{s}}, nil
 }
 
-func (c *cloudFormationAPIStub) CreateStack(input *cloudformation.CreateStackInput) (*cloudformation.CreateStackOutput, error) {
+func (c *cloudFormationAPIStub) CreateStack(_ context.Context, params *cloudformation.CreateStackInput, _ ...func(*cloudformation.Options)) (*cloudformation.CreateStackOutput, error) {
 	if c.onCreate != nil {
-		c.onCreate(input)
+		c.onCreate(params)
 	}
 	return nil, c.createErr
 }
 
-func (c *cloudFormationAPIStub) UpdateStack(_ *cloudformation.UpdateStackInput) (*cloudformation.UpdateStackOutput, error) {
+func (c *cloudFormationAPIStub) UpdateStack(context.Context, *cloudformation.UpdateStackInput, ...func(*cloudformation.Options)) (*cloudformation.UpdateStackOutput, error) {
 	return nil, c.updateErr
 }
 
-func (c *cloudFormationAPIStub) DeleteStack(_ *cloudformation.DeleteStackInput) (*cloudformation.DeleteStackOutput, error) {
+func (c *cloudFormationAPIStub) DeleteStack(context.Context, *cloudformation.DeleteStackInput, ...func(*cloudformation.Options)) (*cloudformation.DeleteStackOutput, error) {
 	return nil, c.deleteErr
 }
 
-func (c *cloudFormationAPIStub) UpdateTerminationProtection(_ *cloudformation.UpdateTerminationProtectionInput) (*cloudformation.UpdateTerminationProtectionOutput, error) {
+func (c *cloudFormationAPIStub) UpdateTerminationProtection(context.Context, *cloudformation.UpdateTerminationProtectionInput, ...func(*cloudformation.Options)) (*cloudformation.UpdateTerminationProtectionOutput, error) {
 	return nil, nil
 }
 
-func (c *cloudFormationAPIStub) DescribeStacksPages(_ *cloudformation.DescribeStacksInput, _ func(resp *cloudformation.DescribeStacksOutput, lastPage bool) bool) error {
-	return nil
-}
-
-func (c *cloudFormationAPIStub) setStatus(status string) {
+func (c *cloudFormationAPIStub) setStatus(status cftypes.StackStatus) {
 	c.statusMutex.Lock()
-	c.status = &status
+	c.status = status
 	c.statusMutex.Unlock()
 }
 
-func (c *cloudFormationAPIStub) getStatus() *string {
+func (c *cloudFormationAPIStub) getStatus() cftypes.StackStatus {
 	c.statusMutex.Lock()
 	defer c.statusMutex.Unlock()
 	return c.status
@@ -126,52 +117,46 @@ func (c *cloudFormationAPIStub) getStatusReason() *string {
 }
 
 type cloudFormationAPIStub2 struct {
-	cloudformationiface.CloudFormationAPI
-	stacks []*cloudformation.Stack
+	cloudformationAPI
+	stacks []cftypes.Stack
 	err    error
 }
 
-func (cf *cloudFormationAPIStub2) DescribeStacksPages(_ *cloudformation.DescribeStacksInput, fn func(*cloudformation.DescribeStacksOutput, bool) bool) error {
-	if len(cf.stacks) > 0 {
-		fn(&cloudformation.DescribeStacksOutput{
-			Stacks: cf.stacks,
-		}, true)
-		return nil
-	}
-	return cf.err
+func (cf *cloudFormationAPIStub2) DescribeStacks(context.Context, *cloudformation.DescribeStacksInput, ...func(*cloudformation.Options)) (*cloudformation.DescribeStacksOutput, error) {
+	return &cloudformation.DescribeStacksOutput{
+		Stacks: cf.stacks,
+	}, cf.err
 }
 
 type autoscalingAPIStub struct {
+	iface.AutoScalingAPI
 	groupName string
 }
 
-func (a *autoscalingAPIStub) DescribeAutoScalingGroups(_ *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-	group := &autoscaling.Group{AutoScalingGroupName: aws.String(a.groupName)}
-	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: []*autoscaling.Group{group}}, nil
+func (a *autoscalingAPIStub) DescribeAutoScalingGroups(context.Context, *autoscaling.DescribeAutoScalingGroupsInput, ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	group := autoscalingtypes.AutoScalingGroup{AutoScalingGroupName: aws.String(a.groupName)}
+	return &autoscaling.DescribeAutoScalingGroupsOutput{AutoScalingGroups: []autoscalingtypes.AutoScalingGroup{group}}, nil
 }
 
-func (a *autoscalingAPIStub) DescribeLaunchConfigurations(_ *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+func (a *autoscalingAPIStub) UpdateAutoScalingGroup(context.Context, *autoscaling.UpdateAutoScalingGroupInput, ...func(*autoscaling.Options)) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return nil, nil
 }
-func (a *autoscalingAPIStub) UpdateAutoScalingGroup(_ *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+func (a *autoscalingAPIStub) SuspendProcesses(context.Context, *autoscaling.SuspendProcessesInput, ...func(*autoscaling.Options)) (*autoscaling.SuspendProcessesOutput, error) {
 	return nil, nil
 }
-func (a *autoscalingAPIStub) SuspendProcesses(_ *autoscaling.ScalingProcessQuery) (*autoscaling.SuspendProcessesOutput, error) {
+func (a *autoscalingAPIStub) ResumeProcesses(context.Context, *autoscaling.ResumeProcessesInput, ...func(*autoscaling.Options)) (*autoscaling.ResumeProcessesOutput, error) {
 	return nil, nil
 }
-func (a *autoscalingAPIStub) ResumeProcesses(*autoscaling.ScalingProcessQuery) (*autoscaling.ResumeProcessesOutput, error) {
-	return nil, nil
-}
-func (a *autoscalingAPIStub) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
+func (a *autoscalingAPIStub) TerminateInstanceInAutoScalingGroup(context.Context, *autoscaling.TerminateInstanceInAutoScalingGroupInput, ...func(*autoscaling.Options)) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
 	return nil, nil
 }
 
-func newAWSAdapterWithStubs(status string, groupName string) *awsAdapter {
+func newAWSAdapterWithStubs(status cftypes.StackStatus, groupName string) *awsAdapter {
 	logger := log.WithField("cluster", "foobar")
 
 	return &awsAdapter{
-		session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
-		cloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(status)},
+		// session:              &session.Session{Config: &aws.Config{Region: aws.String("")}},
+		cloudformationClient: &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: status},
 		s3Client:             &s3APIStub{},
 		s3Uploader:           &s3UploaderAPIStub{},
 		ec2Client:            &ec2APIStub{},
@@ -189,7 +174,7 @@ func TestWaitForStack(t *testing.T) {
 
 func testWaitForStackWithComplete(t *testing.T) {
 	// Happy Case uses default stub
-	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+	awsMock := newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, "123")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
@@ -200,9 +185,9 @@ func testWaitForStackWithComplete(t *testing.T) {
 
 func testWaitForStackWithTimeout(t *testing.T) {
 	// Timeout Case
-	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+	awsMock := newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, "123")
 	onDescribeStackChan := make(chan struct{})
-	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress), onDescribeStackChan: onDescribeStackChan}
+	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: cftypes.StackStatusCreateInProgress, onDescribeStackChan: onDescribeStackChan}
 	awsMock.cloudformationClient = stub
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -227,9 +212,9 @@ func testWaitForStackWithTimeout(t *testing.T) {
 
 func testWaitForStackWithRollback(t *testing.T) {
 	// Wait and Rollback Case
-	awsMock := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+	awsMock := newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, "123")
 	onDescribeStackChan := make(chan struct{}, 2)
-	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: aws.String(cloudformation.StackStatusCreateInProgress),
+	stub := &cloudFormationAPIStub{statusMutex: &sync.Mutex{}, status: cftypes.StackStatusCreateInProgress,
 		statusReason:        aws.String("The following resource(s) failed to update: [AutoScalingGroup1b, AutoScalingGroup1c]."),
 		onDescribeStackChan: onDescribeStackChan}
 	awsMock.cloudformationClient = stub
@@ -242,7 +227,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 			counter++
 			if counter == 2 {
 				//change the status of the stack
-				stub.setStatus(cloudformation.StackStatusRollbackComplete)
+				stub.setStatus(cftypes.StackStatusRollbackComplete)
 				return
 			}
 		}
@@ -259,7 +244,7 @@ func testWaitForStackWithRollback(t *testing.T) {
 
 func TestGetStackByName(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
-	s, err := a.getStackByName("foobar")
+	s, err := a.getStackByName(context.Background(), "foobar")
 	if err != nil {
 		t.FailNow()
 	}
@@ -270,7 +255,7 @@ func TestGetStackByName(t *testing.T) {
 
 func TestGetDefaultVPC(t *testing.T) {
 	a := newAWSAdapterWithStubs("", "GroupName")
-	vpc, err := a.GetDefaultVPC()
+	vpc, err := a.GetDefaultVPC(context.Background())
 	if err != nil {
 		t.Fatalf("Fail: %v", err)
 	}
@@ -290,7 +275,7 @@ func TestCreateS3Client(t *testing.T) {
 
 	for _, testCase := range tests {
 		a := newAWSAdapterWithStubs("", "GroupName")
-		err := a.createS3Bucket(testCase.bucketName)
+		err := a.createS3Bucket(context.Background(), testCase.bucketName)
 		if err != nil {
 			t.Fatalf("fail: %v", err)
 		}
@@ -298,7 +283,7 @@ func TestCreateS3Client(t *testing.T) {
 }
 
 func TestCreateOrUpdateClusterStack(t *testing.T) {
-	awsAdapter := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+	awsAdapter := newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, "123")
 	cluster := &api.Cluster{
 		ID:                    "cluster-id",
 		InfrastructureAccount: "account-id",
@@ -307,7 +292,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	s3Bucket := "s3-bucket"
 
 	// test creating stack with small stack template
-	err := awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err := awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	templateValue := make([]string, stackMaxSize+1)
@@ -318,24 +303,20 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 
 	// test create when template is too big and must be uploaded to s3
 	awsAdapter.s3Uploader = &s3UploaderAPIStub{}
-	err = awsAdapter.applyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	// test create bucket failing when s3 upload fails
 	awsAdapter.s3Uploader = &s3UploaderAPIStub{errors.New("error")}
-	err = awsAdapter.applyClusterStack("stack-name", hugeTemplate, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket)
 	assert.Error(t, err)
 
 	// test updating existing stack
 	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
-		createErr: awserr.New(
-			cloudformation.ErrCodeAlreadyExistsException,
-			"",
-			errors.New("base error"),
-		),
+		createErr:   &cftypes.AlreadyExistsException{},
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	// test create failing
@@ -343,46 +324,37 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 		createErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
 
 	// test updating when stack is already up to date
 	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
-		createErr: awserr.New(
-			cloudformation.ErrCodeAlreadyExistsException,
-			"",
-			errors.New("base error"),
-		),
-		updateErr: awserr.New(
-			cloudformationValidationErr,
-			cloudformationNoUpdateMsg,
-			errors.New("base error"),
-		),
+		createErr:   &cftypes.AlreadyExistsException{},
+		updateErr: &smithy.GenericAPIError{
+			Code:    "ValidationError",
+			Message: cloudformationNoUpdateMsg,
+		},
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.NoError(t, err)
 
 	// test update failing
 	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
 		statusMutex: &sync.Mutex{},
-		createErr: awserr.New(
-			cloudformation.ErrCodeAlreadyExistsException,
-			"",
-			errors.New("base error"),
-		),
-		updateErr: errors.New("error"),
+		createErr:   &cftypes.AlreadyExistsException{},
+		updateErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack("stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
 	assert.Error(t, err)
 }
 
 func TestApplyStack(t *testing.T) {
-	awsAdapter := newAWSAdapterWithStubs(cloudformation.StackStatusCreateComplete, "123")
+	awsAdapter := newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, "123")
 
 	awsAdapter.cloudformationClient = &cloudFormationAPIStub{
 		onCreate: func(input *cloudformation.CreateStackInput) {
-			require.EqualValues(t, []*cloudformation.Tag{
+			require.EqualValues(t, []cftypes.Tag{
 				{
 					Key:   aws.String("foo"),
 					Value: aws.String("bar"),
@@ -392,33 +364,33 @@ func TestApplyStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 	}
 
-	err := awsAdapter.applyStack("stack-name", `{"Metadata": {"Tags": {"foo":"bar"}}}`, "", nil, true, nil)
+	err := awsAdapter.applyStack(context.Background(), "stack-name", `{"Metadata": {"Tags": {"foo":"bar"}}}`, "", nil, true, nil)
 	require.NoError(t, err)
 }
 
 func TestIsStackDeleting(t *testing.T) {
-	stack := &cloudformation.Stack{
-		StackStatus: aws.String(cloudformation.StackStatusDeleteInProgress),
+	stack := &cftypes.Stack{
+		StackStatus: cftypes.StackStatusDeleteInProgress,
 	}
 
 	assert.True(t, isStackDeleting(stack))
 
-	stack.StackStatus = aws.String(cloudformation.StackStatusCreateComplete)
+	stack.StackStatus = cftypes.StackStatusCreateComplete
 	assert.False(t, isStackDeleting(stack))
 }
 
 func TestListStacks(tt *testing.T) {
 	for _, tc := range []struct {
 		msg            string
-		cloudformation cloudformationiface.CloudFormationAPI
+		cloudformation cloudformationAPI
 		includeTags    map[string]string
 		excludeTags    map[string]string
-		expectedStacks []*cloudformation.Stack
+		expectedStacks []cftypes.Stack
 	}{
 		{
 			msg: "no tag filter should return all stacks",
 			cloudformation: &cloudFormationAPIStub2{
-				stacks: []*cloudformation.Stack{
+				stacks: []cftypes.Stack{
 					{
 						StackName: aws.String("x"),
 					},
@@ -426,7 +398,7 @@ func TestListStacks(tt *testing.T) {
 			},
 			includeTags: nil,
 			excludeTags: nil,
-			expectedStacks: []*cloudformation.Stack{
+			expectedStacks: []cftypes.Stack{
 				{
 					StackName: aws.String("x"),
 				},
@@ -435,10 +407,10 @@ func TestListStacks(tt *testing.T) {
 		{
 			msg: "include tags + exclude tags should limit the returned stacks",
 			cloudformation: &cloudFormationAPIStub2{
-				stacks: []*cloudformation.Stack{
+				stacks: []cftypes.Stack{
 					{
 						StackName: aws.String("x"),
-						Tags: []*cloudformation.Tag{
+						Tags: []cftypes.Tag{
 							{
 								Key:   aws.String("a"),
 								Value: aws.String("b"),
@@ -447,7 +419,7 @@ func TestListStacks(tt *testing.T) {
 					},
 					{
 						StackName: aws.String("y"),
-						Tags: []*cloudformation.Tag{
+						Tags: []cftypes.Tag{
 							{
 								Key:   aws.String("a"),
 								Value: aws.String("b"),
@@ -466,10 +438,10 @@ func TestListStacks(tt *testing.T) {
 			excludeTags: map[string]string{
 				"c": "d",
 			},
-			expectedStacks: []*cloudformation.Stack{
+			expectedStacks: []cftypes.Stack{
 				{
 					StackName: aws.String("x"),
-					Tags: []*cloudformation.Tag{
+					Tags: []cftypes.Tag{
 						{
 							Key:   aws.String("a"),
 							Value: aws.String("b"),
@@ -483,14 +455,14 @@ func TestListStacks(tt *testing.T) {
 			adapter := awsAdapter{
 				cloudformationClient: tc.cloudformation,
 			}
-			stacks, _ := adapter.ListStacks(tc.includeTags, tc.excludeTags)
+			stacks, _ := adapter.ListStacks(context.Background(), tc.includeTags, tc.excludeTags)
 			assert.Equal(t, tc.expectedStacks, stacks)
 		})
 	}
 }
 
 type mockKMSAPI struct {
-	kmsiface.KMSAPI
+	kmsAPI
 	expectedKeyID string
 	expectedValue []byte
 	encryptResult []byte
@@ -498,13 +470,13 @@ type mockKMSAPI struct {
 	fail          bool
 }
 
-func (mock mockKMSAPI) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, error) {
-	keyID := aws.StringValue(input.KeyId)
+func (mock mockKMSAPI) Encrypt(_ context.Context, params *kms.EncryptInput, _ ...func(*kms.Options)) (*kms.EncryptOutput, error) {
+	keyID := aws.ToString(params.KeyId)
 	if keyID != mock.expectedKeyID {
 		return nil, fmt.Errorf("unexpected key ID %s", keyID)
 	}
-	if !reflect.DeepEqual(input.Plaintext, mock.expectedValue) {
-		return nil, fmt.Errorf("unexpected value: %v", input.Plaintext)
+	if !reflect.DeepEqual(params.Plaintext, mock.expectedValue) {
+		return nil, fmt.Errorf("unexpected value: %v", params.Plaintext)
 	}
 	if mock.fail {
 		return nil, errors.New("KMS operation failed")
@@ -514,8 +486,8 @@ func (mock mockKMSAPI) Encrypt(input *kms.EncryptInput) (*kms.EncryptOutput, err
 	}, nil
 }
 
-func (mock mockKMSAPI) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
-	keyID := aws.StringValue(input.KeyId)
+func (mock mockKMSAPI) DescribeKey(_ context.Context, params *kms.DescribeKeyInput, _ ...func(*kms.Options)) (*kms.DescribeKeyOutput, error) {
+	keyID := aws.ToString(params.KeyId)
 	if keyID != mock.expectedKeyID {
 		return nil, fmt.Errorf("unexpected key ID %s", keyID)
 	}
@@ -524,7 +496,7 @@ func (mock mockKMSAPI) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKe
 	}
 
 	return &kms.DescribeKeyOutput{
-		KeyMetadata: &kms.KeyMetadata{
+		KeyMetadata: &kmstypes.KeyMetadata{
 			Arn: aws.String(mock.keyARN),
 		},
 	}, nil
@@ -554,7 +526,7 @@ func TestKMSEncryptForTaupage(t *testing.T) {
 				},
 			}
 
-			result, err := adapter.kmsEncryptForTaupage("key-id", "test")
+			result, err := adapter.kmsEncryptForTaupage(context.Background(), "key-id", "test")
 
 			if tc.fail {
 				require.Error(t, err)
@@ -590,7 +562,7 @@ func TestKMSKeyARN(t *testing.T) {
 				},
 			}
 
-			result, err := adapter.resolveKeyID("key-id")
+			result, err := adapter.resolveKeyID(context.Background(), "key-id")
 
 			if tc.fail {
 				require.Error(t, err)

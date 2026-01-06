@@ -4,13 +4,13 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"path"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -27,6 +27,7 @@ type FilesRenderer struct {
 }
 
 func (f *FilesRenderer) RenderAndUploadFiles(
+	ctx context.Context,
 	values map[string]interface{},
 	bucketName string,
 	kmsKey string,
@@ -60,7 +61,7 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 		return "", err
 	}
 
-	archive, err := makeArchive(rendered, kmsKey, f.awsAdapter.kmsClient)
+	archive, err := makeArchive(ctx, rendered, kmsKey, f.awsAdapter.kmsClient)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +73,7 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 
 	filename := path.Join(f.cluster.LocalID, f.directory, userDataHash)
 
-	_, err = f.awsAdapter.s3Uploader.Upload(&s3manager.UploadInput{
+	_, err = f.awsAdapter.s3Uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(filename),
 		Body:   bytes.NewReader(archive),
@@ -84,7 +85,7 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 	return fmt.Sprintf("s3://%s/%s", bucketName, filename), nil
 }
 
-func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte, error) {
+func makeArchive(ctx context.Context, input string, kmsKey string, kmsClient kmsAPI) ([]byte, error) {
 	var data remoteData
 	err := yaml.UnmarshalStrict([]byte(input), &data)
 	if err != nil {
@@ -105,7 +106,7 @@ func makeArchive(input string, kmsKey string, kmsClient kmsiface.KMSAPI) ([]byte
 			return nil, fmt.Errorf("failed to decode data for file: %s", remoteFile.Path)
 		}
 		if remoteFile.Encrypted {
-			output, err := kmsClient.Encrypt(&kms.EncryptInput{KeyId: &kmsKey, Plaintext: []byte(decoded)})
+			output, err := kmsClient.Encrypt(ctx, &kms.EncryptInput{KeyId: &kmsKey, Plaintext: []byte(decoded)})
 			if err != nil {
 				return nil, err
 			}

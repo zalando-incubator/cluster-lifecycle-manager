@@ -1,11 +1,13 @@
 package aws
 
 import (
+	"context"
 	"fmt"
+	"slices"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,8 +22,8 @@ const (
 )
 
 type Instance struct {
-	InstanceType              string
-	VCPU                      int64
+	InstanceType              ec2types.InstanceType
+	VCPU                      int32
 	Memory                    int64
 	InstanceStorageDevices    int64
 	InstanceStorageDeviceSize int64
@@ -40,22 +42,28 @@ func (i Instance) MemoryFraction(percent int64) int64 {
 }
 
 type InstanceTypes struct {
-	instances map[string]Instance
+	instances map[ec2types.InstanceType]Instance
 }
 
 func NewInstanceTypes(instanceData []Instance) *InstanceTypes {
-	result := make(map[string]Instance)
+	result := make(map[ec2types.InstanceType]Instance)
 	for _, instanceType := range instanceData {
 		result[instanceType.InstanceType] = instanceType
 	}
 	return &InstanceTypes{instances: result}
 }
 
-func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) {
-	instances := make(map[string]Instance)
+func NewInstanceTypesFromAWS(ctx context.Context, ec2client ec2.DescribeInstanceTypesAPIClient) (*InstanceTypes, error) {
+	instances := make(map[ec2types.InstanceType]Instance)
 
-	var innerErr error
-	err := ec2client.DescribeInstanceTypesPages(&ec2.DescribeInstanceTypesInput{}, func(output *ec2.DescribeInstanceTypesOutput, _ bool) bool {
+	paginator := ec2.NewDescribeInstanceTypesPaginator(ec2client, &ec2.DescribeInstanceTypesInput{})
+
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, instanceType := range output.InstanceTypes {
 			var (
 				deviceCount, deviceSize int64
@@ -67,12 +75,11 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 				case 0:
 					// do nothing
 				case 1:
-					deviceCount = aws.Int64Value(storageDisks[0].Count)
-					deviceSize = aws.Int64Value(storageDisks[0].SizeInGB) * gigabyte
+					deviceCount = int64(aws.ToInt32(storageDisks[0].Count))
+					deviceSize = aws.ToInt64(storageDisks[0].SizeInGB) * gigabyte
 				default:
 					// doesn't happen at the moment, raise an error so we can decide how to handle this
-					innerErr = fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), aws.StringValue(instanceType.InstanceType))
-					return false
+					return nil, fmt.Errorf("invalid number of disk sets (%d) for %s, expecting 0 or 1", len(storageDisks), instanceType.InstanceType)
 				}
 			}
 
@@ -84,29 +91,22 @@ func NewInstanceTypesFromAWS(ec2client ec2iface.EC2API) (*InstanceTypes, error) 
 			}
 
 			info := Instance{
-				InstanceType:              aws.StringValue(instanceType.InstanceType),
-				VCPU:                      aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus),
-				Memory:                    aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
+				InstanceType:              instanceType.InstanceType,
+				VCPU:                      aws.ToInt32(instanceType.VCpuInfo.DefaultVCpus),
+				Memory:                    aws.ToInt64(instanceType.MemoryInfo.SizeInMiB) * mebibyte,
 				InstanceStorageDevices:    deviceCount,
 				InstanceStorageDeviceSize: deviceSize,
 				Architecture:              cpuArch,
 			}
 			instances[info.InstanceType] = info
 		}
-		return true
-	})
-	if innerErr != nil {
-		return nil, innerErr
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	log.Debugf("Loaded %d instance types from AWS", len(instances))
 	return &InstanceTypes{instances: instances}, nil
 }
 
-func (types *InstanceTypes) InstanceInfo(instanceType string) (Instance, error) {
+func (types *InstanceTypes) InstanceInfo(instanceType ec2types.InstanceType) (Instance, error) {
 	result, ok := types.instances[instanceType]
 	if !ok {
 		return Instance{}, fmt.Errorf("unknown instance type: %s", instanceType)
@@ -115,11 +115,11 @@ func (types *InstanceTypes) InstanceInfo(instanceType string) (Instance, error) 
 }
 
 // AllInstances returns information for all known AWS EC2 instances.
-func (types *InstanceTypes) AllInstances() map[string]Instance {
+func (types *InstanceTypes) AllInstances() map[ec2types.InstanceType]Instance {
 	return types.instances
 }
 
-func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Instance, error) {
+func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []ec2types.InstanceType) (Instance, error) {
 	if len(instanceTypes) == 0 {
 		return Instance{}, fmt.Errorf("no instance types provided")
 	} else if len(instanceTypes) == 1 {
@@ -155,24 +155,15 @@ func (types *InstanceTypes) SyntheticInstanceInfo(instanceTypes []string) (Insta
 
 // getCompatibleCPUArchitecture returns a single compatible CPU architecture. It's either `amd64` or `arm64`.
 // Other intance types might return 32-bit or macos specific types which will be ignored.
-func getCompatibleCPUArchitecture(instanceType *ec2.InstanceTypeInfo) (string, error) {
-	supportedArchitectures := aws.StringValueSlice(instanceType.ProcessorInfo.SupportedArchitectures)
+func getCompatibleCPUArchitecture(instanceType ec2types.InstanceTypeInfo) (string, error) {
+	supportedArchitectures := instanceType.ProcessorInfo.SupportedArchitectures
 
-	if contains(supportedArchitectures, archX86_64) {
+	if slices.Contains(supportedArchitectures, archX86_64) {
 		return archAMD64, nil
 	}
-	if contains(supportedArchitectures, archARM64) {
+	if slices.Contains(supportedArchitectures, archARM64) {
 		return archARM64, nil
 	}
 
 	return "", fmt.Errorf("didn't find compatible cpu architecture within '%v'", supportedArchitectures)
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,10 +14,7 @@ type (
 	mockRegistry   struct{}
 )
 
-func (m *mockAWSAdapter) GetEKSClusterDetails(_ *api.Cluster) (
-	*EKSClusterDetails,
-	error,
-) {
+func (m *mockAWSAdapter) GetEKSClusterDetails(_ context.Context, _ *api.Cluster) (*EKSClusterDetails, error) {
 	return &EKSClusterDetails{
 		Endpoint:             "https://api.cluster.local",
 		CertificateAuthority: "YmxhaA==",
@@ -52,6 +50,7 @@ func TestCreationHookExecute(t *testing.T) {
 	} {
 		z := NewZalandoEKSCreationHook(&mockRegistry{})
 		res, err := z.Execute(
+			context.Background(),
 			&mockAWSAdapter{},
 			&api.Cluster{},
 		)

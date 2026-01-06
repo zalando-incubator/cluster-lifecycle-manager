@@ -1,189 +1,189 @@
 package aws
 
 import (
+	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/require"
 )
 
 type mockEC2 struct {
-	ec2iface.EC2API
 }
 
-func (mock *mockEC2) DescribeInstanceTypesPages(_ *ec2.DescribeInstanceTypesInput, callback func(*ec2.DescribeInstanceTypesOutput, bool) bool) error {
-	if !callback(&ec2.DescribeInstanceTypesOutput{
-		InstanceTypes: []*ec2.InstanceTypeInfo{
-			{
-				InstanceType: aws.String("m4.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16384),
-				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					// Test that unsupported architectures are correctly ignored.
-					SupportedArchitectures: []*string{aws.String("x86_64_mac"), aws.String("i386"), aws.String("x86_64")},
-				},
-			},
-			{
-				InstanceType: aws.String("i3.4xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(16),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(124928),
-				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
-						{
-							Count:    aws.Int64(2),
-							SizeInGB: aws.Int64(1900),
-						},
+func (mock *mockEC2) DescribeInstanceTypes(_ context.Context, params *ec2.DescribeInstanceTypesInput, _ ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error) {
+	if params.NextToken == nil {
+		return &ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
+				{
+					InstanceType: ec2types.InstanceTypeM4Xlarge,
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					InstanceStorageInfo: &ec2types.InstanceStorageInfo{},
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						// Test that unsupported architectures are correctly ignored.
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664Mac, ec2types.ArchitectureTypeI386, ec2types.ArchitectureTypeX8664},
 					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
-				},
-			},
-			{
-				InstanceType: aws.String("m5.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16384),
-				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
-				},
-			},
-			{
-				InstanceType: aws.String("m5d.4xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(16),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(65536),
-				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
-						{
-							Count:    aws.Int64(2),
-							SizeInGB: aws.Int64(300),
+				{
+					InstanceType: ec2types.InstanceTypeI34xlarge,
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultVCpus: aws.Int32(16),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(124928),
+					},
+					InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+						Disks: []ec2types.DiskInfo{
+							{
+								Count:    aws.Int32(2),
+								SizeInGB: aws.Int64(1900),
+							},
 						},
 					},
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+				{
+					InstanceType: ec2types.InstanceTypeM5Xlarge,
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					InstanceStorageInfo: &ec2types.InstanceStorageInfo{},
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+				},
+				{
+					InstanceType: ec2types.InstanceTypeM5d4xlarge,
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultVCpus: aws.Int32(16),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(65536),
+					},
+					InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+						Disks: []ec2types.DiskInfo{
+							{
+								Count:    aws.Int32(2),
+								SizeInGB: aws.Int64(300),
+							},
+						},
+					},
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+				},
+				{
+					InstanceType: ec2types.InstanceTypeM6gXlarge,
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+					},
 				},
 			},
-			{
-				InstanceType: aws.String("m6g.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16384),
-				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("arm64")},
-				},
-			},
-		},
-	}, false) {
-		return nil
+		}, nil
 	}
-	callback(&ec2.DescribeInstanceTypesOutput{
-		InstanceTypes: []*ec2.InstanceTypeInfo{
+
+	return &ec2.DescribeInstanceTypesOutput{
+		InstanceTypes: []ec2types.InstanceTypeInfo{
 			{
-				InstanceType: aws.String("c5d.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
+				InstanceType: ec2types.InstanceTypeC5dXlarge,
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultVCpus: aws.Int32(4),
 				},
-				MemoryInfo: &ec2.MemoryInfo{
+				MemoryInfo: &ec2types.MemoryInfo{
 					SizeInMiB: aws.Int64(8192),
 				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
+				InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+					Disks: []ec2types.DiskInfo{
 						{
-							Count:    aws.Int64(1),
+							Count:    aws.Int32(1),
 							SizeInGB: aws.Int64(100),
 						},
 					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 				},
 			},
 			{
-				InstanceType: aws.String("r5d.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
+				InstanceType: ec2types.InstanceTypeR5dXlarge,
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultVCpus: aws.Int32(4),
 				},
-				MemoryInfo: &ec2.MemoryInfo{
+				MemoryInfo: &ec2types.MemoryInfo{
 					SizeInMiB: aws.Int64(32768),
 				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
+				InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+					Disks: []ec2types.DiskInfo{
 						{
-							Count:    aws.Int64(1),
+							Count:    aws.Int32(1),
 							SizeInGB: aws.Int64(150),
 						},
 					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 				},
 			},
 			{
-				InstanceType: aws.String("m5d.xlarge"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(4),
+				InstanceType: ec2types.InstanceTypeM5dXlarge,
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultVCpus: aws.Int32(4),
 				},
-				MemoryInfo: &ec2.MemoryInfo{
+				MemoryInfo: &ec2types.MemoryInfo{
 					SizeInMiB: aws.Int64(16384),
 				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
+				InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+					Disks: []ec2types.DiskInfo{
 						{
-							Count:    aws.Int64(1),
+							Count:    aws.Int32(1),
 							SizeInGB: aws.Int64(150),
 						},
 					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 				},
 			},
 			{
-				InstanceType: aws.String("r5d.large"),
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(2),
+				InstanceType: ec2types.InstanceTypeR5dLarge,
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultVCpus: aws.Int32(2),
 				},
-				MemoryInfo: &ec2.MemoryInfo{
+				MemoryInfo: &ec2types.MemoryInfo{
 					SizeInMiB: aws.Int64(16384),
 				},
-				InstanceStorageInfo: &ec2.InstanceStorageInfo{
-					Disks: []*ec2.DiskInfo{
+				InstanceStorageInfo: &ec2types.InstanceStorageInfo{
+					Disks: []ec2types.DiskInfo{
 						{
-							Count:    aws.Int64(1),
+							Count:    aws.Int32(1),
 							SizeInGB: aws.Int64(75),
 						},
 					},
 				},
-				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: []*string{aws.String("x86_64")},
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 				},
 			},
 		},
-	}, false)
-	return nil
+	}, nil
 }
 
 func TestAvailableStorage(t *testing.T) {
@@ -222,7 +222,7 @@ func TestAvailableStorage(t *testing.T) {
 }
 
 func TestInstanceInfoFromAWS(t *testing.T) {
-	instanceTypes, err := NewInstanceTypesFromAWS(&mockEC2{})
+	instanceTypes, err := NewInstanceTypesFromAWS(context.Background(), &mockEC2{})
 	require.NoError(t, err)
 
 	for _, tc := range []Instance{
@@ -247,7 +247,7 @@ func TestInstanceInfoFromAWS(t *testing.T) {
 			Architecture: "arm64",
 		},
 	} {
-		t.Run(tc.InstanceType, func(t *testing.T) {
+		t.Run(string(tc.InstanceType), func(t *testing.T) {
 			info, err := instanceTypes.InstanceInfo(tc.InstanceType)
 			require.NoError(t, err)
 			require.Equal(t, tc.InstanceType, info.InstanceType)
@@ -333,13 +333,13 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 
 	for _, tc := range []struct {
 		name             string
-		instanceTypes    []string
+		instanceTypes    []ec2types.InstanceType
 		expectedError    bool
 		expectedInstance Instance
 	}{
 		{
 			name:          "one type",
-			instanceTypes: []string{"m4.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m4.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "m4.xlarge",
 				VCPU:         4,
@@ -349,27 +349,27 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "no types",
-			instanceTypes: []string{},
+			instanceTypes: []ec2types.InstanceType{},
 			expectedError: true,
 		},
 		{
 			name:          "invalid type (only one)",
-			instanceTypes: []string{"invalid.type"},
+			instanceTypes: []ec2types.InstanceType{"invalid.type"},
 			expectedError: true,
 		},
 		{
 			name:          "invalid type (first)",
-			instanceTypes: []string{"invalid.type", "m4.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"invalid.type", "m4.xlarge"},
 			expectedError: true,
 		},
 		{
 			name:          "invalid type (second)",
-			instanceTypes: []string{"m4.xlarge", "invalid.type"},
+			instanceTypes: []ec2types.InstanceType{"m4.xlarge", "invalid.type"},
 			expectedError: true,
 		},
 		{
 			name:          "multiple types, different storage device size",
-			instanceTypes: []string{"c5d.xlarge", "r5d.large"},
+			instanceTypes: []ec2types.InstanceType{"c5d.xlarge", "r5d.large"},
 			expectedInstance: Instance{
 				InstanceType:              "<multiple>",
 				VCPU:                      2,
@@ -381,7 +381,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "multiple types, different storage device count",
-			instanceTypes: []string{"m5d.xlarge", "m5d.4xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m5d.xlarge", "m5d.4xlarge"},
 			expectedInstance: Instance{
 				InstanceType:              "<multiple>",
 				VCPU:                      4,
@@ -393,7 +393,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "multiple types, some with storage, some without",
-			instanceTypes: []string{"m5d.xlarge", "m5.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m5d.xlarge", "m5.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "<multiple>",
 				VCPU:         4,
@@ -403,7 +403,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "one type with arm64",
-			instanceTypes: []string{"m6g.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m6g.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "m6g.xlarge",
 				VCPU:         4,
@@ -413,7 +413,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "multiple types, different architectures, amd64 architecture first",
-			instanceTypes: []string{"m5.xlarge", "m6g.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m5.xlarge", "m6g.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "<multiple>",
 				VCPU:         4,
@@ -423,7 +423,7 @@ func TestSyntheticInstanceInfo(t *testing.T) {
 		},
 		{
 			name:          "multiple types, different architectures, arm64 architecture first",
-			instanceTypes: []string{"m6g.xlarge", "m5.xlarge"},
+			instanceTypes: []ec2types.InstanceType{"m6g.xlarge", "m5.xlarge"},
 			expectedInstance: Instance{
 				InstanceType: "<multiple>",
 				VCPU:         4,

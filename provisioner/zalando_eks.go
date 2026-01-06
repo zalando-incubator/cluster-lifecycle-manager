@@ -3,9 +3,10 @@ package provisioner
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -38,12 +39,10 @@ func NewZalandoEKSProvisioner(
 	execManager *command.ExecManager,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
-	awsConfig *aws.Config,
 	options *Options,
 ) Provisioner {
 	provisioner := &ZalandoEKSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
-			awsConfig:         awsConfig,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
@@ -77,12 +76,12 @@ func (z *ZalandoEKSProvisioner) Provision(
 		return ErrProviderNotSupported
 	}
 
-	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
 	}
 
-	eksTokenSource := eks.NewTokenSource(awsAdapter.session, cluster.Alias)
+	eksTokenSource := eks.NewTokenSource(awsAdapter.config, cluster.Alias)
 
 	logger.Infof(
 		"clusterpy: Prepare for provisioning EKS cluster %s (%s)..",
@@ -115,14 +114,15 @@ func (z *ZalandoEKSProvisioner) Decommission(
 		cluster.ID,
 	)
 
-	awsAdapter, err := z.setupAWSAdapter(logger, cluster)
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
 	if err != nil {
 		return err
 	}
 
-	clusterDetails, err := awsAdapter.GetEKSClusterDetails(cluster)
+	clusterDetails, err := awsAdapter.GetEKSClusterDetails(ctx, cluster)
 	if err != nil {
-		if isClusterNotFoundErr(err) {
+		var notFoundErr *types.NotFoundException
+		if errors.As(err, &notFoundErr) {
 			logger.Infof("EKS cluster not found: %s", cluster.ID)
 			return nil
 		}
@@ -137,7 +137,7 @@ func (z *ZalandoEKSProvisioner) Decommission(
 		return err
 	}
 
-	tokenSource := eks.NewTokenSource(awsAdapter.session, cluster.Alias)
+	tokenSource := eks.NewTokenSource(awsAdapter.config, cluster.Alias)
 
 	return z.decommission(
 		ctx,
@@ -167,12 +167,13 @@ func NewZalandoEKSCreationHook(
 // and the subnets. Additionally Execute updates the configured cluster
 // registry with the EKS API Server URL and the Certificate Authority data.
 func (z *ZalandoEKSCreationHook) Execute(
+	ctx context.Context,
 	adapter awsInterface,
 	cluster *api.Cluster,
 ) (*HookResponse, error) {
 	res := &HookResponse{}
 
-	clusterDetails, err := adapter.GetEKSClusterDetails(cluster)
+	clusterDetails, err := adapter.GetEKSClusterDetails(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}

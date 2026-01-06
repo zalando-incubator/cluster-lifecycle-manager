@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,8 +21,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -132,10 +134,10 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"list":                                  list,
 		"append":                                strAppend,
 		"scaleQuantity":                         scaleQuantity,
-		"instanceTypeCPUQuantity": func(instanceType string) (string, error) {
+		"instanceTypeCPUQuantity": func(instanceType ec2types.InstanceType) (string, error) {
 			return instanceTypeCPUQuantity(context, instanceType)
 		},
-		"instanceTypeMemoryQuantity": func(instanceType string) (string, error) {
+		"instanceTypeMemoryQuantity": func(instanceType ec2types.InstanceType) (string, error) {
 			return instanceTypeMemoryQuantity(context, instanceType)
 		},
 	}
@@ -529,11 +531,11 @@ func amiID(adapter *awsAdapter, imageName, imageOwner string) (string, error) {
 		return "", fmt.Errorf("the ec2 client is not available")
 	}
 
-	input := ec2.DescribeImagesInput{Filters: []*ec2.Filter{
-		{Name: aws.String(describeImageFilterNameName), Values: aws.StringSlice([]string{imageName})},
-		{Name: aws.String(describeImageFilterNameOwner), Values: aws.StringSlice([]string{imageOwner})},
+	input := ec2.DescribeImagesInput{Filters: []ec2types.Filter{
+		{Name: aws.String(describeImageFilterNameName), Values: []string{imageName}},
+		{Name: aws.String(describeImageFilterNameOwner), Values: []string{imageOwner}},
 	}}
-	output, err := adapter.ec2Client.DescribeImages(&input)
+	output, err := adapter.ec2Client.DescribeImages(context.TODO(), &input)
 	if err != nil {
 		return "", fmt.Errorf("failed to describe image with name %s and owner %s: %v", imageName, imageOwner, err)
 	}
@@ -789,7 +791,7 @@ func awsValidID(id string) string {
 }
 
 // instanceTypeCPUQuantity returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
-func instanceTypeCPUQuantity(context *templateContext, instanceType string) (string, error) {
+func instanceTypeCPUQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 
@@ -803,7 +805,7 @@ func instanceTypeCPUQuantity(context *templateContext, instanceType string) (str
 }
 
 // instanceTypeMemoryQuantity returns the memory of an instance type provided as k8sresource.Quantity represented as string
-func instanceTypeMemoryQuantity(context *templateContext, instanceType string) (string, error) {
+func instanceTypeMemoryQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 

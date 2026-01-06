@@ -161,7 +161,7 @@ func (cluster *Cluster) Version(channelVersion channel.ConfigVersion) (*ClusterV
 			return nil, err
 		}
 		for _, instanceType := range nodePool.InstanceTypes {
-			_, err = state.WriteString(instanceType)
+			_, err = state.WriteString(string(instanceType))
 			if err != nil {
 				return nil, err
 			}

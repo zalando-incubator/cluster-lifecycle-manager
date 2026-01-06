@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,19 +94,19 @@ func TestGetInfrastructureID(t *testing.T) {
 func TestHasTag(t *testing.T) {
 	for _, tc := range []struct {
 		msg      string
-		tags     []*ec2.Tag
-		tag      *ec2.Tag
+		tags     []ec2types.Tag
+		tag      ec2types.Tag
 		expected bool
 	}{
 		{
 			msg: "test finding tag in list successfully",
-			tags: []*ec2.Tag{
+			tags: []ec2types.Tag{
 				{
 					Key:   aws.String("key"),
 					Value: aws.String("val"),
 				},
 			},
-			tag: &ec2.Tag{
+			tag: ec2types.Tag{
 				Key:   aws.String("key"),
 				Value: aws.String("val"),
 			},
@@ -114,13 +114,13 @@ func TestHasTag(t *testing.T) {
 		},
 		{
 			msg: "test both key and value must match",
-			tags: []*ec2.Tag{
+			tags: []ec2types.Tag{
 				{
 					Key:   aws.String("key"),
 					Value: aws.String("val"),
 				},
 			},
-			tag: &ec2.Tag{
+			tag: ec2types.Tag{
 				Key:   aws.String("key"),
 				Value: aws.String(""),
 			},
@@ -128,8 +128,8 @@ func TestHasTag(t *testing.T) {
 		},
 		{
 			msg:  "test finding no tag in empty list",
-			tags: []*ec2.Tag{},
-			tag: &ec2.Tag{
+			tags: []ec2types.Tag{},
+			tag: ec2types.Tag{
 				Key:   aws.String("key"),
 				Value: aws.String(""),
 			},
@@ -146,14 +146,14 @@ func TestFilterSubnets(tt *testing.T) {
 	tt.Run("configured IDs", func(tt *testing.T) {
 		for _, tc := range []struct {
 			msg             string
-			subnets         []*ec2.Subnet
+			subnets         []ec2types.Subnet
 			subnetIDs       []string
-			expectedSubnets []*ec2.Subnet
+			expectedSubnets []ec2types.Subnet
 		}{
 
 			{
 				msg: "test filtering out a single subnet",
-				subnets: []*ec2.Subnet{
+				subnets: []ec2types.Subnet{
 					{
 						SubnetId: aws.String("id-1"),
 					},
@@ -162,7 +162,7 @@ func TestFilterSubnets(tt *testing.T) {
 					},
 				},
 				subnetIDs: []string{"id-1"},
-				expectedSubnets: []*ec2.Subnet{
+				expectedSubnets: []ec2types.Subnet{
 					{
 						SubnetId: aws.String("id-1"),
 					},
@@ -170,7 +170,7 @@ func TestFilterSubnets(tt *testing.T) {
 			},
 			{
 				msg: "test filtering invalid subnets",
-				subnets: []*ec2.Subnet{
+				subnets: []ec2types.Subnet{
 					{
 						SubnetId: aws.String("id-1"),
 					},
@@ -189,17 +189,17 @@ func TestFilterSubnets(tt *testing.T) {
 	tt.Run("ignore custom", func(tt *testing.T) {
 		for _, test := range []struct {
 			msg                      string
-			subnets, expectedSubnets []*ec2.Subnet
+			subnets, expectedSubnets []ec2types.Subnet
 		}{{
 			msg: "has no custom",
-			subnets: []*ec2.Subnet{{
+			subnets: []ec2types.Subnet{{
 				SubnetId: aws.String("id-1"),
 			}, {
 				SubnetId: aws.String("id-2"),
 			}, {
 				SubnetId: aws.String("id-3"),
 			}},
-			expectedSubnets: []*ec2.Subnet{{
+			expectedSubnets: []ec2types.Subnet{{
 				SubnetId: aws.String("id-1"),
 			}, {
 				SubnetId: aws.String("id-2"),
@@ -208,18 +208,18 @@ func TestFilterSubnets(tt *testing.T) {
 			}},
 		}, {
 			msg: "has custom",
-			subnets: []*ec2.Subnet{{
+			subnets: []ec2types.Subnet{{
 				SubnetId: aws.String("id-1"),
 			}, {
 				SubnetId: aws.String("id-2"),
-				Tags: []*ec2.Tag{{
+				Tags: []ec2types.Tag{{
 					Key:   aws.String(customSubnetTag),
 					Value: aws.String("foo"),
 				}},
 			}, {
 				SubnetId: aws.String("id-3"),
 			}},
-			expectedSubnets: []*ec2.Subnet{{
+			expectedSubnets: []ec2types.Subnet{{
 				SubnetId: aws.String("id-1"),
 			}, {
 				SubnetId: aws.String("id-3"),

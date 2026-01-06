@@ -41,6 +41,7 @@ type (
 		// Execute performs updates used by a provisioner during cluster
 		// creation.
 		Execute(
+			ctx context.Context,
 			adapter awsInterface,
 			cluster *api.Cluster,
 		) (
