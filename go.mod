@@ -2,7 +2,6 @@ module github.com/zalando-incubator/cluster-lifecycle-manager
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/aws/aws-sdk-go v1.55.8
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-openapi/analysis v0.24.1 // indirect
@@ -12,7 +11,7 @@ require (
 	github.com/go-openapi/swag v0.25.4
 	github.com/go-openapi/validate v0.25.1
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-swagger/go-swagger v0.33.1
+	github.com/go-swagger/go-swagger v0.33.2-0.20251225160719-0ab540cb89c9
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
