@@ -732,7 +732,7 @@ func isStackNoUpdateNeededErr(err error) bool {
 func isStackUpdateInProgressErr(err error) bool {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
-		if apiErr.ErrorCode() == "ValidationException" &&
+		if apiErr.ErrorCode() == "ValidationError" &&
 			(strings.Contains(apiErr.ErrorMessage(), string(cftypes.ResourceStatusUpdateInProgress)) || strings.Contains(apiErr.ErrorMessage(), string(cftypes.StackStatusUpdateCompleteCleanupInProgress))) {
 			// Stack operation in progress
 			return true
