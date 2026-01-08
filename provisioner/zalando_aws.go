@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -23,10 +24,12 @@ func NewZalandoAWSProvisioner(
 	tokenSource oauth2.TokenSource,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
+	awsConfigOptions []func(*config.LoadOptions) error,
 	options *Options,
 ) Provisioner {
 	provisioner := &ZalandoAWSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
+			awsConfigOptions:  awsConfigOptions,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,

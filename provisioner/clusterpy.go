@@ -72,6 +72,7 @@ const (
 )
 
 type clusterpyProvisioner struct {
+	awsConfigOptions  []func(*awsconfig.LoadOptions) error
 	execManager       *command.ExecManager
 	secretDecrypter   decrypter.Decrypter
 	assumedRole       string
@@ -839,7 +840,10 @@ func (p *clusterpyProvisioner) setupAWSAdapter(ctx context.Context, logger *log.
 		roleArn = fmt.Sprintf("arn:aws:iam::%s:role/%s", infrastructureAccount[1], p.assumedRole)
 	}
 
-	cfg, err := awsUtils.Config(ctx, roleArn, awsconfig.WithRegion(cluster.Region))
+	awsConfigOptions := p.awsConfigOptions
+	awsConfigOptions = append(awsConfigOptions, awsconfig.WithRegion(cluster.Region))
+
+	cfg, err := awsUtils.Config(ctx, roleArn, awsConfigOptions...)
 	if err != nil {
 		return nil, err
 	}

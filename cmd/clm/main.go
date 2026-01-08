@@ -106,16 +106,20 @@ func main() {
 
 	ctx := context.Background()
 
+	awsConfigOptions := []func(*awsconfig.LoadOptions) error{
+		awsconfig.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(
+				retry.AddWithMaxAttempts(
+					retry.NewStandard(),
+					cfg.AwsMaxRetries,
+				),
+				cfg.AwsMaxRetryInterval,
+			)
+		}),
+	}
+
 	// setup aws config
-	awsConfig, err := zaws.Config(ctx, "", awsconfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxBackoffDelay(
-			retry.AddWithMaxAttempts(
-				retry.NewStandard(),
-				cfg.AwsMaxRetries,
-			),
-			cfg.AwsMaxRetryInterval,
-		)
-	}))
+	awsConfig, err := zaws.Config(ctx, "", awsConfigOptions...)
 	if err != nil {
 		log.Fatalf("Failed to setup AWS session: %v", err)
 	}
@@ -133,6 +137,7 @@ func main() {
 			clusterTokenSource,
 			secretDecrypter,
 			cfg.AssumedRole,
+			awsConfigOptions,
 			&provisioner.Options{
 				DryRun:          cfg.DryRun,
 				ApplyOnly:       cfg.ApplyOnly,
@@ -145,6 +150,7 @@ func main() {
 			execManager,
 			secretDecrypter,
 			cfg.AssumedRole,
+			awsConfigOptions,
 			&provisioner.Options{
 				DryRun:         cfg.DryRun,
 				ApplyOnly:      cfg.ApplyOnly,
