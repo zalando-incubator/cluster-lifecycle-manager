@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -39,10 +40,12 @@ func NewZalandoEKSProvisioner(
 	execManager *command.ExecManager,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
+	awsConfigOptions []func(*config.LoadOptions) error,
 	options *Options,
 ) Provisioner {
 	provisioner := &ZalandoEKSProvisioner{
 		clusterpyProvisioner: clusterpyProvisioner{
+			awsConfigOptions:  awsConfigOptions,
 			assumedRole:       assumedRole,
 			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
