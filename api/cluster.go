@@ -330,8 +330,3 @@ func (cluster Cluster) IsOldestReadyClusterInTheRegion() bool {
 
 	return len(cluster.AccountClusters) == 0
 }
-
-// IsOldestReadyCluster is an alias for IsOldestReadyClusterInTheRegion.
-func (cluster Cluster) IsOldestReadyCluster() bool {
-	return cluster.IsOldestReadyClusterInTheRegion()
-}
