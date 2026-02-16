@@ -5,9 +5,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/aws/smithy-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
@@ -124,10 +125,12 @@ func (z *ZalandoEKSProvisioner) Decommission(
 
 	clusterDetails, err := awsAdapter.GetEKSClusterDetails(ctx, cluster)
 	if err != nil {
-		var notFoundErr *types.NotFoundException
-		if errors.As(err, &notFoundErr) {
-			logger.Infof("EKS cluster not found: %s", cluster.ID)
-			return nil
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() == "ResourceNotFoundException" && strings.Contains(apiErr.ErrorMessage(), "No cluster found for name") {
+				logger.Infof("EKS cluster not found: %s", cluster.ID)
+				return nil
+			}
 		}
 		return err
 	}
