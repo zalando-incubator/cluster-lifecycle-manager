@@ -63,6 +63,7 @@ type Statement struct {
 	Principal map[string]string
 	Action    string
 	Condition map[string]map[string]string `json:",omitempty"`
+	Sid       string
 }
 
 func (cluster *Cluster) InitOIDCProvider() error {
@@ -274,6 +275,7 @@ func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {
 		Version: "2012-10-17",
 		Statement: []Statement{
 			{
+				Sid:    "CLMApplied",
 				Effect: "Allow",
 				Principal: map[string]string{
 					"Service": "ec2.amazonaws.com",
