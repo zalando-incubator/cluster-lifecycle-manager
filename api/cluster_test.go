@@ -145,6 +145,7 @@ func TestInfrastructureAccountID(t *testing.T) {
 	cluster := &Cluster{InfrastructureAccount: "aws:123456789012"}
 	assert.Equal(t, "123456789012", cluster.InfrastructureAccountID())
 }
+
 func TestWorkerRoleARN(t *testing.T) {
 	cluster := &Cluster{InfrastructureAccount: "aws:123456789012", LocalID: "kube-1"}
 	assert.Equal(t, "arn:aws:iam::123456789012:role/kube-1-worker", cluster.WorkerRoleARN())
@@ -198,7 +199,7 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	err := legacyCluster.InitOIDCProvider()
 	require.NoError(t, err)
 
-	legacyTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+	legacyTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole","Sid":"CLMApplied"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole","Sid":""},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}},"Sid":""}]}`
 	assert.Equal(t, legacyTrustRelationship, legacyCluster.IAMRoleTrustRelationshipTemplate)
 
 	eksCluster := &Cluster{
@@ -214,11 +215,11 @@ func TestIAMRoleTrustRelationshipTemplate(t *testing.T) {
 	err = eksCluster.InitOIDCProvider()
 	require.NoError(t, err)
 
-	eksTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+	eksTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole","Sid":"CLMApplied"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole","Sid":""},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}},"Sid":""}]}`
 	assert.Equal(t, eksTrustRelationship, eksCluster.IAMRoleTrustRelationshipTemplate)
 
 	combinedAccountClusters := []*Cluster{legacyCluster, eksCluster}
-	combinedTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}}}]}`
+	combinedTrustRelationship := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole","Sid":"CLMApplied"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/kube-1-worker"},"Action":"sts:AssumeRole","Sid":""},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/kube-1.example.zalan.do"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"kube-1.example.zalan.do:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}},"Sid":""},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:role/teapot-euc1-worker"},"Action":"sts:AssumeRole","Sid":""},{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringLike":{"oidc.eks.eu-central-1.amazonaws.com/id/11112222333344445555666677778888:sub":"system:serviceaccount:${SERVICE_ACCOUNT}"}},"Sid":""}]}`
 
 	legacyCluster.AccountClusters = combinedAccountClusters
 	err = legacyCluster.InitOIDCProvider()
