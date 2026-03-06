@@ -55,7 +55,7 @@ const (
 	availabilityZonesValueKey          = "availability_zones"
 	vpcIDConfigItemKey                 = "vpc_id"
 	subnetAllAZName                    = "*"
-	maxApplyRetries                    = 10
+	maxApplyRetries                    = 15
 	configKeyUpdateStrategy            = "update_strategy"
 	updateStrategyRolling              = "rolling"
 	updateStrategyCLC                  = "clc"
