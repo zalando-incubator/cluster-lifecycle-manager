@@ -71,6 +71,7 @@ type (
 	}
 
 	s3UploaderAPI interface {
+		//nolint:staticcheck
 		Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*manager.Uploader)) (*manager.UploadOutput, error)
 	}
 
@@ -117,6 +118,8 @@ type (
 )
 
 // newAWSAdapter initializes a new awsAdapter.
+//
+//nolint:staticcheck
 func newAWSAdapter(logger *log.Entry, region string, cfg aws.Config, dryRun bool) *awsAdapter {
 	s3Client := s3.NewFromConfig(cfg)
 	return &awsAdapter{

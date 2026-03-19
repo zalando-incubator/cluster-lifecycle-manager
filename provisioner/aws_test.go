@@ -54,6 +54,7 @@ type s3UploaderAPIStub struct {
 	err error
 }
 
+//nolint:staticcheck
 func (s *s3UploaderAPIStub) Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
 	return &manager.UploadOutput{Location: "url"}, s.err
 }
