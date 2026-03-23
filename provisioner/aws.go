@@ -70,7 +70,9 @@ type (
 		CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
 	}
 
+	// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
 	s3UploaderAPI interface {
+		//nolint:staticcheck
 		Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*manager.Uploader)) (*manager.UploadOutput, error)
 	}
 
@@ -117,6 +119,9 @@ type (
 )
 
 // newAWSAdapter initializes a new awsAdapter.
+// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
+
+//nolint:staticcheck
 func newAWSAdapter(logger *log.Entry, region string, cfg aws.Config, dryRun bool) *awsAdapter {
 	s3Client := s3.NewFromConfig(cfg)
 	return &awsAdapter{

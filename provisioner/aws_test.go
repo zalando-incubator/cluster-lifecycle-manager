@@ -54,6 +54,9 @@ type s3UploaderAPIStub struct {
 	err error
 }
 
+// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
+
+//nolint:staticcheck
 func (s *s3UploaderAPIStub) Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
 	return &manager.UploadOutput{Location: "url"}, s.err
 }
