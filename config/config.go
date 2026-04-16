@@ -59,6 +59,8 @@ type LifecycleManagerConfig struct {
 	UpdateStrategy              UpdateStrategy
 	RemoveVolumes               bool
 	ManageEtcdStack             bool
+	ClusterID                   string
+	OutputDirectory             string
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -113,5 +115,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
 	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	kingpin.Flag("manage-etcd-stack", "Enable creation/updates of the etcd stack (should be disabled for pet clusters)").BoolVar(&cfg.ManageEtcdStack)
+	kingpin.Flag("cluster-id", "Cluster ID to render manifests for (used with render command)").StringVar(&cfg.ClusterID)
+	kingpin.Flag("output-dir", "Directory to write rendered manifests to. If not specified, writes to stdout.").StringVar(&cfg.OutputDirectory)
 	return kingpin.Parse()
 }

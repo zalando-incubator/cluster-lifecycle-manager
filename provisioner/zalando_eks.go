@@ -156,6 +156,36 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	)
 }
 
+// RenderManifests renders all manifests for a cluster without applying them.
+func (z *ZalandoEKSProvisioner) RenderManifests(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+) ([]manifestPackage, error) {
+	if !z.Supports(cluster) {
+		return nil, ErrProviderNotSupported
+	}
+
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
+	}
+
+	logger.Infof(
+		"Rendering manifests for cluster %s..",
+		cluster.ID,
+	)
+
+	return z.clusterpyProvisioner.RenderManifests(
+		ctx,
+		logger,
+		awsAdapter,
+		cluster,
+		channelConfig,
+	)
+}
+
 // NewZalandoEKSCreationHook returns a new hook for EKS cluster provisioning,
 // configured to use the given cluster registry.
 func NewZalandoEKSCreationHook(

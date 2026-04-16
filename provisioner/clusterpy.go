@@ -1386,3 +1386,147 @@ func (npg *nodePoolGroup) provisionNodePoolGroup(ctx context.Context, values map
 	}
 	return nil
 }
+
+// RenderManifests renders all manifests for a cluster without applying them.
+// This is useful for debugging or previewing what would be applied.
+func (p *clusterpyProvisioner) RenderManifests(
+	ctx context.Context,
+	logger *log.Entry,
+	awsAdapter *awsAdapter,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+) ([]manifestPackage, error) {
+	// fetch instance data that will be used by all the render functions
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(ctx, awsAdapter.ec2Client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch instance types from AWS: %v", err)
+	}
+
+	err = p.applyDefaultsToManifests(
+		ctx,
+		awsAdapter,
+		cluster,
+		channelConfig,
+		instanceTypes,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// get VPC information
+	var vpc *ec2types.Vpc
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok { // if vpcID is not defined, autodiscover it
+		vpc, err = awsAdapter.GetDefaultVPC(ctx)
+		if err != nil {
+			return nil, err
+		}
+		vpcID = aws.ToString(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	} else {
+		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
+
+	// if subnets are defined in the config items, filter the subnet list
+	if subnetIDs, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
+		ids := strings.Split(subnetIDs, ",")
+		subnets = filterSubnets(subnets, subnetIDIncluded(ids))
+		if len(subnets) != len(ids) {
+			return nil, fmt.Errorf("invalid or unknown subnets; desired %v", ids)
+		}
+	}
+
+	// find the best subnet for each AZ
+	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
+	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+	azInfoIntenalNodes := selectSubnetIDs(subnets, subnetInternalNodeRoleTagName)
+	azInfoPods := selectSubnetIDs(subnets, subnetPodRoleTagName)
+
+	// if availability zones are defined, filter the subnet list
+	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
+		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
+		azInfoNodes = azInfoNodes.RestrictAZs(strings.Split(azNames, ","))
+		azInfoIntenalNodes = azInfoIntenalNodes.RestrictAZs(strings.Split(azNames, ","))
+	}
+
+	// optional config item to hard-code subnets. This is useful for
+	// migrating between subnets.
+	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+		cluster.ConfigItems[subnetsConfigItemKey] = azInfoNodes.SubnetsByAZ()[subnetAllAZName]
+	}
+
+	apiURL, err := url.Parse(cluster.APIServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: should this be done like this or via a config item?
+	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	certificates, err := awsAdapter.GetCertificates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
+	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
+		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
+	}
+
+	values := map[string]interface{}{
+		subnetsValueKey:             azInfoNodes.SubnetsByAZ(),
+		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
+		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
+		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
+		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
+		"pod_subnets":               azInfoPods.SubnetsByAZ(),
+		"hosted_zone":               hostedZone,
+		"load_balancer_certificate": loadBalancerCert.ID(),
+		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
+		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
+	}
+
+	if err := cluster.InitOIDCProvider(); err != nil {
+		return nil, err
+	}
+
+	// render the manifests
+	manifests, err := renderManifests(
+		channelConfig,
+		cluster,
+		values,
+		awsAdapter,
+		instanceTypes,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return manifests, nil
+}

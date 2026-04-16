@@ -7,6 +7,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -32,6 +33,7 @@ var (
 	provisionCmd    = kingpin.Command("provision", "Provision a cluster.")
 	decommissionCmd = kingpin.Command("decommission", "Decommission a cluster.")
 	controllerCmd   = kingpin.Command("controller", "Run controller loop.")
+	renderCmd       = kingpin.Command("render", "Render manifests for a cluster without applying them.")
 	version         = "unknown"
 )
 
@@ -191,6 +193,132 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		go handleSigterm(cancel)
 		ctrl.Run(ctx)
+
+		os.Exit(0)
+	}
+
+	// Handle render command
+	if cmd == renderCmd.FullCommand() {
+		if cfg.ClusterID == "" {
+			log.Fatalf("--cluster-id is required for the render command")
+		}
+
+		log.Infof("Rendering manifests for cluster: %s", cfg.ClusterID)
+
+		clusters, err := clusterRegistry.ListClusters(registry.Filter{})
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		var targetCluster *api.Cluster
+		for _, cluster := range clusters {
+			if cluster.ID == cfg.ClusterID {
+				targetCluster = cluster
+				break
+			}
+		}
+
+		if targetCluster == nil {
+			log.Fatalf("Cluster with ID '%s' not found in registry", cfg.ClusterID)
+		}
+
+		if !cfg.AccountFilter.Allowed(targetCluster.InfrastructureAccount) {
+			log.Fatalf("Cluster %s infrastructure account does not match provided filter.", targetCluster.ID)
+		}
+
+		err = configSource.Update(context.Background(), rootLogger)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		channelOverrides, err := targetCluster.ChannelOverrides()
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		version, err := configSource.Version(targetCluster.Channel, channelOverrides)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		config, err := version.Get(context.Background(), rootLogger)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+		defer config.Delete()
+
+		for key, value := range targetCluster.ConfigItems {
+			decryptedValue, err := secretDecrypter.Decrypt(ctx, value)
+			if err != nil {
+				log.Fatalf("%+v", err)
+			}
+
+			targetCluster.ConfigItems[key] = decryptedValue
+		}
+
+		p, ok := provisioners[targetCluster.Provider]
+		if !ok {
+			log.Fatalf(
+				"Cluster %s: unknown provider %q",
+				targetCluster.ID,
+				targetCluster.Provider,
+			)
+		}
+
+		// Type assertion to access RenderManifests
+		type manifestRenderer interface {
+			RenderManifests(
+				ctx context.Context,
+				logger *log.Entry,
+				cluster *api.Cluster,
+				config channel.Config,
+			) ([]struct {
+				name      string
+				manifests []string
+			}, error)
+		}
+
+		renderer, ok := p.(manifestRenderer)
+		if !ok {
+			log.Fatalf("Provider %q does not support manifest rendering", targetCluster.Provider)
+		}
+
+		manifests, err := renderer.RenderManifests(
+			context.Background(),
+			rootLogger,
+			targetCluster,
+			config,
+		)
+		if err != nil {
+			log.Fatalf("Failed to render manifests: %v", err)
+		}
+
+		// Output manifests
+		if cfg.OutputDirectory != "" {
+			// Write to directory
+			err := os.MkdirAll(cfg.OutputDirectory, 0755)
+			if err != nil {
+				log.Fatalf("Failed to create output directory: %v", err)
+			}
+
+			for _, m := range manifests {
+				fileName := filepath.Join(cfg.OutputDirectory, m.name+".yaml")
+				content := strings.Join(m.manifests, "---\n")
+				err := os.WriteFile(fileName, []byte(content), 0644)
+				if err != nil {
+					log.Fatalf("Failed to write manifest file %s: %v", fileName, err)
+				}
+				log.Infof("Wrote manifests to %s", fileName)
+			}
+		} else {
+			// Write to stdout
+			for i, m := range manifests {
+				if i > 0 {
+					fmt.Println("---")
+				}
+				fmt.Print(strings.Join(m.manifests, "---\n"))
+			}
+		}
 
 		os.Exit(0)
 	}

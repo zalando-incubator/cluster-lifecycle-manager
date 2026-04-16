@@ -101,3 +101,33 @@ func (z *ZalandoAWSProvisioner) Decommission(
 
 	return z.decommission(ctx, logger, awsAdapter, z.tokenSource, cluster, nil)
 }
+
+// RenderManifests renders all manifests for a cluster without applying them.
+func (z *ZalandoAWSProvisioner) RenderManifests(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+) ([]manifestPackage, error) {
+	if !z.Supports(cluster) {
+		return nil, ErrProviderNotSupported
+	}
+
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup AWS Adapter: %v", err)
+	}
+
+	logger.Infof(
+		"Rendering manifests for cluster %s..",
+		cluster.ID,
+	)
+
+	return z.clusterpyProvisioner.RenderManifests(
+		ctx,
+		logger,
+		awsAdapter,
+		cluster,
+		channelConfig,
+	)
+}
