@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/acm"
 	acmtypes "github.com/aws/aws-sdk-go-v2/service/acm/types"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
@@ -70,10 +70,8 @@ type (
 		CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
 	}
 
-	// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
 	s3UploaderAPI interface {
-		//nolint:staticcheck
-		Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*manager.Uploader)) (*manager.UploadOutput, error)
+		UploadObject(ctx context.Context, input *transfermanager.UploadObjectInput, opts ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error)
 	}
 
 	iamAPI interface {
@@ -119,9 +117,6 @@ type (
 )
 
 // newAWSAdapter initializes a new awsAdapter.
-// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
-
-//nolint:staticcheck
 func newAWSAdapter(logger *log.Entry, region string, cfg aws.Config, dryRun bool) *awsAdapter {
 	s3Client := s3.NewFromConfig(cfg)
 	return &awsAdapter{
@@ -129,7 +124,7 @@ func newAWSAdapter(logger *log.Entry, region string, cfg aws.Config, dryRun bool
 		cloudformationClient: cloudformation.NewFromConfig(cfg),
 		iamClient:            iam.NewFromConfig(cfg),
 		s3Client:             s3Client,
-		s3Uploader:           manager.NewUploader(s3Client),
+		s3Uploader:           transfermanager.New(s3Client),
 		autoscalingClient:    autoscaling.NewFromConfig(cfg),
 		ec2Client:            ec2.NewFromConfig(cfg),
 		acmClient:            acm.NewFromConfig(cfg),
@@ -163,7 +158,7 @@ func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemp
 	var templateURL string
 	if len(stackTemplate) > stackMaxSize {
 		// Upload the stack template to S3
-		result, err := a.s3Uploader.Upload(ctx, &s3.PutObjectInput{
+		result, err := a.s3Uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 			Bucket: aws.String(s3BucketName),
 			Key:    aws.String(fmt.Sprintf("%s.template", cluster.ID)),
 			Body:   strings.NewReader(stackTemplate),
@@ -171,7 +166,7 @@ func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemp
 		if err != nil {
 			return err
 		}
-		templateURL = result.Location
+		templateURL = aws.ToString(result.Location)
 	}
 
 	stackTags := map[string]string{

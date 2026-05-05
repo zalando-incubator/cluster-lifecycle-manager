@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	autoscalingtypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
@@ -54,11 +54,8 @@ type s3UploaderAPIStub struct {
 	err error
 }
 
-// TODO: manager.Uploader is deprecated: superceded by feature/s3/transfermanager - https://github.com/aws/aws-sdk-go-v2/discussions/3306
-
-//nolint:staticcheck
-func (s *s3UploaderAPIStub) Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
-	return &manager.UploadOutput{Location: "url"}, s.err
+func (s *s3UploaderAPIStub) UploadObject(context.Context, *transfermanager.UploadObjectInput, ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error) {
+	return &transfermanager.UploadObjectOutput{Location: aws.String("url")}, s.err
 }
 
 type cloudFormationAPIStub struct {
