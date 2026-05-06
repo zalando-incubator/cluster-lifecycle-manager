@@ -292,6 +292,10 @@ func (c *mockConfig) EtcdManifest(_ string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: EtcdManifest")
 }
 
+func (c *mockConfig) CFManifests() ([]channel.Manifest, error) {
+	return nil, errors.New("unsupported: CFManifests")
+}
+
 func (c *mockConfig) NodePoolManifest(_ string, _ string) (channel.Manifest, error) {
 	return channel.Manifest{}, errors.New("unsupported: NodePoolManifest")
 }

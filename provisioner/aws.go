@@ -2,6 +2,7 @@ package provisioner
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -199,17 +200,54 @@ func tagMapToCloudformationTags(tags map[string]string) []cftypes.Tag {
 	return cfTags
 }
 
-func tagsFromStackTemplate(template string) (map[string]string, error) {
-	var parsedTemplate struct {
-		Metadata struct {
-			Tags map[string]string `yaml:"Tags"`
-		} `yaml:"Metadata"`
-	}
+func parseCFTemplate(template string) (*CFManifest, error) {
+	var parsedTemplate CFManifest
 	err := yaml.Unmarshal([]byte(template), &parsedTemplate)
 	if err != nil {
 		return nil, err
 	}
-	return parsedTemplate.Metadata.Tags, nil
+	return &parsedTemplate, nil
+}
+
+func tagsFromStackTemplate(template string) (map[string]string, error) {
+	parsedStack, err := parseCFTemplate(template)
+	if err != nil {
+		return nil, err
+	}
+	return parsedStack.Metadata.Tags, nil
+}
+
+type CFManifest struct {
+	Metadata struct {
+		StackName string            `yaml:"StackName"`
+		Tags      map[string]string `yaml:"Tags"`
+	} `yaml:"Metadata"`
+	Template string
+	Path     string
+}
+
+func (a *awsAdapter) applyCFManifest(ctx context.Context, cfManifest *CFManifest, clusterID string, s3BucketName string) error {
+	var templateURL string
+	if len(cfManifest.Template) > stackMaxSize {
+		pathHash := fmt.Sprintf("%x", sha256.Sum256([]byte(cfManifest.Path)))
+
+		// Upload the stack template to S3
+		result, err := a.s3Uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+			Bucket: aws.String(s3BucketName),
+			Key:    aws.String(fmt.Sprintf("%s.template", pathHash)),
+			Body:   strings.NewReader(cfManifest.Template),
+		})
+		if err != nil {
+			return err
+		}
+		templateURL = aws.ToString(result.Location)
+	}
+
+	stackTags := map[string]string{
+		tagNameKubernetesClusterPrefix + clusterID: resourceLifecycleOwned,
+	}
+
+	return a.applyStack(ctx, cfManifest.Metadata.StackName, cfManifest.Template, templateURL, stackTags, true, nil)
 }
 
 // applyStack applies a cloudformation stack.

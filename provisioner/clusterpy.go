@@ -347,6 +347,11 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
+	err = applyCFManifests(ctx, awsAdapter, channelConfig, cluster, values, bucketName)
+	if err != nil {
+		return err
+	}
+
 	// TODO: having it this late means late feedback on invalid manifests
 	manifests, err := renderManifests(
 		channelConfig,
@@ -543,6 +548,42 @@ func createOrUpdateEtcdStack(
 	err = adapter.waitForStack(ctx, waitTime, etcdStackName)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func applyCFManifests(ctx context.Context, adapter *awsAdapter, config channel.Config, cluster *api.Cluster, values map[string]any, bucketName string) error {
+	manifests, err := config.CFManifests()
+	if err != nil {
+		return err
+	}
+
+	for _, manifest := range manifests {
+		rendered, err := renderSingleTemplate(manifest, cluster, nil, values, adapter, nil)
+		if err != nil {
+			return fmt.Errorf("failed to render manifest %s: %w", manifest.Path, err)
+		}
+
+		cfManifest, err := parseCFTemplate(rendered)
+		if err != nil {
+			return fmt.Errorf("failed to parse stack for manifest %s: %w", manifest.Path, err)
+		}
+
+		cfManifest.Template = rendered
+		cfManifest.Path = manifest.Path
+
+		err = adapter.applyCFManifest(ctx, cfManifest, cluster.Name(), bucketName)
+		if err != nil {
+			return fmt.Errorf("failed to apply stack for manifest %s: %w", manifest.Path, err)
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
+		defer cancel()
+		err = adapter.waitForStack(ctx, waitTime, cfManifest.Metadata.StackName)
+		if err != nil {
+			return fmt.Errorf("failed to wait for stack for manifest %s: %w", manifest.Path, err)
+		}
 	}
 
 	return nil

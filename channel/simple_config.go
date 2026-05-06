@@ -8,12 +8,13 @@ import (
 )
 
 const (
-	configRoot    = "cluster"
-	poolConfigDir = "node-pools"
-	etcdConfigDir = "etcd"
-	defaultsFile  = "config-defaults.yaml"
-	manifestsDir  = "manifests"
-	deletionsFile = "deletions.yaml"
+	configRoot           = "cluster"
+	poolConfigDir        = "node-pools"
+	etcdConfigDir        = "etcd"
+	cfManifestsConfigDir = "cf-manifests"
+	defaultsFile         = "config-defaults.yaml"
+	manifestsDir         = "manifests"
+	deletionsFile        = "deletions.yaml"
 )
 
 type SimpleConfig struct {
@@ -48,6 +49,36 @@ func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Mani
 
 func (c *SimpleConfig) StackManifest(manifestName string) (Manifest, error) {
 	return c.readManifest(configRoot, manifestName)
+}
+
+func (c *SimpleConfig) CFManifests() ([]Manifest, error) {
+	var result []Manifest
+
+	cfManifestsDir := path.Join(c.baseDir, configRoot, cfManifestsConfigDir)
+	files, err := os.ReadDir(cfManifestsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(file.Name(), ".yaml") && !strings.HasSuffix(file.Name(), ".yml") {
+			continue
+		}
+		manifest, err := c.readManifest(path.Join(configRoot, cfManifestsConfigDir), file.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, manifest)
+	}
+
+	return result, nil
 }
 
 func (c *SimpleConfig) EtcdManifest(manifestName string) (Manifest, error) {

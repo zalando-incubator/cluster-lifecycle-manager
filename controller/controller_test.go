@@ -193,6 +193,10 @@ func (c *mockConfig) EtcdManifest(_ string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
 
+func (c *mockConfig) CFManifests() ([]channel.Manifest, error) {
+	return []channel.Manifest{c.mockManifest}, nil
+}
+
 func (c *mockConfig) NodePoolManifest(_ string, _ string) (channel.Manifest, error) {
 	return c.mockManifest, nil
 }
