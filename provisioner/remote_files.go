@@ -9,8 +9,8 @@ import (
 	"path"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
@@ -73,7 +73,7 @@ func (f *FilesRenderer) RenderAndUploadFiles(
 
 	filename := path.Join(f.cluster.LocalID, f.directory, userDataHash)
 
-	_, err = f.awsAdapter.s3Uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = f.awsAdapter.s3Uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(filename),
 		Body:   bytes.NewReader(archive),
