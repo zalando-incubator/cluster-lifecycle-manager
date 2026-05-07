@@ -85,8 +85,32 @@ $ ./build/clm provision \
 ```
 
 The `provision` command does a cluster *create* or *update* depending on
-whether the cluster already exists. The other command is `decommission` which
-terminates the cluster.
+whether the cluster already exists. The `decommission` command terminates the cluster.
+
+### Render manifests
+
+The `render` command renders manifests for a cluster without applying them, useful for
+debugging or integration with other tools:
+
+```sh
+$ ./build/clm render \
+  --cluster-alias=my-cluster \
+  --registry=clusters.yaml \
+  --directory=/path/to/configuration-folder
+
+# Output to a directory instead of stdout
+$ ./build/clm render \
+  --cluster-alias=my-cluster \
+  --registry=clusters.yaml \
+  --directory=/path/to/configuration-folder \
+  --output-dir=./rendered-manifests
+```
+
+The render command does not require credentials for the target AWS account. Optional config
+items can be provided to override AWS API lookups:
+- `load_balancer_certificate`: ACM certificate ID (defaults to looking up from target account)
+- `vpc_ipv4_cidr`: VPC IPv4 CIDR block (defaults to looking up from target account)
+- `vpc_ipv6_cidrs`: Comma-separated VPC IPv6 CIDR blocks (defaults to looking up from target account)
 
 The `clusters.yaml` is of the following format:
 
