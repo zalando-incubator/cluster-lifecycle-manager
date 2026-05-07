@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 
 	yaml "gopkg.in/yaml.v3"
@@ -32,34 +31,13 @@ func (m *ResourceManifest) ToYaml() (string, error) {
 	return string(result), nil
 }
 
-// FixupYamlValue converts the map types in a parsed opaque manifest
-// from map[interface{}]interface{}. Won't be needed once yaml.v3 is released.
-func FixupYamlValue(value interface{}) interface{} {
-	switch v := value.(type) {
-	case map[interface{}]interface{}:
-		res := make(map[string]interface{}, len(v))
-		for key, elem := range v {
-			res[fmt.Sprintf("%s", key)] = FixupYamlValue(elem)
-		}
-		return res
-	case []interface{}:
-		res := make([]interface{}, 0)
-		for _, elem := range v {
-			res = append(res, FixupYamlValue(elem))
-		}
-		return res
-	default:
-		return v
-	}
-}
-
 func ParseResourceManifest(manifestContent, manifestPath string) ([]*ResourceManifest, error) {
 	manifestBytes := []byte(manifestContent)
 
 	var result []*ResourceManifest
 	decoder := yaml.NewDecoder(bytes.NewReader(manifestBytes))
 	for {
-		var rawContent interface{}
+		var rawContent any
 		err := decoder.Decode(&rawContent)
 		if err == io.EOF {
 			return result, nil
@@ -70,7 +48,7 @@ func ParseResourceManifest(manifestContent, manifestPath string) ([]*ResourceMan
 
 		manifest := &ResourceManifest{
 			SourceFile: manifestPath,
-			Content:    FixupYamlValue(rawContent),
+			Content:    rawContent,
 		}
 
 		object, err := manifest.ToYaml()
