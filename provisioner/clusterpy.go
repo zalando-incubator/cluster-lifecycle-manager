@@ -354,6 +354,7 @@ func (p *clusterpyProvisioner) provision(
 		values,
 		awsAdapter,
 		instanceTypes,
+		false,
 	)
 	if err != nil {
 		return err
@@ -1174,7 +1175,7 @@ func remarshalYAML(contents string) (string, error) {
 	return result.String(), nil
 }
 
-func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) ([]manifestPackage, error) {
+func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, stub bool) ([]manifestPackage, error) {
 	var result []manifestPackage
 
 	components, err := config.Components()
@@ -1187,7 +1188,12 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 		for _, manifest := range component.Manifests {
 			fileData[manifest.Path] = manifest.Contents
 		}
-		ctx := newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
+		var ctx *templateContext
+		if stub {
+			ctx = newStubTemplateContext(fileData, cluster, nil, values)
+		} else {
+			ctx = newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
+		}
 
 		var parsedManifests []*kubernetes.ResourceManifest
 

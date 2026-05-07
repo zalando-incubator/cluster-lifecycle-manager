@@ -50,6 +50,7 @@ type templateContext struct {
 	computingManifestHash bool
 	awsAdapter            *awsAdapter
 	instanceTypes         *awsUtils.InstanceTypes
+	stubMode              bool
 }
 
 type templateData struct {
@@ -73,6 +74,22 @@ func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePo
 		awsAdapter:    adapter,
 		instanceTypes: instanceTypes,
 	}
+}
+
+func newStubTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]any) *templateContext {
+	return &templateContext{
+		fileData:     fileData,
+		templateData: make(map[string]string),
+		cluster:      cluster,
+		nodePool:     nodePool,
+		values:       values,
+		stubMode:     true,
+	}
+}
+
+func renderSingleTemplateStub(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]any) (string, error) {
+	ctx := newStubTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values)
+	return renderTemplate(ctx, manifest.Path)
 }
 
 func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
@@ -107,6 +124,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"publicKey":            publicKey,
 		"stupsNATSubnets":      stupsNATSubnets,
 		"amiID": func(imageName, imageOwner string) (string, error) {
+			if context.stubMode {
+				return "ami-00000000", nil
+			}
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
 		// TODO: this function is kept for backward compatibility while
@@ -114,12 +134,30 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		// to all channels of kubernetes-on-aws. After a full rollout
 		// this can be dropped.
 		"nodeCIDRMaxNodes": func(maskSize int64, reserved int64) (int64, error) {
+			if context.stubMode {
+				return 110, nil
+			}
 			return nodeCIDRMaxNodes(16, maskSize, reserved)
 		},
-		"nodeCIDRMaxNodesPodCIDR":               nodeCIDRMaxNodes,
-		"nodeCIDRMaxPods":                       nodeCIDRMaxPods,
-		"nthAddressFromCIDR":                    nthAddressFromCIDR,
-		"parseInt64":                            parseInt64,
+		"nodeCIDRMaxNodesPodCIDR": func(podCIDRMaskSize, maskSize int64, reserved int64) (int64, error) {
+			if context.stubMode {
+				return 110, nil
+			}
+			return nodeCIDRMaxNodes(podCIDRMaskSize, maskSize, reserved)
+		},
+		"nodeCIDRMaxPods": func(maskSize int64, extraCapacity int64) (int64, error) {
+			if context.stubMode {
+				return 110, nil
+			}
+			return nodeCIDRMaxPods(maskSize, extraCapacity)
+		},
+		"nthAddressFromCIDR": nthAddressFromCIDR,
+		"parseInt64": func(value string) (int64, error) {
+			if context.stubMode && value == "" {
+				return 0, nil
+			}
+			return parseInt64(value)
+		},
 		"generateJWKSDocument":                  generateJWKSDocument,
 		"generateOIDCDiscoveryDocument":         generateOIDCDiscoveryDocument,
 		"kubernetesSizeToKiloBytes":             kubernetesSizeToKiloBytes,
@@ -135,9 +173,15 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"append":                                strAppend,
 		"scaleQuantity":                         scaleQuantity,
 		"instanceTypeCPUQuantity": func(instanceType ec2types.InstanceType) (string, error) {
+			if context.stubMode {
+				return "2", nil
+			}
 			return instanceTypeCPUQuantity(context, instanceType)
 		},
 		"instanceTypeMemoryQuantity": func(instanceType ec2types.InstanceType) (string, error) {
+			if context.stubMode {
+				return "8Gi", nil
+			}
 			return instanceTypeMemoryQuantity(context, instanceType)
 		},
 	}
@@ -146,7 +190,11 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("template file not found: %s", file)
 	}
-	t, err := template.New(file).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
+	missingKeyOpt := "error"
+	if context.stubMode {
+		missingKeyOpt = "zero"
+	}
+	t, err := template.New(file).Option("missingkey=" + missingKeyOpt).Funcs(funcMap).Parse(string(content))
 	if err != nil {
 		return "", err
 	}
