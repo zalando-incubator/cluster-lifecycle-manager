@@ -133,6 +133,8 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
+	isRender := cmd == renderCmd.FullCommand()
+
 	provisioners := map[api.ProviderID]provisioner.Provisioner{
 		api.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
 			execManager,
@@ -141,11 +143,12 @@ func main() {
 			cfg.AssumedRole,
 			awsConfigOptions,
 			&provisioner.Options{
-				DryRun:          cfg.DryRun,
-				ApplyOnly:       cfg.ApplyOnly,
-				UpdateStrategy:  cfg.UpdateStrategy,
-				RemoveVolumes:   cfg.RemoveVolumes,
-				ManageEtcdStack: cfg.ManageEtcdStack,
+				DryRun:                  cfg.DryRun,
+				ApplyOnly:               cfg.ApplyOnly,
+				UpdateStrategy:          cfg.UpdateStrategy,
+				RemoveVolumes:           cfg.RemoveVolumes,
+				ManageEtcdStack:         cfg.ManageEtcdStack,
+				SkipAccountVerification: isRender,
 			},
 		),
 		api.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(
@@ -154,11 +157,12 @@ func main() {
 			cfg.AssumedRole,
 			awsConfigOptions,
 			&provisioner.Options{
-				DryRun:         cfg.DryRun,
-				ApplyOnly:      cfg.ApplyOnly,
-				UpdateStrategy: cfg.UpdateStrategy,
-				RemoveVolumes:  cfg.RemoveVolumes,
-				Hook:           provisioner.NewZalandoEKSCreationHook(clusterRegistry),
+				DryRun:                  cfg.DryRun,
+				ApplyOnly:               cfg.ApplyOnly,
+				UpdateStrategy:          cfg.UpdateStrategy,
+				RemoveVolumes:           cfg.RemoveVolumes,
+				Hook:                    provisioner.NewZalandoEKSCreationHook(clusterRegistry),
+				SkipAccountVerification: isRender,
 			},
 		),
 	}
@@ -199,11 +203,11 @@ func main() {
 
 	// Handle render command
 	if cmd == renderCmd.FullCommand() {
-		if cfg.ClusterID == "" {
-			log.Fatalf("--cluster-id is required for the render command")
+		if cfg.ClusterAlias == "" {
+			log.Fatalf("--cluster-alias is required for the render command")
 		}
 
-		log.Infof("Rendering manifests for cluster: %s", cfg.ClusterID)
+		log.Infof("Rendering manifests for cluster: %s", cfg.ClusterAlias)
 
 		clusters, err := clusterRegistry.ListClusters(registry.Filter{})
 		if err != nil {
@@ -212,18 +216,14 @@ func main() {
 
 		var targetCluster *api.Cluster
 		for _, cluster := range clusters {
-			if cluster.ID == cfg.ClusterID {
+			if cluster.Alias == cfg.ClusterAlias {
 				targetCluster = cluster
 				break
 			}
 		}
 
 		if targetCluster == nil {
-			log.Fatalf("Cluster with ID '%s' not found in registry", cfg.ClusterID)
-		}
-
-		if !cfg.AccountFilter.Allowed(targetCluster.InfrastructureAccount) {
-			log.Fatalf("Cluster %s infrastructure account does not match provided filter.", targetCluster.ID)
+			log.Fatalf("Cluster with alias '%s' not found in registry", cfg.ClusterAlias)
 		}
 
 		err = configSource.Update(context.Background(), rootLogger)
@@ -265,25 +265,7 @@ func main() {
 			)
 		}
 
-		// Type assertion to access RenderManifests
-		type manifestRenderer interface {
-			RenderManifests(
-				ctx context.Context,
-				logger *log.Entry,
-				cluster *api.Cluster,
-				config channel.Config,
-			) ([]struct {
-				name      string
-				manifests []string
-			}, error)
-		}
-
-		renderer, ok := p.(manifestRenderer)
-		if !ok {
-			log.Fatalf("Provider %q does not support manifest rendering", targetCluster.Provider)
-		}
-
-		manifests, err := renderer.RenderManifests(
+		manifests, err := p.RenderManifests(
 			context.Background(),
 			rootLogger,
 			targetCluster,
@@ -302,8 +284,8 @@ func main() {
 			}
 
 			for _, m := range manifests {
-				fileName := filepath.Join(cfg.OutputDirectory, m.name+".yaml")
-				content := strings.Join(m.manifests, "---\n")
+				fileName := filepath.Join(cfg.OutputDirectory, m.Name+".yaml")
+				content := strings.Join(m.Manifests, "---\n")
 				err := os.WriteFile(fileName, []byte(content), 0644)
 				if err != nil {
 					log.Fatalf("Failed to write manifest file %s: %v", fileName, err)
@@ -316,7 +298,7 @@ func main() {
 				if i > 0 {
 					fmt.Println("---")
 				}
-				fmt.Print(strings.Join(m.manifests, "---\n"))
+				fmt.Print(strings.Join(m.Manifests, "---\n"))
 			}
 		}
 

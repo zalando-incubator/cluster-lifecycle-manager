@@ -44,6 +44,7 @@ func NewZalandoAWSProvisioner(
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
 		provisioner.manageEtcdStack = options.ManageEtcdStack
+		provisioner.skipAccountVerification = options.SkipAccountVerification
 	}
 
 	return provisioner

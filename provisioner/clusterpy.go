@@ -66,30 +66,33 @@ const (
 	customSubnetTag                    = "zalando.org/custom-subnet"
 	etcdKMSKeyAlias                    = "alias/etcd-cluster"
 	karpenterNodePoolProfile           = "worker-karpenter"
+	loadBalancerCertConfigItemKey      = "load_balancer_certificate"
+	vpcIPv4CIDRConfigItemKey           = "vpc_ipv4_cidr"
+	vpcIPv6CIDRsConfigItemKey          = "vpc_ipv6_cidrs"
 
 	applicationTagKey = "application"
 	componentTagKey   = "component"
 )
 
 type clusterpyProvisioner struct {
-	awsConfigOptions  []func(*awsconfig.LoadOptions) error
-	execManager       *command.ExecManager
-	secretDecrypter   decrypter.Decrypter
-	assumedRole       string
-	dryRun            bool
-	tokenSource       oauth2.TokenSource
-	applyOnly         bool
-	updateStrategy    config.UpdateStrategy
-	hook              CreationHook
-	removeVolumes     bool
-	manageEtcdStack   bool
-	manageMasterNodes bool
+	awsConfigOptions        []func(*awsconfig.LoadOptions) error
+	execManager             *command.ExecManager
+	secretDecrypter         decrypter.Decrypter
+	assumedRole             string
+	dryRun                  bool
+	tokenSource             oauth2.TokenSource
+	applyOnly               bool
+	updateStrategy          config.UpdateStrategy
+	hook                    CreationHook
+	removeVolumes           bool
+	manageEtcdStack         bool
+	manageMasterNodes       bool
+	skipAccountVerification bool
 }
 
-type manifestPackage struct {
-	name      string
-	manifests []string
-}
+// manifestPackage is an internal alias for ManifestPackage.
+type manifestPackage = ManifestPackage
+
 
 func (p *clusterpyProvisioner) updateDefaults(cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
 	defaultsFiles, err := channelConfig.DefaultsManifests()
@@ -184,25 +187,16 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// get VPC information
-	var vpc *ec2types.Vpc
-	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
-	if !ok { // if vpcID is not defined, autodiscover it
-		vpc, err = awsAdapter.GetDefaultVPC(ctx)
-		if err != nil {
-			return err
-		}
-		vpcID = aws.ToString(vpc.VpcId)
-		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
-	} else {
-		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
-		if err != nil {
-			return err
-		}
+	vpcIPv4CIDR, vpcIPv6CIDRs, err := p.getVPCInfo(ctx, awsAdapter, cluster)
+	if err != nil {
+		return err
 	}
 
 	if err = ctx.Err(); err != nil {
 		return err
 	}
+
+	vpcID := cluster.ConfigItems[vpcIDConfigItemKey]
 
 	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
 	if err != nil {
@@ -248,26 +242,16 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	// TODO: should this be done like this or via a config item?
 	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
 	if err != nil {
 		return err
 	}
 
-	certificates, err := awsAdapter.GetCertificates(ctx)
+	loadBalancerCertID, err := getLBCertificate(ctx, awsAdapter, cluster, apiURL.Host)
 	if err != nil {
 		return err
 	}
 
-	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
-	if err != nil {
-		return err
-	}
-
-	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
-	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
-		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
-	}
 
 	values := map[string]interface{}{
 		subnetsValueKey:             azInfoNodes.SubnetsByAZ(),
@@ -277,8 +261,8 @@ func (p *clusterpyProvisioner) provision(
 		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
 		"pod_subnets":               azInfoPods.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
-		"load_balancer_certificate": loadBalancerCert.ID(),
-		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
+		"load_balancer_certificate": loadBalancerCertID,
+		"vpc_ipv4_cidr":             vpcIPv4CIDR,
 		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 
@@ -849,12 +833,68 @@ func (p *clusterpyProvisioner) setupAWSAdapter(ctx context.Context, logger *log.
 	}
 
 	adapter := newAWSAdapter(logger, cluster.Region, cfg, p.dryRun)
-	err = adapter.VerifyAccount(ctx, cluster.InfrastructureAccount)
-	if err != nil {
-		return nil, err
+	if !p.skipAccountVerification {
+		err = adapter.VerifyAccount(ctx, cluster.InfrastructureAccount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return adapter, nil
+}
+
+// getVPCInfo returns the VPC CIDR values for a cluster, using config items if
+// available and falling back to AWS API calls otherwise.
+func (p *clusterpyProvisioner) getVPCInfo(ctx context.Context, awsAdapter *awsAdapter, cluster *api.Cluster) (vpcIPv4CIDR string, vpcIPv6CIDRs []string, err error) {
+	if cidr, ok := cluster.ConfigItems[vpcIPv4CIDRConfigItemKey]; ok {
+		vpcIPv4CIDR = cidr
+		if cidrs, ok := cluster.ConfigItems[vpcIPv6CIDRsConfigItemKey]; ok && cidrs != "" {
+			vpcIPv6CIDRs = strings.Split(cidrs, ",")
+		}
+		return vpcIPv4CIDR, vpcIPv6CIDRs, nil
+	}
+
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok {
+		vpc, err := awsAdapter.GetDefaultVPC(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		vpcID = aws.ToString(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+		vpcIPv4CIDR = aws.ToString(vpc.CidrBlock)
+		for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
+			vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
+		}
+		return vpcIPv4CIDR, vpcIPv6CIDRs, nil
+	}
+
+	vpc, err := awsAdapter.GetVPC(ctx, vpcID)
+	if err != nil {
+		return "", nil, err
+	}
+	vpcIPv4CIDR = aws.ToString(vpc.CidrBlock)
+	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
+		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
+	}
+	return vpcIPv4CIDR, vpcIPv6CIDRs, nil
+}
+
+// getLBCertificate returns the load balancer certificate ID for a cluster, using
+// the load_balancer_certificate config item if set and falling back to ACM lookup.
+func getLBCertificate(ctx context.Context, awsAdapter *awsAdapter, cluster *api.Cluster, apiHost string) (string, error) {
+	if certID, ok := cluster.ConfigItems[loadBalancerCertConfigItemKey]; ok {
+		return certID, nil
+	}
+	certificates, err := awsAdapter.GetCertificates(ctx)
+	if err != nil {
+		return "", err
+	}
+	cert, err := certs.FindBestMatchingCertificate(certificates, apiHost)
+	if err != nil {
+		return "", err
+	}
+	return cert.ID(), nil
 }
 
 // applyDefaultsToManifests applies the default values to all manifests's Config
@@ -1213,8 +1253,8 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 
 		if len(renderedManifests) > 0 {
 			result = append(result, manifestPackage{
-				name:      component.Name,
-				manifests: renderedManifests,
+				Name:      component.Name,
+				Manifests: renderedManifests,
 			})
 		}
 	}
@@ -1257,7 +1297,7 @@ func (p *clusterpyProvisioner) apply(
 		caData = options.CAData
 	}
 	for _, m := range renderedManifests {
-		logger := logger.WithField("module", m.name)
+		logger := logger.WithField("module", m.Name)
 		kubectlRunner := kubernetes.NewKubeCTLRunner(
 			p.execManager,
 			tokenSource,
@@ -1266,9 +1306,9 @@ func (p *clusterpyProvisioner) apply(
 			maxApplyRetries,
 			caData,
 		)
-		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.manifests, "---\n"), p.dryRun)
+		_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(m.Manifests, "---\n"), p.dryRun)
 		if err != nil {
-			return errors.Wrapf(err, "kubectl apply failed for %s", m.name)
+			return errors.Wrapf(err, "kubectl apply failed for %s", m.Name)
 		}
 	}
 
@@ -1414,25 +1454,16 @@ func (p *clusterpyProvisioner) RenderManifests(
 	}
 
 	// get VPC information
-	var vpc *ec2types.Vpc
-	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
-	if !ok { // if vpcID is not defined, autodiscover it
-		vpc, err = awsAdapter.GetDefaultVPC(ctx)
-		if err != nil {
-			return nil, err
-		}
-		vpcID = aws.ToString(vpc.VpcId)
-		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
-	} else {
-		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
-		if err != nil {
-			return nil, err
-		}
+	vpcIPv4CIDR, vpcIPv6CIDRs, err := p.getVPCInfo(ctx, awsAdapter, cluster)
+	if err != nil {
+		return nil, err
 	}
 
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
+
+	vpcID := cluster.ConfigItems[vpcIDConfigItemKey]
 
 	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
 	if err != nil {
@@ -1478,25 +1509,14 @@ func (p *clusterpyProvisioner) RenderManifests(
 		return nil, err
 	}
 
-	// TODO: should this be done like this or via a config item?
 	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
 	if err != nil {
 		return nil, err
 	}
 
-	certificates, err := awsAdapter.GetCertificates(ctx)
+	loadBalancerCertID, err := getLBCertificate(ctx, awsAdapter, cluster, apiURL.Host)
 	if err != nil {
 		return nil, err
-	}
-
-	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
-	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
-		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
 	}
 
 	values := map[string]interface{}{
@@ -1507,8 +1527,8 @@ func (p *clusterpyProvisioner) RenderManifests(
 		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
 		"pod_subnets":               azInfoPods.SubnetsByAZ(),
 		"hosted_zone":               hostedZone,
-		"load_balancer_certificate": loadBalancerCert.ID(),
-		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
+		"load_balancer_certificate": loadBalancerCertID,
+		"vpc_ipv4_cidr":             vpcIPv4CIDR,
 		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 

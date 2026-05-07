@@ -61,6 +61,7 @@ func NewZalandoEKSProvisioner(
 		provisioner.updateStrategy = options.UpdateStrategy
 		provisioner.removeVolumes = options.RemoveVolumes
 		provisioner.hook = options.Hook
+		provisioner.skipAccountVerification = options.SkipAccountVerification
 	}
 
 	return provisioner

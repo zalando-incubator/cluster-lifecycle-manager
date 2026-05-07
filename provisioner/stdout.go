@@ -38,3 +38,8 @@ func (p *stdoutProvisioner) Decommission(_ context.Context, logger *log.Entry, c
 
 	return nil
 }
+
+// RenderManifests returns an empty list since stdout provisioner has no manifests to render.
+func (p *stdoutProvisioner) RenderManifests(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config) ([]ManifestPackage, error) {
+	return nil, nil
+}
