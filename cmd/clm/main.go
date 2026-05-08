@@ -35,9 +35,9 @@ var (
 	provisionCmd       = kingpin.Command("provision", "Provision a cluster.")
 	decommissionCmd    = kingpin.Command("decommission", "Decommission a cluster.")
 	controllerCmd      = kingpin.Command("controller", "Run controller loop.")
-	renderCmd          = kingpin.Command("render", "Render templates from a config directory and print to stdout.")
+	renderCmd          = kingpin.Command("render-with-aws-stup", "Render templates from a config directory with stups for AWS values and print to stdout; To be used to add local development.")
 	renderComponents   = renderCmd.Flag("component", "Only render the named component folder(s). Can be specified multiple times.").Strings()
-	renderClusterAlias = renderCmd.Flag("cluster-alias", "Only render specified clusters").String()
+	renderClusterAlias = renderCmd.Flag("cluster-alias", "Only render specified clusters").Required().String()
 	renderConfigsFile  = renderCmd.Flag("configs-file", "YAML file with config-items overrides; only manifests whose output changes are printed.").String()
 	version            = "unknown"
 )
@@ -212,116 +212,8 @@ func main() {
 	}
 
 	if cmd == renderCmd.FullCommand() {
-		if *renderClusterAlias == "" {
-			log.Fatal("Render command require cluster alias")
-		}
-
-		clusters, err := clusterRegistry.ListClusters(registry.Filter{})
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-
-		var cluster *api.Cluster
-		for _, c := range clusters {
-			if c.Alias == *renderClusterAlias {
-				cluster = c
-				break
-			}
-		}
-
-		if err := configSource.Update(ctx, rootLogger); err != nil {
-			log.Fatalf("%+v", err)
-		}
-
-		if cluster == nil {
-			log.Fatalf("Cluster with alias %q not found in registry", *renderClusterAlias)
-		}
-
-		awsStubValues := stubAWSRenderValues()
-
-		channelOverrides, err := cluster.ChannelOverrides()
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		version, err := configSource.Version(cluster.Channel, channelOverrides)
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		channelConfig, err := version.Get(ctx, rootLogger)
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-
-		defer func() {
-			err := channelConfig.Delete()
-			if err != nil {
-				log.Fatalf("%+v", err)
-			}
-		}()
-
-		fmt.Printf("\n=========== BEFORE =========\n")
-		for k, v := range cluster.ConfigItems {
-			fmt.Printf("Key: %q, Value: %q\n", k, v)
-		}
-		fmt.Printf("=== Cluster: %s ===\n\n", cluster.Alias)
-		if err := provisioner.ApplyDefaults(channelConfig, cluster); err != nil {
-			log.Warnf("Error applying defaults for %s: %v", cluster.ID, err)
-		}
-
-		filterComponents := make(map[string]bool, len(*renderComponents))
-		for _, c := range *renderComponents {
-			filterComponents[c] = true
-		}
-
-		fmt.Printf("\n=========== AFTER =========\n")
-		for k, v := range cluster.ConfigItems {
-			fmt.Printf("Key: %q, Value: %q\n", k, v)
-		}
-		printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]string) {
-			for _, comp := range components {
-				if len(filterComponents) > 0 && !filterComponents[comp.Name] {
-					continue
-				}
-				for i, m := range comp.Manifests {
-					if baselineIdx != nil {
-						if base := baselineIdx[comp.Name]; i < len(base) && m == base[i] {
-							continue
-						}
-					}
-					fmt.Printf("---\n%s\n", m)
-				}
-			}
-		}
-
-		if *renderConfigsFile != "" {
-			overrides, err := loadConfigsFile(*renderConfigsFile)
-			if err != nil {
-				log.Fatalf("Failed to load values file: %v", err)
-			}
-			overrideCluster := *cluster
-			overrideCluster.ConfigItems = make(map[string]string, len(cluster.ConfigItems))
-			maps.Copy(overrideCluster.ConfigItems, cluster.ConfigItems)
-			baseline, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
-			if err != nil {
-				log.Fatalf("Error rendering baseline for %s: %v", cluster.ID, err)
-			}
-			maps.Copy(overrideCluster.ConfigItems, overrides)
-			changed, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
-			if err != nil {
-				log.Fatalf("Error rendering overrides for %s: %v", cluster.ID, err)
-			}
-			baselineIdx := make(map[string][]string, len(baseline))
-			for _, comp := range baseline {
-				baselineIdx[comp.Name] = comp.Manifests
-			}
-			printComponents(changed, baselineIdx)
-		} else {
-			components, err := provisioner.RenderManifests(channelConfig, cluster, awsStubValues)
-			if err != nil {
-				log.Warnf("Error rendering manifests for %s: %v", cluster.ID, err)
-			} else {
-				printComponents(components, nil)
-			}
+		if err := runRenderCmd(ctx, clusterRegistry, configSource, rootLogger); err != nil {
+			log.Fatalf("Error running render command %v", err)
 		}
 		os.Exit(0)
 	}
@@ -427,6 +319,120 @@ func main() {
 			log.Fatalf("unknown cmd: %s", cmd)
 		}
 	}
+}
+
+func runRenderCmd(
+	ctx context.Context,
+	clusterRegistry registry.Registry,
+	configSource channel.ConfigSource,
+	rootLogger *log.Entry,
+) error {
+	if *renderClusterAlias == "" {
+		return fmt.Errorf("Render command require non empty cluster alias")
+	}
+
+	clusters, err := clusterRegistry.ListClusters(registry.Filter{})
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
+	var cluster *api.Cluster
+	for _, c := range clusters {
+		if c.Alias == *renderClusterAlias {
+			cluster = c
+			break
+		}
+	}
+
+	if err := configSource.Update(ctx, rootLogger); err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
+	if cluster == nil {
+		return fmt.Errorf("Cluster with alias %q not found in registry", *renderClusterAlias)
+	}
+
+	awsStubValues := stubAWSRenderValues()
+
+	channelOverrides, err := cluster.ChannelOverrides()
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+	version, err := configSource.Version(cluster.Channel, channelOverrides)
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+	channelConfig, err := version.Get(ctx, rootLogger)
+	if err != nil {
+		return fmt.Errorf("%+v", err)
+	}
+
+	defer func() error {
+		err := channelConfig.Delete()
+		if err != nil {
+			return fmt.Errorf("%+v", err)
+		}
+		return nil
+	}()
+
+	log.Debugf("=== Cluster %s ===\n", cluster.Alias)
+	if err := provisioner.ApplyDefaults(channelConfig, cluster); err != nil {
+		log.Warnf("Error applying defaults for %s: %v", cluster.ID, err)
+	}
+
+	filterComponents := make(map[string]bool, len(*renderComponents))
+	for _, c := range *renderComponents {
+		filterComponents[c] = true
+	}
+
+	printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]string) {
+		for _, comp := range components {
+			if len(filterComponents) > 0 && !filterComponents[comp.Name] {
+				continue
+			}
+			for i, m := range comp.Manifests {
+				if baselineIdx != nil {
+					if base := baselineIdx[comp.Name]; i < len(base) && m == base[i] {
+						continue
+					}
+				}
+				fmt.Printf("---\n%s\n", m)
+			}
+		}
+	}
+
+	if *renderConfigsFile != "" {
+		overrides, err := loadConfigsFile(*renderConfigsFile)
+		if err != nil {
+			return fmt.Errorf("failed to load values file: %v", err)
+		}
+		overrideCluster := *cluster
+		overrideCluster.ConfigItems = make(map[string]string, len(cluster.ConfigItems))
+		maps.Copy(overrideCluster.ConfigItems, cluster.ConfigItems)
+		baseline, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
+		if err != nil {
+			return fmt.Errorf("error rendering baseline for %s: %v", cluster.ID, err)
+		}
+		maps.Copy(overrideCluster.ConfigItems, overrides)
+		changed, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
+		if err != nil {
+			return fmt.Errorf("Error rendering overrides for %s: %v", cluster.ID, err)
+		}
+
+		// Only show changed files
+		baselineIdx := make(map[string][]string, len(baseline))
+		for _, comp := range baseline {
+			baselineIdx[comp.Name] = comp.Manifests
+		}
+		printComponents(changed, baselineIdx)
+	} else {
+		components, err := provisioner.RenderManifests(channelConfig, cluster, awsStubValues)
+		if err != nil {
+			return fmt.Errorf("Error rendering manifests for %s: %v", cluster.ID, err)
+		}
+		printComponents(components, nil)
+	}
+	return nil
 }
 
 func startHTTPServer(listen string) {
