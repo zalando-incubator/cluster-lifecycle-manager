@@ -318,6 +318,29 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 	}
 }
 
+// SiblingCluster returns the sibling cluster of the given cluster, or nil if
+// none exists. A sibling cluster is defined as another ready cluster in the
+// same account and region. If there are more than two clusters in the account
+// and region, the oldest sibling is returned.
+func (cluster Cluster) SiblingCluster() *Cluster {
+	var sibling *Cluster
+	for _, c := range cluster.AccountClusters {
+		if c.ID == cluster.ID {
+			continue
+		}
+		if c.Region != cluster.Region {
+			continue
+		}
+		if c.LifecycleStatus != models.ClusterLifecycleStatusReady {
+			continue
+		}
+		if sibling == nil || c.CreatedAt.Before(sibling.CreatedAt) {
+			sibling = c
+		}
+	}
+	return sibling
+}
+
 // IsOldestReadyClusterInTheRegion returns true if the cluster is the oldest ready cluster in its account and region.
 // It assumes that AccountClusters is sorted by creation time.
 // If there are no other clusters, the cluster is considered the oldest ready cluster by default.

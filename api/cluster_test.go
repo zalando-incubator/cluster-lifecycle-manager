@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/sirupsen/logrus"
@@ -333,4 +334,112 @@ func TestIsOldestReadyClusterPerRegion(t *testing.T) {
 	assert.True(t, clusters[0].IsOldestReadyClusterInTheRegion())
 	assert.True(t, clusters[1].IsOldestReadyClusterInTheRegion())
 	assert.False(t, clusters[2].IsOldestReadyClusterInTheRegion())
+}
+
+func TestSiblingCluster(t *testing.T) {
+	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	t3 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name            string
+		cluster         Cluster
+		accountClusters []*Cluster
+		expectedID      string
+	}{
+		{
+			name: "no account clusters",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: nil,
+			expectedID:      "",
+		},
+		{
+			name: "only self in account",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t1},
+			},
+			expectedID: "",
+		},
+		{
+			name: "sibling in same region",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t1},
+				{ID: "cluster-2", Region: "eu-central-1", CreatedAt: t2, LifecycleStatus: models.ClusterLifecycleStatusReady},
+			},
+			expectedID: "cluster-2",
+		},
+		{
+			name: "no sibling in different region",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t1},
+				{ID: "cluster-2", Region: "eu-west-1", CreatedAt: t2},
+			},
+			expectedID: "",
+		},
+		{
+			name: "oldest sibling wins with three clusters",
+			cluster: Cluster{
+				ID:     "cluster-3",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t1, LifecycleStatus: models.ClusterLifecycleStatusReady},
+				{ID: "cluster-2", Region: "eu-central-1", CreatedAt: t2, LifecycleStatus: models.ClusterLifecycleStatusReady},
+				{ID: "cluster-3", Region: "eu-central-1", CreatedAt: t3},
+			},
+			expectedID: "cluster-1",
+		},
+		{
+			name: "oldest sibling wins ignoring other regions",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t2},
+				{ID: "cluster-2", Region: "eu-west-1", CreatedAt: t1, LifecycleStatus: models.ClusterLifecycleStatusReady},
+				{ID: "cluster-3", Region: "eu-central-1", CreatedAt: t3, LifecycleStatus: models.ClusterLifecycleStatusReady},
+			},
+			expectedID: "cluster-3",
+		},
+		{
+			name: "ignores non-ready clusters",
+			cluster: Cluster{
+				ID:     "cluster-1",
+				Region: "eu-central-1",
+			},
+			accountClusters: []*Cluster{
+				{ID: "cluster-1", Region: "eu-central-1", CreatedAt: t2},
+				{ID: "cluster-2", Region: "eu-central-1", CreatedAt: t1, LifecycleStatus: models.ClusterLifecycleStatusDecommissioned},
+				{ID: "cluster-3", Region: "eu-central-1", CreatedAt: t3, LifecycleStatus: models.ClusterLifecycleStatusReady},
+			},
+			expectedID: "cluster-3",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.cluster.AccountClusters = tc.accountClusters
+			sibling := tc.cluster.SiblingCluster()
+			if tc.expectedID == "" {
+				assert.Nil(t, sibling)
+			} else {
+				require.NotNil(t, sibling)
+				assert.Equal(t, tc.expectedID, sibling.ID)
+			}
+		})
+	}
 }
