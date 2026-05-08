@@ -32,14 +32,14 @@ import (
 )
 
 var (
-	provisionCmd      = kingpin.Command("provision", "Provision a cluster.")
-	decommissionCmd   = kingpin.Command("decommission", "Decommission a cluster.")
-	controllerCmd     = kingpin.Command("controller", "Run controller loop.")
-	renderCmd         = kingpin.Command("render", "Render templates from a config directory and print to stdout.")
-	renderIPv6        = renderCmd.Flag("ipv6", "Use IPv6 stub values for vpc_ipv6_cidrs and subnet_ipv6_cidrs.").Bool()
-	renderComponents  = renderCmd.Flag("component", "Only render the named component folder(s). Can be specified multiple times.").Strings()
-	renderConfigsFile = renderCmd.Flag("configs-file", "YAML file with config_items overrides; only manifests whose output changes are printed.").String()
-	version           = "unknown"
+	provisionCmd       = kingpin.Command("provision", "Provision a cluster.")
+	decommissionCmd    = kingpin.Command("decommission", "Decommission a cluster.")
+	controllerCmd      = kingpin.Command("controller", "Run controller loop.")
+	renderCmd          = kingpin.Command("render", "Render templates from a config directory and print to stdout.")
+	renderComponents   = renderCmd.Flag("component", "Only render the named component folder(s). Can be specified multiple times.").Strings()
+	renderClusterAlias = renderCmd.Flag("cluster-alias", "Only render specified clusters").String()
+	renderConfigsFile  = renderCmd.Flag("configs-file", "YAML file with config-items overrides; only manifests whose output changes are printed.").String()
+	version            = "unknown"
 )
 
 func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerConfig) (channel.ConfigSource, error) {
@@ -104,13 +104,11 @@ func loadConfigsFile(path string) (map[string]string, error) {
 	return vf.ConfigItems, nil
 }
 
-func stubRenderValues(ipv6 bool) map[string]any {
+func stubAWSRenderValues() map[string]any {
 	vpcIPv6CIDRs := []string{}
 	subnetIPv6CIDRs := ""
-	if ipv6 {
-		vpcIPv6CIDRs = []string{"2001:db8::/56"}
-		subnetIPv6CIDRs = "2001:db8:0:1::/64,2001:db8:0:2::/64"
-	}
+	vpcIPv6CIDRs = []string{"2001:db8::/56"}
+	subnetIPv6CIDRs = "2001:db8:0:1::/64,2001:db8:0:2::/64"
 	return map[string]any{
 		"subnets":                   map[string]string{"eu-central-1a": "subnet-00000001", "eu-central-1b": "subnet-00000002"},
 		"availability_zones":        []string{"eu-central-1a", "eu-central-1b"},
@@ -178,97 +176,6 @@ func main() {
 
 	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
 
-	if cmd == renderCmd.FullCommand() {
-		configSource, err := setupConfigSource(execManager, cfg)
-		if err != nil {
-			log.Fatalf("Failed to setup config source: %v", err)
-		}
-		adhookCluster := &api.Cluster{
-			ID:                    "stub",
-			InfrastructureAccount: "aws:000000000000",
-			Region:                "eu-central-1",
-			ConfigItems:           map[string]string{},
-			Provider:              api.ZalandoAWSProvider,
-		}
-		stubValues := stubRenderValues(*renderIPv6)
-		if err := configSource.Update(ctx, rootLogger); err != nil {
-			log.Fatalf("%+v", err)
-		}
-		channelOverrides, err := adhookCluster.ChannelOverrides()
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		version, err := configSource.Version(adhookCluster.Channel, channelOverrides)
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		channelConfig, err := version.Get(ctx, rootLogger)
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		fmt.Printf("=== Cluster: %s ===\n\n", adhookCluster.ID)
-		if err := provisioner.ApplyDefaults(channelConfig, adhookCluster); err != nil {
-			log.Warnf("Error applying defaults for %s: %v", adhookCluster.ID, err)
-		}
-		_, err = provisioner.RenderDefaults(channelConfig, adhookCluster)
-		if err != nil {
-			log.Warnf("Error rendering defaults for %s: %v", adhookCluster.ID, err)
-		}
-
-		filterComponents := make(map[string]bool, len(*renderComponents))
-		for _, c := range *renderComponents {
-			filterComponents[c] = true
-		}
-
-		printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]string) {
-			for _, comp := range components {
-				if len(filterComponents) > 0 && !filterComponents[comp.Name] {
-					continue
-				}
-				for i, m := range comp.Manifests {
-					if baselineIdx != nil {
-						if base := baselineIdx[comp.Name]; i < len(base) && m == base[i] {
-							continue
-						}
-					}
-					fmt.Printf("--- %s [%d] ---\n%s\n", comp.Name, i, m)
-				}
-			}
-		}
-
-		if *renderConfigsFile != "" {
-			overrides, err := loadConfigsFile(*renderConfigsFile)
-			if err != nil {
-				log.Fatalf("Failed to load values file: %v", err)
-			}
-			overrideCluster := *adhookCluster
-			overrideCluster.ConfigItems = make(map[string]string, len(adhookCluster.ConfigItems))
-			maps.Copy(overrideCluster.ConfigItems, adhookCluster.ConfigItems)
-			baseline, err := provisioner.RenderManifests(channelConfig, &overrideCluster, stubValues)
-			if err != nil {
-				log.Fatalf("Error rendering baseline for %s: %v", adhookCluster.ID, err)
-			}
-			maps.Copy(overrideCluster.ConfigItems, overrides)
-			changed, err := provisioner.RenderManifests(channelConfig, &overrideCluster, stubValues)
-			if err != nil {
-				log.Fatalf("Error rendering overrides for %s: %v", adhookCluster.ID, err)
-			}
-			baselineIdx := make(map[string][]string, len(baseline))
-			for _, comp := range baseline {
-				baselineIdx[comp.Name] = comp.Manifests
-			}
-			printComponents(changed, baselineIdx)
-		} else {
-			components, err := provisioner.RenderManifests(channelConfig, adhookCluster, stubValues)
-			if err != nil {
-				log.Warnf("Error rendering manifests for %s: %v", adhookCluster.ID, err)
-			} else {
-				printComponents(components, nil)
-			}
-		}
-		os.Exit(0)
-	}
-
 	provisioners := map[api.ProviderID]provisioner.Provisioner{
 		api.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
 			execManager,
@@ -302,6 +209,121 @@ func main() {
 	configSource, err := setupConfigSource(execManager, cfg)
 	if err != nil {
 		log.Fatalf("Failed to setup channel config source: %v", err)
+	}
+
+	if cmd == renderCmd.FullCommand() {
+		if *renderClusterAlias == "" {
+			log.Fatal("Render command require cluster alias")
+		}
+
+		clusters, err := clusterRegistry.ListClusters(registry.Filter{})
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		var cluster *api.Cluster
+		for _, c := range clusters {
+			if c.Alias == *renderClusterAlias {
+				cluster = c
+				break
+			}
+		}
+
+		if err := configSource.Update(ctx, rootLogger); err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		if cluster == nil {
+			log.Fatalf("Cluster with alias %q not found in registry", *renderClusterAlias)
+		}
+
+		awsStubValues := stubAWSRenderValues()
+
+		channelOverrides, err := cluster.ChannelOverrides()
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+		version, err := configSource.Version(cluster.Channel, channelOverrides)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+		channelConfig, err := version.Get(ctx, rootLogger)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+
+		defer func() {
+			err := channelConfig.Delete()
+			if err != nil {
+				log.Fatalf("%+v", err)
+			}
+		}()
+
+		fmt.Printf("\n=========== BEFORE =========\n")
+		for k, v := range cluster.ConfigItems {
+			fmt.Printf("Key: %q, Value: %q\n", k, v)
+		}
+		fmt.Printf("=== Cluster: %s ===\n\n", cluster.Alias)
+		if err := provisioner.ApplyDefaults(channelConfig, cluster); err != nil {
+			log.Warnf("Error applying defaults for %s: %v", cluster.ID, err)
+		}
+
+		filterComponents := make(map[string]bool, len(*renderComponents))
+		for _, c := range *renderComponents {
+			filterComponents[c] = true
+		}
+
+		fmt.Printf("\n=========== AFTER =========\n")
+		for k, v := range cluster.ConfigItems {
+			fmt.Printf("Key: %q, Value: %q\n", k, v)
+		}
+		printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]string) {
+			for _, comp := range components {
+				if len(filterComponents) > 0 && !filterComponents[comp.Name] {
+					continue
+				}
+				for i, m := range comp.Manifests {
+					if baselineIdx != nil {
+						if base := baselineIdx[comp.Name]; i < len(base) && m == base[i] {
+							continue
+						}
+					}
+					fmt.Printf("---\n%s\n", m)
+				}
+			}
+		}
+
+		if *renderConfigsFile != "" {
+			overrides, err := loadConfigsFile(*renderConfigsFile)
+			if err != nil {
+				log.Fatalf("Failed to load values file: %v", err)
+			}
+			overrideCluster := *cluster
+			overrideCluster.ConfigItems = make(map[string]string, len(cluster.ConfigItems))
+			maps.Copy(overrideCluster.ConfigItems, cluster.ConfigItems)
+			baseline, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
+			if err != nil {
+				log.Fatalf("Error rendering baseline for %s: %v", cluster.ID, err)
+			}
+			maps.Copy(overrideCluster.ConfigItems, overrides)
+			changed, err := provisioner.RenderManifests(channelConfig, &overrideCluster, awsStubValues)
+			if err != nil {
+				log.Fatalf("Error rendering overrides for %s: %v", cluster.ID, err)
+			}
+			baselineIdx := make(map[string][]string, len(baseline))
+			for _, comp := range baseline {
+				baselineIdx[comp.Name] = comp.Manifests
+			}
+			printComponents(changed, baselineIdx)
+		} else {
+			components, err := provisioner.RenderManifests(channelConfig, cluster, awsStubValues)
+			if err != nil {
+				log.Warnf("Error rendering manifests for %s: %v", cluster.ID, err)
+			} else {
+				printComponents(components, nil)
+			}
+		}
+		os.Exit(0)
 	}
 
 	if cmd == controllerCmd.FullCommand() {

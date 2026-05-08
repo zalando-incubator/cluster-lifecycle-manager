@@ -354,7 +354,6 @@ func (p *clusterpyProvisioner) provision(
 		values,
 		awsAdapter,
 		instanceTypes,
-		false,
 	)
 	if err != nil {
 		return err
@@ -1175,7 +1174,11 @@ func remarshalYAML(contents string) (string, error) {
 	return result.String(), nil
 }
 
-func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, stub bool) ([]manifestPackage, error) {
+func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) ([]manifestPackage, error) {
+	return renderManifestsWithStub(config, cluster, values, adapter, instanceTypes, false)
+}
+
+func renderManifestsWithStub(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) ([]manifestPackage, error) {
 	var result []manifestPackage
 
 	components, err := config.Components()
@@ -1189,11 +1192,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 			fileData[manifest.Path] = manifest.Contents
 		}
 		var ctx *templateContext
-		if stub {
-			ctx = newStubTemplateContext(fileData, cluster, nil, values)
-		} else {
-			ctx = newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes)
-		}
+		ctx = newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes, renderMode)
 
 		var parsedManifests []*kubernetes.ResourceManifest
 

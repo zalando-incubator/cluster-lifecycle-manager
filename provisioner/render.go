@@ -9,6 +9,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type RenderProvisioner struct {
+	clusterpyProvisioner
+}
+
 // RenderedComponent holds the rendered output for a single component.
 type RenderedComponent struct {
 	Name      string
@@ -16,10 +20,9 @@ type RenderedComponent struct {
 }
 
 // RenderManifests renders all component manifests from the given config against
-// the cluster. values is passed directly to the template engine; use stub values
-// for local rendering without AWS access.
+// the cluster. values is passed directly to the template engine.
 func RenderManifests(cfg channel.Config, cluster *api.Cluster, values map[string]any) ([]RenderedComponent, error) {
-	packages, err := renderManifests(cfg, cluster, values, nil, nil, true)
+	packages, err := renderManifestsWithStub(cfg, cluster, values, nil, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -30,28 +33,10 @@ func RenderManifests(cfg channel.Config, cluster *api.Cluster, values map[string
 	return result, nil
 }
 
-// RenderDefaults renders config-defaults.yaml from the given config against the
-// cluster. Values are intentionally nil, matching the production path in
-// updateDefaults (clusterpy.go).
-func RenderDefaults(cfg channel.Config, cluster *api.Cluster) ([]string, error) {
-	files, err := cfg.DefaultsManifests()
-	if err != nil {
-		return nil, err
-	}
-	var results []string
-	for _, f := range files {
-		rendered, err := renderSingleTemplateStub(f, cluster, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, rendered)
-	}
-	return results, nil
-}
-
 // ApplyDefaults renders config-defaults.yaml and merges any missing keys into
 // cluster.ConfigItems, mirroring the production updateDefaults logic. Call this
 // before RenderManifests so templates can rely on default config item values.
+// basically a copy from clusterpyProvisioner.updateDefaults
 func ApplyDefaults(cfg channel.Config, cluster *api.Cluster) error {
 	files, err := cfg.DefaultsManifests()
 	if err != nil {
@@ -63,7 +48,7 @@ func ApplyDefaults(cfg channel.Config, cluster *api.Cluster) error {
 
 	allDefaults := make(map[string]string)
 	for _, f := range files {
-		rendered, err := renderSingleTemplateStub(f, &withoutConfigItems, nil, nil)
+		rendered, err := renderSingleTemplateRenderMode(f, &withoutConfigItems, nil, nil)
 		if err != nil {
 			return err
 		}
