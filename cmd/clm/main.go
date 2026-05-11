@@ -37,7 +37,6 @@ var (
 	decommissionCmd    = kingpin.Command("decommission", "Decommission a cluster.")
 	controllerCmd      = kingpin.Command("controller", "Run controller loop.")
 	renderCmd          = kingpin.Command("render-with-aws-stup", "Render templates from a config directory with stups for AWS values and print to stdout; To be used to add local development.")
-	renderComponents   = renderCmd.Flag("component", "Only render the named component folder(s). Can be specified multiple times.").Strings()
 	renderClusterAlias = renderCmd.Flag("cluster-alias", "Only render specified clusters").Required().String()
 	renderConfigsFile  = renderCmd.Flag("configs-file", "YAML file with config-items overrides; only manifests whose output changes are printed.").String()
 	version            = "unknown"
@@ -395,25 +394,23 @@ func runRenderCmd(
 		log.Warnf("Error applying defaults for %s: %v", cluster.ID, err)
 	}
 
-	filterComponents := make(map[string]bool, len(*renderComponents))
-	for _, c := range *renderComponents {
-		filterComponents[c] = true
-	}
-
-	printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]*kubernetes.ResourceManifest) {
+	printComponents := func(components []provisioner.RenderedComponent, baseline map[string]map[string]*kubernetes.ResourceManifest) {
 		for _, comp := range components {
-			if len(filterComponents) > 0 && !filterComponents[comp.Name] {
-				continue
-			}
-			for i, m := range comp.Manifests {
-				if baselineIdx != nil {
-					if base := baselineIdx[comp.Name]; i < len(base) && m == base[i] {
-						continue
-					}
-				}
+			for _, m := range comp.Manifests {
 				contents, err := m.ToYaml()
 				if err != nil {
 					log.Fatalf("failed to marshal file contents %v", err)
+				}
+				if baseline != nil {
+					if base, ok := baseline[comp.Name][m.SourceFile]; ok {
+						baseContents, err := base.ToYaml()
+						if err != nil {
+							log.Fatalf("failed to marshal baseline contents %v", err)
+						}
+						if baseContents == contents {
+							continue
+						}
+					}
 				}
 				fmt.Printf("---\n%s\n", contents)
 			}
@@ -438,10 +435,13 @@ func runRenderCmd(
 			return fmt.Errorf("Error rendering overrides for %s: %v", cluster.ID, err)
 		}
 
-		// Only show changed files
-		baselineIdx := make(map[string][]*kubernetes.ResourceManifest, len(baseline))
+		baselineIdx := make(map[string]map[string]*kubernetes.ResourceManifest, len(baseline))
 		for _, comp := range baseline {
-			baselineIdx[comp.Name] = comp.Manifests
+			byName := make(map[string]*kubernetes.ResourceManifest, len(comp.Manifests))
+			for _, m := range comp.Manifests {
+				byName[m.SourceFile] = m
+			}
+			baselineIdx[comp.Name] = byName
 		}
 		printComponents(changed, baselineIdx)
 	} else {
