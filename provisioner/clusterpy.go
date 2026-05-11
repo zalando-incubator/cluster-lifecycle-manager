@@ -1175,10 +1175,10 @@ func remarshalYAML(contents string) (string, error) {
 }
 
 func renderManifests(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) ([]manifestPackage, error) {
-	return renderManifestsWithStub(config, cluster, values, adapter, instanceTypes, false)
+	return renderManifestsInRenderMode(config, cluster, values, adapter, instanceTypes, false)
 }
 
-func renderManifestsWithStub(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) ([]manifestPackage, error) {
+func renderManifestsInRenderMode(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) ([]manifestPackage, error) {
 	var result []manifestPackage
 
 	components, err := config.Components()
@@ -1191,8 +1191,7 @@ func renderManifestsWithStub(config channel.Config, cluster *api.Cluster, values
 		for _, manifest := range component.Manifests {
 			fileData[manifest.Path] = manifest.Contents
 		}
-		var ctx *templateContext
-		ctx = newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes, renderMode)
+		ctx := newTemplateContext(fileData, cluster, nil, values, adapter, instanceTypes, renderMode)
 
 		var parsedManifests []*kubernetes.ResourceManifest
 

@@ -81,12 +81,11 @@ func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePo
 }
 
 func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
-	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes, false)
-	return renderTemplate(ctx, manifest.Path)
+	return renderSingleTemplateWithRenderMode(manifest, cluster, nodePool, values, adapter, instanceTypes, false)
 }
 
-func renderSingleTemplateRenderMode(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}) (string, error) {
-	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, nil, nil, true)
+func renderSingleTemplateWithRenderMode(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) (string, error) {
+	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes, renderMode)
 	return renderTemplate(ctx, manifest.Path)
 }
 

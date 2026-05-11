@@ -6,23 +6,20 @@ import (
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"gopkg.in/yaml.v2"
 )
-
-type RenderProvisioner struct {
-	clusterpyProvisioner
-}
 
 // RenderedComponent holds the rendered output for a single component.
 type RenderedComponent struct {
 	Name      string
-	Manifests []string
+	Manifests []*kubernetes.ResourceManifest
 }
 
 // RenderManifests renders all component manifests from the given config against
 // the cluster. values is passed directly to the template engine.
 func RenderManifests(cfg channel.Config, cluster *api.Cluster, values map[string]any) ([]RenderedComponent, error) {
-	packages, err := renderManifestsWithStub(cfg, cluster, values, nil, nil, true)
+	packages, err := renderManifestsInRenderMode(cfg, cluster, values, nil, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +45,7 @@ func ApplyDefaults(cfg channel.Config, cluster *api.Cluster) error {
 
 	allDefaults := make(map[string]string)
 	for _, f := range files {
-		rendered, err := renderSingleTemplateRenderMode(f, &withoutConfigItems, nil, nil)
+		rendered, err := renderSingleTemplateWithRenderMode(f, &withoutConfigItems, nil, nil, nil, nil, true)
 		if err != nil {
 			return err
 		}
