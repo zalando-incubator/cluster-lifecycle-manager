@@ -25,6 +25,7 @@ import (
 	zaws "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/credentials-loader/platformiam"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
@@ -385,7 +386,7 @@ func runRenderCmd(
 		filterComponents[c] = true
 	}
 
-	printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]string) {
+	printComponents := func(components []provisioner.RenderedComponent, baselineIdx map[string][]*kubernetes.ResourceManifest) {
 		for _, comp := range components {
 			if len(filterComponents) > 0 && !filterComponents[comp.Name] {
 				continue
@@ -396,7 +397,11 @@ func runRenderCmd(
 						continue
 					}
 				}
-				fmt.Printf("---\n%s\n", m)
+				contents, err := m.ToYaml()
+				if err != nil {
+					log.Fatalf("failed to marshal file contents %v", err)
+				}
+				fmt.Printf("---\n%s\n", contents)
 			}
 		}
 	}
@@ -420,7 +425,7 @@ func runRenderCmd(
 		}
 
 		// Only show changed files
-		baselineIdx := make(map[string][]string, len(baseline))
+		baselineIdx := make(map[string][]*kubernetes.ResourceManifest, len(baseline))
 		for _, comp := range baseline {
 			baselineIdx[comp.Name] = comp.Manifests
 		}
