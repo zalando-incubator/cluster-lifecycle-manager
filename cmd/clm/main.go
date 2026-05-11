@@ -90,19 +90,33 @@ func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerCo
 }
 
 type configsFile struct {
-	ConfigItems map[string]string `json:"config-items" yaml:"config-items"`
+	ConfigItems map[string]any `json:"config-items" yaml:"config-items"`
+}
+
+func filterStringConfigs(configs map[string]any) map[string]string {
+	filteredConfigs := make(map[string]string)
+	for k, v := range configs {
+		switch castedV := v.(type) {
+		case string:
+			filteredConfigs[k] = castedV
+		default:
+			continue
+		}
+	}
+	return filteredConfigs
 }
 
 func loadConfigsFile(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 	var vf configsFile
 	if err := yaml.Unmarshal(data, &vf); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal file %q: %w", path, err)
 	}
-	return vf.ConfigItems, nil
+
+	return filterStringConfigs(vf.ConfigItems), nil
 }
 
 func stubAWSRenderValues() map[string]any {
