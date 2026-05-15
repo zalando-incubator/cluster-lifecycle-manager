@@ -47,7 +47,7 @@ func render(_ *testing.T, templates map[string]string, templateName string, data
 		templateData[name] = []byte(content)
 	}
 
-	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter, instanceTypes)
+	context := newTemplateContext(templateData, &api.Cluster{}, nil, map[string]interface{}{"data": data}, adapter, instanceTypes, false)
 	return renderTemplate(context, templateName)
 }
 

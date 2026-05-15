@@ -36,9 +36,12 @@ const (
 	describeImageFilterNameName  = "name"
 	describeImageFilterNameOwner = "owner-id"
 
-	labelsConfigItem = "labels"
-	taintsConfigItem = "taints"
-	dedicatedLabel   = "dedicated"
+	labelsConfigItem   = "labels"
+	taintsConfigItem   = "taints"
+	dedicatedLabel     = "dedicated"
+	defaultMaxPods     = 110
+	defaultCPUQuantity = "1"
+	defaultMemQuantity = "2Gi"
 )
 
 type templateContext struct {
@@ -50,6 +53,7 @@ type templateContext struct {
 	computingManifestHash bool
 	awsAdapter            *awsAdapter
 	instanceTypes         *awsUtils.InstanceTypes
+	renderMode            bool
 }
 
 type templateData struct {
@@ -63,7 +67,7 @@ type templateData struct {
 	NodePool *api.NodePool
 }
 
-func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) *templateContext {
+func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) *templateContext {
 	return &templateContext{
 		fileData:      fileData,
 		templateData:  make(map[string]string),
@@ -72,11 +76,16 @@ func newTemplateContext(fileData map[string][]byte, cluster *api.Cluster, nodePo
 		values:        values,
 		awsAdapter:    adapter,
 		instanceTypes: instanceTypes,
+		renderMode:    renderMode,
 	}
 }
 
 func renderSingleTemplate(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (string, error) {
-	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes)
+	return renderSingleTemplateWithRenderMode(manifest, cluster, nodePool, values, adapter, instanceTypes, false)
+}
+
+func renderSingleTemplateWithRenderMode(manifest channel.Manifest, cluster *api.Cluster, nodePool *api.NodePool, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes, renderMode bool) (string, error) {
+	ctx := newTemplateContext(map[string][]byte{manifest.Path: manifest.Contents}, cluster, nodePool, values, adapter, instanceTypes, renderMode)
 	return renderTemplate(ctx, manifest.Path)
 }
 
@@ -107,6 +116,9 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"publicKey":            publicKey,
 		"stupsNATSubnets":      stupsNATSubnets,
 		"amiID": func(imageName, imageOwner string) (string, error) {
+			if context.renderMode {
+				return "ami-00000000", nil
+			}
 			return amiID(context.awsAdapter, imageName, imageOwner)
 		},
 		// TODO: this function is kept for backward compatibility while
@@ -114,12 +126,35 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		// to all channels of kubernetes-on-aws. After a full rollout
 		// this can be dropped.
 		"nodeCIDRMaxNodes": func(maskSize int64, reserved int64) (int64, error) {
+			if context.renderMode {
+				return defaultMaxPods, nil
+			}
 			return nodeCIDRMaxNodes(16, maskSize, reserved)
 		},
-		"nodeCIDRMaxNodesPodCIDR":               nodeCIDRMaxNodes,
-		"nodeCIDRMaxPods":                       nodeCIDRMaxPods,
-		"nthAddressFromCIDR":                    nthAddressFromCIDR,
-		"parseInt64":                            parseInt64,
+		"nodeCIDRMaxNodesPodCIDR": func(podCIDRMaskSize, maskSize int64, reserved int64) (int64, error) {
+			if context.renderMode {
+				return defaultMaxPods, nil
+			}
+			return nodeCIDRMaxNodes(podCIDRMaskSize, maskSize, reserved)
+		},
+		"nodeCIDRMaxPods": func(maskSize int64, extraCapacity int64) (int64, error) {
+			if context.renderMode {
+				return defaultMaxPods, nil
+			}
+			return nodeCIDRMaxPods(maskSize, extraCapacity)
+		},
+		"nthAddressFromCIDR": func(cidr string, n int) (string, error) {
+			if context.renderMode && cidr == "" {
+				return "0.0.0.0", nil
+			}
+			return nthAddressFromCIDR(cidr, n)
+		},
+		"parseInt64": func(value string) (int64, error) {
+			if context.renderMode && value == "" {
+				return 0, nil
+			}
+			return parseInt64(value)
+		},
 		"generateJWKSDocument":                  generateJWKSDocument,
 		"generateOIDCDiscoveryDocument":         generateOIDCDiscoveryDocument,
 		"kubernetesSizeToKiloBytes":             kubernetesSizeToKiloBytes,
@@ -135,9 +170,15 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"append":                                strAppend,
 		"scaleQuantity":                         scaleQuantity,
 		"instanceTypeCPUQuantity": func(instanceType ec2types.InstanceType) (string, error) {
+			if context.renderMode {
+				return defaultCPUQuantity, nil
+			}
 			return instanceTypeCPUQuantity(context, instanceType)
 		},
 		"instanceTypeMemoryQuantity": func(instanceType ec2types.InstanceType) (string, error) {
+			if context.renderMode {
+				return defaultMemQuantity, nil
+			}
 			return instanceTypeMemoryQuantity(context, instanceType)
 		},
 	}
@@ -146,7 +187,11 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("template file not found: %s", file)
 	}
-	t, err := template.New(file).Option("missingkey=error").Funcs(funcMap).Parse(string(content))
+	missingKeyOpt := "error"
+	if context.renderMode {
+		missingKeyOpt = "zero"
+	}
+	t, err := template.New(file).Option("missingkey=" + missingKeyOpt).Funcs(funcMap).Parse(string(content))
 	if err != nil {
 		return "", err
 	}
@@ -579,8 +624,8 @@ func nodeCIDRMaxPods(maskSize int64, extraCapacity int64) (int64, error) {
 	}
 
 	maxPods := 2<<(32-maskSize-2) + extraCapacity
-	if maxPods > 110 {
-		maxPods = 110
+	if maxPods > defaultMaxPods {
+		maxPods = defaultMaxPods
 	}
 	return maxPods, nil
 }
