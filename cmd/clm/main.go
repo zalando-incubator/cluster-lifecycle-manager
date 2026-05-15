@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -37,6 +38,7 @@ var (
 	decommissionCmd    = kingpin.Command("decommission", "Decommission a cluster.")
 	controllerCmd      = kingpin.Command("controller", "Run controller loop.")
 	renderCmd          = kingpin.Command("render-with-aws-stup", "Render templates from a config directory with stups for AWS values and print to stdout; To be used to add local development.")
+	renderComponents   = renderCmd.Flag("component", "Only render the named component folder(s). Can be specified multiple times.").Strings()
 	renderClusterAlias = renderCmd.Flag("cluster-alias", "Only render specified clusters").Required().String()
 	renderConfigsFile  = renderCmd.Flag("configs-file", "YAML file with config-items overrides; only manifests whose output changes are printed.").String()
 	version            = "unknown"
@@ -92,13 +94,16 @@ type configsFile struct {
 	ConfigItems map[string]any `json:"config-items" yaml:"config-items"`
 }
 
-func filterStringConfigs(configs map[string]any) map[string]string {
+func filterNonObjectConfigs(configs map[string]any) map[string]string {
 	filteredConfigs := make(map[string]string)
 	for k, v := range configs {
 		switch castedV := v.(type) {
 		case string:
 			filteredConfigs[k] = castedV
+		case bool:
+			filteredConfigs[k] = strconv.FormatBool(castedV)
 		default:
+			log.Debugf("unsupported type %T", castedV)
 			continue
 		}
 	}
@@ -115,7 +120,7 @@ func loadConfigsFile(path string) (map[string]string, error) {
 		return nil, fmt.Errorf("failed to unmarshal file %q: %w", path, err)
 	}
 
-	return filterStringConfigs(vf.ConfigItems), nil
+	return filterNonObjectConfigs(vf.ConfigItems), nil
 }
 
 func stubAWSRenderValues() map[string]any {
@@ -394,15 +399,23 @@ func runRenderCmd(
 		log.Warnf("Error applying defaults for %s: %v", cluster.ID, err)
 	}
 
+	filterComponents := make(map[string]struct{}, len(*renderComponents))
+	for _, c := range *renderComponents {
+		filterComponents[c] = struct{}{}
+	}
+
 	printComponents := func(components []provisioner.RenderedComponent, baseline map[string]map[string]*kubernetes.ResourceManifest) {
 		for _, comp := range components {
+			if _, ok := filterComponents[comp.Name]; !ok {
+				continue
+			}
 			for _, m := range comp.Manifests {
 				contents, err := m.ToYaml()
 				if err != nil {
 					log.Fatalf("failed to marshal file contents %v", err)
 				}
 				if baseline != nil {
-					if base, ok := baseline[comp.Name][m.SourceFile]; ok {
+					if base, ok := baseline[comp.Name][m.Name]; ok {
 						baseContents, err := base.ToYaml()
 						if err != nil {
 							log.Fatalf("failed to marshal baseline contents %v", err)
@@ -439,7 +452,7 @@ func runRenderCmd(
 		for _, comp := range baseline {
 			byName := make(map[string]*kubernetes.ResourceManifest, len(comp.Manifests))
 			for _, m := range comp.Manifests {
-				byName[m.SourceFile] = m
+				byName[m.Name] = m
 			}
 			baselineIdx[comp.Name] = byName
 		}
