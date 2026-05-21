@@ -542,3 +542,39 @@ func TestDecommissionDoesNotSupportProvider(t *testing.T) {
 	err := p.Decommission(context.TODO(), nil, cluster)
 	assert.Equal(t, ErrProviderNotSupported, err)
 }
+
+func TestApplyCFManifests_SkipsEmptyManifests(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rendered string
+		skip     bool
+	}{
+		{
+			name:     "empty manifest",
+			rendered: "",
+			skip:     true,
+		},
+		{
+			name:     "only whitespace",
+			rendered: "\n\n  \n",
+			skip:     true,
+		},
+		{
+			name:     "only comments",
+			rendered: "# comment\n# another comment\n",
+			skip:     true,
+		},
+		{
+			name:     "manifest with content",
+			rendered: "Metadata:\n  StackName: test-stack",
+			skip:     false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			remarshaled, err := remarshalYAML(tc.rendered)
+			require.NoError(t, err)
+			shouldSkip := remarshaled == ""
+			assert.Equal(t, tc.skip, shouldSkip)
+		})
+	}
+}
