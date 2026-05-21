@@ -122,11 +122,7 @@ func getFailureDomain(nodes []*Node) string {
 	}
 
 	for _, node := range nodes {
-		if _, ok := fdCount[node.FailureDomain]; ok {
-			fdCount[node.FailureDomain]++
-		} else {
-			fdCount[node.FailureDomain] = 1
-		}
+		fdCount[node.FailureDomain]++
 	}
 
 	minNodes := len(nodes)

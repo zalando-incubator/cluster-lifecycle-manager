@@ -565,12 +565,23 @@ func applyCFManifests(ctx context.Context, adapter *awsAdapter, config channel.C
 			return fmt.Errorf("failed to render manifest %s: %w", manifest.Path, err)
 		}
 
-		cfManifest, err := parseCFTemplate(rendered)
+		// If there's no content we skip the manifest (after remarshaling to strip comments)
+		remarshaled, err := remarshalYAML(rendered)
+		if err != nil {
+			return fmt.Errorf("failed to remarshal manifest %s: %w", manifest.Path, err)
+		}
+
+		if remarshaled == "" {
+			log.Debugf("Skipping empty CloudFormation manifest: %s", manifest.Path)
+			continue
+		}
+
+		cfManifest, err := parseCFTemplate(remarshaled)
 		if err != nil {
 			return fmt.Errorf("failed to parse stack for manifest %s: %w", manifest.Path, err)
 		}
 
-		cfManifest.Template = rendered
+		cfManifest.Template = remarshaled
 		cfManifest.Path = manifest.Path
 
 		err = adapter.applyCFManifest(ctx, cfManifest, cluster.Name(), bucketName)

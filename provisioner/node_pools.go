@@ -343,7 +343,7 @@ func (p *AWSNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api
 func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
 	values["supports_t2_unlimited"] = supportsT2Unlimited(nodePool.InstanceTypes)
 
-	instanceInfo, err := p.NodePoolTemplateRenderer.instanceTypes.SyntheticInstanceInfo(nodePool.InstanceTypes)
+	instanceInfo, err := p.instanceTypes.SyntheticInstanceInfo(nodePool.InstanceTypes)
 	if err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 	}
 
 	// TODO: stackname pattern
-	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.Replace(p.cluster.ID, ":", "-", -1))
+	stackName := fmt.Sprintf("nodepool-%s-%s", nodePool.Name, strings.ReplaceAll(p.cluster.ID, ":", "-"))
 
 	tags := map[string]string{
 		tagNameKubernetesClusterPrefix + p.cluster.Name(): resourceLifecycleOwned,
