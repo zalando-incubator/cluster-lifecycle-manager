@@ -1388,7 +1388,6 @@ func int32Value(v *int32) int32 {
 
 func extractModuleFromPath(path string) string {
 	// Extract the first directory component from the path as the module name
-	// e.g., "acid/cluster/cf-manifests/filename.yaml" -> "acid"
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 	if len(parts) > 0 && parts[0] != "" {
 		return parts[0]
