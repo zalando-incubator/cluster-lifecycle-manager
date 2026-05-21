@@ -124,6 +124,18 @@ func (c *combinedConfig) EtcdManifest(manifestName string) (Manifest, error) {
 	return mainConfig.EtcdManifest(manifestName)
 }
 
+func (c *combinedConfig) CFManifests() ([]Manifest, error) {
+	var result []Manifest
+	for i, config := range c.configs {
+		manifests, err := config.CFManifests()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get CF manifests for source %s: %v", c.owner.sourceName(i), err)
+		}
+		result = append(result, manifests...)
+	}
+	return result, nil
+}
+
 func (c *combinedConfig) NodePoolManifest(profileName string, manifestName string) (Manifest, error) {
 	mainConfig, err := c.mainConfig()
 	if err != nil {
