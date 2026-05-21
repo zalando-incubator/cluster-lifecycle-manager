@@ -487,7 +487,7 @@ func TestFindPDBSiblings(t *testing.T) {
 	foo0 := testPod("foo-0", map[string]string{"app": "foo", "env": "production"})
 	foo1 := testPod("foo-1", map[string]string{"app": "foo"})
 	foo2 := testPod("foo-2", map[string]string{"app": "foo"})
-	foo2.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+	foo2.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: "extensions/v1beta1",
 		Kind:       "ReplicaSet",
 		Name:       "foo-12345",
@@ -500,7 +500,7 @@ func TestFindPDBSiblings(t *testing.T) {
 
 	// cronjob pod
 	foo4 := testPod("foo-4", map[string]string{"app": "foo"})
-	foo4.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{
+	foo4.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: "batch/v1",
 		Kind:       "Job",
 		Name:       "foo-12345",

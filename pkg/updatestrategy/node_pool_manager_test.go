@@ -106,7 +106,7 @@ func TestGetPool(t *testing.T) {
 	assert.Len(t, nodePool.Nodes, 1)
 
 	// test keeping the draining label
-	node.ObjectMeta.Labels = map[string]string{
+	node.Labels = map[string]string{
 		lifecycleStatusLabel: lifecycleStatusDraining,
 	}
 	mgr.kube = setupMockKubernetes(context.Background(), t, []*v1.Node{node}, nil, nil)

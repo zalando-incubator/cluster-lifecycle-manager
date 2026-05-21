@@ -207,7 +207,7 @@ func mountUnitName(path string) (string, error) {
 	if !strings.HasPrefix(path, "/") {
 		return "", fmt.Errorf("not an absolute path: %s", path)
 	}
-	return strings.Replace(path[1:], "/", "-", -1), nil
+	return strings.ReplaceAll(path[1:], "/", "-"), nil
 }
 
 // base64Encode base64 encodes a string.
@@ -787,7 +787,7 @@ func sumQuantities(quantities ...string) (string, error) {
 }
 
 func awsValidID(id string) string {
-	return strings.Replace(id, ":", "__", -1)
+	return strings.ReplaceAll(id, ":", "__")
 }
 
 // instanceTypeCPUQuantity returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
