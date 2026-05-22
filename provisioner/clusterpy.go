@@ -347,7 +347,7 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	err = applyCFManifests(ctx, awsAdapter, channelConfig, cluster, values, bucketName)
+	err = applyCFManifests(ctx, logger, awsAdapter, channelConfig, cluster, values, bucketName)
 	if err != nil {
 		return err
 	}
@@ -553,13 +553,16 @@ func createOrUpdateEtcdStack(
 	return nil
 }
 
-func applyCFManifests(ctx context.Context, adapter *awsAdapter, config channel.Config, cluster *api.Cluster, values map[string]any, bucketName string) error {
+func applyCFManifests(ctx context.Context, logger *log.Entry, adapter *awsAdapter, config channel.Config, cluster *api.Cluster, values map[string]any, bucketName string) error {
 	manifests, err := config.CFManifests()
 	if err != nil {
 		return err
 	}
 
 	for _, manifest := range manifests {
+		moduleName := extractModuleFromPath(manifest.Path)
+		logger := logger.WithField("module", moduleName)
+
 		rendered, err := renderSingleTemplate(manifest, cluster, nil, values, adapter, nil)
 		if err != nil {
 			return fmt.Errorf("failed to render manifest %s: %w", manifest.Path, err)
@@ -572,7 +575,7 @@ func applyCFManifests(ctx context.Context, adapter *awsAdapter, config channel.C
 		}
 
 		if remarshaled == "" {
-			log.Debugf("Skipping empty CloudFormation manifest: %s", manifest.Path)
+			logger.Debugf("Skipping empty CloudFormation manifest: %s", manifest.Path)
 			continue
 		}
 
@@ -588,6 +591,8 @@ func applyCFManifests(ctx context.Context, adapter *awsAdapter, config channel.C
 		if err != nil {
 			return fmt.Errorf("failed to apply stack for manifest %s: %w", manifest.Path, err)
 		}
+
+		logger.Infof("%s applied", cfManifest.Metadata.StackName)
 
 		ctx, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 		defer cancel()
@@ -1379,6 +1384,15 @@ func int32Value(v *int32) int32 {
 		return *v
 	}
 	return 0
+}
+
+func extractModuleFromPath(path string) string {
+	// Extract the first directory component from the path as the module name
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	if len(parts) > 0 && parts[0] != "" {
+		return parts[0]
+	}
+	return "unknown"
 }
 
 type nodePoolGroup struct {
