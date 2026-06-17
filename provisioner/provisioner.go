@@ -28,6 +28,15 @@ type (
 			logger *log.Entry,
 			cluster *api.Cluster,
 		) error
+
+		Render(
+			ctx context.Context,
+			logger *log.Entry,
+			cluster *api.Cluster,
+			channelConfig channel.Config,
+			resourceNameFilter string,
+			applicationFilter string,
+		) error
 	}
 
 	// CreationHook is an interface that provisioners can use while provisioning

@@ -158,6 +158,112 @@ func (p *clusterpyProvisioner) propagateConfigItemsToNodePools(cluster *api.Clus
 	}
 }
 
+func (p *clusterpyProvisioner) buildTemplateValues(
+	ctx context.Context,
+	awsAdapter *awsAdapter,
+	cluster *api.Cluster,
+) (map[string]interface{}, error) {
+	// get VPC information
+	var vpc *ec2types.Vpc
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok { // if vpcID is not defined, autodiscover it
+		var err error
+		vpc, err = awsAdapter.GetDefaultVPC(ctx)
+		if err != nil {
+			return nil, err
+		}
+		vpcID = aws.ToString(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	} else {
+		var err error
+		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
+
+	// if subnets are defined in the config items, filter the subnet list
+	if subnetIDs, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
+		ids := strings.Split(subnetIDs, ",")
+		subnets = filterSubnets(subnets, subnetIDIncluded(ids))
+		if len(subnets) != len(ids) {
+			return nil, fmt.Errorf("invalid or unknown subnets; desired %v", ids)
+		}
+	}
+
+	// find the best subnet for each AZ
+	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
+	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+	azInfoIntenalNodes := selectSubnetIDs(subnets, subnetInternalNodeRoleTagName)
+	azInfoPods := selectSubnetIDs(subnets, subnetPodRoleTagName)
+
+	// if availability zones are defined, filter the subnet list
+	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
+		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
+		azInfoNodes = azInfoNodes.RestrictAZs(strings.Split(azNames, ","))
+		azInfoIntenalNodes = azInfoIntenalNodes.RestrictAZs(strings.Split(azNames, ","))
+	}
+
+	// optional config item to hard-code subnets. This is useful for
+	// migrating between subnets.
+	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
+		cluster.ConfigItems[subnetsConfigItemKey] = azInfoNodes.SubnetsByAZ()[subnetAllAZName]
+	}
+
+	apiURL, err := url.Parse(cluster.APIServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	certificates, err := awsAdapter.GetCertificates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
+	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
+		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
+	}
+
+	return map[string]interface{}{
+		subnetsValueKey:             azInfoNodes.SubnetsByAZ(),
+		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
+		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
+		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
+		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
+		"pod_subnets":               azInfoPods.SubnetsByAZ(),
+		"hosted_zone":               hostedZone,
+		"load_balancer_certificate": loadBalancerCert.ID(),
+		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
+		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
+	}, nil
+}
+
 func (p *clusterpyProvisioner) provision(
 	ctx context.Context,
 	logger *log.Entry,
@@ -183,103 +289,21 @@ func (p *clusterpyProvisioner) provision(
 		return err
 	}
 
-	// get VPC information
-	var vpc *ec2types.Vpc
-	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
-	if !ok { // if vpcID is not defined, autodiscover it
-		vpc, err = awsAdapter.GetDefaultVPC(ctx)
-		if err != nil {
-			return err
-		}
-		vpcID = aws.ToString(vpc.VpcId)
-		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
-	} else {
-		vpc, err = awsAdapter.GetVPC(ctx, vpcID)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err = ctx.Err(); err != nil {
+	values, err := p.buildTemplateValues(ctx, awsAdapter, cluster)
+	if err != nil {
 		return err
 	}
 
+	// get azInfoNodes for later use in node provisioning
+	vpcID := cluster.ConfigItems[vpcIDConfigItemKey]
 	subnets, err := awsAdapter.GetSubnets(ctx, vpcID)
 	if err != nil {
 		return err
 	}
-
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-
 	subnets = filterSubnets(subnets, subnetNot(isCustomSubnet))
-
-	// if subnets are defined in the config items, filter the subnet list
-	if subnetIDs, ok := cluster.ConfigItems[subnetsConfigItemKey]; ok {
-		ids := strings.Split(subnetIDs, ",")
-		subnets = filterSubnets(subnets, subnetIDIncluded(ids))
-		if len(subnets) != len(ids) {
-			return fmt.Errorf("invalid or unknown subnets; desired %v", ids)
-		}
-	}
-
-	// find the best subnet for each AZ
-	azInfoLBs := selectSubnetIDs(subnets, subnetELBRoleTagName)
 	azInfoNodes := selectSubnetIDs(subnets, subnetNodeRoleTagName)
-	azInfoIntenalNodes := selectSubnetIDs(subnets, subnetInternalNodeRoleTagName)
-	azInfoPods := selectSubnetIDs(subnets, subnetPodRoleTagName)
-
-	// if availability zones are defined, filter the subnet list
 	if azNames, ok := cluster.ConfigItems[availabilityZonesConfigItemKey]; ok {
-		azInfoLBs = azInfoLBs.RestrictAZs(strings.Split(azNames, ","))
 		azInfoNodes = azInfoNodes.RestrictAZs(strings.Split(azNames, ","))
-		azInfoIntenalNodes = azInfoIntenalNodes.RestrictAZs(strings.Split(azNames, ","))
-	}
-
-	// optional config item to hard-code subnets. This is useful for
-	// migrating between subnets.
-	if _, ok := cluster.ConfigItems[subnetsConfigItemKey]; !ok {
-		cluster.ConfigItems[subnetsConfigItemKey] = azInfoNodes.SubnetsByAZ()[subnetAllAZName]
-	}
-
-	apiURL, err := url.Parse(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-
-	// TODO: should this be done like this or via a config item?
-	hostedZone, err := util.GetHostedZone(cluster.APIServerURL)
-	if err != nil {
-		return err
-	}
-
-	certificates, err := awsAdapter.GetCertificates(ctx)
-	if err != nil {
-		return err
-	}
-
-	loadBalancerCert, err := certs.FindBestMatchingCertificate(certificates, apiURL.Host)
-	if err != nil {
-		return err
-	}
-
-	vpcIPv6CIDRs := make([]string, 0, len(vpc.Ipv6CidrBlockAssociationSet))
-	for _, ipv6Cidr := range vpc.Ipv6CidrBlockAssociationSet {
-		vpcIPv6CIDRs = append(vpcIPv6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))
-	}
-
-	values := map[string]interface{}{
-		subnetsValueKey:             azInfoNodes.SubnetsByAZ(),
-		availabilityZonesValueKey:   azInfoNodes.AvailabilityZones(),
-		subnetIPV6CIDRsKey:          strings.Join(azInfoNodes.SubnetIPv6CIDRs(), ","),
-		"lb_subnets":                azInfoLBs.SubnetsByAZ(),
-		"internal_node_subnets":     azInfoIntenalNodes.SubnetsByAZ(),
-		"pod_subnets":               azInfoPods.SubnetsByAZ(),
-		"hosted_zone":               hostedZone,
-		"load_balancer_certificate": loadBalancerCert.ID(),
-		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
-		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 
 	// render the manifests to find out if they're valid
@@ -923,14 +947,27 @@ func (p *clusterpyProvisioner) applyDefaultsToManifests(
 	channelConfig channel.Config,
 	instanceTypes *awsUtils.InstanceTypes,
 ) error {
+	return p.applyDefaultsToManifestsWithOptions(ctx, adapter, cluster, channelConfig, instanceTypes, false)
+}
+
+func (p *clusterpyProvisioner) applyDefaultsToManifestsWithOptions(
+	ctx context.Context,
+	adapter *awsAdapter,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+	instanceTypes *awsUtils.InstanceTypes,
+	skipDecrypt bool,
+) error {
 	err := p.updateDefaults(cluster, channelConfig, adapter, instanceTypes)
 	if err != nil {
 		return fmt.Errorf("unable to read configuration defaults: %v", err)
 	}
 
-	err = p.decryptConfigItems(ctx, cluster)
-	if err != nil {
-		return fmt.Errorf("unable to decrypt config items: %v", err)
+	if !skipDecrypt {
+		err = p.decryptConfigItems(ctx, cluster)
+		if err != nil {
+			return fmt.Errorf("unable to decrypt config items: %v", err)
+		}
 	}
 
 	p.propagateConfigItemsToNodePools(cluster)
@@ -1372,6 +1409,185 @@ func (p *clusterpyProvisioner) apply(
 	)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (p *clusterpyProvisioner) renderManifests(
+	ctx context.Context,
+	logger *log.Entry,
+	awsAdapter *awsAdapter,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+	resourceNameFilter string,
+	applicationFilter string,
+) error {
+	instanceTypes, err := awsUtils.NewInstanceTypesFromAWS(ctx, awsAdapter.ec2Client)
+	if err != nil {
+		return fmt.Errorf("failed to fetch instance types from AWS")
+	}
+
+	err = p.applyDefaultsToManifestsWithOptions(
+		ctx,
+		awsAdapter,
+		cluster,
+		channelConfig,
+		instanceTypes,
+		true,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = p.populateMissingConfigItems(ctx, awsAdapter, cluster)
+	if err != nil {
+		return err
+	}
+
+	values, err := p.buildTemplateValues(ctx, awsAdapter, cluster)
+	if err != nil {
+		return err
+	}
+
+	err = p.renderCFManifests(ctx, logger, channelConfig, cluster, values, awsAdapter, resourceNameFilter, applicationFilter)
+	if err != nil {
+		return err
+	}
+
+	renderedManifests, err := renderManifests(channelConfig, cluster, values, awsAdapter, instanceTypes)
+	if err != nil {
+		return fmt.Errorf("failed to render manifests: %w", err)
+	}
+
+	err = p.outputManifests(logger, renderedManifests, resourceNameFilter, applicationFilter, true)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *clusterpyProvisioner) outputManifests(
+	logger *log.Entry,
+	renderedManifests []manifestPackage,
+	resourceNameFilter string,
+	applicationFilter string,
+	separateFromCF bool,
+) error {
+	first := true
+	needsSeparator := separateFromCF
+
+	for _, module := range renderedManifests {
+		for _, manifest := range module.manifests {
+			if resourceNameFilter != "" && manifest.Name != resourceNameFilter {
+				continue
+			}
+
+			if applicationFilter != "" {
+				var meta struct {
+					Metadata struct {
+						Labels map[string]string `yaml:"labels"`
+					} `yaml:"metadata"`
+				}
+				yamlStr, _ := manifest.ToYaml()
+				err := yaml.Unmarshal([]byte(yamlStr), &meta)
+				if err != nil || meta.Metadata.Labels["application"] != applicationFilter {
+					continue
+				}
+			}
+
+			if needsSeparator {
+				fmt.Println("---")
+				needsSeparator = false
+			} else if !first {
+				fmt.Println("---")
+			}
+			first = false
+
+			yaml, err := manifest.ToYaml()
+			if err != nil {
+				return fmt.Errorf("failed to convert manifest to yaml: %w", err)
+			}
+
+			fmt.Print(yaml)
+			if !strings.HasSuffix(yaml, "\n") {
+				fmt.Println()
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *clusterpyProvisioner) populateMissingConfigItems(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
+	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
+	if !ok {
+		vpc, err := adapter.GetDefaultVPC(ctx)
+		if err != nil {
+			return err
+		}
+		vpcID = aws.ToString(vpc.VpcId)
+		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
+	}
+	return nil
+}
+
+func (p *clusterpyProvisioner) renderCFManifests(
+	ctx context.Context,
+	logger *log.Entry,
+	config channel.Config,
+	cluster *api.Cluster,
+	values map[string]interface{},
+	adapter *awsAdapter,
+	resourceNameFilter string,
+	applicationFilter string,
+) error {
+	manifests, err := config.CFManifests()
+	if err != nil {
+		return err
+	}
+
+	if len(manifests) == 0 {
+		return nil
+	}
+
+	first := true
+	for _, manifest := range manifests {
+		rendered, err := renderSingleTemplate(manifest, cluster, nil, values, adapter, nil)
+		if err != nil {
+			return fmt.Errorf("failed to render CF manifest %s: %w", manifest.Path, err)
+		}
+
+		remarshaled, err := remarshalYAML(rendered)
+		if err != nil {
+			return fmt.Errorf("failed to remarshal CF manifest %s: %w", manifest.Path, err)
+		}
+
+		if remarshaled == "" {
+			logger.Debugf("Skipping empty CloudFormation manifest: %s", manifest.Path)
+			continue
+		}
+
+		cfManifest, err := parseCFTemplate(remarshaled)
+		if err != nil {
+			return fmt.Errorf("failed to parse CF manifest %s: %w", manifest.Path, err)
+		}
+
+		if resourceNameFilter != "" && cfManifest.Metadata.StackName != resourceNameFilter {
+			continue
+		}
+
+		if applicationFilter != "" && cfManifest.Metadata.Tags["application"] != applicationFilter {
+			continue
+		}
+
+		if !first {
+			fmt.Println("---")
+		}
+		first = false
+
+		fmt.Println(remarshaled)
 	}
 
 	return nil

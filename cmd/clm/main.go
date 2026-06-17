@@ -31,6 +31,7 @@ import (
 var (
 	provisionCmd    = kingpin.Command("provision", "Provision a cluster.")
 	decommissionCmd = kingpin.Command("decommission", "Decommission a cluster.")
+	renderCmd       = kingpin.Command("render", "Render and print manifests that would be applied.")
 	controllerCmd   = kingpin.Command("controller", "Run controller loop.")
 	version         = "unknown"
 )
@@ -205,6 +206,14 @@ func main() {
 			continue
 		}
 
+		if cmd == renderCmd.FullCommand() {
+			switch cluster.LifecycleStatus {
+			case "requested", "creating", "decommission-requested", "decommissioned":
+				log.Debugf("Skipping %s cluster with status %q", cluster.ID, cluster.LifecycleStatus)
+				continue
+			}
+		}
+
 		err := configSource.Update(context.Background(), rootLogger)
 		if err != nil {
 			log.Fatalf("%+v", err)
@@ -225,17 +234,24 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		for key, value := range cluster.ConfigItems {
-			decryptedValue, err := secretDecrypter.Decrypt(ctx, value)
-			if err != nil {
-				log.Fatalf("%+v", err)
-			}
+		shouldDecrypt := !(cmd == renderCmd.FullCommand() && cfg.SkipDecrypt)
+		if shouldDecrypt {
+			for key, value := range cluster.ConfigItems {
+				decryptedValue, err := secretDecrypter.Decrypt(ctx, value)
+				if err != nil {
+					log.Fatalf("%+v", err)
+				}
 
-			cluster.ConfigItems[key] = decryptedValue
+				cluster.ConfigItems[key] = decryptedValue
+			}
 		}
 
 		p, ok := provisioners[cluster.Provider]
 		if !ok {
+			if cmd == renderCmd.FullCommand() {
+				log.Debugf("Skipping cluster %s, unsupported provider %q", cluster.ID, cluster.Provider)
+				continue
+			}
 			log.Fatalf(
 				"Cluster %s: unknown provider %q",
 				cluster.ID,
@@ -263,6 +279,22 @@ func main() {
 				log.Fatalf("Fail to decommission: %v", err)
 			}
 			log.Infof("Decommissioning done for cluster %s", cluster.ID)
+		case renderCmd.FullCommand():
+			if cfg.ClusterAlias != "" && cluster.Alias != cfg.ClusterAlias {
+				log.Debugf("Skipping cluster %s (alias: %s), not matching filter %s", cluster.ID, cluster.Alias, cfg.ClusterAlias)
+				continue
+			}
+			err = p.Render(
+				context.Background(),
+				rootLogger,
+				cluster,
+				config,
+				cfg.ResourceName,
+				cfg.Application,
+			)
+			if err != nil {
+				log.Fatalf("Fail to render: %v", err)
+			}
 		default:
 			log.Fatalf("unknown cmd: %s", cmd)
 		}
