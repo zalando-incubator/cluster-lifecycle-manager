@@ -234,7 +234,7 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		shouldDecrypt := !(cmd == renderCmd.FullCommand() && cfg.SkipDecrypt)
+		shouldDecrypt := cmd != renderCmd.FullCommand() || !cfg.SkipDecrypt
 		if shouldDecrypt {
 			for key, value := range cluster.ConfigItems {
 				decryptedValue, err := secretDecrypter.Decrypt(ctx, value)

@@ -1450,7 +1450,7 @@ func (p *clusterpyProvisioner) renderManifests(
 		return err
 	}
 
-	err = p.renderCFManifests(ctx, logger, channelConfig, cluster, values, awsAdapter, resourceNameFilter, applicationFilter)
+	err = p.renderCFManifests(logger, channelConfig, cluster, values, awsAdapter, resourceNameFilter, applicationFilter)
 	if err != nil {
 		return err
 	}
@@ -1460,7 +1460,7 @@ func (p *clusterpyProvisioner) renderManifests(
 		return fmt.Errorf("failed to render manifests: %w", err)
 	}
 
-	err = p.outputManifests(logger, renderedManifests, resourceNameFilter, applicationFilter, true)
+	err = p.outputManifests(renderedManifests, resourceNameFilter, applicationFilter, true)
 	if err != nil {
 		return err
 	}
@@ -1469,7 +1469,6 @@ func (p *clusterpyProvisioner) renderManifests(
 }
 
 func (p *clusterpyProvisioner) outputManifests(
-	logger *log.Entry,
 	renderedManifests []manifestPackage,
 	resourceNameFilter string,
 	applicationFilter string,
@@ -1521,20 +1520,18 @@ func (p *clusterpyProvisioner) outputManifests(
 }
 
 func (p *clusterpyProvisioner) populateMissingConfigItems(ctx context.Context, adapter *awsAdapter, cluster *api.Cluster) error {
-	vpcID, ok := cluster.ConfigItems[vpcIDConfigItemKey]
-	if !ok {
+	if _, ok := cluster.ConfigItems[vpcIDConfigItemKey]; !ok {
 		vpc, err := adapter.GetDefaultVPC(ctx)
 		if err != nil {
 			return err
 		}
-		vpcID = aws.ToString(vpc.VpcId)
+		vpcID := aws.ToString(vpc.VpcId)
 		cluster.ConfigItems[vpcIDConfigItemKey] = vpcID
 	}
 	return nil
 }
 
 func (p *clusterpyProvisioner) renderCFManifests(
-	ctx context.Context,
 	logger *log.Entry,
 	config channel.Config,
 	cluster *api.Cluster,
