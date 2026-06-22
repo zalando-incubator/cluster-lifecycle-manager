@@ -7,7 +7,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-openapi/analysis v0.25.2 // indirect
 	github.com/go-openapi/errors v0.22.8
-	github.com/go-openapi/runtime v0.32.3
+	github.com/go-openapi/runtime v0.32.4
 	github.com/go-openapi/strfmt v0.26.3
 	github.com/go-openapi/swag v0.26.1
 	github.com/go-openapi/validate v0.26.0
@@ -39,16 +39,16 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.29
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.10
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.11
 	github.com/aws/aws-sdk-go-v2/service/acm v1.40.0
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.67.4
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.72.1
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.307.0
-	github.com/aws/aws-sdk-go-v2/service/eks v1.86.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.307.1
+	github.com/aws/aws-sdk-go-v2/service/eks v1.87.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.34.6
 	github.com/aws/aws-sdk-go-v2/service/iam v1.54.5
 	github.com/aws/aws-sdk-go-v2/service/kms v1.53.4
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.103.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.43.3
 	github.com/aws/smithy-go v1.27.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -58,7 +58,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/cli-runtime v0.36.2
 	k8s.io/kubectl v0.36.2
-	sigs.k8s.io/aws-iam-authenticator v0.7.17
+	sigs.k8s.io/aws-iam-authenticator v0.7.18
 )
 
 require (
@@ -98,9 +98,9 @@ require (
 	github.com/go-openapi/inflect v0.21.6 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.6 // indirect
-	github.com/go-openapi/loads v0.23.4 // indirect
+	github.com/go-openapi/loads v0.24.0 // indirect
 	github.com/go-openapi/runtime/server-middleware v0.32.1 // indirect
-	github.com/go-openapi/spec v0.22.5 // indirect
+	github.com/go-openapi/spec v0.22.6 // indirect
 	github.com/go-openapi/swag/cmdutils v0.26.1 // indirect
 	github.com/go-openapi/swag/conv v0.26.1 // indirect
 	github.com/go-openapi/swag/fileutils v0.26.1 // indirect
