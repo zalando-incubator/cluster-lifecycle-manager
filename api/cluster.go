@@ -282,6 +282,16 @@ func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {
 				},
 				Action: []string{"sts:AssumeRole"},
 			},
+			{
+				Effect: "Allow",
+				Principal: map[string]string{
+					"Service": "pods.eks.amazonaws.com",
+				},
+				Action: []string{
+					"sts:AssumeRole",
+					"sts:TagSession",
+				},
+			},
 		},
 	}
 
@@ -313,16 +323,6 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 				"StringLike": {
 					subjectKey: "system:serviceaccount:${SERVICE_ACCOUNT}",
 				},
-			},
-		},
-		{
-			Effect: "Allow",
-			Principal: map[string]string{
-				"Service": "pods.eks.amazonaws.com",
-			},
-			Action: []string{
-				"sts:AssumeRole",
-				"sts:TagSession",
 			},
 		},
 	}
