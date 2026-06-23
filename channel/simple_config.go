@@ -15,6 +15,7 @@ const (
 	defaultsFile         = "config-defaults.yaml"
 	manifestsDir         = "manifests"
 	deletionsFile        = "deletions.yaml"
+	cfDeletionsFile      = "cf-deletions.yaml"
 )
 
 type SimpleConfig struct {
@@ -70,6 +71,11 @@ func (c *SimpleConfig) CFManifests() ([]Manifest, error) {
 		if !strings.HasSuffix(file.Name(), ".yaml") && !strings.HasSuffix(file.Name(), ".yml") {
 			continue
 		}
+
+		if file.Name() == cfDeletionsFile {
+			continue
+		}
+
 		manifest, err := c.readManifest(path.Join(configRoot, cfManifestsConfigDir), file.Name())
 		if err != nil {
 			return nil, err
@@ -102,6 +108,17 @@ func (c *SimpleConfig) DefaultsManifests() ([]Manifest, error) {
 
 func (c *SimpleConfig) DeletionsManifests() ([]Manifest, error) {
 	res, err := c.readManifest(path.Join(configRoot, manifestsDir), deletionsFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []Manifest{res}, nil
+}
+
+func (c *SimpleConfig) CFDeletionsManifests() ([]Manifest, error) {
+	res, err := c.readManifest(path.Join(configRoot, cfManifestsConfigDir), cfDeletionsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

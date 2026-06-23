@@ -209,6 +209,10 @@ func (c *mockConfig) DeletionsManifests() ([]channel.Manifest, error) {
 	return []channel.Manifest{c.mockManifest}, nil
 }
 
+func (c *mockConfig) CFDeletionsManifests() ([]channel.Manifest, error) {
+	return []channel.Manifest{c.mockManifest}, nil
+}
+
 func (c *mockConfig) Components() ([]channel.Component, error) {
 	return nil, nil
 }

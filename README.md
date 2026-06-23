@@ -122,7 +122,12 @@ clusters:
 
 By default the Cluster Lifecycle Manager will just apply any manifest defined
 in the manifests folder. In order to support deletion of deprecated resources
-the CLM will read a `deletions.yaml` file of the following format:
+the CLM will read a `deletions.yaml` file for the Kubernetes manifests and a
+`cf-deletions.yaml` for the Cloudformation stacks.
+
+### Kubernetes deletions
+
+The `deletions.yaml` file inside the `manifests` folder has the following format:
 
 ```yaml
 pre_apply: # everything defined under here will be deleted before applying the manifests
@@ -170,6 +175,21 @@ An optional boolean `has_owner` may be specified to narrow down resources identi
 It is possible to specify deletion options via optional:
 - `propagation_policy` - one of "Orphan", "Background" or "Foreground" - corresponds to `kubectl delete --cascade` flag
 - `grace_period_seconds` - corresponds to `kubectl delete --grace-period` flag
+
+### Cloudformation deletions
+
+The `cf-deletions.yaml` file inside the `cf-manifests` folder has the following format:
+
+```yaml
+pre_apply: # everything defined under here will be deleted before applying the manifests
+- stack-name-1
+- stack-name-2
+
+post_apply: # everything defined under here will be deleted after applying the manifests
+- stack-name-1
+- stack-name-2
+```
+
 
 ## Configuration defaults
 

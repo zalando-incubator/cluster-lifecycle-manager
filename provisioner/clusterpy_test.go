@@ -282,6 +282,7 @@ func TestLabelsString(t *testing.T) {
 
 type mockConfig struct {
 	deletions []channel.Manifest
+	cfDeletions []channel.Manifest
 }
 
 func (c *mockConfig) StackManifest(_ string) (channel.Manifest, error) {
@@ -306,6 +307,10 @@ func (c *mockConfig) DefaultsManifests() ([]channel.Manifest, error) {
 
 func (c *mockConfig) DeletionsManifests() ([]channel.Manifest, error) {
 	return c.deletions, nil
+}
+
+func (c *mockConfig) CFDeletionsManifests() ([]channel.Manifest, error) {
+	return c.cfDeletions, nil
 }
 
 func (c *mockConfig) Components() ([]channel.Component, error) {

@@ -168,6 +168,18 @@ func (c *combinedConfig) DeletionsManifests() ([]Manifest, error) {
 	return result, nil
 }
 
+func (c *combinedConfig) CFDeletionsManifests() ([]Manifest, error) {
+	var result []Manifest
+	for i, config := range c.configs {
+		configs, err := config.CFDeletionsManifests()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get CF deletions for source %s: %v", c.owner.sourceName(i), err)
+		}
+		result = append(result, configs...)
+	}
+	return result, nil
+}
+
 func (c *combinedConfig) Components() ([]Component, error) {
 	var result []Component
 
