@@ -61,9 +61,9 @@ type AssumeRolePolicyDocument struct {
 type Statement struct {
 	Effect    string
 	Principal map[string]string
-	Action    string
+	Action    []string
 	Condition map[string]map[string]string `json:",omitempty"`
-	Sid       string
+	Sid       string                       `json:",omitempty"`
 }
 
 func (cluster *Cluster) InitOIDCProvider() error {
@@ -280,7 +280,7 @@ func trustRelationship(clusters []*Cluster) AssumeRolePolicyDocument {
 				Principal: map[string]string{
 					"Service": "ec2.amazonaws.com",
 				},
-				Action: "sts:AssumeRole",
+				Action: []string{"sts:AssumeRole"},
 			},
 		},
 	}
@@ -301,18 +301,28 @@ func policyStatements(workerRole string, identityProvider string, subjectKey str
 			Principal: map[string]string{
 				"AWS": workerRole,
 			},
-			Action: "sts:AssumeRole",
+			Action: []string{"sts:AssumeRole"},
 		},
 		{
 			Effect: "Allow",
 			Principal: map[string]string{
 				"Federated": identityProvider,
 			},
-			Action: "sts:AssumeRoleWithWebIdentity",
+			Action: []string{"sts:AssumeRoleWithWebIdentity"},
 			Condition: map[string]map[string]string{
 				"StringLike": {
 					subjectKey: "system:serviceaccount:${SERVICE_ACCOUNT}",
 				},
+			},
+		},
+		{
+			Effect: "Allow",
+			Principal: map[string]string{
+				"Service": "pods.eks.amazonaws.com",
+			},
+			Action: []string{
+				"sts:AssumeRole",
+				"sts:TagSession",
 			},
 		},
 	}
