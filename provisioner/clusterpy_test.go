@@ -281,7 +281,7 @@ func TestLabelsString(t *testing.T) {
 }
 
 type mockConfig struct {
-	deletions []channel.Manifest
+	deletions   []channel.Manifest
 	cfDeletions []channel.Manifest
 }
 

@@ -1222,7 +1222,6 @@ type cfDeletions struct {
 // CFDeletions deletes the CloudFormation stacks from the account.
 func (p *clusterpyProvisioner) CFDeletions(
 	ctx context.Context,
-	logger *log.Entry,
 	adapter *awsAdapter,
 	deletions []*string,
 ) error {
@@ -1372,7 +1371,7 @@ func (p *clusterpyProvisioner) apply(
 	}
 
 	logger.Debugf("Running PreApply CF deletions (%d)", len(cfDeletions.PreApply))
-	err = p.CFDeletions(ctx, logger, adapter, cfDeletions.PreApply)
+	err = p.CFDeletions(ctx, adapter, cfDeletions.PreApply)
 	if err != nil {
 		return err
 	}
@@ -1445,7 +1444,7 @@ func (p *clusterpyProvisioner) apply(
 	}
 
 	logger.Debugf("Running PostApply CF deletions (%d)", len(cfDeletions.PostApply))
-	err = p.CFDeletions(ctx, logger, adapter, cfDeletions.PostApply)
+	err = p.CFDeletions(ctx, adapter, cfDeletions.PostApply)
 	if err != nil {
 		return err
 	}
