@@ -45,6 +45,7 @@ type Config interface {
 	NodePoolManifest(profileName string, manifestName string) (Manifest, error)
 	DefaultsManifests() ([]Manifest, error)
 	DeletionsManifests() ([]Manifest, error)
+	CFDeletionsManifests() ([]Manifest, error)
 	Components() ([]Component, error)
 	Delete() error
 }

@@ -282,8 +282,14 @@ func (p *clusterpyProvisioner) provision(
 		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
 
-	// render the manifests to find out if they're valid
+	// render the k8s deletions manifests to find out if they're valid
 	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter, instanceTypes)
+	if err != nil {
+		return err
+	}
+
+	// render the cf deletions stacks to find out if they're valid
+	cfDeletions, err := parseCFDeletions(channelConfig, cluster, values, awsAdapter, instanceTypes)
 	if err != nil {
 		return err
 	}
@@ -439,7 +445,9 @@ func (p *clusterpyProvisioner) provision(
 		logger,
 		tokenSource,
 		cluster,
+		awsAdapter,
 		deletions,
+		cfDeletions,
 		manifests,
 		postOptions,
 	)
@@ -1204,6 +1212,64 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	return result, nil
 }
 
+// cfStackDeletion represents a CloudFormation stack to be deleted with optional selection criteria.
+type cfStackDeletion struct {
+	StackName string `yaml:"stackName"`
+}
+
+// cfDeletions defines two lists of CF stacks to be deleted. One before applying
+// all manifests and one after applying all manifests.
+type cfDeletions struct {
+	PreApply  []*cfStackDeletion `yaml:"pre_apply"`
+	PostApply []*cfStackDeletion `yaml:"post_apply"`
+}
+
+// CFDeletions deletes the CloudFormation stacks from the account.
+func (p *clusterpyProvisioner) CFDeletions(
+	ctx context.Context,
+	adapter *awsAdapter,
+	deletions []*cfStackDeletion,
+) error {
+	for _, deletion := range deletions {
+		err := adapter.DeleteStack(ctx, &cftypes.Stack{
+			StackName: &deletion.StackName,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// parseCFDeletions reads and parses the deletions from the config for cloudformation manifests.
+func parseCFDeletions(config channel.Config, cluster *api.Cluster, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) (*cfDeletions, error) {
+	result := &cfDeletions{}
+
+	deletionsFiles, err := config.CFDeletionsManifests()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, deletionsFile := range deletionsFiles {
+		res, err := renderSingleTemplate(deletionsFile, cluster, nil, values, adapter, instanceTypes)
+		if err != nil {
+			return nil, err
+		}
+
+		var cfDel cfDeletions
+		err = yaml.Unmarshal([]byte(res), &cfDel)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal deletions file %s: %w", deletionsFile.Path, err)
+		}
+
+		result.PreApply = append(result.PreApply, cfDel.PreApply...)
+		result.PostApply = append(result.PostApply, cfDel.PostApply...)
+	}
+
+	return result, nil
+}
+
 func remarshalYAML(contents string) (string, error) {
 	decoder := yaml.NewDecoder(strings.NewReader(contents))
 	result := &bytes.Buffer{}
@@ -1290,7 +1356,9 @@ func (p *clusterpyProvisioner) apply(
 	logger *log.Entry,
 	tokenSource oauth2.TokenSource,
 	cluster *api.Cluster,
+	adapter *awsAdapter,
 	deletions *deletions,
+	cfDeletions *cfDeletions,
 	renderedManifests []manifestPackage,
 	options *HookResponse,
 ) error {
@@ -1303,6 +1371,12 @@ func (p *clusterpyProvisioner) apply(
 		deletions.PreApply,
 		options,
 	)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Running PreApply CF deletions (%d)", len(cfDeletions.PreApply))
+	err = p.CFDeletions(ctx, adapter, cfDeletions.PreApply)
 	if err != nil {
 		return err
 	}
@@ -1370,6 +1444,12 @@ func (p *clusterpyProvisioner) apply(
 		deletions.PostApply,
 		options,
 	)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Running PostApply CF deletions (%d)", len(cfDeletions.PostApply))
+	err = p.CFDeletions(ctx, adapter, cfDeletions.PostApply)
 	if err != nil {
 		return err
 	}
