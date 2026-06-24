@@ -182,13 +182,15 @@ The `cf-deletions.yaml` file inside the `cf-manifests` folder has the following 
 
 ```yaml
 pre_apply: # everything defined under here will be deleted before applying the manifests
-- stack-name-1
-- stack-name-2
+- stackName: stack-name-1
+- stackName: stack-name-2
 
 post_apply: # everything defined under here will be deleted after applying the manifests
-- stack-name-1
-- stack-name-2
+- stackName: stack-name-1
+- stackName: stack-name-2
 ```
+
+Each stack deletion is specified as an object with a `stackName` field. This structured format allows for future extensions, such as tag-based selection or other selection criteria.
 
 
 ## Configuration defaults

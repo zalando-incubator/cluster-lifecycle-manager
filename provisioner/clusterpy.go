@@ -1212,22 +1212,27 @@ func parseDeletions(config channel.Config, cluster *api.Cluster, values map[stri
 	return result, nil
 }
 
+// cfStackDeletion represents a CloudFormation stack to be deleted with optional selection criteria.
+type cfStackDeletion struct {
+	StackName string `yaml:"stackName"`
+}
+
 // cfDeletions defines two lists of CF stacks to be deleted. One before applying
 // all manifests and one after applying all manifests.
 type cfDeletions struct {
-	PreApply  []*string `yaml:"pre_apply"`
-	PostApply []*string `yaml:"post_apply"`
+	PreApply  []*cfStackDeletion `yaml:"pre_apply"`
+	PostApply []*cfStackDeletion `yaml:"post_apply"`
 }
 
 // CFDeletions deletes the CloudFormation stacks from the account.
 func (p *clusterpyProvisioner) CFDeletions(
 	ctx context.Context,
 	adapter *awsAdapter,
-	deletions []*string,
+	deletions []*cfStackDeletion,
 ) error {
 	for _, deletion := range deletions {
 		err := adapter.DeleteStack(ctx, &cftypes.Stack{
-			StackName: deletion,
+			StackName: &deletion.StackName,
 		})
 		if err != nil {
 			return err
