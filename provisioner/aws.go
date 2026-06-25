@@ -476,7 +476,6 @@ func isStackDeleting(stack *cftypes.Stack) bool {
 // DeleteStack deletes a cloudformation stack.
 func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) error {
 	stackName := aws.ToString(stack.StackName)
-	a.logger.Infof("Deleting stack '%s'", stackName)
 
 	if !isStackDeleting(stack) {
 		// disable termination protection on stack before deleting
@@ -488,6 +487,7 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 		_, err := a.cloudformationClient.UpdateTerminationProtection(ctx, terminationParams)
 		if err != nil {
 			if isDoesNotExistsErr(err) {
+				a.logger.Infof("Skipping deletion of stack '%s': resource not found", stackName)
 				return nil
 			}
 			return err
@@ -500,6 +500,7 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 		_, err = a.cloudformationClient.DeleteStack(ctx, deleteParams)
 		if err != nil {
 			if isDoesNotExistsErr(err) {
+				a.logger.Infof("Skipping deletion of stack '%s': resource not found", stackName)
 				return nil
 			}
 			return err
@@ -511,10 +512,13 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 	err := a.waitForStack(ctxWithTimeout, waitTime, stackName)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
+			a.logger.Infof("stack '%s' deleted", stackName)
 			return nil
 		}
 		return err
 	}
+
+	a.logger.Infof("stack '%s' deleted", stackName)
 	return nil
 }
 
