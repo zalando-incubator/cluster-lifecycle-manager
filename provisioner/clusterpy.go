@@ -587,12 +587,12 @@ func applyCFManifests(ctx context.Context, logger *log.Entry, adapter *awsAdapte
 			continue
 		}
 
-		cfManifest, err := parseCFTemplate(remarshaled)
+		cfManifest, err := parseCFTemplate(rendered)
 		if err != nil {
 			return fmt.Errorf("failed to parse stack for manifest %s: %w", manifest.Path, err)
 		}
 
-		cfManifest.Template = remarshaled
+		cfManifest.Template = rendered
 		cfManifest.Path = manifest.Path
 
 		err = adapter.applyCFManifest(ctx, cfManifest, cluster.Name(), bucketName)
