@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -30,10 +31,14 @@ import (
 )
 
 type Applier struct {
-	restConfig *rest.Config
-	discovery  discovery.CachedDiscoveryInterface
-	kubeClient kubernetes.Interface
-	maxRetries uint64
+	restConfig       *rest.Config
+	discovery        discovery.CachedDiscoveryInterface
+	kubeClient       kubernetes.Interface
+	maxRetries       uint64
+	mapper           meta.RESTMapper
+	openAPIOnce      sync.Once
+	openAPIResources openapi.Resources
+	openAPIErr       error
 }
 
 func NewApplier(restConfig *rest.Config, maxRetries uint64) (*Applier, error) {
@@ -56,11 +61,14 @@ func NewApplier(restConfig *rest.Config, maxRetries uint64) (*Applier, error) {
 		return nil, err
 	}
 
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryInterface)
+
 	return &Applier{
 		restConfig: restConfig,
 		discovery:  discoveryInterface,
 		kubeClient: client,
 		maxRetries: maxRetries,
+		mapper:     restmapper.NewShortcutExpander(mapper, discoveryInterface, func(a string) { logrus.Warn(a) }),
 	}, nil
 }
 
@@ -172,15 +180,12 @@ func decodeAndValidate(manifest *ResourceManifest, validator validation.Conjunct
 }
 
 func (d *Applier) getRESTMappingFor(gvk *schema.GroupVersionKind) (*meta.RESTMapping, error) {
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(d.discovery)
-	expander := restmapper.NewShortcutExpander(mapper, d.discovery, func(a string) {
-		logrus.Warn(a)
-	})
-
-	restMapping, err := expander.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := d.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if meta.IsNoMatchError(err) {
-		mapper.Reset()
-		return expander.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if dm, ok := d.mapper.(interface{ Reset() }); ok {
+			dm.Reset()
+		}
+		return d.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	}
 	return restMapping, err
 }
@@ -199,5 +204,8 @@ func (d *Applier) getRestClientFor(gvk *schema.GroupVersionKind) (*rest.RESTClie
 
 // OpenAPISchema implements openapi.OpenAPIResourcesGetter
 func (d *Applier) OpenAPISchema() (openapi.Resources, error) {
-	return openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(d.discovery)).Parse()
+	d.openAPIOnce.Do(func() {
+		d.openAPIResources, d.openAPIErr = openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(d.discovery)).Parse()
+	})
+	return d.openAPIResources, d.openAPIErr
 }
