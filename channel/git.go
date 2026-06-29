@@ -64,6 +64,13 @@ func NewGit(execManager *command.ExecManager, name string, workdir, repositoryUR
 		return nil, err
 	}
 
+	entries, _ := os.ReadDir(absWorkdir)
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), repoName+"_") {
+			os.RemoveAll(path.Join(absWorkdir, e.Name()))
+		}
+	}
+
 	return &Git{
 		name:              name,
 		exec:              execManager,
@@ -112,6 +119,11 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 		return err
 	}
 
+	err = g.cmd(ctx, logger, "--git-dir", g.repoDir, "gc", "--prune=now")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -147,6 +159,7 @@ func (g *Git) localClone(ctx context.Context, logger *log.Entry, channel string)
 
 	err = g.cmd(ctx, logger, "-C", repoDir, "checkout", channel)
 	if err != nil {
+		os.RemoveAll(repoDir)
 		return "", err
 	}
 
