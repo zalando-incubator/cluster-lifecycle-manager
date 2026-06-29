@@ -90,6 +90,9 @@ func (v *combinedVersion) Get(ctx context.Context, logger *logrus.Entry) (Config
 	for i, version := range v.versions {
 		config, err := version.Get(ctx, logger)
 		if err != nil {
+			for j := 0; j < i; j++ {
+				configs[j].Delete()
+			}
 			return nil, fmt.Errorf("unable to checkout version %s for source %s: %v", version.ID(), v.owner.sourceName(i), err)
 		}
 		configs[i] = config
