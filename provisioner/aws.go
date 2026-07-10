@@ -55,6 +55,7 @@ var (
 	errUpdateRollbackFailed   = fmt.Errorf("wait for stack failed with %s", cftypes.StackStatusUpdateRollbackFailed)
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cftypes.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
+	errDeleteCanceled         = fmt.Errorf("stack deletion was canceled")
 )
 
 type (
@@ -404,6 +405,46 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 	}
 }
 
+func (a *awsAdapter) waitForStackDeletion(ctx context.Context, waitTime time.Duration, stackName string, deletionStartedAt time.Time) error {
+	for {
+		stack, err := a.getStackByName(ctx, stackName)
+		if err != nil {
+			return err
+		}
+
+		switch stack.StackStatus {
+		case cftypes.StackStatusDeleteComplete:
+			return nil
+		case cftypes.StackStatusDeleteFailed:
+			err = errDeleteFailed
+		case cftypes.StackStatusUpdateComplete,
+			cftypes.StackStatusCreateComplete,
+			cftypes.StackStatusRollbackComplete,
+			cftypes.StackStatusUpdateRollbackComplete:
+			// deletion was rejected by CF (e.g. exported values still in use),
+			// but only if the stack was updated after we initiated deletion to
+			// avoid a race where CF hasn't transitioned to DELETE_IN_PROGRESS yet.
+			if stack.LastUpdatedTime != nil && stack.LastUpdatedTime.After(deletionStartedAt) {
+				err = errDeleteCanceled
+			}
+		}
+		if err != nil {
+			if stack.StackStatusReason != nil {
+				return fmt.Errorf("%v, reason: %v", err, *stack.StackStatusReason)
+			}
+			return err
+		}
+
+		a.logger.Debugf("Stack '%s' - [%s]", stackName, stack.StackStatus)
+
+		select {
+		case <-ctx.Done():
+			return errTimeoutExceeded
+		case <-time.After(waitTime):
+		}
+	}
+}
+
 // ListStacks lists stacks filtered by tags.
 func (a *awsAdapter) ListStacks(ctx context.Context, includeTags, excludeTags map[string]string) ([]cftypes.Stack, error) {
 	params := &cloudformation.DescribeStacksInput{}
@@ -477,6 +518,8 @@ func isStackDeleting(stack *cftypes.Stack) bool {
 func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) error {
 	stackName := aws.ToString(stack.StackName)
 
+	// zero value means deletion was already in progress; any LastUpdatedTime will be after it
+	var deletionStartedAt time.Time
 	if !isStackDeleting(stack) {
 		// disable termination protection on stack before deleting
 		terminationParams := &cloudformation.UpdateTerminationProtectionInput{
@@ -497,6 +540,7 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 			StackName: aws.String(stackName),
 		}
 
+		deletionStartedAt = time.Now()
 		_, err = a.cloudformationClient.DeleteStack(ctx, deleteParams)
 		if err != nil {
 			if isDoesNotExistsErr(err) {
@@ -509,7 +553,7 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
-	err := a.waitForStack(ctxWithTimeout, waitTime, stackName)
+	err := a.waitForStackDeletion(ctxWithTimeout, waitTime, stackName, deletionStartedAt)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
 			a.logger.Infof("stack '%s' deleted", stackName)
