@@ -55,6 +55,7 @@ var (
 	errUpdateRollbackFailed   = fmt.Errorf("wait for stack failed with %s", cftypes.StackStatusUpdateRollbackFailed)
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cftypes.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
+	errDeleteCanceled         = fmt.Errorf("stack deletion was canceled")
 )
 
 type (
@@ -404,6 +405,42 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 	}
 }
 
+func (a *awsAdapter) waitForStackDeletion(ctx context.Context, waitTime time.Duration, stackName string) error {
+	for {
+		stack, err := a.getStackByName(ctx, stackName)
+		if err != nil {
+			return err
+		}
+
+		switch stack.StackStatus {
+		case cftypes.StackStatusDeleteComplete:
+			return nil
+		case cftypes.StackStatusDeleteFailed:
+			err = errDeleteFailed
+		case cftypes.StackStatusUpdateComplete,
+			cftypes.StackStatusCreateComplete,
+			cftypes.StackStatusRollbackComplete,
+			cftypes.StackStatusUpdateRollbackComplete:
+			// deletion was rejected by CF (e.g. exported values still in use)
+			err = errDeleteCanceled
+		}
+		if err != nil {
+			if stack.StackStatusReason != nil {
+				return fmt.Errorf("%v, reason: %v", err, *stack.StackStatusReason)
+			}
+			return err
+		}
+
+		a.logger.Debugf("Stack '%s' - [%s]", stackName, stack.StackStatus)
+
+		select {
+		case <-ctx.Done():
+			return errTimeoutExceeded
+		case <-time.After(waitTime):
+		}
+	}
+}
+
 // ListStacks lists stacks filtered by tags.
 func (a *awsAdapter) ListStacks(ctx context.Context, includeTags, excludeTags map[string]string) ([]cftypes.Stack, error) {
 	params := &cloudformation.DescribeStacksInput{}
@@ -509,7 +546,7 @@ func (a *awsAdapter) DeleteStack(ctx context.Context, stack *cftypes.Stack) erro
 
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, maxWaitTimeout)
 	defer cancel()
-	err := a.waitForStack(ctxWithTimeout, waitTime, stackName)
+	err := a.waitForStackDeletion(ctxWithTimeout, waitTime, stackName)
 	if err != nil {
 		if isDoesNotExistsErr(err) {
 			a.logger.Infof("stack '%s' deleted", stackName)
