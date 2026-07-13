@@ -1311,25 +1311,25 @@ func TestHasPrefix(t *testing.T) {
 	}{
 		{
 			name:     "match",
-			template: `{{ hasPrefix "foo" .Values.data }}`,
+			template: `{{ hasPrefix .Values.data "foo" }}`,
 			data:     "foobar",
 			expected: "true",
 		},
 		{
 			name:     "no match",
-			template: `{{ hasPrefix "bar" .Values.data }}`,
+			template: `{{ hasPrefix .Values.data "bar" }}`,
 			data:     "foobar",
 			expected: "false",
 		},
 		{
 			name:     "empty prefix",
-			template: `{{ hasPrefix "" .Values.data }}`,
+			template: `{{ hasPrefix .Values.data "" }}`,
 			data:     "foobar",
 			expected: "true",
 		},
 		{
 			name:     "empty subject",
-			template: `{{ hasPrefix "foo" .Values.data }}`,
+			template: `{{ hasPrefix .Values.data "foo" }}`,
 			data:     "",
 			expected: "false",
 		},
@@ -1351,25 +1351,25 @@ func TestHasSuffix(t *testing.T) {
 	}{
 		{
 			name:     "match",
-			template: `{{ hasSuffix "bar" .Values.data }}`,
+			template: `{{ hasSuffix .Values.data "bar" }}`,
 			data:     "foobar",
 			expected: "true",
 		},
 		{
 			name:     "no match",
-			template: `{{ hasSuffix "foo" .Values.data }}`,
+			template: `{{ hasSuffix .Values.data "foo" }}`,
 			data:     "foobar",
 			expected: "false",
 		},
 		{
 			name:     "empty suffix",
-			template: `{{ hasSuffix "" .Values.data }}`,
+			template: `{{ hasSuffix .Values.data "" }}`,
 			data:     "foobar",
 			expected: "true",
 		},
 		{
 			name:     "empty subject",
-			template: `{{ hasSuffix "bar" .Values.data }}`,
+			template: `{{ hasSuffix .Values.data "bar" }}`,
 			data:     "",
 			expected: "false",
 		},
