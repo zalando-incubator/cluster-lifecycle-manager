@@ -1302,6 +1302,86 @@ func TestJoin(t *testing.T) {
 	}
 }
 
+func TestHasPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		data     string
+		expected string
+	}{
+		{
+			name:     "match",
+			template: `{{ hasPrefix "foo" .Values.data }}`,
+			data:     "foobar",
+			expected: "true",
+		},
+		{
+			name:     "no match",
+			template: `{{ hasPrefix "bar" .Values.data }}`,
+			data:     "foobar",
+			expected: "false",
+		},
+		{
+			name:     "empty prefix",
+			template: `{{ hasPrefix "" .Values.data }}`,
+			data:     "foobar",
+			expected: "true",
+		},
+		{
+			name:     "empty subject",
+			template: `{{ hasPrefix "foo" .Values.data }}`,
+			data:     "",
+			expected: "false",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, tc.data)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
+}
+
+func TestHasSuffix(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		template string
+		data     string
+		expected string
+	}{
+		{
+			name:     "match",
+			template: `{{ hasSuffix "bar" .Values.data }}`,
+			data:     "foobar",
+			expected: "true",
+		},
+		{
+			name:     "no match",
+			template: `{{ hasSuffix "foo" .Values.data }}`,
+			data:     "foobar",
+			expected: "false",
+		},
+		{
+			name:     "empty suffix",
+			template: `{{ hasSuffix "" .Values.data }}`,
+			data:     "foobar",
+			expected: "true",
+		},
+		{
+			name:     "empty subject",
+			template: `{{ hasSuffix "bar" .Values.data }}`,
+			data:     "",
+			expected: "false",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderSingle(t, tc.template, tc.data)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, res)
+		})
+	}
+}
+
 func TestStrAppend(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

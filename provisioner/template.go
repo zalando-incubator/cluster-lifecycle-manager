@@ -122,6 +122,8 @@ func renderTemplate(context *templateContext, file string) (string, error) {
 		"parseInt64":                            parseInt64,
 		"generateJWKSDocument":                  generateJWKSDocument,
 		"generateOIDCDiscoveryDocument":         generateOIDCDiscoveryDocument,
+		"hasPrefix":                             sprig.GenericFuncMap()["hasPrefix"],
+		"hasSuffix":                             sprig.GenericFuncMap()["hasSuffix"],
 		"kubernetesSizeToKiloBytes":             kubernetesSizeToKiloBytes,
 		"indexedList":                           indexedList,
 		"zoneDistributedNodePoolGroups":         zoneDistributedNodePoolGroups,
@@ -794,7 +796,6 @@ func awsValidID(id string) string {
 func instanceTypeCPUQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
-
 	if err != nil {
 		return "", err
 	}
@@ -808,7 +809,6 @@ func instanceTypeCPUQuantity(context *templateContext, instanceType ec2types.Ins
 func instanceTypeMemoryQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
-
 	if err != nil {
 		return "", err
 	}
