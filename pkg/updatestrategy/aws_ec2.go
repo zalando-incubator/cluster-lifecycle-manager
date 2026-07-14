@@ -16,6 +16,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,6 +76,10 @@ func NewEC2NodePoolBackend(cluster *api.Cluster, cfg aws.Config, karpenterClient
 // userData,ImageID and tags and 'outdated' for nodes with an outdated
 // configuration.
 func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
+	if nodePool.Profile == "worker-karpenter" {
+		return n.GetUsingKubernetesObjects(ctx, nodePool)
+	}
+
 	instances, err := n.getInstances(ctx, n.filterWithNodePool(nodePool))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list EC2 instances of the node pool: %w", err)
@@ -111,6 +116,67 @@ func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*
 
 	// We only set Generation and Nodes as nothing else is needed by the
 	// CLC strategy
+	return &NodePool{
+		Generation: currentNodeGeneration,
+		Nodes:      nodes,
+	}, nil
+}
+
+// GetUsingKubernetesObjects gets nodes for the node pool by looking at Kubernetes Node and
+// Karpenter NodeClaim objects. Node generation is based on NodeClaim drift status.
+func (n *EC2NodePoolBackend) GetUsingKubernetesObjects(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
+	nodePoolObj := &karpv1.NodePool{}
+	err := n.karpenterClient.Get(ctx, client.ObjectKey{Name: nodePool.Name}, nodePoolObj, &client.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Karpenter NodePool %q: %w", nodePool.Name, err)
+	}
+
+	ec2NodeClassName := nodePoolObj.Spec.Template.Spec.NodeClassRef.Name
+	if ec2NodeClassName == "" {
+		// Keep compatibility with clusters where NodePool and NodeClass use the same name.
+		ec2NodeClassName = nodePool.Name
+	}
+
+	ec2NodeClassObj := &karpenterawsv1.EC2NodeClass{}
+	err = n.karpenterClient.Get(ctx, client.ObjectKey{Name: ec2NodeClassName}, ec2NodeClassObj, &client.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Karpenter EC2NodeClass %q: %w", ec2NodeClassName, err)
+	}
+
+	nodesList := &corev1.NodeList{}
+	err = n.karpenterClient.List(ctx, nodesList, client.MatchingLabels{nodePoolTag: nodePool.Name})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Kubernetes Nodes of the node pool: %w", err)
+	}
+
+	nodeClaimsList := &karpv1.NodeClaimList{}
+	err = n.karpenterClient.List(ctx, nodeClaimsList, client.MatchingLabels{karpv1.NodePoolLabelKey: nodePool.Name})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Karpenter NodeClaims of the node pool: %w", err)
+	}
+
+	driftByNodeClaimName, driftByNodeName := nodeClaimDriftMaps(nodeClaimsList.Items, nodePoolObj, ec2NodeClassObj.Annotations)
+
+	nodes := make([]*Node, 0, len(nodesList.Items))
+	for _, node := range nodesList.Items {
+		if node.Spec.ProviderID == "" {
+			continue
+		}
+
+		generation := currentNodeGeneration
+		if driftByNodeName[node.Name] {
+			generation = outdatedNodeGeneration
+		} else if nodeClaimName, ok := nodeClaimNameFromOwnerReferences(node); ok && driftByNodeClaimName[nodeClaimName] {
+			generation = outdatedNodeGeneration
+		}
+
+		nodes = append(nodes, &Node{
+			ProviderID:    node.Spec.ProviderID,
+			FailureDomain: nodeFailureDomain(node),
+			Generation:    generation,
+		})
+	}
+
 	return &NodePool{
 		Generation: currentNodeGeneration,
 		Nodes:      nodes,
@@ -312,4 +378,90 @@ func (r *KarpenterNodePoolClient) NodePoolConfigGetter(ctx context.Context, node
 		ImageID:  r.getAMIsFromSpec(ec2NodeClass.Spec),
 		Tags:     tags,
 	}, nil
+}
+
+func nodeClaimDriftMaps(nodeClaims []karpv1.NodeClaim, nodePool *karpv1.NodePool, ec2NodeClassAnnotations map[string]string) (map[string]bool, map[string]bool) {
+	driftByNodeClaimName := make(map[string]bool, len(nodeClaims))
+	driftByNodeName := make(map[string]bool, len(nodeClaims))
+
+	for _, nodeClaim := range nodeClaims {
+		drifted := isNodeClaimDrifted(&nodeClaim)
+		if !drifted && nodePool != nil {
+			drifted = isNodeClaimBehindObservedTemplates(&nodeClaim, nodePool, ec2NodeClassAnnotations)
+		}
+
+		if !drifted {
+			continue
+		}
+
+		driftByNodeClaimName[nodeClaim.GetName()] = true
+
+		nodeName := nodeClaim.Status.NodeName
+		if nodeName == "" {
+			continue
+		}
+		driftByNodeName[nodeName] = true
+	}
+
+	return driftByNodeClaimName, driftByNodeName
+}
+
+func isNodeClaimDrifted(nodeClaim *karpv1.NodeClaim) bool {
+	return nodeClaim.StatusConditions().Get(string(karpv1.ConditionTypeDrifted)).IsTrue()
+}
+
+func isNodeClaimBehindObservedTemplates(nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, ec2NodeClassAnnotations map[string]string) bool {
+	if hasHashMismatch(nodeClaim.Annotations, nodePool.Annotations, karpv1.NodePoolHashAnnotationKey, karpv1.NodePoolHashVersionAnnotationKey) {
+		return true
+	}
+
+	if hasHashMismatch(nodeClaim.Annotations, ec2NodeClassAnnotations, karpenterawsv1.AnnotationEC2NodeClassHash, karpenterawsv1.AnnotationEC2NodeClassHashVersion) {
+		return true
+	}
+
+	return false
+}
+
+func hasHashMismatch(nodeClaimAnnotations, sourceAnnotations map[string]string, hashKey, hashVersionKey string) bool {
+	desiredHash, desiredHashFound := sourceAnnotations[hashKey]
+	observedHash, observedHashFound := nodeClaimAnnotations[hashKey]
+
+	// Missing hashes mean this signal is unavailable; caller should rely on other checks.
+	if !desiredHashFound || !observedHashFound || desiredHash == "" || observedHash == "" {
+		return false
+	}
+
+	if desiredHash != observedHash {
+		return true
+	}
+
+	desiredHashVersion, desiredHashVersionFound := sourceAnnotations[hashVersionKey]
+	observedHashVersion, observedHashVersionFound := nodeClaimAnnotations[hashVersionKey]
+	if desiredHashVersionFound && observedHashVersionFound && desiredHashVersion != observedHashVersion {
+		return true
+	}
+
+	return false
+}
+
+func nodeClaimNameFromOwnerReferences(node corev1.Node) (string, bool) {
+	for _, ownerRef := range node.GetOwnerReferences() {
+		if ownerRef.Kind == "NodeClaim" && ownerRef.Name != "" {
+			return ownerRef.Name, true
+		}
+	}
+
+	return "", false
+}
+
+func nodeFailureDomain(node corev1.Node) string {
+	if failureDomain, ok := node.Labels[corev1.LabelTopologyZone]; ok {
+		return failureDomain
+	}
+
+	if failureDomain, ok := node.Labels["failure-domain.beta.kubernetes.io/zone"]; ok {
+		return failureDomain
+	}
+
+	return ""
 }
