@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	// Import the Karpenter provider AWS API package to register the CRDs
+	// with the scheme
+	_ "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/cenkalti/backoff"
 	"github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
@@ -25,8 +28,14 @@ import (
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	// Import the Karpenter API package to register the CRDs with the
+	// scheme
+	_ "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 func newConfig(host string, tokenSrc oauth2.TokenSource, ca []byte) *rest.Config {
@@ -125,6 +134,11 @@ func (r *Resource) LogFields() logrus.Fields {
 		fields["propagation_policy"] = *r.PropagationPolicy
 	}
 	return fields
+}
+
+func NewControllerClient(host string, tokenSrc oauth2.TokenSource, ca []byte) (client.Client, error) {
+	cfg := newConfig(host, tokenSrc, ca)
+	return client.New(cfg, client.Options{Scheme: scheme.Scheme})
 }
 
 type ClientsCollection struct {

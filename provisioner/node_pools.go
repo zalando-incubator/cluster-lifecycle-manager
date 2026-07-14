@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	karpenterawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
@@ -23,7 +24,9 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 const (
@@ -157,7 +160,7 @@ func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context,
 type KarpenterNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
 	*kubernetes.KubeCTLRunner
-	k8sClients *kubernetes.ClientsCollection
+	client client.Client
 }
 
 func NewKarpenterNodePoolProvisioner(
@@ -170,10 +173,11 @@ func NewKarpenterNodePoolProvisioner(
 	if options != nil && len(options.CAData) > 0 {
 		caData = options.CAData
 	}
-	c, err := kubernetes.NewClientsCollection(n.cluster.APIServerURL, ts, caData)
+	client, err := kubernetes.NewControllerClient(n.cluster.APIServerURL, ts, caData)
 	if err != nil {
 		return nil, err
 	}
+
 	k := kubernetes.NewKubeCTLRunner(
 		e,
 		ts,
@@ -184,7 +188,7 @@ func NewKarpenterNodePoolProvisioner(
 	)
 	return &KarpenterNodePoolProvisioner{
 		NodePoolTemplateRenderer: n,
-		k8sClients:               c,
+		client:                   client,
 		KubeCTLRunner:            k,
 	}, nil
 }
@@ -238,23 +242,24 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater updatestrategy.UpdateStrategy) error {
 	karpenterPools := p.cluster.KarpenterPools()
 
-	existingNodePools, err := p.k8sClients.List(ctx, updatestrategy.KarpenterNodePoolResource, "", metav1.ListOptions{})
+	existingNodePools := &karpv1.NodePoolList{}
+	err := p.client.List(ctx, existingNodePools, &client.ListOptions{})
 	if err != nil {
 		return err
 	}
+
 	for _, pr := range existingNodePools.Items {
 		nodePool := api.NodePool{Name: pr.GetName(), Profile: karpenterNodePoolProfile}
 		if !inNodePoolList(&nodePool, karpenterPools) {
-			err := p.k8sClients.Delete(ctx, updatestrategy.KarpenterNodePoolResource, "", pr.GetName(), metav1.DeleteOptions{})
+			err := p.client.Delete(ctx, &pr)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	nodes, err := p.k8sClients.List(ctx, "nodes", "", metav1.ListOptions{
-		LabelSelector: updatestrategy.KarpenterNodePoolTag,
-	})
+	nodes := &corev1.NodeList{}
+	err = p.client.List(ctx, nodes, client.MatchingLabels{karpv1.NodePoolLabelKey: ""})
 	if err != nil {
 		return err
 	}
@@ -266,7 +271,7 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 	var obsoleteNodePools []*api.NodePool
 	checkedNodePools := make(map[string]interface{})
 	for _, node := range nodes.Items {
-		nodePoolName := node.GetLabels()[updatestrategy.KarpenterNodePoolTag]
+		nodePoolName := node.GetLabels()[karpv1.NodePoolLabelKey]
 		if _, ok := checkedNodePools[nodePoolName]; ok {
 			continue
 		}
@@ -283,14 +288,15 @@ func (p *KarpenterNodePoolProvisioner) Reconcile(ctx context.Context, updater up
 		}
 	}
 
-	existingNodeTemplates, err := p.k8sClients.List(ctx, updatestrategy.KarpenterEC2NodeClassResource, "", metav1.ListOptions{})
+	existingEC2NodeClasses := &karpenterawsv1.EC2NodeClassList{}
+	err = p.client.List(ctx, existingEC2NodeClasses, &client.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for _, pr := range existingNodeTemplates.Items {
+	for _, pr := range existingEC2NodeClasses.Items {
 		if !inNodePoolList(&api.NodePool{Name: pr.GetName()}, karpenterPools) {
-			err = p.k8sClients.Delete(ctx, updatestrategy.KarpenterEC2NodeClassResource, "", pr.GetName(), metav1.DeleteOptions{})
+			err = p.client.Delete(ctx, &pr)
 			if err != nil {
 				return err
 			}
