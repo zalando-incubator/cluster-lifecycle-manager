@@ -76,7 +76,12 @@ func NewEC2NodePoolBackend(cluster *api.Cluster, cfg aws.Config, karpenterClient
 // userData,ImageID and tags and 'outdated' for nodes with an outdated
 // configuration.
 func (n *EC2NodePoolBackend) Get(ctx context.Context, nodePool *api.NodePool) (*NodePool, error) {
-	if nodePool.Profile == "worker-karpenter" {
+	// scope the Karpenter Drift detection logic to only Karpenter node
+	// pools that use Bottlerocket or AL2023 AMIs.
+	// This is done to limit the change to the initial roll out as Drift
+	// detection has a potential issue as outlined in:
+	// https://github.com/aws/karpenter-provider-aws/pull/9083#issuecomment-5012830911
+	if alias, ok := nodePool.ConfigItems["karpenter_ami_family_alias"]; ok && (strings.HasPrefix(alias, "bottlerocket") || strings.HasPrefix(alias, "al2023")) {
 		return n.GetUsingKubernetesObjects(ctx, nodePool)
 	}
 
