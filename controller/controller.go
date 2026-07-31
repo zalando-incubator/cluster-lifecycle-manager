@@ -126,6 +126,13 @@ func (c *Controller) refresh() error {
 		return err
 	}
 
+	if gc, ok := c.channelConfigSourcer.(channel.GarbageCollector); ok {
+		err = gc.GarbageCollect(context.Background(), c.logger)
+		if err != nil {
+			c.logger.Warnf("failed to perform garbage collection: %v", err)
+		}
+	}
+
 	clusters, err := c.registry.ListClusters(
 		registry.Filter{
 			Providers: c.providers,
