@@ -7,27 +7,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff"
-	"github.com/luci/go-render/render"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/pkg/errors"
+	karpenterawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/cenkalti/backoff"
+	"github.com/luci/go-render/render"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
-)
-
-const (
-	KarpenterNodePoolTag          = "karpenter.sh/nodepool"
-	KarpenterNodePoolResource     = "nodepools.karpenter.sh"
-	KarpenterEC2NodeClassResource = "ec2nodeclasses.karpenter.k8s.aws"
-	crd                           = "CustomResourceDefinition"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 type InstanceConfig struct {
@@ -223,7 +215,7 @@ func (n *EC2NodePoolBackend) DecommissionKarpenterNodes(ctx context.Context) err
 		},
 		{
 			Name:   aws.String("tag-key"),
-			Values: []string{KarpenterNodePoolTag},
+			Values: []string{karpv1.NodePoolLabelKey},
 		},
 	})
 }
@@ -271,32 +263,30 @@ func (n *EC2NodePoolBackend) decommission(ctx context.Context, filters []ec2type
 }
 
 type KarpenterNodePoolClient struct {
-	k8sClients *kubernetes.ClientsCollection
+	client.Client
 }
 
-func NewKarpenterNodePoolClient(k8sClients *kubernetes.ClientsCollection) *KarpenterNodePoolClient {
+func NewKarpenterNodePoolClient(client client.Client) *KarpenterNodePoolClient {
 	return &KarpenterNodePoolClient{
-		k8sClients: k8sClients,
+		Client: client,
 	}
 }
 
-func (r *KarpenterNodePoolClient) getAMIsFromSpec(spec interface{}) string {
-	amiSelectorTerms := spec.(map[string]interface{})["amiSelectorTerms"].([]interface{})
+func (r *KarpenterNodePoolClient) getAMIsFromSpec(spec karpenterawsv1.EC2NodeClassSpec) string {
 	var amis []string
-	for _, amiSelectorTerm := range amiSelectorTerms {
-		if amiSelectorTerm.(map[string]interface{})["id"] != nil {
-			amis = append(amis, amiSelectorTerm.(map[string]interface{})["id"].(string))
+	for _, amiSelectorTerm := range spec.AMISelectorTerms {
+		if amiSelectorTerm.ID != "" {
+			amis = append(amis, amiSelectorTerm.ID)
 		}
 	}
 	return strings.Join(amis, ",")
 }
 
 func (r *KarpenterNodePoolClient) NodePoolConfigGetter(ctx context.Context, nodePool *api.NodePool) (*InstanceConfig, error) {
-	// CLM assumes that the node pool name is used for both the node-pool and the node-template that it references
-	var NodeTemplate *unstructured.Unstructured
+	ec2NodeClass := &karpenterawsv1.EC2NodeClass{}
+	// CLM assumes that the node pool name is used for both the node-pool and the ec2 node class that it references
 	getEC2NodeClass := func() error {
-		var err error
-		NodeTemplate, err = r.k8sClients.Get(ctx, KarpenterEC2NodeClassResource, "", nodePool.Name, v1.GetOptions{})
+		err := r.Get(ctx, client.ObjectKey{Name: nodePool.Name}, ec2NodeClass, &client.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// the node pool have been deleted. thus returning nil nodePoolConfig will result in labeling all nodes for decommission
@@ -312,17 +302,14 @@ func (r *KarpenterNodePoolClient) NodePoolConfigGetter(ctx context.Context, node
 		return nil, err
 	}
 
-	spec, ok := NodeTemplate.Object["spec"]
-	if !ok {
-		return nil, errors.New("could not find spec in the %s object" + KarpenterEC2NodeClassResource)
-	}
 	tags := make(map[string]string)
-	for k, v := range spec.(map[string]interface{})["tags"].(map[string]interface{}) {
-		tags[k] = v.(string)
+	for k, v := range ec2NodeClass.Spec.Tags {
+		tags[k] = v
 	}
+	userData := ptr.Deref(ec2NodeClass.Spec.UserData, "")
 	return &InstanceConfig{
-		UserData: base64.StdEncoding.EncodeToString([]byte(spec.(map[string]interface{})["userData"].(string))),
-		ImageID:  r.getAMIsFromSpec(spec),
+		UserData: base64.StdEncoding.EncodeToString([]byte(userData)),
+		ImageID:  r.getAMIsFromSpec(ec2NodeClass.Spec),
 		Tags:     tags,
 	}, nil
 }

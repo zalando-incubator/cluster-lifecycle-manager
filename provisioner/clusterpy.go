@@ -1010,7 +1010,8 @@ func (p *clusterpyProvisioner) updater(
 	if v := cluster.ConfigItems[decommissionNodeNoScheduleTaintKey]; v == "true" {
 		noScheduleTaint = true
 	}
-	k8sClients, err := kubernetes.NewClientsCollection(
+
+	controllerClient, err := kubernetes.NewControllerClient(
 		cluster.APIServerURL,
 		tokenSource,
 		decodedCA,
@@ -1020,7 +1021,7 @@ func (p *clusterpyProvisioner) updater(
 	}
 
 	additionalBackends := map[string]updatestrategy.ProviderNodePoolsBackend{
-		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.config, updatestrategy.NewKarpenterNodePoolClient(k8sClients)),
+		karpenterNodePoolProfile: updatestrategy.NewEC2NodePoolBackend(cluster, awsAdapter.config, updatestrategy.NewKarpenterNodePoolClient(controllerClient)),
 	}
 
 	asgBackend := updatestrategy.NewASGNodePoolsBackend(cluster, awsAdapter.config)
