@@ -28,6 +28,13 @@ type ConfigSource interface {
 	Version(channel string, overrides map[string]string) (ConfigVersion, error)
 }
 
+// GarbageCollector is an optional interface for config sources that support
+// garbage collection. Sources should implement this to support deferred
+// garbage collection after all updates are complete.
+type GarbageCollector interface {
+	GarbageCollect(ctx context.Context, logger *log.Entry) error
+}
+
 type Manifest struct {
 	Path     string
 	Contents []byte

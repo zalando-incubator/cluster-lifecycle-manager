@@ -98,6 +98,30 @@ func TestGitGet(t *testing.T) {
 	verifyExampleConfig(t, sha, "testsrc", "channel1")
 }
 
+func TestGitGarbageCollect(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	// GarbageCollect should succeed without errors
+	gc, ok := c.(GarbageCollector)
+	require.True(t, ok)
+
+	err = gc.GarbageCollect(context.Background(), logger)
+	require.NoError(t, err)
+}
+
 func TestGetRepoName(t *testing.T) {
 	for _, tc := range []struct {
 		msg     string

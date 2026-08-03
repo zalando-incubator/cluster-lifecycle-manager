@@ -127,9 +127,28 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	return nil
 }
 
+// GarbageCollect performs garbage collection on the git repository.
+// This should be called after all Update operations have completed to avoid
+// blocking on individual update calls.
+func (g *Git) GarbageCollect(ctx context.Context, logger *log.Entry) error {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	_, err := os.Stat(g.repoDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	return g.cmd(ctx, logger, "--git-dir", g.repoDir, "gc", "--aggressive")
+}
+
 func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error) {
 	stderr := new(bytes.Buffer)
-	cmd := exec.Command("git", "--git-dir", g.repoDir, "rev-parse", channel)
+	gitArgs := []string{"-c", "gc.auto=0", "--git-dir", g.repoDir, "rev-parse", channel}
+	cmd := exec.Command("git", gitArgs...)
 	cmd.Stderr = stderr
 	sha, err := cmd.Output()
 	if err != nil {
@@ -167,8 +186,13 @@ func (g *Git) localClone(ctx context.Context, logger *log.Entry, channel string)
 }
 
 // cmd executes a git command with the correct environment set.
+// Disables automatic garbage collection to prevent blocking during concurrent operations.
 func (g *Git) cmd(ctx context.Context, logger *log.Entry, args ...string) error {
-	cmd := exec.Command("git", args...)
+	gitArgs := make([]string, 0, len(args)+2)
+	gitArgs = append(gitArgs, "-c", "gc.auto=0")
+	gitArgs = append(gitArgs, args...)
+
+	cmd := exec.Command("git", gitArgs...)
 	// set GIT_SSH_COMMAND with private-key file when pulling over ssh.
 	if g.sshPrivateKeyFile != "" {
 		cmd.Env = []string{fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o 'StrictHostKeyChecking no'", g.sshPrivateKeyFile)}

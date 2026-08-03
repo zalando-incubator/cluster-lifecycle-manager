@@ -52,6 +52,19 @@ func (c *CombinedSource) Update(ctx context.Context, logger *logrus.Entry) error
 	return nil
 }
 
+func (c *CombinedSource) GarbageCollect(ctx context.Context, logger *logrus.Entry) error {
+	for _, source := range c.sources {
+		if gc, ok := source.(GarbageCollector); ok {
+			err := gc.GarbageCollect(ctx, logger)
+			if err != nil {
+				return fmt.Errorf("error while garbage collecting source %s: %v", source.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *CombinedSource) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
 	versions := make([]ConfigVersion, len(c.sources))
 	for i, source := range c.sources {
