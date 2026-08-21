@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDeleteConfigItemParams() *DeleteConfigItemParams {
-	return &DeleteConfigItemParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewDeleteConfigItemParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewDeleteConfigItemParamsWithTimeout creates a new DeleteConfigItemParams object
 // with the ability to set a timeout on a request.
 func NewDeleteConfigItemParamsWithTimeout(timeout time.Duration) *DeleteConfigItemParams {
 	return &DeleteConfigItemParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewDeleteConfigItemParamsWithContext creates a new DeleteConfigItemParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteConfigItemParams].
 func NewDeleteConfigItemParamsWithContext(ctx context.Context) *DeleteConfigItemParams {
 	return &DeleteConfigItemParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,21 +62,19 @@ DeleteConfigItemParams contains all the parameters to send to the API endpoint
 */
 type DeleteConfigItemParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* ConfigKey.
-
-	   Key for the config value.
-	*/
+	// ConfigKey.
+	//
+	// Key for the config value.
 	ConfigKey string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the delete config item params (not the query body).
@@ -90,65 +92,68 @@ func (o *DeleteConfigItemParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the delete config item params
+// WithTimeout adds the timeout to the delete config item params.
 func (o *DeleteConfigItemParams) WithTimeout(timeout time.Duration) *DeleteConfigItemParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the delete config item params
+// SetTimeout adds the timeout to the delete config item params.
 func (o *DeleteConfigItemParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the delete config item params
+// WithContext adds the context to the delete config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteConfigItemParams].
 func (o *DeleteConfigItemParams) WithContext(ctx context.Context) *DeleteConfigItemParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the delete config item params
+// SetContext adds the context to the delete config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteConfigItemParams].
 func (o *DeleteConfigItemParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the delete config item params
+// WithHTTPClient adds the HTTPClient to the delete config item params.
 func (o *DeleteConfigItemParams) WithHTTPClient(client *http.Client) *DeleteConfigItemParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the delete config item params
+// SetHTTPClient adds the HTTPClient to the delete config item params.
 func (o *DeleteConfigItemParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the delete config item params
+// WithClusterID adds the clusterID to the delete config item params.
 func (o *DeleteConfigItemParams) WithClusterID(clusterID string) *DeleteConfigItemParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the delete config item params
+// SetClusterID adds the clusterId to the delete config item params.
 func (o *DeleteConfigItemParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithConfigKey adds the configKey to the delete config item params
+// WithConfigKey adds the configKey to the delete config item params.
 func (o *DeleteConfigItemParams) WithConfigKey(configKey string) *DeleteConfigItemParams {
 	o.SetConfigKey(configKey)
 	return o
 }
 
-// SetConfigKey adds the configKey to the delete config item params
+// SetConfigKey adds the configKey to the delete config item params.
 func (o *DeleteConfigItemParams) SetConfigKey(configKey string) {
 	o.ConfigKey = configKey
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *DeleteConfigItemParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

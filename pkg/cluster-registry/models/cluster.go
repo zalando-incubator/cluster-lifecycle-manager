@@ -10,7 +10,8 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/go-openapi/validate"
 )
 
@@ -195,7 +196,7 @@ func (m *Cluster) validateChannel(formats strfmt.Registry) error {
 }
 
 func (m *Cluster) validateCreatedAt(formats strfmt.Registry) error {
-	if swag.IsZero(m.CreatedAt) { // not required
+	if typeutils.IsZero(m.CreatedAt) { // not required
 		return nil
 	}
 
@@ -304,12 +305,12 @@ func (m *Cluster) validateLocalID(formats strfmt.Registry) error {
 }
 
 func (m *Cluster) validateNodePools(formats strfmt.Registry) error {
-	if swag.IsZero(m.NodePools) { // not required
+	if typeutils.IsZero(m.NodePools) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.NodePools); i++ {
-		if swag.IsZero(m.NodePools[i]) { // not required
+		if typeutils.IsZero(m.NodePools[i]) { // not required
 			continue
 		}
 
@@ -352,7 +353,7 @@ func (m *Cluster) validateRegion(formats strfmt.Registry) error {
 }
 
 func (m *Cluster) validateStatus(formats strfmt.Registry) error {
-	if swag.IsZero(m.Status) { // not required
+	if typeutils.IsZero(m.Status) { // not required
 		return nil
 	}
 
@@ -398,7 +399,7 @@ func (m *Cluster) contextValidateNodePools(ctx context.Context, formats strfmt.R
 
 		if m.NodePools[i] != nil {
 
-			if swag.IsZero(m.NodePools[i]) { // not required
+			if typeutils.IsZero(m.NodePools[i]) { // not required
 				return nil
 			}
 
@@ -425,7 +426,7 @@ func (m *Cluster) contextValidateStatus(ctx context.Context, formats strfmt.Regi
 
 	if m.Status != nil {
 
-		if swag.IsZero(m.Status) { // not required
+		if typeutils.IsZero(m.Status) { // not required
 			return nil
 		}
 
@@ -451,13 +452,13 @@ func (m *Cluster) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(m)
+	return jsonutils.WriteJSON(m)
 }
 
 // UnmarshalBinary interface implementation
 func (m *Cluster) UnmarshalBinary(b []byte) error {
 	var res Cluster
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*m = res

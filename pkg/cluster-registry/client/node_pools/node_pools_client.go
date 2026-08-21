@@ -3,7 +3,9 @@
 package node_pools
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -11,11 +13,12 @@ import (
 )
 
 // New creates a new node pools API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
+func New(transport runtime.ContextualTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
 // New creates a new node pools API client with basic auth credentials.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -29,6 +32,7 @@ func NewClientWithBasicAuth(host, basePath, scheme, user, password string) Clien
 }
 
 // New creates a new node pools API client with a bearer token for authentication.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -40,40 +44,75 @@ func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) Client
 	return &Client{transport: transport, formats: strfmt.Default}
 }
 
-/*
-Client for node pools API
-*/
+// Client for node pools API.
 type Client struct {
-	transport runtime.ClientTransport
+	transport runtime.ContextualTransport
 	formats   strfmt.Registry
 }
 
 // ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
 
-// ClientService is the interface for Client methods
+// ClientService is the interface for Client methods.
 type ClientService interface {
+
+	// CreateOrUpdateNodePool create update node pool.
 	CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrUpdateNodePoolOK, error)
 
+	// CreateOrUpdateNodePoolContext create update node pool.
+	CreateOrUpdateNodePoolContext(ctx context.Context, params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrUpdateNodePoolOK, error)
+
+	// DeleteNodePool delete node pool.
 	DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolNoContent, error)
 
+	// DeleteNodePoolContext delete node pool.
+	DeleteNodePoolContext(ctx context.Context, params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolNoContent, error)
+
+	// ListNodePools list node pools.
 	ListNodePools(params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListNodePoolsOK, error)
 
+	// ListNodePoolsContext list node pools.
+	ListNodePoolsContext(ctx context.Context, params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListNodePoolsOK, error)
+
+	// UpdateNodePool update node pool.
 	UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateNodePoolOK, error)
 
-	SetTransport(transport runtime.ClientTransport)
+	// UpdateNodePoolContext update node pool.
+	UpdateNodePoolContext(ctx context.Context, params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateNodePoolOK, error)
+
+	SetTransport(transport runtime.ContextualTransport)
 }
 
-/*
-CreateOrUpdateNodePool creates update node pool
-
-Create/update a node pool.
-*/
+// CreateOrUpdateNodePool creates update node pool.
+//
+// Create/update a node pool..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.CreateOrUpdateNodePoolContext] instead.
 func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrUpdateNodePoolOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.CreateOrUpdateNodePoolContext(ctx, params, authInfo, opts...)
+}
+
+// CreateOrUpdateNodePoolContext creates update node pool.
+//
+// Create/update a node pool..
+//
+// Do not use the deprecated [CreateOrUpdateNodePoolParams.Context] with this method: it would be ignored.
+func (a *Client) CreateOrUpdateNodePoolContext(ctx context.Context, params *CreateOrUpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrUpdateNodePoolOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateOrUpdateNodePoolParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "createOrUpdateNodePool",
 		Method:             "PUT",
@@ -84,13 +123,14 @@ func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, au
 		Params:             params,
 		Reader:             &CreateOrUpdateNodePoolReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -110,16 +150,36 @@ func (a *Client) CreateOrUpdateNodePool(params *CreateOrUpdateNodePoolParams, au
 	panic(msg)
 }
 
-/*
-DeleteNodePool deletes node pool
-
-Deletes node pool.
-*/
+// DeleteNodePool deletes node pool.
+//
+// Deletes node pool..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.DeleteNodePoolContext] instead.
 func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolNoContent, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.DeleteNodePoolContext(ctx, params, authInfo, opts...)
+}
+
+// DeleteNodePoolContext deletes node pool.
+//
+// Deletes node pool..
+//
+// Do not use the deprecated [DeleteNodePoolParams.Context] with this method: it would be ignored.
+func (a *Client) DeleteNodePoolContext(ctx context.Context, params *DeleteNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolNoContent, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteNodePoolParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "deleteNodePool",
 		Method:             "DELETE",
@@ -130,13 +190,14 @@ func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.C
 		Params:             params,
 		Reader:             &DeleteNodePoolReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -156,16 +217,36 @@ func (a *Client) DeleteNodePool(params *DeleteNodePoolParams, authInfo runtime.C
 	panic(msg)
 }
 
-/*
-ListNodePools lists node pools
-
-List all node pools of a cluster.
-*/
+// ListNodePools lists node pools.
+//
+// List all node pools of a cluster..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.ListNodePoolsContext] instead.
 func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListNodePoolsOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.ListNodePoolsContext(ctx, params, authInfo, opts...)
+}
+
+// ListNodePoolsContext lists node pools.
+//
+// List all node pools of a cluster..
+//
+// Do not use the deprecated [ListNodePoolsParams.Context] with this method: it would be ignored.
+func (a *Client) ListNodePoolsContext(ctx context.Context, params *ListNodePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListNodePoolsOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListNodePoolsParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "listNodePools",
 		Method:             "GET",
@@ -176,13 +257,14 @@ func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.Cli
 		Params:             params,
 		Reader:             &ListNodePoolsReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -202,16 +284,36 @@ func (a *Client) ListNodePools(params *ListNodePoolsParams, authInfo runtime.Cli
 	panic(msg)
 }
 
-/*
-UpdateNodePool updates node pool
-
-Update a node pool.
-*/
+// UpdateNodePool updates node pool.
+//
+// Update a node pool..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.UpdateNodePoolContext] instead.
 func (a *Client) UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateNodePoolOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.UpdateNodePoolContext(ctx, params, authInfo, opts...)
+}
+
+// UpdateNodePoolContext updates node pool.
+//
+// Update a node pool..
+//
+// Do not use the deprecated [UpdateNodePoolParams.Context] with this method: it would be ignored.
+func (a *Client) UpdateNodePoolContext(ctx context.Context, params *UpdateNodePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateNodePoolOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateNodePoolParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "updateNodePool",
 		Method:             "PATCH",
@@ -222,13 +324,14 @@ func (a *Client) UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.C
 		Params:             params,
 		Reader:             &UpdateNodePoolReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +352,14 @@ func (a *Client) UpdateNodePool(params *UpdateNodePoolParams, authInfo runtime.C
 }
 
 // SetTransport changes the transport on the client
-func (a *Client) SetTransport(transport runtime.ClientTransport) {
+func (a *Client) SetTransport(transport runtime.ContextualTransport) {
 	a.transport = transport
+}
+
+// innerParams captures internal fields so they don't conflict with user-supplied parameters.
+type innerParams struct {
+	timeout time.Duration
+
+	// Deprecated: use the operation call with context to pass the context instead of [NodePoolsParams].
+	ctx context.Context
 }

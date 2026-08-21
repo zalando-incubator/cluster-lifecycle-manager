@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDeleteNodePoolParams() *DeleteNodePoolParams {
-	return &DeleteNodePoolParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewDeleteNodePoolParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewDeleteNodePoolParamsWithTimeout creates a new DeleteNodePoolParams object
 // with the ability to set a timeout on a request.
 func NewDeleteNodePoolParamsWithTimeout(timeout time.Duration) *DeleteNodePoolParams {
 	return &DeleteNodePoolParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewDeleteNodePoolParamsWithContext creates a new DeleteNodePoolParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolParams].
 func NewDeleteNodePoolParamsWithContext(ctx context.Context) *DeleteNodePoolParams {
 	return &DeleteNodePoolParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,21 +62,19 @@ DeleteNodePoolParams contains all the parameters to send to the API endpoint
 */
 type DeleteNodePoolParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* NodePoolName.
-
-	   Name of the node pool.
-	*/
+	// NodePoolName.
+	//
+	// Name of the node pool.
 	NodePoolName string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the delete node pool params (not the query body).
@@ -90,65 +92,68 @@ func (o *DeleteNodePoolParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the delete node pool params
+// WithTimeout adds the timeout to the delete node pool params.
 func (o *DeleteNodePoolParams) WithTimeout(timeout time.Duration) *DeleteNodePoolParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the delete node pool params
+// SetTimeout adds the timeout to the delete node pool params.
 func (o *DeleteNodePoolParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the delete node pool params
+// WithContext adds the context to the delete node pool params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolParams].
 func (o *DeleteNodePoolParams) WithContext(ctx context.Context) *DeleteNodePoolParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the delete node pool params
+// SetContext adds the context to the delete node pool params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolParams].
 func (o *DeleteNodePoolParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the delete node pool params
+// WithHTTPClient adds the HTTPClient to the delete node pool params.
 func (o *DeleteNodePoolParams) WithHTTPClient(client *http.Client) *DeleteNodePoolParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the delete node pool params
+// SetHTTPClient adds the HTTPClient to the delete node pool params.
 func (o *DeleteNodePoolParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the delete node pool params
+// WithClusterID adds the clusterID to the delete node pool params.
 func (o *DeleteNodePoolParams) WithClusterID(clusterID string) *DeleteNodePoolParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the delete node pool params
+// SetClusterID adds the clusterId to the delete node pool params.
 func (o *DeleteNodePoolParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithNodePoolName adds the nodePoolName to the delete node pool params
+// WithNodePoolName adds the nodePoolName to the delete node pool params.
 func (o *DeleteNodePoolParams) WithNodePoolName(nodePoolName string) *DeleteNodePoolParams {
 	o.SetNodePoolName(nodePoolName)
 	return o
 }
 
-// SetNodePoolName adds the nodePoolName to the delete node pool params
+// SetNodePoolName adds the nodePoolName to the delete node pool params.
 func (o *DeleteNodePoolParams) SetNodePoolName(nodePoolName string) {
 	o.NodePoolName = nodePoolName
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *DeleteNodePoolParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

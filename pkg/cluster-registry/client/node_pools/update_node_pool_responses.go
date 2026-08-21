@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewUpdateNodePoolOK() *UpdateNodePoolOK {
 	return &UpdateNodePoolOK{}
 }
 
-/*
-UpdateNodePoolOK describes a response with status code 200, with default header values.
-
-The node pool update request is accepted.
-*/
+// UpdateNodePoolOK describes a response with status code 200, with default header values.
+//
+// The node pool update request is accepted.
 type UpdateNodePoolOK struct {
 	Payload *models.NodePool
 }
@@ -132,11 +129,9 @@ func NewUpdateNodePoolBadRequest() *UpdateNodePoolBadRequest {
 	return &UpdateNodePoolBadRequest{}
 }
 
-/*
-UpdateNodePoolBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// UpdateNodePoolBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type UpdateNodePoolBadRequest struct {
 	Payload *models.Error
 }
@@ -202,11 +197,9 @@ func NewUpdateNodePoolUnauthorized() *UpdateNodePoolUnauthorized {
 	return &UpdateNodePoolUnauthorized{}
 }
 
-/*
-UpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// UpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type UpdateNodePoolUnauthorized struct {
 }
 
@@ -258,11 +251,9 @@ func NewUpdateNodePoolForbidden() *UpdateNodePoolForbidden {
 	return &UpdateNodePoolForbidden{}
 }
 
-/*
-UpdateNodePoolForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// UpdateNodePoolForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type UpdateNodePoolForbidden struct {
 }
 
@@ -314,11 +305,9 @@ func NewUpdateNodePoolInternalServerError() *UpdateNodePoolInternalServerError {
 	return &UpdateNodePoolInternalServerError{}
 }
 
-/*
-UpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// UpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type UpdateNodePoolInternalServerError struct {
 	Payload *models.Error
 }

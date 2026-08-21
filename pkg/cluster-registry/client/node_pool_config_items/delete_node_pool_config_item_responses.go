@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -68,11 +67,9 @@ func NewDeleteNodePoolConfigItemNoContent() *DeleteNodePoolConfigItemNoContent {
 	return &DeleteNodePoolConfigItemNoContent{}
 }
 
-/*
-DeleteNodePoolConfigItemNoContent describes a response with status code 204, with default header values.
-
-Config item deleted.
-*/
+// DeleteNodePoolConfigItemNoContent describes a response with status code 204, with default header values.
+//
+// Config item deleted.
 type DeleteNodePoolConfigItemNoContent struct {
 }
 
@@ -124,11 +121,9 @@ func NewDeleteNodePoolConfigItemBadRequest() *DeleteNodePoolConfigItemBadRequest
 	return &DeleteNodePoolConfigItemBadRequest{}
 }
 
-/*
-DeleteNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// DeleteNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type DeleteNodePoolConfigItemBadRequest struct {
 	Payload *models.Error
 }
@@ -194,11 +189,9 @@ func NewDeleteNodePoolConfigItemUnauthorized() *DeleteNodePoolConfigItemUnauthor
 	return &DeleteNodePoolConfigItemUnauthorized{}
 }
 
-/*
-DeleteNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// DeleteNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type DeleteNodePoolConfigItemUnauthorized struct {
 }
 
@@ -250,11 +243,9 @@ func NewDeleteNodePoolConfigItemForbidden() *DeleteNodePoolConfigItemForbidden {
 	return &DeleteNodePoolConfigItemForbidden{}
 }
 
-/*
-DeleteNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// DeleteNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type DeleteNodePoolConfigItemForbidden struct {
 }
 
@@ -306,11 +297,9 @@ func NewDeleteNodePoolConfigItemNotFound() *DeleteNodePoolConfigItemNotFound {
 	return &DeleteNodePoolConfigItemNotFound{}
 }
 
-/*
-DeleteNodePoolConfigItemNotFound describes a response with status code 404, with default header values.
-
-Config item not found
-*/
+// DeleteNodePoolConfigItemNotFound describes a response with status code 404, with default header values.
+//
+// Config item not found
 type DeleteNodePoolConfigItemNotFound struct {
 }
 
@@ -362,11 +351,9 @@ func NewDeleteNodePoolConfigItemInternalServerError() *DeleteNodePoolConfigItemI
 	return &DeleteNodePoolConfigItemInternalServerError{}
 }
 
-/*
-DeleteNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// DeleteNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type DeleteNodePoolConfigItemInternalServerError struct {
 	Payload *models.Error
 }

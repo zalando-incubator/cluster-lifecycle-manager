@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewUpdateClusterOK() *UpdateClusterOK {
 	return &UpdateClusterOK{}
 }
 
-/*
-UpdateClusterOK describes a response with status code 200, with default header values.
-
-The cluster update request is performed and the updated cluster is returned.
-*/
+// UpdateClusterOK describes a response with status code 200, with default header values.
+//
+// The cluster update request is performed and the updated cluster is returned.
 type UpdateClusterOK struct {
 	Payload *models.Cluster
 }
@@ -132,11 +129,9 @@ func NewUpdateClusterUnauthorized() *UpdateClusterUnauthorized {
 	return &UpdateClusterUnauthorized{}
 }
 
-/*
-UpdateClusterUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// UpdateClusterUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type UpdateClusterUnauthorized struct {
 }
 
@@ -188,11 +183,9 @@ func NewUpdateClusterForbidden() *UpdateClusterForbidden {
 	return &UpdateClusterForbidden{}
 }
 
-/*
-UpdateClusterForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// UpdateClusterForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type UpdateClusterForbidden struct {
 }
 
@@ -244,11 +237,9 @@ func NewUpdateClusterNotFound() *UpdateClusterNotFound {
 	return &UpdateClusterNotFound{}
 }
 
-/*
-UpdateClusterNotFound describes a response with status code 404, with default header values.
-
-Cluster not found
-*/
+// UpdateClusterNotFound describes a response with status code 404, with default header values.
+//
+// Cluster not found
 type UpdateClusterNotFound struct {
 }
 
@@ -300,11 +291,9 @@ func NewUpdateClusterInternalServerError() *UpdateClusterInternalServerError {
 	return &UpdateClusterInternalServerError{}
 }
 
-/*
-UpdateClusterInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// UpdateClusterInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type UpdateClusterInternalServerError struct {
 	Payload *models.Error
 }

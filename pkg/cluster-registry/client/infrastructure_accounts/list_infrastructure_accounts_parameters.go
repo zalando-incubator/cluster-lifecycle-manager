@@ -11,7 +11,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/conv"
 )
 
 // NewListInfrastructureAccountsParams creates a new ListInfrastructureAccountsParams object,
@@ -21,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewListInfrastructureAccountsParams() *ListInfrastructureAccountsParams {
-	return &ListInfrastructureAccountsParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewListInfrastructureAccountsParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewListInfrastructureAccountsParamsWithTimeout creates a new ListInfrastructureAccountsParams object
 // with the ability to set a timeout on a request.
 func NewListInfrastructureAccountsParamsWithTimeout(timeout time.Duration) *ListInfrastructureAccountsParams {
 	return &ListInfrastructureAccountsParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewListInfrastructureAccountsParamsWithContext creates a new ListInfrastructureAccountsParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListInfrastructureAccountsParams].
 func NewListInfrastructureAccountsParamsWithContext(ctx context.Context) *ListInfrastructureAccountsParams {
 	return &ListInfrastructureAccountsParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -59,59 +63,51 @@ ListInfrastructureAccountsParams contains all the parameters to send to the API 
 */
 type ListInfrastructureAccountsParams struct {
 
-	/* CostCenter.
-
-	   Filter on cost center number.
-	*/
+	// CostCenter.
+	//
+	// Filter on cost center number.
 	CostCenter *string
 
-	/* CriticalityLevel.
-
-	   Filter on criticality level.
-
-	   Format: int32
-	*/
+	// CriticalityLevel.
+	//
+	// Filter on criticality level.
+	//
+	// Format: int32
 	CriticalityLevel *int32
 
-	/* Environment.
-
-	   Filter on environment.
-	*/
+	// Environment.
+	//
+	// Filter on environment.
 	Environment *string
 
-	/* ExternalID.
-
-	   Filter on external id.
-	*/
+	// ExternalID.
+	//
+	// Filter on external id.
 	ExternalID *string
 
-	/* LifecycleStatus.
-
-	   Filter on cluster lifecycle status.
-	*/
+	// LifecycleStatus.
+	//
+	// Filter on cluster lifecycle status.
 	LifecycleStatus *string
 
-	/* Name.
-
-	   Filter on name.
-	*/
+	// Name.
+	//
+	// Filter on name.
 	Name *string
 
-	/* Owner.
-
-	   Filter on owner.
-	*/
+	// Owner.
+	//
+	// Filter on owner.
 	Owner *string
 
-	/* Type.
-
-	   Filter on type.
-	*/
+	// Type.
+	//
+	// Filter on type.
 	Type *string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the list infrastructure accounts params (not the query body).
@@ -129,131 +125,134 @@ func (o *ListInfrastructureAccountsParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the list infrastructure accounts params
+// WithTimeout adds the timeout to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithTimeout(timeout time.Duration) *ListInfrastructureAccountsParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the list infrastructure accounts params
+// SetTimeout adds the timeout to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the list infrastructure accounts params
+// WithContext adds the context to the list infrastructure accounts params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListInfrastructureAccountsParams].
 func (o *ListInfrastructureAccountsParams) WithContext(ctx context.Context) *ListInfrastructureAccountsParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the list infrastructure accounts params
+// SetContext adds the context to the list infrastructure accounts params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListInfrastructureAccountsParams].
 func (o *ListInfrastructureAccountsParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the list infrastructure accounts params
+// WithHTTPClient adds the HTTPClient to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithHTTPClient(client *http.Client) *ListInfrastructureAccountsParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the list infrastructure accounts params
+// SetHTTPClient adds the HTTPClient to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithCostCenter adds the costCenter to the list infrastructure accounts params
+// WithCostCenter adds the costCenter to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithCostCenter(costCenter *string) *ListInfrastructureAccountsParams {
 	o.SetCostCenter(costCenter)
 	return o
 }
 
-// SetCostCenter adds the costCenter to the list infrastructure accounts params
+// SetCostCenter adds the costCenter to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetCostCenter(costCenter *string) {
 	o.CostCenter = costCenter
 }
 
-// WithCriticalityLevel adds the criticalityLevel to the list infrastructure accounts params
+// WithCriticalityLevel adds the criticalityLevel to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithCriticalityLevel(criticalityLevel *int32) *ListInfrastructureAccountsParams {
 	o.SetCriticalityLevel(criticalityLevel)
 	return o
 }
 
-// SetCriticalityLevel adds the criticalityLevel to the list infrastructure accounts params
+// SetCriticalityLevel adds the criticalityLevel to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetCriticalityLevel(criticalityLevel *int32) {
 	o.CriticalityLevel = criticalityLevel
 }
 
-// WithEnvironment adds the environment to the list infrastructure accounts params
+// WithEnvironment adds the environment to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithEnvironment(environment *string) *ListInfrastructureAccountsParams {
 	o.SetEnvironment(environment)
 	return o
 }
 
-// SetEnvironment adds the environment to the list infrastructure accounts params
+// SetEnvironment adds the environment to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetEnvironment(environment *string) {
 	o.Environment = environment
 }
 
-// WithExternalID adds the externalID to the list infrastructure accounts params
+// WithExternalID adds the externalID to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithExternalID(externalID *string) *ListInfrastructureAccountsParams {
 	o.SetExternalID(externalID)
 	return o
 }
 
-// SetExternalID adds the externalId to the list infrastructure accounts params
+// SetExternalID adds the externalId to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetExternalID(externalID *string) {
 	o.ExternalID = externalID
 }
 
-// WithLifecycleStatus adds the lifecycleStatus to the list infrastructure accounts params
+// WithLifecycleStatus adds the lifecycleStatus to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithLifecycleStatus(lifecycleStatus *string) *ListInfrastructureAccountsParams {
 	o.SetLifecycleStatus(lifecycleStatus)
 	return o
 }
 
-// SetLifecycleStatus adds the lifecycleStatus to the list infrastructure accounts params
+// SetLifecycleStatus adds the lifecycleStatus to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetLifecycleStatus(lifecycleStatus *string) {
 	o.LifecycleStatus = lifecycleStatus
 }
 
-// WithName adds the name to the list infrastructure accounts params
+// WithName adds the name to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithName(name *string) *ListInfrastructureAccountsParams {
 	o.SetName(name)
 	return o
 }
 
-// SetName adds the name to the list infrastructure accounts params
+// SetName adds the name to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetName(name *string) {
 	o.Name = name
 }
 
-// WithOwner adds the owner to the list infrastructure accounts params
+// WithOwner adds the owner to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithOwner(owner *string) *ListInfrastructureAccountsParams {
 	o.SetOwner(owner)
 	return o
 }
 
-// SetOwner adds the owner to the list infrastructure accounts params
+// SetOwner adds the owner to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetOwner(owner *string) {
 	o.Owner = owner
 }
 
-// WithType adds the typeVar to the list infrastructure accounts params
+// WithType adds the typeVar to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) WithType(typeVar *string) *ListInfrastructureAccountsParams {
 	o.SetType(typeVar)
 	return o
 }
 
-// SetType adds the type to the list infrastructure accounts params
+// SetType adds the type to the list infrastructure accounts params.
 func (o *ListInfrastructureAccountsParams) SetType(typeVar *string) {
 	o.Type = typeVar
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *ListInfrastructureAccountsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error
@@ -283,7 +282,7 @@ func (o *ListInfrastructureAccountsParams) WriteToRequest(r runtime.ClientReques
 		if o.CriticalityLevel != nil {
 			qrCriticalityLevel = *o.CriticalityLevel
 		}
-		qCriticalityLevel := swag.FormatInt32(qrCriticalityLevel)
+		qCriticalityLevel := conv.FormatInteger(qrCriticalityLevel)
 		if qCriticalityLevel != "" {
 
 			if err := r.SetQueryParam("criticality_level", qCriticalityLevel); err != nil {

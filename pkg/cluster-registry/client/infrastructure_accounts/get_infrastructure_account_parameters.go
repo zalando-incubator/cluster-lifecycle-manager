@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewGetInfrastructureAccountParams() *GetInfrastructureAccountParams {
-	return &GetInfrastructureAccountParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewGetInfrastructureAccountParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewGetInfrastructureAccountParamsWithTimeout creates a new GetInfrastructureAccountParams object
 // with the ability to set a timeout on a request.
 func NewGetInfrastructureAccountParamsWithTimeout(timeout time.Duration) *GetInfrastructureAccountParams {
 	return &GetInfrastructureAccountParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewGetInfrastructureAccountParamsWithContext creates a new GetInfrastructureAccountParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetInfrastructureAccountParams].
 func NewGetInfrastructureAccountParamsWithContext(ctx context.Context) *GetInfrastructureAccountParams {
 	return &GetInfrastructureAccountParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,15 +62,14 @@ GetInfrastructureAccountParams contains all the parameters to send to the API en
 */
 type GetInfrastructureAccountParams struct {
 
-	/* AccountID.
-
-	   ID of the infrastructure account.
-	*/
+	// AccountID.
+	//
+	// ID of the infrastructure account.
 	AccountID string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the get infrastructure account params (not the query body).
@@ -84,54 +87,57 @@ func (o *GetInfrastructureAccountParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the get infrastructure account params
+// WithTimeout adds the timeout to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) WithTimeout(timeout time.Duration) *GetInfrastructureAccountParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the get infrastructure account params
+// SetTimeout adds the timeout to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the get infrastructure account params
+// WithContext adds the context to the get infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetInfrastructureAccountParams].
 func (o *GetInfrastructureAccountParams) WithContext(ctx context.Context) *GetInfrastructureAccountParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the get infrastructure account params
+// SetContext adds the context to the get infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetInfrastructureAccountParams].
 func (o *GetInfrastructureAccountParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the get infrastructure account params
+// WithHTTPClient adds the HTTPClient to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) WithHTTPClient(client *http.Client) *GetInfrastructureAccountParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the get infrastructure account params
+// SetHTTPClient adds the HTTPClient to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithAccountID adds the accountID to the get infrastructure account params
+// WithAccountID adds the accountID to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) WithAccountID(accountID string) *GetInfrastructureAccountParams {
 	o.SetAccountID(accountID)
 	return o
 }
 
-// SetAccountID adds the accountId to the get infrastructure account params
+// SetAccountID adds the accountId to the get infrastructure account params.
 func (o *GetInfrastructureAccountParams) SetAccountID(accountID string) {
 	o.AccountID = accountID
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *GetInfrastructureAccountParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

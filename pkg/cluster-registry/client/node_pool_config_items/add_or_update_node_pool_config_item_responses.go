@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewAddOrUpdateNodePoolConfigItemOK() *AddOrUpdateNodePoolConfigItemOK {
 	return &AddOrUpdateNodePoolConfigItemOK{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemOK describes a response with status code 200, with default header values.
-
-The config items add/update request is accepted.
-*/
+// AddOrUpdateNodePoolConfigItemOK describes a response with status code 200, with default header values.
+//
+// The config items add/update request is accepted.
 type AddOrUpdateNodePoolConfigItemOK struct {
 	Payload *models.ConfigValue
 }
@@ -132,11 +129,9 @@ func NewAddOrUpdateNodePoolConfigItemBadRequest() *AddOrUpdateNodePoolConfigItem
 	return &AddOrUpdateNodePoolConfigItemBadRequest{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// AddOrUpdateNodePoolConfigItemBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type AddOrUpdateNodePoolConfigItemBadRequest struct {
 	Payload *models.Error
 }
@@ -202,11 +197,9 @@ func NewAddOrUpdateNodePoolConfigItemUnauthorized() *AddOrUpdateNodePoolConfigIt
 	return &AddOrUpdateNodePoolConfigItemUnauthorized{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// AddOrUpdateNodePoolConfigItemUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type AddOrUpdateNodePoolConfigItemUnauthorized struct {
 }
 
@@ -258,11 +251,9 @@ func NewAddOrUpdateNodePoolConfigItemForbidden() *AddOrUpdateNodePoolConfigItemF
 	return &AddOrUpdateNodePoolConfigItemForbidden{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// AddOrUpdateNodePoolConfigItemForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type AddOrUpdateNodePoolConfigItemForbidden struct {
 }
 
@@ -314,11 +305,9 @@ func NewAddOrUpdateNodePoolConfigItemInternalServerError() *AddOrUpdateNodePoolC
 	return &AddOrUpdateNodePoolConfigItemInternalServerError{}
 }
 
-/*
-AddOrUpdateNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// AddOrUpdateNodePoolConfigItemInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type AddOrUpdateNodePoolConfigItemInternalServerError struct {
 	Payload *models.Error
 }

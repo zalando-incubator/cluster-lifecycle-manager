@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewListNodePoolsParams() *ListNodePoolsParams {
-	return &ListNodePoolsParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewListNodePoolsParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewListNodePoolsParamsWithTimeout creates a new ListNodePoolsParams object
 // with the ability to set a timeout on a request.
 func NewListNodePoolsParamsWithTimeout(timeout time.Duration) *ListNodePoolsParams {
 	return &ListNodePoolsParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewListNodePoolsParamsWithContext creates a new ListNodePoolsParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListNodePoolsParams].
 func NewListNodePoolsParamsWithContext(ctx context.Context) *ListNodePoolsParams {
 	return &ListNodePoolsParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,15 +62,14 @@ ListNodePoolsParams contains all the parameters to send to the API endpoint
 */
 type ListNodePoolsParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the list node pools params (not the query body).
@@ -84,54 +87,57 @@ func (o *ListNodePoolsParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the list node pools params
+// WithTimeout adds the timeout to the list node pools params.
 func (o *ListNodePoolsParams) WithTimeout(timeout time.Duration) *ListNodePoolsParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the list node pools params
+// SetTimeout adds the timeout to the list node pools params.
 func (o *ListNodePoolsParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the list node pools params
+// WithContext adds the context to the list node pools params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListNodePoolsParams].
 func (o *ListNodePoolsParams) WithContext(ctx context.Context) *ListNodePoolsParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the list node pools params
+// SetContext adds the context to the list node pools params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListNodePoolsParams].
 func (o *ListNodePoolsParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the list node pools params
+// WithHTTPClient adds the HTTPClient to the list node pools params.
 func (o *ListNodePoolsParams) WithHTTPClient(client *http.Client) *ListNodePoolsParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the list node pools params
+// SetHTTPClient adds the HTTPClient to the list node pools params.
 func (o *ListNodePoolsParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the list node pools params
+// WithClusterID adds the clusterID to the list node pools params.
 func (o *ListNodePoolsParams) WithClusterID(clusterID string) *ListNodePoolsParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the list node pools params
+// SetClusterID adds the clusterId to the list node pools params.
 func (o *ListNodePoolsParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *ListNodePoolsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -22,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewAddOrUpdateConfigItemParams() *AddOrUpdateConfigItemParams {
-	return &AddOrUpdateConfigItemParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewAddOrUpdateConfigItemParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewAddOrUpdateConfigItemParamsWithTimeout creates a new AddOrUpdateConfigItemParams object
 // with the ability to set a timeout on a request.
 func NewAddOrUpdateConfigItemParamsWithTimeout(timeout time.Duration) *AddOrUpdateConfigItemParams {
 	return &AddOrUpdateConfigItemParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewAddOrUpdateConfigItemParamsWithContext creates a new AddOrUpdateConfigItemParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [AddOrUpdateConfigItemParams].
 func NewAddOrUpdateConfigItemParamsWithContext(ctx context.Context) *AddOrUpdateConfigItemParams {
 	return &AddOrUpdateConfigItemParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -60,27 +63,24 @@ AddOrUpdateConfigItemParams contains all the parameters to send to the API endpo
 */
 type AddOrUpdateConfigItemParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* ConfigKey.
-
-	   Key for the config value.
-	*/
+	// ConfigKey.
+	//
+	// Key for the config value.
 	ConfigKey string
 
-	/* Value.
-
-	   Config value.
-	*/
+	// Value.
+	//
+	// Config value.
 	Value *models.ConfigValue
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the add or update config item params (not the query body).
@@ -98,76 +98,79 @@ func (o *AddOrUpdateConfigItemParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the add or update config item params
+// WithTimeout adds the timeout to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) WithTimeout(timeout time.Duration) *AddOrUpdateConfigItemParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the add or update config item params
+// SetTimeout adds the timeout to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the add or update config item params
+// WithContext adds the context to the add or update config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [AddOrUpdateConfigItemParams].
 func (o *AddOrUpdateConfigItemParams) WithContext(ctx context.Context) *AddOrUpdateConfigItemParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the add or update config item params
+// SetContext adds the context to the add or update config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [AddOrUpdateConfigItemParams].
 func (o *AddOrUpdateConfigItemParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the add or update config item params
+// WithHTTPClient adds the HTTPClient to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) WithHTTPClient(client *http.Client) *AddOrUpdateConfigItemParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the add or update config item params
+// SetHTTPClient adds the HTTPClient to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the add or update config item params
+// WithClusterID adds the clusterID to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) WithClusterID(clusterID string) *AddOrUpdateConfigItemParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the add or update config item params
+// SetClusterID adds the clusterId to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithConfigKey adds the configKey to the add or update config item params
+// WithConfigKey adds the configKey to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) WithConfigKey(configKey string) *AddOrUpdateConfigItemParams {
 	o.SetConfigKey(configKey)
 	return o
 }
 
-// SetConfigKey adds the configKey to the add or update config item params
+// SetConfigKey adds the configKey to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) SetConfigKey(configKey string) {
 	o.ConfigKey = configKey
 }
 
-// WithValue adds the value to the add or update config item params
+// WithValue adds the value to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) WithValue(value *models.ConfigValue) *AddOrUpdateConfigItemParams {
 	o.SetValue(value)
 	return o
 }
 
-// SetValue adds the value to the add or update config item params
+// SetValue adds the value to the add or update config item params.
 func (o *AddOrUpdateConfigItemParams) SetValue(value *models.ConfigValue) {
 	o.Value = value
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *AddOrUpdateConfigItemParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

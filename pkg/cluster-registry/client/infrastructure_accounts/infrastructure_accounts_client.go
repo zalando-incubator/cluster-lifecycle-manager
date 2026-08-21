@@ -3,7 +3,9 @@
 package infrastructure_accounts
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -11,11 +13,12 @@ import (
 )
 
 // New creates a new infrastructure accounts API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
+func New(transport runtime.ContextualTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
 // New creates a new infrastructure accounts API client with basic auth credentials.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -29,6 +32,7 @@ func NewClientWithBasicAuth(host, basePath, scheme, user, password string) Clien
 }
 
 // New creates a new infrastructure accounts API client with a bearer token for authentication.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -40,40 +44,77 @@ func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) Client
 	return &Client{transport: transport, formats: strfmt.Default}
 }
 
-/*
-Client for infrastructure accounts API
-*/
+// Client for infrastructure accounts API.
 type Client struct {
-	transport runtime.ClientTransport
+	transport runtime.ContextualTransport
 	formats   strfmt.Registry
 }
 
 // ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
 
-// ClientService is the interface for Client methods
+// ClientService is the interface for Client methods.
 type ClientService interface {
+
+	// CreateInfrastructureAccount create infrastructure account.
 	CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error)
 
+	// CreateInfrastructureAccountContext create infrastructure account.
+	CreateInfrastructureAccountContext(ctx context.Context, params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error)
+
+	// GetInfrastructureAccount get single infrastructure account.
 	GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error)
 
+	// GetInfrastructureAccountContext get single infrastructure account.
+	GetInfrastructureAccountContext(ctx context.Context, params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error)
+
+	// ListInfrastructureAccounts list all registered infrastructure accounts.
 	ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error)
 
+	// ListInfrastructureAccountsContext list all registered infrastructure accounts.
+	ListInfrastructureAccountsContext(ctx context.Context, params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error)
+
+	// UpdateInfrastructureAccount update infrastructure account.
 	UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error)
 
-	SetTransport(transport runtime.ClientTransport)
+	// UpdateInfrastructureAccountContext update infrastructure account.
+	UpdateInfrastructureAccountContext(ctx context.Context, params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error)
+
+	SetTransport(transport runtime.ContextualTransport)
 }
 
-/*
-CreateInfrastructureAccount creates infrastructure account
-
-Creates a new infrastructure account
-*/
+// CreateInfrastructureAccount creates infrastructure account.
+//
+// Creates a new infrastructure account
+// .
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.CreateInfrastructureAccountContext] instead.
 func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.CreateInfrastructureAccountContext(ctx, params, authInfo, opts...)
+}
+
+// CreateInfrastructureAccountContext creates infrastructure account.
+//
+// Creates a new infrastructure account
+// .
+//
+// Do not use the deprecated [CreateInfrastructureAccountParams.Context] with this method: it would be ignored.
+func (a *Client) CreateInfrastructureAccountContext(ctx context.Context, params *CreateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateInfrastructureAccountCreated, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateInfrastructureAccountParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "createInfrastructureAccount",
 		Method:             "POST",
@@ -84,13 +125,14 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 		Params:             params,
 		Reader:             &CreateInfrastructureAccountReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -110,16 +152,38 @@ func (a *Client) CreateInfrastructureAccount(params *CreateInfrastructureAccount
 	panic(msg)
 }
 
-/*
-GetInfrastructureAccount gets single infrastructure account
-
-Read information regarding the infrastructure account.
-*/
+// GetInfrastructureAccount gets single infrastructure account.
+//
+// Read information regarding the infrastructure account.
+// .
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.GetInfrastructureAccountContext] instead.
 func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.GetInfrastructureAccountContext(ctx, params, authInfo, opts...)
+}
+
+// GetInfrastructureAccountContext gets single infrastructure account.
+//
+// Read information regarding the infrastructure account.
+// .
+//
+// Do not use the deprecated [GetInfrastructureAccountParams.Context] with this method: it would be ignored.
+func (a *Client) GetInfrastructureAccountContext(ctx context.Context, params *GetInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInfrastructureAccountOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetInfrastructureAccountParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "getInfrastructureAccount",
 		Method:             "GET",
@@ -130,13 +194,14 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 		Params:             params,
 		Reader:             &GetInfrastructureAccountReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +221,32 @@ func (a *Client) GetInfrastructureAccount(params *GetInfrastructureAccountParams
 	panic(msg)
 }
 
-/*
-ListInfrastructureAccounts lists all registered infrastructure accounts
-*/
+// ListInfrastructureAccounts lists all registered infrastructure accounts.
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.ListInfrastructureAccountsContext] instead.
 func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.ListInfrastructureAccountsContext(ctx, params, authInfo, opts...)
+}
+
+// ListInfrastructureAccountsContext lists all registered infrastructure accounts.
+//
+// Do not use the deprecated [ListInfrastructureAccountsParams.Context] with this method: it would be ignored.
+func (a *Client) ListInfrastructureAccountsContext(ctx context.Context, params *ListInfrastructureAccountsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInfrastructureAccountsOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListInfrastructureAccountsParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "listInfrastructureAccounts",
 		Method:             "GET",
@@ -174,13 +257,14 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 		Params:             params,
 		Reader:             &ListInfrastructureAccountsReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -200,16 +284,36 @@ func (a *Client) ListInfrastructureAccounts(params *ListInfrastructureAccountsPa
 	panic(msg)
 }
 
-/*
-UpdateInfrastructureAccount updates infrastructure account
-
-update an infrastructure account.
-*/
+// UpdateInfrastructureAccount updates infrastructure account.
+//
+// update an infrastructure account..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.UpdateInfrastructureAccountContext] instead.
 func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.UpdateInfrastructureAccountContext(ctx, params, authInfo, opts...)
+}
+
+// UpdateInfrastructureAccountContext updates infrastructure account.
+//
+// update an infrastructure account..
+//
+// Do not use the deprecated [UpdateInfrastructureAccountParams.Context] with this method: it would be ignored.
+func (a *Client) UpdateInfrastructureAccountContext(ctx context.Context, params *UpdateInfrastructureAccountParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateInfrastructureAccountOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateInfrastructureAccountParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "updateInfrastructureAccount",
 		Method:             "PATCH",
@@ -220,13 +324,14 @@ func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccount
 		Params:             params,
 		Reader:             &UpdateInfrastructureAccountReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -247,6 +352,14 @@ func (a *Client) UpdateInfrastructureAccount(params *UpdateInfrastructureAccount
 }
 
 // SetTransport changes the transport on the client
-func (a *Client) SetTransport(transport runtime.ClientTransport) {
+func (a *Client) SetTransport(transport runtime.ContextualTransport) {
 	a.transport = transport
+}
+
+// innerParams captures internal fields so they don't conflict with user-supplied parameters.
+type innerParams struct {
+	timeout time.Duration
+
+	// Deprecated: use the operation call with context to pass the context instead of [InfrastructureAccountsParams].
+	ctx context.Context
 }

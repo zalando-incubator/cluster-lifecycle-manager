@@ -3,7 +3,9 @@
 package node_pool_config_items
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -11,11 +13,12 @@ import (
 )
 
 // New creates a new node pool config items API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
+func New(transport runtime.ContextualTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
 // New creates a new node pool config items API client with basic auth credentials.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -29,6 +32,7 @@ func NewClientWithBasicAuth(host, basePath, scheme, user, password string) Clien
 }
 
 // New creates a new node pool config items API client with a bearer token for authentication.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -40,36 +44,63 @@ func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) Client
 	return &Client{transport: transport, formats: strfmt.Default}
 }
 
-/*
-Client for node pool config items API
-*/
+// Client for node pool config items API.
 type Client struct {
-	transport runtime.ClientTransport
+	transport runtime.ContextualTransport
 	formats   strfmt.Registry
 }
 
 // ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
 
-// ClientService is the interface for Client methods
+// ClientService is the interface for Client methods.
 type ClientService interface {
+
+	// AddOrUpdateNodePoolConfigItem add update config item.
 	AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error)
 
+	// AddOrUpdateNodePoolConfigItemContext add update config item.
+	AddOrUpdateNodePoolConfigItemContext(ctx context.Context, params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error)
+
+	// DeleteNodePoolConfigItem delete config item.
 	DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error)
 
-	SetTransport(transport runtime.ClientTransport)
+	// DeleteNodePoolConfigItemContext delete config item.
+	DeleteNodePoolConfigItemContext(ctx context.Context, params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error)
+
+	SetTransport(transport runtime.ContextualTransport)
 }
 
-/*
-AddOrUpdateNodePoolConfigItem adds update config item
-
-Add/update a configuration item unique to the node pool.
-*/
+// AddOrUpdateNodePoolConfigItem adds update config item.
+//
+// Add/update a configuration item unique to the node pool..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.AddOrUpdateNodePoolConfigItemContext] instead.
 func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.AddOrUpdateNodePoolConfigItemContext(ctx, params, authInfo, opts...)
+}
+
+// AddOrUpdateNodePoolConfigItemContext adds update config item.
+//
+// Add/update a configuration item unique to the node pool..
+//
+// Do not use the deprecated [AddOrUpdateNodePoolConfigItemParams.Context] with this method: it would be ignored.
+func (a *Client) AddOrUpdateNodePoolConfigItemContext(ctx context.Context, params *AddOrUpdateNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateNodePoolConfigItemOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewAddOrUpdateNodePoolConfigItemParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "addOrUpdateNodePoolConfigItem",
 		Method:             "PUT",
@@ -80,13 +111,14 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 		Params:             params,
 		Reader:             &AddOrUpdateNodePoolConfigItemReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -106,16 +138,36 @@ func (a *Client) AddOrUpdateNodePoolConfigItem(params *AddOrUpdateNodePoolConfig
 	panic(msg)
 }
 
-/*
-DeleteNodePoolConfigItem deletes config item
-
-Deletes config item.
-*/
+// DeleteNodePoolConfigItem deletes config item.
+//
+// Deletes config item..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.DeleteNodePoolConfigItemContext] instead.
 func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.DeleteNodePoolConfigItemContext(ctx, params, authInfo, opts...)
+}
+
+// DeleteNodePoolConfigItemContext deletes config item.
+//
+// Deletes config item..
+//
+// Do not use the deprecated [DeleteNodePoolConfigItemParams.Context] with this method: it would be ignored.
+func (a *Client) DeleteNodePoolConfigItemContext(ctx context.Context, params *DeleteNodePoolConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteNodePoolConfigItemNoContent, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteNodePoolConfigItemParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "deleteNodePoolConfigItem",
 		Method:             "DELETE",
@@ -126,13 +178,14 @@ func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams
 		Params:             params,
 		Reader:             &DeleteNodePoolConfigItemReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +206,14 @@ func (a *Client) DeleteNodePoolConfigItem(params *DeleteNodePoolConfigItemParams
 }
 
 // SetTransport changes the transport on the client
-func (a *Client) SetTransport(transport runtime.ClientTransport) {
+func (a *Client) SetTransport(transport runtime.ContextualTransport) {
 	a.transport = transport
+}
+
+// innerParams captures internal fields so they don't conflict with user-supplied parameters.
+type innerParams struct {
+	timeout time.Duration
+
+	// Deprecated: use the operation call with context to pass the context instead of [NodePoolConfigItemsParams].
+	ctx context.Context
 }

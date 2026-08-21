@@ -11,7 +11,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/conv"
 )
 
 // NewGetClusterParams creates a new GetClusterParams object,
@@ -21,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewGetClusterParams() *GetClusterParams {
-	return &GetClusterParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewGetClusterParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewGetClusterParamsWithTimeout creates a new GetClusterParams object
 // with the ability to set a timeout on a request.
 func NewGetClusterParamsWithTimeout(timeout time.Duration) *GetClusterParams {
 	return &GetClusterParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewGetClusterParamsWithContext creates a new GetClusterParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetClusterParams].
 func NewGetClusterParamsWithContext(ctx context.Context) *GetClusterParams {
 	return &GetClusterParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -59,23 +63,21 @@ GetClusterParams contains all the parameters to send to the API endpoint
 */
 type GetClusterParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* Verbose.
-
-	   Include technical data (config items, node pools) in the response, true by default
-
-	   Default: true
-	*/
+	// Verbose.
+	//
+	// Include technical data (config items, node pools) in the response, true by default
+	//
+	// Default: true
 	Verbose *bool
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the get cluster params (not the query body).
@@ -98,71 +100,74 @@ func (o *GetClusterParams) SetDefaults() {
 		Verbose: &verboseDefault,
 	}
 
-	val.timeout = o.timeout
-	val.Context = o.Context
+	val.inner.timeout = o.inner.timeout
+	val.inner.ctx = o.inner.ctx
 	val.HTTPClient = o.HTTPClient
 	*o = val
 }
 
-// WithTimeout adds the timeout to the get cluster params
+// WithTimeout adds the timeout to the get cluster params.
 func (o *GetClusterParams) WithTimeout(timeout time.Duration) *GetClusterParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the get cluster params
+// SetTimeout adds the timeout to the get cluster params.
 func (o *GetClusterParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the get cluster params
+// WithContext adds the context to the get cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetClusterParams].
 func (o *GetClusterParams) WithContext(ctx context.Context) *GetClusterParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the get cluster params
+// SetContext adds the context to the get cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [GetClusterParams].
 func (o *GetClusterParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the get cluster params
+// WithHTTPClient adds the HTTPClient to the get cluster params.
 func (o *GetClusterParams) WithHTTPClient(client *http.Client) *GetClusterParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the get cluster params
+// SetHTTPClient adds the HTTPClient to the get cluster params.
 func (o *GetClusterParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the get cluster params
+// WithClusterID adds the clusterID to the get cluster params.
 func (o *GetClusterParams) WithClusterID(clusterID string) *GetClusterParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the get cluster params
+// SetClusterID adds the clusterId to the get cluster params.
 func (o *GetClusterParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithVerbose adds the verbose to the get cluster params
+// WithVerbose adds the verbose to the get cluster params.
 func (o *GetClusterParams) WithVerbose(verbose *bool) *GetClusterParams {
 	o.SetVerbose(verbose)
 	return o
 }
 
-// SetVerbose adds the verbose to the get cluster params
+// SetVerbose adds the verbose to the get cluster params.
 func (o *GetClusterParams) SetVerbose(verbose *bool) {
 	o.Verbose = verbose
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *GetClusterParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error
@@ -180,7 +185,7 @@ func (o *GetClusterParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Re
 		if o.Verbose != nil {
 			qrVerbose = *o.Verbose
 		}
-		qVerbose := swag.FormatBool(qrVerbose)
+		qVerbose := conv.FormatBool(qrVerbose)
 		if qVerbose != "" {
 
 			if err := r.SetQueryParam("verbose", qVerbose); err != nil {
