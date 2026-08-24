@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/errors v0.22.8
 	github.com/go-openapi/runtime v0.33.0
 	github.com/go-openapi/strfmt v0.27.0
-	github.com/go-openapi/swag v0.29.0
+	github.com/go-openapi/swag v0.29.0 // indirect
 	github.com/go-openapi/validate v0.26.3
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-swagger/go-swagger v0.36.4
@@ -27,9 +27,9 @@ require (
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/api v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
 )
@@ -50,19 +50,22 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.55.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.7
-	github.com/aws/karpenter-provider-aws v1.14.0
+	github.com/aws/karpenter-provider-aws v1.14.1
 	github.com/aws/smithy-go v1.27.8
 	github.com/awslabs/operatorpkg v0.0.0-20260812232916-6d329cee9a40
+	github.com/go-openapi/swag/conv v0.29.0
+	github.com/go-openapi/swag/jsonutils v0.29.0
+	github.com/go-openapi/swag/typeutils v0.29.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jonboulle/clockwork v0.5.0
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/samber/lo v1.53.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/cli-runtime v0.36.3
-	k8s.io/kubectl v0.36.3
+	k8s.io/cli-runtime v0.36.4
+	k8s.io/kubectl v0.36.4
 	sigs.k8s.io/aws-iam-authenticator v0.7.18
 	sigs.k8s.io/controller-runtime v0.24.1
-	sigs.k8s.io/karpenter v1.14.0
+	sigs.k8s.io/karpenter v1.14.1-0.20260819221709-6e7eab7a0f48
 )
 
 require (
@@ -110,15 +113,12 @@ require (
 	github.com/go-openapi/runtime/server-middleware v0.33.0 // indirect
 	github.com/go-openapi/spec v0.22.9 // indirect
 	github.com/go-openapi/swag/cmdutils v0.29.0 // indirect
-	github.com/go-openapi/swag/conv v0.29.0 // indirect
 	github.com/go-openapi/swag/fileutils v0.29.0 // indirect
-	github.com/go-openapi/swag/jsonutils v0.29.0 // indirect
 	github.com/go-openapi/swag/loading v0.29.0 // indirect
 	github.com/go-openapi/swag/mangling v0.29.0 // indirect
 	github.com/go-openapi/swag/netutils v0.29.0 // indirect
 	github.com/go-openapi/swag/pools v0.29.0 // indirect
 	github.com/go-openapi/swag/stringutils v0.29.0 // indirect
-	github.com/go-openapi/swag/typeutils v0.29.0 // indirect
 	github.com/go-openapi/swag/yamlutils v0.29.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
@@ -191,8 +191,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apiextensions-apiserver v0.36.3 // indirect
 	k8s.io/cloud-provider v0.36.3 // indirect
-	k8s.io/component-base v0.36.3 // indirect
-	k8s.io/component-helpers v0.36.3 // indirect
+	k8s.io/component-base v0.36.4 // indirect
+	k8s.io/component-helpers v0.36.4 // indirect
 	k8s.io/csi-translation-lib v0.36.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
@@ -203,4 +203,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-go 1.26.5
+go 1.26.6
