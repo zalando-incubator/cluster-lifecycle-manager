@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -68,11 +67,9 @@ func NewDeleteClusterNoContent() *DeleteClusterNoContent {
 	return &DeleteClusterNoContent{}
 }
 
-/*
-DeleteClusterNoContent describes a response with status code 204, with default header values.
-
-Cluster deleted
-*/
+// DeleteClusterNoContent describes a response with status code 204, with default header values.
+//
+// Cluster deleted
 type DeleteClusterNoContent struct {
 }
 
@@ -124,11 +121,9 @@ func NewDeleteClusterBadRequest() *DeleteClusterBadRequest {
 	return &DeleteClusterBadRequest{}
 }
 
-/*
-DeleteClusterBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// DeleteClusterBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type DeleteClusterBadRequest struct {
 	Payload *models.Error
 }
@@ -194,11 +189,9 @@ func NewDeleteClusterUnauthorized() *DeleteClusterUnauthorized {
 	return &DeleteClusterUnauthorized{}
 }
 
-/*
-DeleteClusterUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// DeleteClusterUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type DeleteClusterUnauthorized struct {
 }
 
@@ -250,11 +243,9 @@ func NewDeleteClusterForbidden() *DeleteClusterForbidden {
 	return &DeleteClusterForbidden{}
 }
 
-/*
-DeleteClusterForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// DeleteClusterForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type DeleteClusterForbidden struct {
 	Payload *models.Error
 }
@@ -320,11 +311,9 @@ func NewDeleteClusterNotFound() *DeleteClusterNotFound {
 	return &DeleteClusterNotFound{}
 }
 
-/*
-DeleteClusterNotFound describes a response with status code 404, with default header values.
-
-Cluster not found
-*/
+// DeleteClusterNotFound describes a response with status code 404, with default header values.
+//
+// Cluster not found
 type DeleteClusterNotFound struct {
 }
 
@@ -376,11 +365,9 @@ func NewDeleteClusterInternalServerError() *DeleteClusterInternalServerError {
 	return &DeleteClusterInternalServerError{}
 }
 
-/*
-DeleteClusterInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// DeleteClusterInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type DeleteClusterInternalServerError struct {
 	Payload *models.Error
 }

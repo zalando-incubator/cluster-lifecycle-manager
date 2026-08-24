@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDeleteClusterParams() *DeleteClusterParams {
-	return &DeleteClusterParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewDeleteClusterParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewDeleteClusterParamsWithTimeout creates a new DeleteClusterParams object
 // with the ability to set a timeout on a request.
 func NewDeleteClusterParamsWithTimeout(timeout time.Duration) *DeleteClusterParams {
 	return &DeleteClusterParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewDeleteClusterParamsWithContext creates a new DeleteClusterParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteClusterParams].
 func NewDeleteClusterParamsWithContext(ctx context.Context) *DeleteClusterParams {
 	return &DeleteClusterParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,15 +62,14 @@ DeleteClusterParams contains all the parameters to send to the API endpoint
 */
 type DeleteClusterParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the delete cluster params (not the query body).
@@ -84,54 +87,57 @@ func (o *DeleteClusterParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the delete cluster params
+// WithTimeout adds the timeout to the delete cluster params.
 func (o *DeleteClusterParams) WithTimeout(timeout time.Duration) *DeleteClusterParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the delete cluster params
+// SetTimeout adds the timeout to the delete cluster params.
 func (o *DeleteClusterParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the delete cluster params
+// WithContext adds the context to the delete cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteClusterParams].
 func (o *DeleteClusterParams) WithContext(ctx context.Context) *DeleteClusterParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the delete cluster params
+// SetContext adds the context to the delete cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteClusterParams].
 func (o *DeleteClusterParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the delete cluster params
+// WithHTTPClient adds the HTTPClient to the delete cluster params.
 func (o *DeleteClusterParams) WithHTTPClient(client *http.Client) *DeleteClusterParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the delete cluster params
+// SetHTTPClient adds the HTTPClient to the delete cluster params.
 func (o *DeleteClusterParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the delete cluster params
+// WithClusterID adds the clusterID to the delete cluster params.
 func (o *DeleteClusterParams) WithClusterID(clusterID string) *DeleteClusterParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the delete cluster params
+// SetClusterID adds the clusterId to the delete cluster params.
 func (o *DeleteClusterParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *DeleteClusterParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

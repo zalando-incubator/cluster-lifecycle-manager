@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -68,11 +67,9 @@ func NewDeleteConfigItemNoContent() *DeleteConfigItemNoContent {
 	return &DeleteConfigItemNoContent{}
 }
 
-/*
-DeleteConfigItemNoContent describes a response with status code 204, with default header values.
-
-Config item deleted.
-*/
+// DeleteConfigItemNoContent describes a response with status code 204, with default header values.
+//
+// Config item deleted.
 type DeleteConfigItemNoContent struct {
 }
 
@@ -124,11 +121,9 @@ func NewDeleteConfigItemBadRequest() *DeleteConfigItemBadRequest {
 	return &DeleteConfigItemBadRequest{}
 }
 
-/*
-DeleteConfigItemBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// DeleteConfigItemBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type DeleteConfigItemBadRequest struct {
 	Payload *models.Error
 }
@@ -194,11 +189,9 @@ func NewDeleteConfigItemUnauthorized() *DeleteConfigItemUnauthorized {
 	return &DeleteConfigItemUnauthorized{}
 }
 
-/*
-DeleteConfigItemUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// DeleteConfigItemUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type DeleteConfigItemUnauthorized struct {
 }
 
@@ -250,11 +243,9 @@ func NewDeleteConfigItemForbidden() *DeleteConfigItemForbidden {
 	return &DeleteConfigItemForbidden{}
 }
 
-/*
-DeleteConfigItemForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// DeleteConfigItemForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type DeleteConfigItemForbidden struct {
 }
 
@@ -306,11 +297,9 @@ func NewDeleteConfigItemNotFound() *DeleteConfigItemNotFound {
 	return &DeleteConfigItemNotFound{}
 }
 
-/*
-DeleteConfigItemNotFound describes a response with status code 404, with default header values.
-
-Config item not found
-*/
+// DeleteConfigItemNotFound describes a response with status code 404, with default header values.
+//
+// Config item not found
 type DeleteConfigItemNotFound struct {
 }
 
@@ -362,11 +351,9 @@ func NewDeleteConfigItemInternalServerError() *DeleteConfigItemInternalServerErr
 	return &DeleteConfigItemInternalServerError{}
 }
 
-/*
-DeleteConfigItemInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// DeleteConfigItemInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type DeleteConfigItemInternalServerError struct {
 	Payload *models.Error
 }

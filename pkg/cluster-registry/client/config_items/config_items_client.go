@@ -3,7 +3,9 @@
 package config_items
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -11,11 +13,12 @@ import (
 )
 
 // New creates a new config items API client.
-func New(transport runtime.ClientTransport, formats strfmt.Registry) ClientService {
+func New(transport runtime.ContextualTransport, formats strfmt.Registry) ClientService {
 	return &Client{transport: transport, formats: formats}
 }
 
 // New creates a new config items API client with basic auth credentials.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -29,6 +32,7 @@ func NewClientWithBasicAuth(host, basePath, scheme, user, password string) Clien
 }
 
 // New creates a new config items API client with a bearer token for authentication.
+//
 // It takes the following parameters:
 // - host: http host (github.com).
 // - basePath: any base path for the API client ("/v1", "/v3").
@@ -40,36 +44,63 @@ func NewClientWithBearerToken(host, basePath, scheme, bearerToken string) Client
 	return &Client{transport: transport, formats: strfmt.Default}
 }
 
-/*
-Client for config items API
-*/
+// Client for config items API.
 type Client struct {
-	transport runtime.ClientTransport
+	transport runtime.ContextualTransport
 	formats   strfmt.Registry
 }
 
 // ClientOption may be used to customize the behavior of Client methods.
 type ClientOption func(*runtime.ClientOperation)
 
-// ClientService is the interface for Client methods
+// ClientService is the interface for Client methods.
 type ClientService interface {
+
+	// AddOrUpdateConfigItem add update config item.
 	AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateConfigItemOK, error)
 
+	// AddOrUpdateConfigItemContext add update config item.
+	AddOrUpdateConfigItemContext(ctx context.Context, params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateConfigItemOK, error)
+
+	// DeleteConfigItem delete config item.
 	DeleteConfigItem(params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteConfigItemNoContent, error)
 
-	SetTransport(transport runtime.ClientTransport)
+	// DeleteConfigItemContext delete config item.
+	DeleteConfigItemContext(ctx context.Context, params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteConfigItemNoContent, error)
+
+	SetTransport(transport runtime.ContextualTransport)
 }
 
-/*
-AddOrUpdateConfigItem adds update config item
-
-Add/update a configuration item unique to the cluster.
-*/
+// AddOrUpdateConfigItem adds update config item.
+//
+// Add/update a configuration item unique to the cluster..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.AddOrUpdateConfigItemContext] instead.
 func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateConfigItemOK, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.AddOrUpdateConfigItemContext(ctx, params, authInfo, opts...)
+}
+
+// AddOrUpdateConfigItemContext adds update config item.
+//
+// Add/update a configuration item unique to the cluster..
+//
+// Do not use the deprecated [AddOrUpdateConfigItemParams.Context] with this method: it would be ignored.
+func (a *Client) AddOrUpdateConfigItemContext(ctx context.Context, params *AddOrUpdateConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AddOrUpdateConfigItemOK, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewAddOrUpdateConfigItemParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "addOrUpdateConfigItem",
 		Method:             "PUT",
@@ -80,13 +111,14 @@ func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, auth
 		Params:             params,
 		Reader:             &AddOrUpdateConfigItemReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -106,16 +138,36 @@ func (a *Client) AddOrUpdateConfigItem(params *AddOrUpdateConfigItemParams, auth
 	panic(msg)
 }
 
-/*
-DeleteConfigItem deletes config item
-
-Deletes config item.
-*/
+// DeleteConfigItem deletes config item.
+//
+// Deletes config item..
+//
+// This method does not support injected context.
+// However, timeout and opentracing contexts are honored whenever enabled.
+//
+// If you need to pass a specific context, use [Client.DeleteConfigItemContext] instead.
 func (a *Client) DeleteConfigItem(params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteConfigItemNoContent, error) {
+	var ctx context.Context
+	if params != nil && params.inner.ctx != nil {
+		ctx = params.inner.ctx
+	} else {
+		ctx = context.Background()
+	}
+
+	return a.DeleteConfigItemContext(ctx, params, authInfo, opts...)
+}
+
+// DeleteConfigItemContext deletes config item.
+//
+// Deletes config item..
+//
+// Do not use the deprecated [DeleteConfigItemParams.Context] with this method: it would be ignored.
+func (a *Client) DeleteConfigItemContext(ctx context.Context, params *DeleteConfigItemParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteConfigItemNoContent, error) {
 	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteConfigItemParams()
 	}
+
 	op := &runtime.ClientOperation{
 		ID:                 "deleteConfigItem",
 		Method:             "DELETE",
@@ -126,13 +178,14 @@ func (a *Client) DeleteConfigItem(params *DeleteConfigItemParams, authInfo runti
 		Params:             params,
 		Reader:             &DeleteConfigItemReader{formats: a.formats},
 		AuthInfo:           authInfo,
-		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
+
 	for _, opt := range opts {
 		opt(op)
 	}
-	result, err := a.transport.Submit(op)
+
+	result, err := a.transport.SubmitContext(ctx, op)
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +206,14 @@ func (a *Client) DeleteConfigItem(params *DeleteConfigItemParams, authInfo runti
 }
 
 // SetTransport changes the transport on the client
-func (a *Client) SetTransport(transport runtime.ClientTransport) {
+func (a *Client) SetTransport(transport runtime.ContextualTransport) {
 	a.transport = transport
+}
+
+// innerParams captures internal fields so they don't conflict with user-supplied parameters.
+type innerParams struct {
+	timeout time.Duration
+
+	// Deprecated: use the operation call with context to pass the context instead of [ConfigItemsParams].
+	ctx context.Context
 }

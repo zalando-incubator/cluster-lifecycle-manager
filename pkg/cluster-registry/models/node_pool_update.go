@@ -7,7 +7,8 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/go-openapi/validate"
 )
 
@@ -70,7 +71,7 @@ func (m *NodePoolUpdate) Validate(formats strfmt.Registry) error {
 }
 
 func (m *NodePoolUpdate) validateInstanceTypes(formats strfmt.Registry) error {
-	if swag.IsZero(m.InstanceTypes) { // not required
+	if typeutils.IsZero(m.InstanceTypes) { // not required
 		return nil
 	}
 
@@ -88,7 +89,7 @@ func (m *NodePoolUpdate) validateInstanceTypes(formats strfmt.Registry) error {
 }
 
 // ContextValidate validates this node pool update based on context it is used
-func (m *NodePoolUpdate) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+func (m *NodePoolUpdate) ContextValidate(_ context.Context, _ strfmt.Registry) error {
 	return nil
 }
 
@@ -97,13 +98,13 @@ func (m *NodePoolUpdate) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(m)
+	return jsonutils.WriteJSON(m)
 }
 
 // UnmarshalBinary interface implementation
 func (m *NodePoolUpdate) UnmarshalBinary(b []byte) error {
 	var res NodePoolUpdate
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*m = res

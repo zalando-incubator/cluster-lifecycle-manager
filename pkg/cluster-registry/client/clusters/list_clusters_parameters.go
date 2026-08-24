@@ -11,7 +11,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/conv"
 )
 
 // NewListClustersParams creates a new ListClustersParams object,
@@ -21,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewListClustersParams() *ListClustersParams {
-	return &ListClustersParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewListClustersParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewListClustersParamsWithTimeout creates a new ListClustersParams object
 // with the ability to set a timeout on a request.
 func NewListClustersParamsWithTimeout(timeout time.Duration) *ListClustersParams {
 	return &ListClustersParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewListClustersParamsWithContext creates a new ListClustersParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListClustersParams].
 func NewListClustersParamsWithContext(ctx context.Context) *ListClustersParams {
 	return &ListClustersParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -59,85 +63,73 @@ ListClustersParams contains all the parameters to send to the API endpoint
 */
 type ListClustersParams struct {
 
-	/* Alias.
-
-	   Filter on cluster alias.
-	*/
+	// Alias.
+	//
+	// Filter on cluster alias.
 	Alias *string
 
-	/* APIServerURL.
-
-	   Filter on API server URL.
-	*/
+	// APIServerURL.
+	//
+	// Filter on API server URL.
 	APIServerURL *string
 
-	/* Channel.
-
-	   Filter on channel.
-	*/
+	// Channel.
+	//
+	// Filter on channel.
 	Channel *string
 
-	/* CostCenter.
-
-	   Filter on cost center number.
-	*/
+	// CostCenter.
+	//
+	// Filter on cost center number.
 	CostCenter *string
 
-	/* CriticalityLevel.
-
-	   Filter on criticality level.
-
-	   Format: int32
-	*/
+	// CriticalityLevel.
+	//
+	// Filter on criticality level.
+	//
+	// Format: int32
 	CriticalityLevel *int32
 
-	/* Environment.
-
-	   Filter on environment.
-	*/
+	// Environment.
+	//
+	// Filter on environment.
 	Environment *string
 
-	/* InfrastructureAccount.
-
-	   Filter on infrastructure account.
-	*/
+	// InfrastructureAccount.
+	//
+	// Filter on infrastructure account.
 	InfrastructureAccount *string
 
-	/* LifecycleStatus.
-
-	   Filter on cluster lifecycle status.
-	*/
+	// LifecycleStatus.
+	//
+	// Filter on cluster lifecycle status.
 	LifecycleStatus *string
 
-	/* LocalID.
-
-	   Filter on local id.
-	*/
+	// LocalID.
+	//
+	// Filter on local id.
 	LocalID *string
 
-	/* Provider.
-
-	   Filter on provider.
-	*/
+	// Provider.
+	//
+	// Filter on provider.
 	Provider *string
 
-	/* Region.
-
-	   Filter on region.
-	*/
+	// Region.
+	//
+	// Filter on region.
 	Region *string
 
-	/* Verbose.
-
-	   Include technical data (config items, node pools) in the response, true by default
-
-	   Default: true
-	*/
+	// Verbose.
+	//
+	// Include technical data (config items, node pools) in the response, true by default
+	//
+	// Default: true
 	Verbose *bool
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the list clusters params (not the query body).
@@ -160,181 +152,184 @@ func (o *ListClustersParams) SetDefaults() {
 		Verbose: &verboseDefault,
 	}
 
-	val.timeout = o.timeout
-	val.Context = o.Context
+	val.inner.timeout = o.inner.timeout
+	val.inner.ctx = o.inner.ctx
 	val.HTTPClient = o.HTTPClient
 	*o = val
 }
 
-// WithTimeout adds the timeout to the list clusters params
+// WithTimeout adds the timeout to the list clusters params.
 func (o *ListClustersParams) WithTimeout(timeout time.Duration) *ListClustersParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the list clusters params
+// SetTimeout adds the timeout to the list clusters params.
 func (o *ListClustersParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the list clusters params
+// WithContext adds the context to the list clusters params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListClustersParams].
 func (o *ListClustersParams) WithContext(ctx context.Context) *ListClustersParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the list clusters params
+// SetContext adds the context to the list clusters params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [ListClustersParams].
 func (o *ListClustersParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the list clusters params
+// WithHTTPClient adds the HTTPClient to the list clusters params.
 func (o *ListClustersParams) WithHTTPClient(client *http.Client) *ListClustersParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the list clusters params
+// SetHTTPClient adds the HTTPClient to the list clusters params.
 func (o *ListClustersParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithAlias adds the alias to the list clusters params
+// WithAlias adds the alias to the list clusters params.
 func (o *ListClustersParams) WithAlias(alias *string) *ListClustersParams {
 	o.SetAlias(alias)
 	return o
 }
 
-// SetAlias adds the alias to the list clusters params
+// SetAlias adds the alias to the list clusters params.
 func (o *ListClustersParams) SetAlias(alias *string) {
 	o.Alias = alias
 }
 
-// WithAPIServerURL adds the apiServerURL to the list clusters params
+// WithAPIServerURL adds the apiServerURL to the list clusters params.
 func (o *ListClustersParams) WithAPIServerURL(apiServerURL *string) *ListClustersParams {
 	o.SetAPIServerURL(apiServerURL)
 	return o
 }
 
-// SetAPIServerURL adds the apiServerUrl to the list clusters params
+// SetAPIServerURL adds the apiServerUrl to the list clusters params.
 func (o *ListClustersParams) SetAPIServerURL(apiServerURL *string) {
 	o.APIServerURL = apiServerURL
 }
 
-// WithChannel adds the channel to the list clusters params
+// WithChannel adds the channel to the list clusters params.
 func (o *ListClustersParams) WithChannel(channel *string) *ListClustersParams {
 	o.SetChannel(channel)
 	return o
 }
 
-// SetChannel adds the channel to the list clusters params
+// SetChannel adds the channel to the list clusters params.
 func (o *ListClustersParams) SetChannel(channel *string) {
 	o.Channel = channel
 }
 
-// WithCostCenter adds the costCenter to the list clusters params
+// WithCostCenter adds the costCenter to the list clusters params.
 func (o *ListClustersParams) WithCostCenter(costCenter *string) *ListClustersParams {
 	o.SetCostCenter(costCenter)
 	return o
 }
 
-// SetCostCenter adds the costCenter to the list clusters params
+// SetCostCenter adds the costCenter to the list clusters params.
 func (o *ListClustersParams) SetCostCenter(costCenter *string) {
 	o.CostCenter = costCenter
 }
 
-// WithCriticalityLevel adds the criticalityLevel to the list clusters params
+// WithCriticalityLevel adds the criticalityLevel to the list clusters params.
 func (o *ListClustersParams) WithCriticalityLevel(criticalityLevel *int32) *ListClustersParams {
 	o.SetCriticalityLevel(criticalityLevel)
 	return o
 }
 
-// SetCriticalityLevel adds the criticalityLevel to the list clusters params
+// SetCriticalityLevel adds the criticalityLevel to the list clusters params.
 func (o *ListClustersParams) SetCriticalityLevel(criticalityLevel *int32) {
 	o.CriticalityLevel = criticalityLevel
 }
 
-// WithEnvironment adds the environment to the list clusters params
+// WithEnvironment adds the environment to the list clusters params.
 func (o *ListClustersParams) WithEnvironment(environment *string) *ListClustersParams {
 	o.SetEnvironment(environment)
 	return o
 }
 
-// SetEnvironment adds the environment to the list clusters params
+// SetEnvironment adds the environment to the list clusters params.
 func (o *ListClustersParams) SetEnvironment(environment *string) {
 	o.Environment = environment
 }
 
-// WithInfrastructureAccount adds the infrastructureAccount to the list clusters params
+// WithInfrastructureAccount adds the infrastructureAccount to the list clusters params.
 func (o *ListClustersParams) WithInfrastructureAccount(infrastructureAccount *string) *ListClustersParams {
 	o.SetInfrastructureAccount(infrastructureAccount)
 	return o
 }
 
-// SetInfrastructureAccount adds the infrastructureAccount to the list clusters params
+// SetInfrastructureAccount adds the infrastructureAccount to the list clusters params.
 func (o *ListClustersParams) SetInfrastructureAccount(infrastructureAccount *string) {
 	o.InfrastructureAccount = infrastructureAccount
 }
 
-// WithLifecycleStatus adds the lifecycleStatus to the list clusters params
+// WithLifecycleStatus adds the lifecycleStatus to the list clusters params.
 func (o *ListClustersParams) WithLifecycleStatus(lifecycleStatus *string) *ListClustersParams {
 	o.SetLifecycleStatus(lifecycleStatus)
 	return o
 }
 
-// SetLifecycleStatus adds the lifecycleStatus to the list clusters params
+// SetLifecycleStatus adds the lifecycleStatus to the list clusters params.
 func (o *ListClustersParams) SetLifecycleStatus(lifecycleStatus *string) {
 	o.LifecycleStatus = lifecycleStatus
 }
 
-// WithLocalID adds the localID to the list clusters params
+// WithLocalID adds the localID to the list clusters params.
 func (o *ListClustersParams) WithLocalID(localID *string) *ListClustersParams {
 	o.SetLocalID(localID)
 	return o
 }
 
-// SetLocalID adds the localId to the list clusters params
+// SetLocalID adds the localId to the list clusters params.
 func (o *ListClustersParams) SetLocalID(localID *string) {
 	o.LocalID = localID
 }
 
-// WithProvider adds the provider to the list clusters params
+// WithProvider adds the provider to the list clusters params.
 func (o *ListClustersParams) WithProvider(provider *string) *ListClustersParams {
 	o.SetProvider(provider)
 	return o
 }
 
-// SetProvider adds the provider to the list clusters params
+// SetProvider adds the provider to the list clusters params.
 func (o *ListClustersParams) SetProvider(provider *string) {
 	o.Provider = provider
 }
 
-// WithRegion adds the region to the list clusters params
+// WithRegion adds the region to the list clusters params.
 func (o *ListClustersParams) WithRegion(region *string) *ListClustersParams {
 	o.SetRegion(region)
 	return o
 }
 
-// SetRegion adds the region to the list clusters params
+// SetRegion adds the region to the list clusters params.
 func (o *ListClustersParams) SetRegion(region *string) {
 	o.Region = region
 }
 
-// WithVerbose adds the verbose to the list clusters params
+// WithVerbose adds the verbose to the list clusters params.
 func (o *ListClustersParams) WithVerbose(verbose *bool) *ListClustersParams {
 	o.SetVerbose(verbose)
 	return o
 }
 
-// SetVerbose adds the verbose to the list clusters params
+// SetVerbose adds the verbose to the list clusters params.
 func (o *ListClustersParams) SetVerbose(verbose *bool) {
 	o.Verbose = verbose
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *ListClustersParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error
@@ -415,7 +410,7 @@ func (o *ListClustersParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.
 		if o.CriticalityLevel != nil {
 			qrCriticalityLevel = *o.CriticalityLevel
 		}
-		qCriticalityLevel := swag.FormatInt32(qrCriticalityLevel)
+		qCriticalityLevel := conv.FormatInteger(qrCriticalityLevel)
 		if qCriticalityLevel != "" {
 
 			if err := r.SetQueryParam("criticality_level", qCriticalityLevel); err != nil {
@@ -534,7 +529,7 @@ func (o *ListClustersParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.
 		if o.Verbose != nil {
 			qrVerbose = *o.Verbose
 		}
-		qVerbose := swag.FormatBool(qrVerbose)
+		qVerbose := conv.FormatBool(qrVerbose)
 		if qVerbose != "" {
 
 			if err := r.SetQueryParam("verbose", qVerbose); err != nil {

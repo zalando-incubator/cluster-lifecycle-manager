@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewAddOrUpdateConfigItemOK() *AddOrUpdateConfigItemOK {
 	return &AddOrUpdateConfigItemOK{}
 }
 
-/*
-AddOrUpdateConfigItemOK describes a response with status code 200, with default header values.
-
-The config items add/update request is accepted.
-*/
+// AddOrUpdateConfigItemOK describes a response with status code 200, with default header values.
+//
+// The config items add/update request is accepted.
 type AddOrUpdateConfigItemOK struct {
 	Payload *models.ConfigValue
 }
@@ -132,11 +129,9 @@ func NewAddOrUpdateConfigItemBadRequest() *AddOrUpdateConfigItemBadRequest {
 	return &AddOrUpdateConfigItemBadRequest{}
 }
 
-/*
-AddOrUpdateConfigItemBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// AddOrUpdateConfigItemBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type AddOrUpdateConfigItemBadRequest struct {
 	Payload *models.Error
 }
@@ -202,11 +197,9 @@ func NewAddOrUpdateConfigItemUnauthorized() *AddOrUpdateConfigItemUnauthorized {
 	return &AddOrUpdateConfigItemUnauthorized{}
 }
 
-/*
-AddOrUpdateConfigItemUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// AddOrUpdateConfigItemUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type AddOrUpdateConfigItemUnauthorized struct {
 }
 
@@ -258,11 +251,9 @@ func NewAddOrUpdateConfigItemForbidden() *AddOrUpdateConfigItemForbidden {
 	return &AddOrUpdateConfigItemForbidden{}
 }
 
-/*
-AddOrUpdateConfigItemForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// AddOrUpdateConfigItemForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type AddOrUpdateConfigItemForbidden struct {
 }
 
@@ -314,11 +305,9 @@ func NewAddOrUpdateConfigItemInternalServerError() *AddOrUpdateConfigItemInterna
 	return &AddOrUpdateConfigItemInternalServerError{}
 }
 
-/*
-AddOrUpdateConfigItemInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// AddOrUpdateConfigItemInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type AddOrUpdateConfigItemInternalServerError struct {
 	Payload *models.Error
 }

@@ -20,24 +20,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDeleteNodePoolConfigItemParams() *DeleteNodePoolConfigItemParams {
-	return &DeleteNodePoolConfigItemParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewDeleteNodePoolConfigItemParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewDeleteNodePoolConfigItemParamsWithTimeout creates a new DeleteNodePoolConfigItemParams object
 // with the ability to set a timeout on a request.
 func NewDeleteNodePoolConfigItemParamsWithTimeout(timeout time.Duration) *DeleteNodePoolConfigItemParams {
 	return &DeleteNodePoolConfigItemParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewDeleteNodePoolConfigItemParamsWithContext creates a new DeleteNodePoolConfigItemParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolConfigItemParams].
 func NewDeleteNodePoolConfigItemParamsWithContext(ctx context.Context) *DeleteNodePoolConfigItemParams {
 	return &DeleteNodePoolConfigItemParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -58,27 +62,24 @@ DeleteNodePoolConfigItemParams contains all the parameters to send to the API en
 */
 type DeleteNodePoolConfigItemParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* ConfigKey.
-
-	   Key for the config value.
-	*/
+	// ConfigKey.
+	//
+	// Key for the config value.
 	ConfigKey string
 
-	/* NodePoolName.
-
-	   Name of the node pool.
-	*/
+	// NodePoolName.
+	//
+	// Name of the node pool.
 	NodePoolName string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the delete node pool config item params (not the query body).
@@ -96,76 +97,79 @@ func (o *DeleteNodePoolConfigItemParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the delete node pool config item params
+// WithTimeout adds the timeout to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) WithTimeout(timeout time.Duration) *DeleteNodePoolConfigItemParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the delete node pool config item params
+// SetTimeout adds the timeout to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the delete node pool config item params
+// WithContext adds the context to the delete node pool config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolConfigItemParams].
 func (o *DeleteNodePoolConfigItemParams) WithContext(ctx context.Context) *DeleteNodePoolConfigItemParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the delete node pool config item params
+// SetContext adds the context to the delete node pool config item params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [DeleteNodePoolConfigItemParams].
 func (o *DeleteNodePoolConfigItemParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the delete node pool config item params
+// WithHTTPClient adds the HTTPClient to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) WithHTTPClient(client *http.Client) *DeleteNodePoolConfigItemParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the delete node pool config item params
+// SetHTTPClient adds the HTTPClient to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the delete node pool config item params
+// WithClusterID adds the clusterID to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) WithClusterID(clusterID string) *DeleteNodePoolConfigItemParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the delete node pool config item params
+// SetClusterID adds the clusterId to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithConfigKey adds the configKey to the delete node pool config item params
+// WithConfigKey adds the configKey to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) WithConfigKey(configKey string) *DeleteNodePoolConfigItemParams {
 	o.SetConfigKey(configKey)
 	return o
 }
 
-// SetConfigKey adds the configKey to the delete node pool config item params
+// SetConfigKey adds the configKey to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) SetConfigKey(configKey string) {
 	o.ConfigKey = configKey
 }
 
-// WithNodePoolName adds the nodePoolName to the delete node pool config item params
+// WithNodePoolName adds the nodePoolName to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) WithNodePoolName(nodePoolName string) *DeleteNodePoolConfigItemParams {
 	o.SetNodePoolName(nodePoolName)
 	return o
 }
 
-// SetNodePoolName adds the nodePoolName to the delete node pool config item params
+// SetNodePoolName adds the nodePoolName to the delete node pool config item params.
 func (o *DeleteNodePoolConfigItemParams) SetNodePoolName(nodePoolName string) {
 	o.NodePoolName = nodePoolName
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *DeleteNodePoolConfigItemParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

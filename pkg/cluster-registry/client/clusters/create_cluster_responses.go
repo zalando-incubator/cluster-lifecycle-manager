@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -68,11 +67,9 @@ func NewCreateClusterCreated() *CreateClusterCreated {
 	return &CreateClusterCreated{}
 }
 
-/*
-CreateClusterCreated describes a response with status code 201, with default header values.
-
-The cluster creation request is accepted
-*/
+// CreateClusterCreated describes a response with status code 201, with default header values.
+//
+// The cluster creation request is accepted
 type CreateClusterCreated struct {
 	Payload *models.Cluster
 }
@@ -138,11 +135,9 @@ func NewCreateClusterBadRequest() *CreateClusterBadRequest {
 	return &CreateClusterBadRequest{}
 }
 
-/*
-CreateClusterBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// CreateClusterBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type CreateClusterBadRequest struct {
 	Payload *models.Error
 }
@@ -208,11 +203,9 @@ func NewCreateClusterUnauthorized() *CreateClusterUnauthorized {
 	return &CreateClusterUnauthorized{}
 }
 
-/*
-CreateClusterUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// CreateClusterUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type CreateClusterUnauthorized struct {
 }
 
@@ -264,11 +257,9 @@ func NewCreateClusterForbidden() *CreateClusterForbidden {
 	return &CreateClusterForbidden{}
 }
 
-/*
-CreateClusterForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// CreateClusterForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type CreateClusterForbidden struct {
 }
 
@@ -320,11 +311,9 @@ func NewCreateClusterConflict() *CreateClusterConflict {
 	return &CreateClusterConflict{}
 }
 
-/*
-CreateClusterConflict describes a response with status code 409, with default header values.
-
-Conflict, already existing
-*/
+// CreateClusterConflict describes a response with status code 409, with default header values.
+//
+// Conflict, already existing
 type CreateClusterConflict struct {
 }
 
@@ -376,11 +365,9 @@ func NewCreateClusterInternalServerError() *CreateClusterInternalServerError {
 	return &CreateClusterInternalServerError{}
 }
 
-/*
-CreateClusterInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// CreateClusterInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type CreateClusterInternalServerError struct {
 	Payload *models.Error
 }

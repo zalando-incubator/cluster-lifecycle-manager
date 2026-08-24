@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -22,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewCreateOrUpdateNodePoolParams() *CreateOrUpdateNodePoolParams {
-	return &CreateOrUpdateNodePoolParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewCreateOrUpdateNodePoolParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewCreateOrUpdateNodePoolParamsWithTimeout creates a new CreateOrUpdateNodePoolParams object
 // with the ability to set a timeout on a request.
 func NewCreateOrUpdateNodePoolParamsWithTimeout(timeout time.Duration) *CreateOrUpdateNodePoolParams {
 	return &CreateOrUpdateNodePoolParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewCreateOrUpdateNodePoolParamsWithContext creates a new CreateOrUpdateNodePoolParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateOrUpdateNodePoolParams].
 func NewCreateOrUpdateNodePoolParamsWithContext(ctx context.Context) *CreateOrUpdateNodePoolParams {
 	return &CreateOrUpdateNodePoolParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -60,27 +63,24 @@ CreateOrUpdateNodePoolParams contains all the parameters to send to the API endp
 */
 type CreateOrUpdateNodePoolParams struct {
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	/* NodePool.
-
-	   Node pool to be created.
-	*/
+	// NodePool.
+	//
+	// Node pool to be created.
 	NodePool *models.NodePool
 
-	/* NodePoolName.
-
-	   Name of the node pool.
-	*/
+	// NodePoolName.
+	//
+	// Name of the node pool.
 	NodePoolName string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the create or update node pool params (not the query body).
@@ -98,76 +98,79 @@ func (o *CreateOrUpdateNodePoolParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the create or update node pool params
+// WithTimeout adds the timeout to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) WithTimeout(timeout time.Duration) *CreateOrUpdateNodePoolParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the create or update node pool params
+// SetTimeout adds the timeout to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the create or update node pool params
+// WithContext adds the context to the create or update node pool params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateOrUpdateNodePoolParams].
 func (o *CreateOrUpdateNodePoolParams) WithContext(ctx context.Context) *CreateOrUpdateNodePoolParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the create or update node pool params
+// SetContext adds the context to the create or update node pool params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateOrUpdateNodePoolParams].
 func (o *CreateOrUpdateNodePoolParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the create or update node pool params
+// WithHTTPClient adds the HTTPClient to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) WithHTTPClient(client *http.Client) *CreateOrUpdateNodePoolParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the create or update node pool params
+// SetHTTPClient adds the HTTPClient to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithClusterID adds the clusterID to the create or update node pool params
+// WithClusterID adds the clusterID to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) WithClusterID(clusterID string) *CreateOrUpdateNodePoolParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the create or update node pool params
+// SetClusterID adds the clusterId to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WithNodePool adds the nodePool to the create or update node pool params
+// WithNodePool adds the nodePool to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) WithNodePool(nodePool *models.NodePool) *CreateOrUpdateNodePoolParams {
 	o.SetNodePool(nodePool)
 	return o
 }
 
-// SetNodePool adds the nodePool to the create or update node pool params
+// SetNodePool adds the nodePool to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) SetNodePool(nodePool *models.NodePool) {
 	o.NodePool = nodePool
 }
 
-// WithNodePoolName adds the nodePoolName to the create or update node pool params
+// WithNodePoolName adds the nodePoolName to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) WithNodePoolName(nodePoolName string) *CreateOrUpdateNodePoolParams {
 	o.SetNodePoolName(nodePoolName)
 	return o
 }
 
-// SetNodePoolName adds the nodePoolName to the create or update node pool params
+// SetNodePoolName adds the nodePoolName to the create or update node pool params.
 func (o *CreateOrUpdateNodePoolParams) SetNodePoolName(nodePoolName string) {
 	o.NodePoolName = nodePoolName
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *CreateOrUpdateNodePoolParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

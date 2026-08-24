@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewCreateOrUpdateNodePoolOK() *CreateOrUpdateNodePoolOK {
 	return &CreateOrUpdateNodePoolOK{}
 }
 
-/*
-CreateOrUpdateNodePoolOK describes a response with status code 200, with default header values.
-
-The node pool create request is accepted.
-*/
+// CreateOrUpdateNodePoolOK describes a response with status code 200, with default header values.
+//
+// The node pool create request is accepted.
 type CreateOrUpdateNodePoolOK struct {
 	Payload *models.NodePool
 }
@@ -132,11 +129,9 @@ func NewCreateOrUpdateNodePoolBadRequest() *CreateOrUpdateNodePoolBadRequest {
 	return &CreateOrUpdateNodePoolBadRequest{}
 }
 
-/*
-CreateOrUpdateNodePoolBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// CreateOrUpdateNodePoolBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type CreateOrUpdateNodePoolBadRequest struct {
 	Payload *models.Error
 }
@@ -202,11 +197,9 @@ func NewCreateOrUpdateNodePoolUnauthorized() *CreateOrUpdateNodePoolUnauthorized
 	return &CreateOrUpdateNodePoolUnauthorized{}
 }
 
-/*
-CreateOrUpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// CreateOrUpdateNodePoolUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type CreateOrUpdateNodePoolUnauthorized struct {
 }
 
@@ -258,11 +251,9 @@ func NewCreateOrUpdateNodePoolForbidden() *CreateOrUpdateNodePoolForbidden {
 	return &CreateOrUpdateNodePoolForbidden{}
 }
 
-/*
-CreateOrUpdateNodePoolForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// CreateOrUpdateNodePoolForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type CreateOrUpdateNodePoolForbidden struct {
 }
 
@@ -314,11 +305,9 @@ func NewCreateOrUpdateNodePoolInternalServerError() *CreateOrUpdateNodePoolInter
 	return &CreateOrUpdateNodePoolInternalServerError{}
 }
 
-/*
-CreateOrUpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// CreateOrUpdateNodePoolInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type CreateOrUpdateNodePoolInternalServerError struct {
 	Payload *models.Error
 }

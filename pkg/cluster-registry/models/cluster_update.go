@@ -9,7 +9,8 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/go-openapi/validate"
 )
 
@@ -137,7 +138,7 @@ func (m *ClusterUpdate) validateLifecycleStatusEnum(path, location string, value
 }
 
 func (m *ClusterUpdate) validateLifecycleStatus(formats strfmt.Registry) error {
-	if swag.IsZero(m.LifecycleStatus) { // not required
+	if typeutils.IsZero(m.LifecycleStatus) { // not required
 		return nil
 	}
 
@@ -150,7 +151,7 @@ func (m *ClusterUpdate) validateLifecycleStatus(formats strfmt.Registry) error {
 }
 
 func (m *ClusterUpdate) validateStatus(formats strfmt.Registry) error {
-	if swag.IsZero(m.Status) { // not required
+	if typeutils.IsZero(m.Status) { // not required
 		return nil
 	}
 
@@ -190,7 +191,7 @@ func (m *ClusterUpdate) contextValidateStatus(ctx context.Context, formats strfm
 
 	if m.Status != nil {
 
-		if swag.IsZero(m.Status) { // not required
+		if typeutils.IsZero(m.Status) { // not required
 			return nil
 		}
 
@@ -216,13 +217,13 @@ func (m *ClusterUpdate) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(m)
+	return jsonutils.WriteJSON(m)
 }
 
 // UnmarshalBinary interface implementation
 func (m *ClusterUpdate) UnmarshalBinary(b []byte) error {
 	var res ClusterUpdate
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*m = res

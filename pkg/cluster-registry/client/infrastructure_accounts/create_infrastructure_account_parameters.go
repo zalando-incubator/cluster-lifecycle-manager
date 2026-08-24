@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -22,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewCreateInfrastructureAccountParams() *CreateInfrastructureAccountParams {
-	return &CreateInfrastructureAccountParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewCreateInfrastructureAccountParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewCreateInfrastructureAccountParamsWithTimeout creates a new CreateInfrastructureAccountParams object
 // with the ability to set a timeout on a request.
 func NewCreateInfrastructureAccountParamsWithTimeout(timeout time.Duration) *CreateInfrastructureAccountParams {
 	return &CreateInfrastructureAccountParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewCreateInfrastructureAccountParamsWithContext creates a new CreateInfrastructureAccountParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateInfrastructureAccountParams].
 func NewCreateInfrastructureAccountParamsWithContext(ctx context.Context) *CreateInfrastructureAccountParams {
 	return &CreateInfrastructureAccountParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -60,15 +63,14 @@ CreateInfrastructureAccountParams contains all the parameters to send to the API
 */
 type CreateInfrastructureAccountParams struct {
 
-	/* InfrastructureAccount.
-
-	   Account that will be created.
-	*/
+	// InfrastructureAccount.
+	//
+	// Account that will be created.
 	InfrastructureAccount *models.InfrastructureAccount
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the create infrastructure account params (not the query body).
@@ -86,54 +88,57 @@ func (o *CreateInfrastructureAccountParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the create infrastructure account params
+// WithTimeout adds the timeout to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) WithTimeout(timeout time.Duration) *CreateInfrastructureAccountParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the create infrastructure account params
+// SetTimeout adds the timeout to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the create infrastructure account params
+// WithContext adds the context to the create infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateInfrastructureAccountParams].
 func (o *CreateInfrastructureAccountParams) WithContext(ctx context.Context) *CreateInfrastructureAccountParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the create infrastructure account params
+// SetContext adds the context to the create infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [CreateInfrastructureAccountParams].
 func (o *CreateInfrastructureAccountParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the create infrastructure account params
+// WithHTTPClient adds the HTTPClient to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) WithHTTPClient(client *http.Client) *CreateInfrastructureAccountParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the create infrastructure account params
+// SetHTTPClient adds the HTTPClient to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithInfrastructureAccount adds the infrastructureAccount to the create infrastructure account params
+// WithInfrastructureAccount adds the infrastructureAccount to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) WithInfrastructureAccount(infrastructureAccount *models.InfrastructureAccount) *CreateInfrastructureAccountParams {
 	o.SetInfrastructureAccount(infrastructureAccount)
 	return o
 }
 
-// SetInfrastructureAccount adds the infrastructureAccount to the create infrastructure account params
+// SetInfrastructureAccount adds the infrastructureAccount to the create infrastructure account params.
 func (o *CreateInfrastructureAccountParams) SetInfrastructureAccount(infrastructureAccount *models.InfrastructureAccount) {
 	o.InfrastructureAccount = infrastructureAccount
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *CreateInfrastructureAccountParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

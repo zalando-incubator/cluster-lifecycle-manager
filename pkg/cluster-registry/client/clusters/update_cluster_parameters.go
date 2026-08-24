@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -22,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewUpdateClusterParams() *UpdateClusterParams {
-	return &UpdateClusterParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewUpdateClusterParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewUpdateClusterParamsWithTimeout creates a new UpdateClusterParams object
 // with the ability to set a timeout on a request.
 func NewUpdateClusterParamsWithTimeout(timeout time.Duration) *UpdateClusterParams {
 	return &UpdateClusterParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewUpdateClusterParamsWithContext creates a new UpdateClusterParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateClusterParams].
 func NewUpdateClusterParamsWithContext(ctx context.Context) *UpdateClusterParams {
 	return &UpdateClusterParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -60,21 +63,19 @@ UpdateClusterParams contains all the parameters to send to the API endpoint
 */
 type UpdateClusterParams struct {
 
-	/* Cluster.
-
-	   Cluster that will be updated.
-	*/
+	// Cluster.
+	//
+	// Cluster that will be updated.
 	Cluster *models.ClusterUpdate
 
-	/* ClusterID.
-
-	   ID of the cluster.
-	*/
+	// ClusterID.
+	//
+	// ID of the cluster.
 	ClusterID string
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the update cluster params (not the query body).
@@ -92,65 +93,68 @@ func (o *UpdateClusterParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the update cluster params
+// WithTimeout adds the timeout to the update cluster params.
 func (o *UpdateClusterParams) WithTimeout(timeout time.Duration) *UpdateClusterParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the update cluster params
+// SetTimeout adds the timeout to the update cluster params.
 func (o *UpdateClusterParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the update cluster params
+// WithContext adds the context to the update cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateClusterParams].
 func (o *UpdateClusterParams) WithContext(ctx context.Context) *UpdateClusterParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the update cluster params
+// SetContext adds the context to the update cluster params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateClusterParams].
 func (o *UpdateClusterParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the update cluster params
+// WithHTTPClient adds the HTTPClient to the update cluster params.
 func (o *UpdateClusterParams) WithHTTPClient(client *http.Client) *UpdateClusterParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the update cluster params
+// SetHTTPClient adds the HTTPClient to the update cluster params.
 func (o *UpdateClusterParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithCluster adds the cluster to the update cluster params
+// WithCluster adds the cluster to the update cluster params.
 func (o *UpdateClusterParams) WithCluster(cluster *models.ClusterUpdate) *UpdateClusterParams {
 	o.SetCluster(cluster)
 	return o
 }
 
-// SetCluster adds the cluster to the update cluster params
+// SetCluster adds the cluster to the update cluster params.
 func (o *UpdateClusterParams) SetCluster(cluster *models.ClusterUpdate) {
 	o.Cluster = cluster
 }
 
-// WithClusterID adds the clusterID to the update cluster params
+// WithClusterID adds the clusterID to the update cluster params.
 func (o *UpdateClusterParams) WithClusterID(clusterID string) *UpdateClusterParams {
 	o.SetClusterID(clusterID)
 	return o
 }
 
-// SetClusterID adds the clusterId to the update cluster params
+// SetClusterID adds the clusterId to the update cluster params.
 func (o *UpdateClusterParams) SetClusterID(clusterID string) {
 	o.ClusterID = clusterID
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *UpdateClusterParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error

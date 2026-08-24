@@ -13,8 +13,8 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
-
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -60,11 +60,9 @@ func NewListInfrastructureAccountsOK() *ListInfrastructureAccountsOK {
 	return &ListInfrastructureAccountsOK{}
 }
 
-/*
-ListInfrastructureAccountsOK describes a response with status code 200, with default header values.
-
-List of all infrastructure accounts.
-*/
+// ListInfrastructureAccountsOK describes a response with status code 200, with default header values.
+//
+// List of all infrastructure accounts.
 type ListInfrastructureAccountsOK struct {
 	Payload *ListInfrastructureAccountsOKBody
 }
@@ -130,11 +128,9 @@ func NewListInfrastructureAccountsUnauthorized() *ListInfrastructureAccountsUnau
 	return &ListInfrastructureAccountsUnauthorized{}
 }
 
-/*
-ListInfrastructureAccountsUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// ListInfrastructureAccountsUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type ListInfrastructureAccountsUnauthorized struct {
 }
 
@@ -186,11 +182,9 @@ func NewListInfrastructureAccountsForbidden() *ListInfrastructureAccountsForbidd
 	return &ListInfrastructureAccountsForbidden{}
 }
 
-/*
-ListInfrastructureAccountsForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// ListInfrastructureAccountsForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type ListInfrastructureAccountsForbidden struct {
 }
 
@@ -242,11 +236,9 @@ func NewListInfrastructureAccountsInternalServerError() *ListInfrastructureAccou
 	return &ListInfrastructureAccountsInternalServerError{}
 }
 
-/*
-ListInfrastructureAccountsInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// ListInfrastructureAccountsInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type ListInfrastructureAccountsInternalServerError struct {
 	Payload *models.Error
 }
@@ -307,10 +299,9 @@ func (o *ListInfrastructureAccountsInternalServerError) readResponse(response ru
 	return nil
 }
 
-/*
-ListInfrastructureAccountsOKBody list infrastructure accounts o k body
-swagger:model ListInfrastructureAccountsOKBody
-*/
+// ListInfrastructureAccountsOKBody list infrastructure accounts o k body
+//
+// swagger:model ListInfrastructureAccountsOKBody
 type ListInfrastructureAccountsOKBody struct {
 
 	// items
@@ -332,12 +323,12 @@ func (o *ListInfrastructureAccountsOKBody) Validate(formats strfmt.Registry) err
 }
 
 func (o *ListInfrastructureAccountsOKBody) validateItems(formats strfmt.Registry) error {
-	if swag.IsZero(o.Items) { // not required
+	if typeutils.IsZero(o.Items) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(o.Items); i++ {
-		if swag.IsZero(o.Items[i]) { // not required
+		if typeutils.IsZero(o.Items[i]) { // not required
 			continue
 		}
 
@@ -381,7 +372,7 @@ func (o *ListInfrastructureAccountsOKBody) contextValidateItems(ctx context.Cont
 
 		if o.Items[i] != nil {
 
-			if swag.IsZero(o.Items[i]) { // not required
+			if typeutils.IsZero(o.Items[i]) { // not required
 				return nil
 			}
 
@@ -409,13 +400,13 @@ func (o *ListInfrastructureAccountsOKBody) MarshalBinary() ([]byte, error) {
 	if o == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(o)
+	return jsonutils.WriteJSON(o)
 }
 
 // UnmarshalBinary interface implementation
 func (o *ListInfrastructureAccountsOKBody) UnmarshalBinary(b []byte) error {
 	var res ListInfrastructureAccountsOKBody
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*o = res

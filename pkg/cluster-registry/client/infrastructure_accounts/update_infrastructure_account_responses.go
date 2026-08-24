@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewUpdateInfrastructureAccountOK() *UpdateInfrastructureAccountOK {
 	return &UpdateInfrastructureAccountOK{}
 }
 
-/*
-UpdateInfrastructureAccountOK describes a response with status code 200, with default header values.
-
-The infrastructure account update request is accepted
-*/
+// UpdateInfrastructureAccountOK describes a response with status code 200, with default header values.
+//
+// The infrastructure account update request is accepted
 type UpdateInfrastructureAccountOK struct {
 	Payload *models.InfrastructureAccount
 }
@@ -132,11 +129,9 @@ func NewUpdateInfrastructureAccountUnauthorized() *UpdateInfrastructureAccountUn
 	return &UpdateInfrastructureAccountUnauthorized{}
 }
 
-/*
-UpdateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// UpdateInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type UpdateInfrastructureAccountUnauthorized struct {
 }
 
@@ -188,11 +183,9 @@ func NewUpdateInfrastructureAccountForbidden() *UpdateInfrastructureAccountForbi
 	return &UpdateInfrastructureAccountForbidden{}
 }
 
-/*
-UpdateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// UpdateInfrastructureAccountForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type UpdateInfrastructureAccountForbidden struct {
 }
 
@@ -244,11 +237,9 @@ func NewUpdateInfrastructureAccountNotFound() *UpdateInfrastructureAccountNotFou
 	return &UpdateInfrastructureAccountNotFound{}
 }
 
-/*
-UpdateInfrastructureAccountNotFound describes a response with status code 404, with default header values.
-
-InfrastructureAccount not found
-*/
+// UpdateInfrastructureAccountNotFound describes a response with status code 404, with default header values.
+//
+// InfrastructureAccount not found
 type UpdateInfrastructureAccountNotFound struct {
 }
 
@@ -300,11 +291,9 @@ func NewUpdateInfrastructureAccountInternalServerError() *UpdateInfrastructureAc
 	return &UpdateInfrastructureAccountInternalServerError{}
 }
 
-/*
-UpdateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// UpdateInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type UpdateInfrastructureAccountInternalServerError struct {
 	Payload *models.Error
 }

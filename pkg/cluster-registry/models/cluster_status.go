@@ -10,7 +10,8 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/go-openapi/validate"
 )
 
@@ -59,12 +60,12 @@ func (m *ClusterStatus) Validate(formats strfmt.Registry) error {
 }
 
 func (m *ClusterStatus) validateProblems(formats strfmt.Registry) error {
-	if swag.IsZero(m.Problems) { // not required
+	if typeutils.IsZero(m.Problems) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(m.Problems); i++ {
-		if swag.IsZero(m.Problems[i]) { // not required
+		if typeutils.IsZero(m.Problems[i]) { // not required
 			continue
 		}
 
@@ -108,7 +109,7 @@ func (m *ClusterStatus) contextValidateProblems(ctx context.Context, formats str
 
 		if m.Problems[i] != nil {
 
-			if swag.IsZero(m.Problems[i]) { // not required
+			if typeutils.IsZero(m.Problems[i]) { // not required
 				return nil
 			}
 
@@ -136,13 +137,13 @@ func (m *ClusterStatus) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(m)
+	return jsonutils.WriteJSON(m)
 }
 
 // UnmarshalBinary interface implementation
 func (m *ClusterStatus) UnmarshalBinary(b []byte) error {
 	var res ClusterStatus
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*m = res
@@ -321,7 +322,7 @@ func (m ClusterStatusProblemsItems0) MarshalJSON() ([]byte, error) {
 	}
 
 	// concatenate the 2 objects
-	return swag.ConcatJSON(props, additional), nil
+	return jsonutils.ConcatJSON(props, additional), nil
 }
 
 // Validate validates this cluster status problems items0
@@ -361,7 +362,7 @@ func (m *ClusterStatusProblemsItems0) validateType(formats strfmt.Registry) erro
 }
 
 // ContextValidate validates this cluster status problems items0 based on context it is used
-func (m *ClusterStatusProblemsItems0) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+func (m *ClusterStatusProblemsItems0) ContextValidate(_ context.Context, _ strfmt.Registry) error {
 	return nil
 }
 
@@ -370,13 +371,13 @@ func (m *ClusterStatusProblemsItems0) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(m)
+	return jsonutils.WriteJSON(m)
 }
 
 // UnmarshalBinary interface implementation
 func (m *ClusterStatusProblemsItems0) UnmarshalBinary(b []byte) error {
 	var res ClusterStatusProblemsItems0
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*m = res

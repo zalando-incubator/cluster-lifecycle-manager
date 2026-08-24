@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -68,11 +67,9 @@ func NewDeleteNodePoolNoContent() *DeleteNodePoolNoContent {
 	return &DeleteNodePoolNoContent{}
 }
 
-/*
-DeleteNodePoolNoContent describes a response with status code 204, with default header values.
-
-Node pool deleted.
-*/
+// DeleteNodePoolNoContent describes a response with status code 204, with default header values.
+//
+// Node pool deleted.
 type DeleteNodePoolNoContent struct {
 }
 
@@ -124,11 +121,9 @@ func NewDeleteNodePoolBadRequest() *DeleteNodePoolBadRequest {
 	return &DeleteNodePoolBadRequest{}
 }
 
-/*
-DeleteNodePoolBadRequest describes a response with status code 400, with default header values.
-
-Invalid request
-*/
+// DeleteNodePoolBadRequest describes a response with status code 400, with default header values.
+//
+// Invalid request
 type DeleteNodePoolBadRequest struct {
 	Payload *models.Error
 }
@@ -194,11 +189,9 @@ func NewDeleteNodePoolUnauthorized() *DeleteNodePoolUnauthorized {
 	return &DeleteNodePoolUnauthorized{}
 }
 
-/*
-DeleteNodePoolUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// DeleteNodePoolUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type DeleteNodePoolUnauthorized struct {
 }
 
@@ -250,11 +243,9 @@ func NewDeleteNodePoolForbidden() *DeleteNodePoolForbidden {
 	return &DeleteNodePoolForbidden{}
 }
 
-/*
-DeleteNodePoolForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// DeleteNodePoolForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type DeleteNodePoolForbidden struct {
 }
 
@@ -306,11 +297,9 @@ func NewDeleteNodePoolNotFound() *DeleteNodePoolNotFound {
 	return &DeleteNodePoolNotFound{}
 }
 
-/*
-DeleteNodePoolNotFound describes a response with status code 404, with default header values.
-
-Node pool not found
-*/
+// DeleteNodePoolNotFound describes a response with status code 404, with default header values.
+//
+// Node pool not found
 type DeleteNodePoolNotFound struct {
 }
 
@@ -362,11 +351,9 @@ func NewDeleteNodePoolInternalServerError() *DeleteNodePoolInternalServerError {
 	return &DeleteNodePoolInternalServerError{}
 }
 
-/*
-DeleteNodePoolInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// DeleteNodePoolInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type DeleteNodePoolInternalServerError struct {
 	Payload *models.Error
 }

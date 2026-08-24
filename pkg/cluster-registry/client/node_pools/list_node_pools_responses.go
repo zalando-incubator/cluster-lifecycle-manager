@@ -13,8 +13,8 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
-
+	"github.com/go-openapi/swag/jsonutils"
+	"github.com/go-openapi/swag/typeutils"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -60,11 +60,9 @@ func NewListNodePoolsOK() *ListNodePoolsOK {
 	return &ListNodePoolsOK{}
 }
 
-/*
-ListNodePoolsOK describes a response with status code 200, with default header values.
-
-List of node pools
-*/
+// ListNodePoolsOK describes a response with status code 200, with default header values.
+//
+// List of node pools
 type ListNodePoolsOK struct {
 	Payload *ListNodePoolsOKBody
 }
@@ -130,11 +128,9 @@ func NewListNodePoolsUnauthorized() *ListNodePoolsUnauthorized {
 	return &ListNodePoolsUnauthorized{}
 }
 
-/*
-ListNodePoolsUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// ListNodePoolsUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type ListNodePoolsUnauthorized struct {
 }
 
@@ -186,11 +182,9 @@ func NewListNodePoolsForbidden() *ListNodePoolsForbidden {
 	return &ListNodePoolsForbidden{}
 }
 
-/*
-ListNodePoolsForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// ListNodePoolsForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type ListNodePoolsForbidden struct {
 }
 
@@ -242,11 +236,9 @@ func NewListNodePoolsInternalServerError() *ListNodePoolsInternalServerError {
 	return &ListNodePoolsInternalServerError{}
 }
 
-/*
-ListNodePoolsInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// ListNodePoolsInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type ListNodePoolsInternalServerError struct {
 	Payload *models.Error
 }
@@ -307,10 +299,9 @@ func (o *ListNodePoolsInternalServerError) readResponse(response runtime.ClientR
 	return nil
 }
 
-/*
-ListNodePoolsOKBody list node pools o k body
-swagger:model ListNodePoolsOKBody
-*/
+// ListNodePoolsOKBody list node pools o k body
+//
+// swagger:model ListNodePoolsOKBody
 type ListNodePoolsOKBody struct {
 
 	// items
@@ -332,12 +323,12 @@ func (o *ListNodePoolsOKBody) Validate(formats strfmt.Registry) error {
 }
 
 func (o *ListNodePoolsOKBody) validateItems(formats strfmt.Registry) error {
-	if swag.IsZero(o.Items) { // not required
+	if typeutils.IsZero(o.Items) { // not required
 		return nil
 	}
 
 	for i := 0; i < len(o.Items); i++ {
-		if swag.IsZero(o.Items[i]) { // not required
+		if typeutils.IsZero(o.Items[i]) { // not required
 			continue
 		}
 
@@ -381,7 +372,7 @@ func (o *ListNodePoolsOKBody) contextValidateItems(ctx context.Context, formats 
 
 		if o.Items[i] != nil {
 
-			if swag.IsZero(o.Items[i]) { // not required
+			if typeutils.IsZero(o.Items[i]) { // not required
 				return nil
 			}
 
@@ -409,13 +400,13 @@ func (o *ListNodePoolsOKBody) MarshalBinary() ([]byte, error) {
 	if o == nil {
 		return nil, nil
 	}
-	return swag.WriteJSON(o)
+	return jsonutils.WriteJSON(o)
 }
 
 // UnmarshalBinary interface implementation
 func (o *ListNodePoolsOKBody) UnmarshalBinary(b []byte) error {
 	var res ListNodePoolsOKBody
-	if err := swag.ReadJSON(b, &res); err != nil {
+	if err := jsonutils.ReadJSON(b, &res); err != nil {
 		return err
 	}
 	*o = res

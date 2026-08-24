@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewGetClusterOK() *GetClusterOK {
 	return &GetClusterOK{}
 }
 
-/*
-GetClusterOK describes a response with status code 200, with default header values.
-
-Cluster information.
-*/
+// GetClusterOK describes a response with status code 200, with default header values.
+//
+// Cluster information.
 type GetClusterOK struct {
 	Payload *models.Cluster
 }
@@ -132,11 +129,9 @@ func NewGetClusterUnauthorized() *GetClusterUnauthorized {
 	return &GetClusterUnauthorized{}
 }
 
-/*
-GetClusterUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// GetClusterUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type GetClusterUnauthorized struct {
 }
 
@@ -188,11 +183,9 @@ func NewGetClusterForbidden() *GetClusterForbidden {
 	return &GetClusterForbidden{}
 }
 
-/*
-GetClusterForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// GetClusterForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type GetClusterForbidden struct {
 }
 
@@ -244,11 +237,9 @@ func NewGetClusterNotFound() *GetClusterNotFound {
 	return &GetClusterNotFound{}
 }
 
-/*
-GetClusterNotFound describes a response with status code 404, with default header values.
-
-Cluster not found
-*/
+// GetClusterNotFound describes a response with status code 404, with default header values.
+//
+// Cluster not found
 type GetClusterNotFound struct {
 }
 
@@ -300,11 +291,9 @@ func NewGetClusterInternalServerError() *GetClusterInternalServerError {
 	return &GetClusterInternalServerError{}
 }
 
-/*
-GetClusterInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// GetClusterInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type GetClusterInternalServerError struct {
 	Payload *models.Error
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -62,11 +61,9 @@ func NewGetInfrastructureAccountOK() *GetInfrastructureAccountOK {
 	return &GetInfrastructureAccountOK{}
 }
 
-/*
-GetInfrastructureAccountOK describes a response with status code 200, with default header values.
-
-Infrastructure account information.
-*/
+// GetInfrastructureAccountOK describes a response with status code 200, with default header values.
+//
+// Infrastructure account information.
 type GetInfrastructureAccountOK struct {
 	Payload *models.InfrastructureAccount
 }
@@ -132,11 +129,9 @@ func NewGetInfrastructureAccountUnauthorized() *GetInfrastructureAccountUnauthor
 	return &GetInfrastructureAccountUnauthorized{}
 }
 
-/*
-GetInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
-
-Unauthorized
-*/
+// GetInfrastructureAccountUnauthorized describes a response with status code 401, with default header values.
+//
+// Unauthorized
 type GetInfrastructureAccountUnauthorized struct {
 }
 
@@ -188,11 +183,9 @@ func NewGetInfrastructureAccountForbidden() *GetInfrastructureAccountForbidden {
 	return &GetInfrastructureAccountForbidden{}
 }
 
-/*
-GetInfrastructureAccountForbidden describes a response with status code 403, with default header values.
-
-Forbidden
-*/
+// GetInfrastructureAccountForbidden describes a response with status code 403, with default header values.
+//
+// Forbidden
 type GetInfrastructureAccountForbidden struct {
 }
 
@@ -244,11 +237,9 @@ func NewGetInfrastructureAccountNotFound() *GetInfrastructureAccountNotFound {
 	return &GetInfrastructureAccountNotFound{}
 }
 
-/*
-GetInfrastructureAccountNotFound describes a response with status code 404, with default header values.
-
-InfrastructureAccount not found
-*/
+// GetInfrastructureAccountNotFound describes a response with status code 404, with default header values.
+//
+// InfrastructureAccount not found
 type GetInfrastructureAccountNotFound struct {
 }
 
@@ -300,11 +291,9 @@ func NewGetInfrastructureAccountInternalServerError() *GetInfrastructureAccountI
 	return &GetInfrastructureAccountInternalServerError{}
 }
 
-/*
-GetInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
-
-Unexpected error
-*/
+// GetInfrastructureAccountInternalServerError describes a response with status code 500, with default header values.
+//
+// Unexpected error
 type GetInfrastructureAccountInternalServerError struct {
 	Payload *models.Error
 }

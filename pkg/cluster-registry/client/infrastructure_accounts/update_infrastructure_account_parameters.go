@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/cluster-registry/models"
 )
 
@@ -22,24 +21,28 @@ import (
 //
 // To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewUpdateInfrastructureAccountParams() *UpdateInfrastructureAccountParams {
-	return &UpdateInfrastructureAccountParams{
-		timeout: cr.DefaultTimeout,
-	}
+	return NewUpdateInfrastructureAccountParamsWithTimeout(cr.DefaultTimeout)
 }
 
 // NewUpdateInfrastructureAccountParamsWithTimeout creates a new UpdateInfrastructureAccountParams object
 // with the ability to set a timeout on a request.
 func NewUpdateInfrastructureAccountParamsWithTimeout(timeout time.Duration) *UpdateInfrastructureAccountParams {
 	return &UpdateInfrastructureAccountParams{
-		timeout: timeout,
+		inner: innerParams{
+			timeout: timeout,
+		},
 	}
 }
 
 // NewUpdateInfrastructureAccountParamsWithContext creates a new UpdateInfrastructureAccountParams object
 // with the ability to set a context for a request.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateInfrastructureAccountParams].
 func NewUpdateInfrastructureAccountParamsWithContext(ctx context.Context) *UpdateInfrastructureAccountParams {
 	return &UpdateInfrastructureAccountParams{
-		Context: ctx,
+		inner: innerParams{
+			ctx: ctx,
+		},
 	}
 }
 
@@ -60,21 +63,19 @@ UpdateInfrastructureAccountParams contains all the parameters to send to the API
 */
 type UpdateInfrastructureAccountParams struct {
 
-	/* AccountID.
-
-	   ID of the infrastructure account.
-	*/
+	// AccountID.
+	//
+	// ID of the infrastructure account.
 	AccountID string
 
-	/* InfrastructureAccount.
-
-	   Infrastructure Account that will be updated.
-	*/
+	// InfrastructureAccount.
+	//
+	// Infrastructure Account that will be updated.
 	InfrastructureAccount *models.InfrastructureAccountUpdate
 
-	timeout    time.Duration
-	Context    context.Context
 	HTTPClient *http.Client
+
+	inner innerParams
 }
 
 // WithDefaults hydrates default values in the update infrastructure account params (not the query body).
@@ -92,65 +93,68 @@ func (o *UpdateInfrastructureAccountParams) SetDefaults() {
 	// no default values defined for this parameter
 }
 
-// WithTimeout adds the timeout to the update infrastructure account params
+// WithTimeout adds the timeout to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) WithTimeout(timeout time.Duration) *UpdateInfrastructureAccountParams {
 	o.SetTimeout(timeout)
 	return o
 }
 
-// SetTimeout adds the timeout to the update infrastructure account params
+// SetTimeout adds the timeout to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
+	o.inner.timeout = timeout
 }
 
-// WithContext adds the context to the update infrastructure account params
+// WithContext adds the context to the update infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateInfrastructureAccountParams].
 func (o *UpdateInfrastructureAccountParams) WithContext(ctx context.Context) *UpdateInfrastructureAccountParams {
 	o.SetContext(ctx)
 	return o
 }
 
-// SetContext adds the context to the update infrastructure account params
+// SetContext adds the context to the update infrastructure account params.
+//
+// Deprecated: use the operation call with context to pass the context instead of [UpdateInfrastructureAccountParams].
 func (o *UpdateInfrastructureAccountParams) SetContext(ctx context.Context) {
-	o.Context = ctx
+	o.inner.ctx = ctx
 }
 
-// WithHTTPClient adds the HTTPClient to the update infrastructure account params
+// WithHTTPClient adds the HTTPClient to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) WithHTTPClient(client *http.Client) *UpdateInfrastructureAccountParams {
 	o.SetHTTPClient(client)
 	return o
 }
 
-// SetHTTPClient adds the HTTPClient to the update infrastructure account params
+// SetHTTPClient adds the HTTPClient to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
-// WithAccountID adds the accountID to the update infrastructure account params
+// WithAccountID adds the accountID to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) WithAccountID(accountID string) *UpdateInfrastructureAccountParams {
 	o.SetAccountID(accountID)
 	return o
 }
 
-// SetAccountID adds the accountId to the update infrastructure account params
+// SetAccountID adds the accountId to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) SetAccountID(accountID string) {
 	o.AccountID = accountID
 }
 
-// WithInfrastructureAccount adds the infrastructureAccount to the update infrastructure account params
+// WithInfrastructureAccount adds the infrastructureAccount to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) WithInfrastructureAccount(infrastructureAccount *models.InfrastructureAccountUpdate) *UpdateInfrastructureAccountParams {
 	o.SetInfrastructureAccount(infrastructureAccount)
 	return o
 }
 
-// SetInfrastructureAccount adds the infrastructureAccount to the update infrastructure account params
+// SetInfrastructureAccount adds the infrastructureAccount to the update infrastructure account params.
 func (o *UpdateInfrastructureAccountParams) SetInfrastructureAccount(infrastructureAccount *models.InfrastructureAccountUpdate) {
 	o.InfrastructureAccount = infrastructureAccount
 }
 
-// WriteToRequest writes these params to a swagger request
+// WriteToRequest writes these params to a [runtime.ClientRequest].
 func (o *UpdateInfrastructureAccountParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
-
-	if err := r.SetTimeout(o.timeout); err != nil {
+	if err := r.SetTimeout(o.inner.timeout); err != nil {
 		return err
 	}
 	var res []error
