@@ -190,6 +190,17 @@ func (c *ClientsCollection) getResourceClient(kind, namespace string) (dynamic.R
 }
 
 func (c *ClientsCollection) ResolveKind(kind string) (schema.GroupVersionResource, error) {
+	gvr, err := c.resolveKind(kind)
+	if meta.IsNoMatchError(err) || meta.IsAmbiguousError(err) {
+		if dm, ok := c.Mapper.(interface{ Reset() }); ok {
+			dm.Reset()
+		}
+		gvr, err = c.resolveKind(kind)
+	}
+	return gvr, err
+}
+
+func (c *ClientsCollection) resolveKind(kind string) (schema.GroupVersionResource, error) {
 	var gvr schema.GroupVersionResource
 	var lastErr error
 	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(kind)
@@ -204,7 +215,7 @@ func (c *ClientsCollection) ResolveKind(kind string) (schema.GroupVersionResourc
 	if gvr.Empty() {
 		var err error
 		gvr, err = c.Mapper.ResourceFor(groupResource.WithVersion(""))
-		if err != nil {
+		if err != nil && lastErr == nil {
 			lastErr = err
 		}
 	}
@@ -308,7 +319,7 @@ func (c *ClientsCollection) deleteIfFound(ctx context.Context, logger *logrus.En
 		logger.Infof("Skipping deletion of %s %s: resource not found", kind, name)
 		return nil
 	}
-	if err != nil && meta.IsNoMatchError(err) {
+	if err != nil && (meta.IsNoMatchError(err) || meta.IsAmbiguousError(err)) {
 		logger.Infof("Skipping deletion of %s %s: resource type no longer registered (CRD may have been deleted)", kind, name)
 		return nil
 	}
@@ -355,7 +366,7 @@ func (c *ClientsCollection) DeleteResource(ctx context.Context, logger *logrus.E
 	}
 
 	items, err := c.ListResources(ctx, deletion)
-	if err != nil && meta.IsNoMatchError(err) {
+	if err != nil && (meta.IsNoMatchError(err) || meta.IsAmbiguousError(err)) {
 		logger.Infof("Skipping deletion of %s: resource type no longer registered (CRD may have been deleted)", deletion.Kind)
 		return nil
 	}
