@@ -156,6 +156,26 @@ func (z *ZalandoEKSProvisioner) Decommission(
 	)
 }
 
+func (z *ZalandoEKSProvisioner) Render(
+	ctx context.Context,
+	logger *log.Entry,
+	cluster *api.Cluster,
+	channelConfig channel.Config,
+	resourceNameFilter string,
+	applicationFilter string,
+) error {
+	if !z.Supports(cluster) {
+		return ErrProviderNotSupported
+	}
+
+	awsAdapter, err := z.setupAWSAdapter(ctx, logger, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to setup AWS Adapter: %v", err)
+	}
+
+	return z.renderManifests(ctx, logger, awsAdapter, cluster, channelConfig, resourceNameFilter, applicationFilter)
+}
+
 // NewZalandoEKSCreationHook returns a new hook for EKS cluster provisioning,
 // configured to use the given cluster registry.
 func NewZalandoEKSCreationHook(
