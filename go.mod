@@ -51,7 +51,7 @@ require (
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
 	sigs.k8s.io/aws-iam-authenticator v0.7.18
 	sigs.k8s.io/controller-runtime v0.24.1
-	sigs.k8s.io/karpenter v1.14.1-0.20260819221709-6e7eab7a0f48
+	sigs.k8s.io/karpenter v1.14.1
 )
 
 require (
