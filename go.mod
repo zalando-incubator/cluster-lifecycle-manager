@@ -45,9 +45,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
-	k8s.io/cli-runtime v0.36.4
+	k8s.io/cli-runtime v0.37.0
 	k8s.io/client-go v0.37.0
-	k8s.io/kubectl v0.36.4
+	k8s.io/kubectl v0.37.0
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	sigs.k8s.io/aws-iam-authenticator v0.7.20
 	sigs.k8s.io/controller-runtime v0.25.0
@@ -186,10 +186,10 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apiextensions-apiserver v0.37.0 // indirect
-	k8s.io/cloud-provider v0.36.3 // indirect
+	k8s.io/cloud-provider v0.37.0 // indirect
 	k8s.io/component-base v0.37.0 // indirect
-	k8s.io/component-helpers v0.36.4 // indirect
-	k8s.io/csi-translation-lib v0.36.3 // indirect
+	k8s.io/component-helpers v0.37.0 // indirect
+	k8s.io/csi-translation-lib v0.37.0 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
