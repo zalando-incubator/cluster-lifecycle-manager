@@ -694,7 +694,7 @@ func poolsDistributed(dedicated string, pools []*api.NodePool) bool {
 
 		// Check if the pool is using the pool profile that's properly spread between AZs
 		switch pool.Profile {
-		case "worker-splitaz", "worker-karpenter":
+		case "worker-splitaz", "seed-default", "worker-karpenter":
 		default:
 			return false
 		}
@@ -747,6 +747,7 @@ func nodeLifeCycleProviderPerNodePoolGroup(nodePools []*api.NodePool) map[string
 		"worker-karpenter": "karpenter",
 		"worker-combined":  "zalando",
 		"worker-splitaz":   "zalando",
+		"seed-default":     "zalando",
 	}
 	poolGroups := groupNodePoolsByPurpose(nodePools)
 	provider := make(map[string]string)
