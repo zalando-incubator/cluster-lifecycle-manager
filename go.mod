@@ -4,20 +4,20 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/aws/aws-sdk-go-v2 v1.47.0
-	github.com/aws/aws-sdk-go-v2/config v1.33.4
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.4
+	github.com/aws/aws-sdk-go-v2/config v1.33.5
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.0
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.5
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.7
 	github.com/aws/aws-sdk-go-v2/service/acm v1.50.0
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.78.0
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.81.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.332.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.334.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.99.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.41.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.64.0
-	github.com/aws/aws-sdk-go-v2/service/kms v1.60.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.0
-	github.com/aws/aws-sdk-go-v2/service/sts v1.50.0
+	github.com/aws/aws-sdk-go-v2/service/kms v1.61.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.1
+	github.com/aws/aws-sdk-go-v2/service/sts v1.51.0
 	github.com/aws/karpenter-provider-aws v1.14.1
 	github.com/aws/smithy-go v1.28.1
 	github.com/awslabs/operatorpkg v0.0.0-20260812232916-6d329cee9a40
@@ -50,7 +50,7 @@ require (
 	k8s.io/kubectl v0.37.0
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	sigs.k8s.io/aws-iam-authenticator v0.7.20
-	sigs.k8s.io/controller-runtime v0.25.0
+	sigs.k8s.io/controller-runtime v0.25.1
 	sigs.k8s.io/karpenter v1.14.1
 )
 
