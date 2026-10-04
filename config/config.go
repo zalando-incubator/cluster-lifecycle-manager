@@ -59,6 +59,10 @@ type LifecycleManagerConfig struct {
 	UpdateStrategy              UpdateStrategy
 	RemoveVolumes               bool
 	ManageEtcdStack             bool
+	ClusterAlias                string
+	ResourceName                string
+	Application                 string
+	SkipDecrypt                 bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -113,5 +117,9 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
 	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	kingpin.Flag("manage-etcd-stack", "Enable creation/updates of the etcd stack (should be disabled for pet clusters)").BoolVar(&cfg.ManageEtcdStack)
+	kingpin.Flag("cluster-alias", "Filter rendered output by cluster alias (used with render command)").StringVar(&cfg.ClusterAlias)
+	kingpin.Flag("resource-name", "Filter rendered resources by metadata.name or CF stack name (used with render command)").StringVar(&cfg.ResourceName)
+	kingpin.Flag("application", "Filter rendered resources by application label (K8s) or tag (CF) (used with render command)").StringVar(&cfg.Application)
+	kingpin.Flag("skip-decrypt", "Skip decryption of config items (useful when KMS is in a different account)").BoolVar(&cfg.SkipDecrypt)
 	return kingpin.Parse()
 }

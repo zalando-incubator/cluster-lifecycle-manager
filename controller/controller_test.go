@@ -44,6 +44,10 @@ func (p *mockProvisioner) Decommission(_ context.Context, _ *log.Entry, _ *api.C
 	return nil
 }
 
+func (p *mockProvisioner) Render(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config, _ string, _ string) error {
+	return nil
+}
+
 type mockErrProvisioner mockProvisioner
 
 func (p *mockErrProvisioner) Supports(_ *api.Cluster) bool {
@@ -61,6 +65,10 @@ func (p *mockErrProvisioner) Provision(
 
 func (p *mockErrProvisioner) Decommission(_ context.Context, _ *log.Entry, _ *api.Cluster) error {
 	return fmt.Errorf("failed to decommission")
+}
+
+func (p *mockErrProvisioner) Render(_ context.Context, _ *log.Entry, _ *api.Cluster, _ channel.Config, _ string, _ string) error {
+	return fmt.Errorf("failed to render")
 }
 
 type mockErrCreateProvisioner struct{ *mockProvisioner }

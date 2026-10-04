@@ -38,3 +38,10 @@ func (p *stdoutProvisioner) Decommission(_ context.Context, logger *log.Entry, c
 
 	return nil
 }
+
+// Render mocks rendering manifests for a cluster.
+func (p *stdoutProvisioner) Render(_ context.Context, logger *log.Entry, cluster *api.Cluster, _ channel.Config, _ string, _ string) error {
+	logger.Infof("stdout: Rendering manifests for cluster %s.", cluster.ID)
+
+	return nil
+}
