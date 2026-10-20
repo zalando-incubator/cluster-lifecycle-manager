@@ -287,21 +287,17 @@ func (p *clusterpyProvisioner) provision(
 	}
 
 	// The number of nodes the node subnets can hold, for clusters where
-	// this is the limit instead of a pod CIDR. The value is only set if the
-	// subnets have IPv4 CIDRs, so that templates using it fail to render
-	// instead of using a wrong limit.
+	// this is the limit instead of a pod CIDR.
 	usablePercent, err := nodeSubnetsUsablePercent(cluster)
 	if err != nil {
 		return err
 	}
 
-	maxNodes, ok, err := azInfoNodes.MaxNodes(usablePercent)
+	maxNodes, err := azInfoNodes.MaxNodes(usablePercent)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to calculate the max number of nodes of the node subnets: %w", err)
 	}
-	if ok {
-		values[nodeSubnetsMaxNodesKey] = maxNodes
-	}
+	values[nodeSubnetsMaxNodesKey] = maxNodes
 
 	// render the k8s deletions manifests to find out if they're valid
 	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter, instanceTypes)

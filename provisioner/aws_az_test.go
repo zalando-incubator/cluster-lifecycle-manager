@@ -65,62 +65,55 @@ func TestMaxNodes(t *testing.T) {
 		info          *AZInfo
 		percent       int64
 		expected      int64
-		expectedFound bool
 		expectedError bool
 	}{
 		{
-			name:          "3x /22, 90%",
-			info:          azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
-			percent:       90,
-			expected:      2751,
-			expectedFound: true,
+			name:     "3x /22, 90%",
+			info:     azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
+			percent:  90,
+			expected: 2751,
 		},
 		{
-			name:          "3x /22, 100%",
-			info:          azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
-			percent:       100,
-			expected:      3057,
-			expectedFound: true,
+			name:     "3x /22, 100%",
+			info:     azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
+			percent:  100,
+			expected: 3057,
 		},
 		{
-			name:          "3x /24, 90%",
-			info:          azInfo("10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"),
-			percent:       90,
-			expected:      677,
-			expectedFound: true,
+			name:     "3x /24, 90%",
+			info:     azInfo("10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"),
+			percent:  90,
+			expected: 677,
 		},
 		{
-			name:          "mixed subnet sizes are summed",
-			info:          azInfo("10.0.0.0/22", "10.0.4.0/23", "10.0.6.0/24"),
-			percent:       100,
-			expected:      1777,
-			expectedFound: true,
+			name:     "mixed subnet sizes are summed",
+			info:     azInfo("10.0.0.0/22", "10.0.4.0/23", "10.0.6.0/24"),
+			percent:  100,
+			expected: 1777,
 		},
 		{
-			name:          "smallest subnet size",
-			info:          azInfo("10.0.0.0/28"),
-			percent:       100,
-			expected:      11,
-			expectedFound: true,
+			name:     "smallest subnet size",
+			info:     azInfo("10.0.0.0/28"),
+			percent:  100,
+			expected: 11,
 		},
 		{
-			name:          "subnets without an IPv4 CIDR are ignored",
-			info:          &AZInfo{subnets: map[string]SubnetInfo{"az-0": {SubnetID: "subnet-0"}, "az-1": {SubnetID: "subnet-1", SubnetIPV4CIDR: "10.0.0.0/24"}}},
-			percent:       100,
-			expected:      251,
-			expectedFound: true,
+			name:     "subnets without an IPv4 CIDR are ignored",
+			info:     &AZInfo{subnets: map[string]SubnetInfo{"az-0": {SubnetID: "subnet-0"}, "az-1": {SubnetID: "subnet-1", SubnetIPV4CIDR: "10.0.0.0/24"}}},
+			percent:  100,
+			expected: 251,
 		},
 		{
-			name:          "no subnets",
+			name:          "error: no subnets",
 			info:          &AZInfo{},
 			percent:       90,
-			expectedFound: false,
+			expectedError: true,
 		},
 		{
-			name:          "no subnet with an IPv4 CIDR",
+			name:          "error: no subnet with an IPv4 CIDR",
 			info:          &AZInfo{subnets: map[string]SubnetInfo{"az-0": {SubnetID: "subnet-0"}}},
 			percent:       90,
-			expectedFound: false,
+			expectedError: true,
 		},
 		{
 			name:          "error: percent too low",
@@ -148,13 +141,12 @@ func TestMaxNodes(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			maxNodes, found, err := tc.info.MaxNodes(tc.percent)
+			maxNodes, err := tc.info.MaxNodes(tc.percent)
 			if tc.expectedError {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedFound, found)
 			require.EqualValues(t, tc.expected, maxNodes)
 		})
 	}

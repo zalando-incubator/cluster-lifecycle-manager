@@ -63,15 +63,15 @@ const awsReservedSubnetAddresses = 5
 
 // MaxNodes returns the maximum number of nodes that fit in the IPv4 address
 // space of the subnets, considering only usablePercent percent of the usable
-// addresses to leave room for other consumers of the subnets. It returns false
-// if none of the subnets has an IPv4 CIDR.
+// addresses to leave room for other consumers of the subnets. It returns an
+// error if none of the subnets has an IPv4 CIDR.
 //
 // This is the limit for clusters where pods don't get their addresses from a
 // per-node CIDR carved out of a pod CIDR (e.g. IPv6 EKS clusters), because
 // each node then only needs a single IPv4 address from its subnet.
-func (info *AZInfo) MaxNodes(usablePercent int64) (int64, bool, error) {
+func (info *AZInfo) MaxNodes(usablePercent int64) (int64, error) {
 	if usablePercent < 1 || usablePercent > 100 {
-		return 0, false, fmt.Errorf("invalid value for usablePercent: %d, must be between 1 and 100", usablePercent)
+		return 0, fmt.Errorf("invalid value for usablePercent: %d, must be between 1 and 100", usablePercent)
 	}
 
 	var addresses int64
@@ -83,19 +83,23 @@ func (info *AZInfo) MaxNodes(usablePercent int64) (int64, bool, error) {
 
 		_, ipNet, err := net.ParseCIDR(subnetInfo.SubnetIPV4CIDR)
 		if err != nil {
-			return 0, false, fmt.Errorf("invalid IPv4 CIDR %q of subnet %s: %v", subnetInfo.SubnetIPV4CIDR, subnetInfo.SubnetID, err)
+			return 0, fmt.Errorf("invalid IPv4 CIDR %q of subnet %s: %v", subnetInfo.SubnetIPV4CIDR, subnetInfo.SubnetID, err)
 		}
 
 		ones, bits := ipNet.Mask.Size()
 		if bits != 32 {
-			return 0, false, fmt.Errorf("CIDR %q of subnet %s is not an IPv4 CIDR", subnetInfo.SubnetIPV4CIDR, subnetInfo.SubnetID)
+			return 0, fmt.Errorf("CIDR %q of subnet %s is not an IPv4 CIDR", subnetInfo.SubnetIPV4CIDR, subnetInfo.SubnetID)
 		}
 
 		addresses += int64(1)<<(32-ones) - awsReservedSubnetAddresses
 		found = true
 	}
 
-	return addresses * usablePercent / 100, found, nil
+	if !found {
+		return 0, fmt.Errorf("none of the subnets has an IPv4 CIDR")
+	}
+
+	return addresses * usablePercent / 100, nil
 }
 
 // AvailabilityZones returns a list of available AZs

@@ -616,9 +616,8 @@ func TestSelectSubnetIDsKeepsIPv4CIDR(t *testing.T) {
 		"eu-central-1b": {SubnetID: "subnet-1b", SubnetIPV4CIDR: "10.0.8.0/22"},
 	}, azInfo.subnets)
 
-	maxNodes, found, err := azInfo.MaxNodes(100)
+	maxNodes, err := azInfo.MaxNodes(100)
 	require.NoError(t, err)
-	require.True(t, found)
 	require.EqualValues(t, 2*1019, maxNodes)
 }
 
