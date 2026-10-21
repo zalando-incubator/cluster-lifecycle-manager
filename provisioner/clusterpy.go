@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +52,9 @@ const (
 	subnetsConfigItemKey               = "subnets"
 	subnetsValueKey                    = "subnets"
 	subnetIPV6CIDRsKey                 = "subnet_ipv6_cidrs"
+	nodeSubnetsMaxNodesKey             = "node_subnets_max_nodes"
+	nodeSubnetsUsablePercentConfigItem = "node_subnet_usable_percent"
+	defaultNodeSubnetsUsablePercent    = 90
 	availabilityZonesConfigItemKey     = "availability_zones"
 	availabilityZonesValueKey          = "availability_zones"
 	vpcIDConfigItemKey                 = "vpc_id"
@@ -281,6 +285,19 @@ func (p *clusterpyProvisioner) provision(
 		"vpc_ipv4_cidr":             aws.ToString(vpc.CidrBlock),
 		"vpc_ipv6_cidrs":            vpcIPv6CIDRs,
 	}
+
+	// The number of nodes the node subnets can hold, for clusters where
+	// this is the limit instead of a pod CIDR.
+	usablePercent, err := nodeSubnetsUsablePercent(cluster)
+	if err != nil {
+		return err
+	}
+
+	maxNodes, err := azInfoNodes.MaxNodes(usablePercent)
+	if err != nil {
+		return fmt.Errorf("failed to calculate the max number of nodes of the node subnets: %w", err)
+	}
+	values[nodeSubnetsMaxNodesKey] = maxNodes
 
 	// render the k8s deletions manifests to find out if they're valid
 	deletions, err := parseDeletions(channelConfig, cluster, values, awsAdapter, instanceTypes)
@@ -649,6 +666,24 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 	return outputs, nil
 }
 
+// nodeSubnetsUsablePercent returns the percentage of the addresses in the node
+// subnets which can be used by nodes, as configured by the
+// `node_subnet_usable_percent` config item. It falls back to a default if the
+// config item is not set.
+func nodeSubnetsUsablePercent(cluster *api.Cluster) (int64, error) {
+	value, ok := cluster.ConfigItems[nodeSubnetsUsablePercentConfigItem]
+	if !ok {
+		return defaultNodeSubnetsUsablePercent, nil
+	}
+
+	percent, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s: %q: %v", nodeSubnetsUsablePercentConfigItem, value, err)
+	}
+
+	return percent, nil
+}
+
 func filterSubnets(subnets []ec2types.Subnet, filter func(*ec2types.Subnet) bool) []ec2types.Subnet {
 	var filtered []ec2types.Subnet
 	for _, subnet := range subnets {
@@ -728,7 +763,8 @@ func selectSubnetIDs(subnets []ec2types.Subnet, tag string) *AZInfo {
 	result := make(map[string]SubnetInfo, len(subnetsByAZ))
 	for az, subnet := range subnetsByAZ {
 		subnetInfo := SubnetInfo{
-			SubnetID: aws.ToString(subnet.SubnetId),
+			SubnetID:       aws.ToString(subnet.SubnetId),
+			SubnetIPV4CIDR: aws.ToString(subnet.CidrBlock),
 		}
 		for _, ipv6Cidr := range subnet.Ipv6CidrBlockAssociationSet {
 			subnetInfo.SubnetIPV6CIDRs = append(subnetInfo.SubnetIPV6CIDRs, aws.ToString(ipv6Cidr.Ipv6CidrBlock))

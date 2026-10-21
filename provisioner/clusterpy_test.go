@@ -583,3 +583,74 @@ func TestApplyCFManifests_SkipsEmptyManifests(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectSubnetIDsKeepsIPv4CIDR(t *testing.T) {
+	subnets := []ec2types.Subnet{
+		{
+			SubnetId:         aws.String("subnet-1a"),
+			AvailabilityZone: aws.String("eu-central-1a"),
+			CidrBlock:        aws.String("10.0.0.0/22"),
+			Tags:             []ec2types.Tag{{Key: aws.String(subnetNodeRoleTagName), Value: aws.String("enabled")}},
+			Ipv6CidrBlockAssociationSet: []ec2types.SubnetIpv6CidrBlockAssociation{
+				{Ipv6CidrBlock: aws.String("2001:db8::/64")},
+			},
+		},
+		{
+			// not tagged as a node subnet, so the tagged one is preferred
+			SubnetId:         aws.String("subnet-1a-other"),
+			AvailabilityZone: aws.String("eu-central-1a"),
+			CidrBlock:        aws.String("10.0.4.0/24"),
+		},
+		{
+			SubnetId:         aws.String("subnet-1b"),
+			AvailabilityZone: aws.String("eu-central-1b"),
+			CidrBlock:        aws.String("10.0.8.0/22"),
+			Tags:             []ec2types.Tag{{Key: aws.String(subnetNodeRoleTagName), Value: aws.String("enabled")}},
+		},
+	}
+
+	azInfo := selectSubnetIDs(subnets, subnetNodeRoleTagName)
+
+	require.Equal(t, map[string]SubnetInfo{
+		"eu-central-1a": {SubnetID: "subnet-1a", SubnetIPV4CIDR: "10.0.0.0/22", SubnetIPV6CIDRs: []string{"2001:db8::/64"}},
+		"eu-central-1b": {SubnetID: "subnet-1b", SubnetIPV4CIDR: "10.0.8.0/22"},
+	}, azInfo.subnets)
+
+	maxNodes, err := azInfo.MaxNodes(100)
+	require.NoError(t, err)
+	require.EqualValues(t, 2*1019, maxNodes)
+}
+
+func TestNodeSubnetsUsablePercent(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		configItems   map[string]string
+		expected      int64
+		expectedError bool
+	}{
+		{
+			name:     "default if not set",
+			expected: 90,
+		},
+		{
+			name:        "configured",
+			configItems: map[string]string{"node_subnet_usable_percent": "75"},
+			expected:    75,
+		},
+		{
+			name:          "error: not a number",
+			configItems:   map[string]string{"node_subnet_usable_percent": "foo"},
+			expectedError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			percent, err := nodeSubnetsUsablePercent(&api.Cluster{ConfigItems: tc.configItems})
+			if tc.expectedError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, percent)
+		})
+	}
+}

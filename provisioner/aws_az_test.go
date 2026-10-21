@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,4 +49,105 @@ func TestRestrictAZs(t *testing.T) {
 
 func TestSubnetIPv6CIDRs(t *testing.T) {
 	require.Equal(t, []string{"2001:db8::/64", "2001:db8::/64", "2001:db8::/64"}, info.SubnetIPv6CIDRs())
+}
+
+func TestMaxNodes(t *testing.T) {
+	azInfo := func(cidrs ...string) *AZInfo {
+		subnets := make(map[string]SubnetInfo, len(cidrs))
+		for i, cidr := range cidrs {
+			subnets[fmt.Sprintf("az-%d", i)] = SubnetInfo{SubnetID: fmt.Sprintf("subnet-%d", i), SubnetIPV4CIDR: cidr}
+		}
+		return &AZInfo{subnets: subnets}
+	}
+
+	for _, tc := range []struct {
+		name          string
+		info          *AZInfo
+		percent       int64
+		expected      int64
+		expectedError bool
+	}{
+		{
+			name:     "3x /22, 90%",
+			info:     azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
+			percent:  90,
+			expected: 2751,
+		},
+		{
+			name:     "3x /22, 100%",
+			info:     azInfo("10.153.132.0/22", "10.153.140.0/22", "10.153.152.0/22"),
+			percent:  100,
+			expected: 3057,
+		},
+		{
+			name:     "3x /24, 90%",
+			info:     azInfo("10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"),
+			percent:  90,
+			expected: 677,
+		},
+		{
+			name:     "mixed subnet sizes are summed",
+			info:     azInfo("10.0.0.0/22", "10.0.4.0/23", "10.0.6.0/24"),
+			percent:  100,
+			expected: 1777,
+		},
+		{
+			name:     "smallest subnet size",
+			info:     azInfo("10.0.0.0/28"),
+			percent:  100,
+			expected: 11,
+		},
+		{
+			name:     "subnets without an IPv4 CIDR are ignored",
+			info:     &AZInfo{subnets: map[string]SubnetInfo{"az-0": {SubnetID: "subnet-0"}, "az-1": {SubnetID: "subnet-1", SubnetIPV4CIDR: "10.0.0.0/24"}}},
+			percent:  100,
+			expected: 251,
+		},
+		{
+			name:          "error: no subnets",
+			info:          &AZInfo{},
+			percent:       90,
+			expectedError: true,
+		},
+		{
+			name:          "error: no subnet with an IPv4 CIDR",
+			info:          &AZInfo{subnets: map[string]SubnetInfo{"az-0": {SubnetID: "subnet-0"}}},
+			percent:       90,
+			expectedError: true,
+		},
+		{
+			name:          "error: percent too low",
+			info:          azInfo("10.0.0.0/22"),
+			percent:       0,
+			expectedError: true,
+		},
+		{
+			name:          "error: percent too high",
+			info:          azInfo("10.0.0.0/22"),
+			percent:       101,
+			expectedError: true,
+		},
+		{
+			name:          "error: invalid CIDR",
+			info:          azInfo("foo"),
+			percent:       90,
+			expectedError: true,
+		},
+		{
+			name:          "error: IPv6 CIDR",
+			info:          azInfo("2a05:d024:20:1003::/64"),
+			percent:       90,
+			expectedError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			maxNodes, err := tc.info.MaxNodes(tc.percent)
+			if tc.expectedError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.EqualValues(t, tc.expected, maxNodes)
+		})
+	}
 }
