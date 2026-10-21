@@ -100,7 +100,13 @@ func (d *Applier) applyKubernetesManifest(ctx context.Context, manifest *Resourc
 	applyManifest := func() error {
 		return d.applyKubernetesResource(ctx, manifest, obj, client, mapping)
 	}
-	return backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), d.maxRetries))
+
+	logRetry := func(err error, wait time.Duration) {
+		logrus.Warnf("retrying apply of %s/%s %s/%s in %s: %v",
+			gvk.GroupVersion(), gvk.Kind, manifest.Namespace, manifest.Name, wait, err)
+	}
+
+	return backoff.RetryNotify(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), d.maxRetries), logRetry)
 }
 
 func (d *Applier) applyKubernetesResource(_ context.Context, manifest *ResourceManifest, obj runtime.Object, client *rest.RESTClient, mapping *meta.RESTMapping) error {
