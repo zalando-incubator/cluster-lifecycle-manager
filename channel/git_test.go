@@ -3,61 +3,143 @@ package channel
 import (
 	"context"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	gogit "github.com/go-git/go-git/v5"
+	gogitconfig "github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 )
 
-// helper function to setup a test repository.
-func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
-	err := exec.Command("git", "-C", dir, "init", "-b", "main").Run()
-	require.NoError(t, err)
-
-	execManager := command.NewExecManager(1)
-
-	commit := func(message string) {
-		cmd := exec.Command("git", "-C", dir, "commit", "-am", message)
-		cmd.Env = []string{
-			"GIT_AUTHOR_EMAIL=go-test",
-			"GIT_AUTHOR_NAME=go-test",
-			"GIT_COMMITTER_EMAIL=go-test",
-			"GIT_COMMITTER_NAME=go-test",
-		}
-		log.Printf("test")
-		_, err := execManager.RunSilently(context.Background(), logger, cmd)
-		require.NoError(t, err)
-	}
-
-	setupExampleConfig(t, dir, "channel1")
-
-	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
-	require.NoError(t, err)
-
-	commit("initial commit")
-
-	err = exec.Command("git", "-C", dir, "checkout", "-b", "channel2").Run()
-	require.NoError(t, err)
-
-	setupExampleConfig(t, dir, "channel2")
-
-	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
-	require.NoError(t, err)
-
-	commit("branch commit")
+var testAuthor = &object.Signature{
+	Name:  "go-test",
+	Email: "go-test@example.com",
+	When:  time.Now(),
 }
 
-func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+// createGitRepo initialises a bare test repository (simulating the remote)
+// with two branches:
+//   - main:     stack.yaml contains "channel1"
+//   - channel2: stack.yaml contains "channel2"
+func createGitRepo(t *testing.T, _ *log.Entry, bareDir string) {
+	t.Helper()
+
+	// create a non-bare working repo first, make commits, then push to bare
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	repo, err := gogit.PlainInitWithOptions(workDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, workDir, "channel1")
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	err = wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("channel2"),
+		Create: true,
+	})
+	require.NoError(t, err)
+
+	setupExampleConfig(t, workDir, "channel2")
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("branch commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	// create bare repo and push all refs to it
+	_, err = gogit.PlainInitWithOptions(bareDir, &gogit.PlainInitOptions{
+		Bare:        true,
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	_, err = repo.CreateRemote(&gogitconfig.RemoteConfig{
+		Name: "origin",
+		URLs: []string{bareDir},
+	})
+	require.NoError(t, err)
+
+	err = repo.Push(&gogit.PushOptions{
+		RefSpecs: []gogitconfig.RefSpec{"refs/heads/*:refs/heads/*"},
+	})
+	require.NoError(t, err)
+}
+
+// addCommit adds a new commit on the given branch in the bare repo at bareDir.
+func addCommit(t *testing.T, bareDir, branch, stackContent, message string) {
+	t.Helper()
+
+	// clone to a temp working dir, commit, push back
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	repo, err := gogit.PlainClone(workDir, false, &gogit.CloneOptions{
+		URL:           bareDir,
+		ReferenceName: plumbing.NewBranchReferenceName(branch),
+		SingleBranch:  true,
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, workDir, stackContent)
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit(message, &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+	err = repo.Push(&gogit.PushOptions{})
+	require.NoError(t, err)
+}
+
+// deleteBranch removes a branch from the bare repo at bareDir.
+func deleteBranch(t *testing.T, bareDir, branch string) {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(bareDir)
+	require.NoError(t, err)
+
+	err = repo.Storer.RemoveReference(plumbing.NewBranchReferenceName(branch))
+	require.NoError(t, err)
+}
+
+// headSHA returns the current SHA of the given branch in the repo at dir.
+func headSHA(t *testing.T, dir, branch string) string {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(dir)
+	require.NoError(t, err)
+
+	hash, err := repo.ResolveRevision(plumbing.Revision(branch))
+	require.NoError(t, err)
+
+	return hash.String()
+}
+
+func checkoutVersion(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+	t.Helper()
+
 	version, err := source.Version(channel, nil)
 	require.NoError(t, err)
 
-	checkout, err := version.Get(context.Background(), logger)
+	cfg, err := version.Get(context.Background(), logger)
 	require.NoError(t, err)
 
-	return checkout
+	return cfg
 }
 
 func TestGitGet(t *testing.T) {
@@ -77,25 +159,61 @@ func TestGitGet(t *testing.T) {
 	require.NoError(t, err)
 
 	// check main channel
-	main := checkout(t, logger, c, "main")
+	main := checkoutVersion(t, logger, c, "main")
 	verifyExampleConfig(t, main, "testsrc", "channel1")
 
 	// check another channel
-	channel2 := checkout(t, logger, c, "channel2")
+	channel2 := checkoutVersion(t, logger, c, "channel2")
 	verifyExampleConfig(t, channel2, "testsrc", "channel2")
 
-	// check sha
-	out, err := exec.Command(
-		"git",
-		"-C",
-		repoTempDir,
-		"rev-parse",
-		"main",
-	).Output()
+	// check checkout by SHA
+	sha := headSHA(t, repoTempDir, "main")
+	bySHA := checkoutVersion(t, logger, c, sha)
+	verifyExampleConfig(t, bySHA, "testsrc", "channel1")
+}
+
+func TestGitUpdateRepeat(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
-	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
-	verifyExampleConfig(t, sha, "testsrc", "channel1")
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	v1, err := c.Version("main", nil)
+	require.NoError(t, err)
+	sha1 := v1.ID()
+
+	// add a new commit to main on the remote
+	addCommit(t, repoTempDir, "main", "channel1-v2", "second commit")
+
+	// Update should pick up the new commit
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	v2, err := c.Version("main", nil)
+	require.NoError(t, err)
+	require.NotEqual(t, sha1, v2.ID(), "SHA should advance after second commit")
+
+	cfg := checkoutVersion(t, logger, c, v2.ID())
+	verifyExampleConfig(t, cfg, "testsrc", "channel1-v2")
+
+	// deleted branch should no longer resolve after pruning update
+	deleteBranch(t, repoTempDir, "channel2")
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	_, err = c.Version("channel2", nil)
+	require.Error(t, err, "deleted branch should not resolve after pruning update")
 }
 
 func TestGitGarbageCollect(t *testing.T) {
@@ -114,10 +232,50 @@ func TestGitGarbageCollect(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	// GarbageCollect should succeed without errors
 	gc, ok := c.(GarbageCollector)
 	require.True(t, ok)
 
+	err = gc.GarbageCollect(context.Background(), logger)
+	require.NoError(t, err)
+}
+
+func TestGitStaleWorkdirCleanup(t *testing.T) {
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	// create stale dirs that NewGit should clean up
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "kubernetes-on-aws_abc123_1234_1"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "kubernetes-on-aws_def456_5678_2"), 0755))
+	// different repo name — should be left alone
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "other-repo_abc123_1234_1"), 0755))
+
+	_, err := NewGit(command.NewExecManager(1), "test", workDir,
+		"https://github.com/zalando-incubator/kubernetes-on-aws.git", "")
+	require.NoError(t, err)
+
+	entries, _ := os.ReadDir(workDir)
+	for _, e := range entries {
+		require.False(t, strings.HasPrefix(e.Name(), "kubernetes-on-aws_"),
+			"stale dir should be removed: %s", e.Name())
+	}
+	_, err = os.Stat(filepath.Join(workDir, "other-repo_abc123_1234_1"))
+	require.NoError(t, err, "unrelated dir should survive")
+}
+
+func TestGitGarbageCollectNoRepo(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir,
+		"https://github.com/example/repo.git", "")
+	require.NoError(t, err)
+
+	gc, ok := c.(GarbageCollector)
+	require.True(t, ok)
+
+	// no Update called — mirror doesn't exist — should return nil silently
 	err = gc.GarbageCollect(context.Background(), logger)
 	require.NoError(t, err)
 }
