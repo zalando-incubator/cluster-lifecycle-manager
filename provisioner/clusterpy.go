@@ -414,6 +414,7 @@ func (p *clusterpyProvisioner) provision(
 		p.execManager,
 		tokenSource,
 		postOptions,
+		cluster.ConfigItems["karpenter_node_pool_kubectl_apply_inline"] == "true",
 	)
 	if err != nil {
 		return err

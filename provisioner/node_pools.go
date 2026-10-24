@@ -160,7 +160,8 @@ func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context,
 type KarpenterNodePoolProvisioner struct {
 	NodePoolTemplateRenderer
 	*kubernetes.KubeCTLRunner
-	client client.Client
+	applier *kubernetes.Applier
+	client  client.Client
 }
 
 func NewKarpenterNodePoolProvisioner(
@@ -168,29 +169,40 @@ func NewKarpenterNodePoolProvisioner(
 	e *command.ExecManager,
 	ts oauth2.TokenSource,
 	options *HookResponse,
+	useKubeAPI bool,
 ) (*KarpenterNodePoolProvisioner, error) {
 	var caData []byte
 	if options != nil && len(options.CAData) > 0 {
 		caData = options.CAData
 	}
-	client, err := kubernetes.NewControllerClient(n.cluster.APIServerURL, ts, caData)
+	c, err := kubernetes.NewControllerClient(n.cluster.APIServerURL, ts, caData)
 	if err != nil {
 		return nil, err
 	}
 
-	k := kubernetes.NewKubeCTLRunner(
-		e,
-		ts,
-		n.logger,
-		n.cluster.APIServerURL,
-		maxApplyRetries,
-		caData,
-	)
-	return &KarpenterNodePoolProvisioner{
+	p := &KarpenterNodePoolProvisioner{
 		NodePoolTemplateRenderer: n,
-		client:                   client,
-		KubeCTLRunner:            k,
-	}, nil
+		client:                   c,
+	}
+
+	if useKubeAPI {
+		applier, err := kubernetes.NewApplier(kubernetes.NewConfigFromHost(n.cluster.APIServerURL, ts, caData), maxApplyRetries)
+		if err != nil {
+			return nil, err
+		}
+		p.applier = applier
+	} else {
+		p.KubeCTLRunner = kubernetes.NewKubeCTLRunner(
+			e,
+			ts,
+			n.logger,
+			n.cluster.APIServerURL,
+			maxApplyRetries,
+			caData,
+		)
+	}
+
+	return p, nil
 }
 
 func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools []*api.NodePool, values map[string]interface{}) error {
@@ -232,6 +244,20 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	if template == "" {
 		return nil
 	}
+
+	if p.applier != nil {
+		manifests, err := kubernetes.ParseResourceManifest(template, provisionersFileName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse provisioners manifest for node pool %s", nodePool.Name)
+		}
+		for _, m := range manifests {
+			if err := p.applier.Apply(ctx, m); err != nil {
+				return errors.Wrapf(err, "apply failed for %s/%s in node pool %s", m.Kind, m.Name, nodePool.Name)
+			}
+		}
+		return nil
+	}
+
 	_, err = p.KubectlExecute(ctx, []string{"apply"}, template, false)
 	if err != nil {
 		return errors.Wrapf(err, "kubectl apply failed for node pool %s", nodePool.Name)
