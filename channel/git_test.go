@@ -3,61 +3,116 @@ package channel
 import (
 	"context"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
+	"time"
 
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 )
 
-// helper function to setup a test repository.
-func createGitRepo(t *testing.T, logger *log.Entry, dir string) {
-	err := exec.Command("git", "-C", dir, "init", "-b", "main").Run()
+var testAuthor = &object.Signature{
+	Name:  "go-test",
+	Email: "go-test@example.com",
+	When:  time.Now(),
+}
+
+// createGitRepo initialises a test repository with two branches:
+//   - main:     stack.yaml contains "channel1"
+//   - channel2: stack.yaml contains "channel2"
+//
+// Returns with the repo worktree on channel2 (matching original behaviour).
+func createGitRepo(t *testing.T, _ *log.Entry, dir string) {
+	t.Helper()
+
+	repo, err := gogit.PlainInitWithOptions(dir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
 	require.NoError(t, err)
 
-	execManager := command.NewExecManager(1)
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
 
-	commit := func(message string) {
-		cmd := exec.Command("git", "-C", dir, "commit", "-am", message)
-		cmd.Env = []string{
-			"GIT_AUTHOR_EMAIL=go-test",
-			"GIT_AUTHOR_NAME=go-test",
-			"GIT_COMMITTER_EMAIL=go-test",
-			"GIT_COMMITTER_NAME=go-test",
-		}
-		log.Printf("test")
-		_, err := execManager.RunSilently(context.Background(), logger, cmd)
-		require.NoError(t, err)
-	}
-
+	// initial commit on main
 	setupExampleConfig(t, dir, "channel1")
-
-	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
 	require.NoError(t, err)
 
-	commit("initial commit")
-
-	err = exec.Command("git", "-C", dir, "checkout", "-b", "channel2").Run()
+	// create and switch to channel2
+	err = wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("channel2"),
+		Create: true,
+	})
 	require.NoError(t, err)
 
 	setupExampleConfig(t, dir, "channel2")
-
-	err = exec.Command("git", "-C", dir, "add", "cluster").Run()
+	err = wt.AddGlob("cluster")
 	require.NoError(t, err)
-
-	commit("branch commit")
+	_, err = wt.Commit("branch commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
 }
 
-func checkout(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+// addCommit adds a new commit on the given branch in the repo at dir.
+func addCommit(t *testing.T, dir, branch, stackContent, message string) {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(dir)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	err = wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+	})
+	require.NoError(t, err)
+
+	setupExampleConfig(t, dir, stackContent)
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit(message, &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+}
+
+// deleteBranch removes a local branch from the repo at dir.
+func deleteBranch(t *testing.T, dir, branch string) {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(dir)
+	require.NoError(t, err)
+
+	err = repo.Storer.RemoveReference(plumbing.NewBranchReferenceName(branch))
+	require.NoError(t, err)
+}
+
+// headSHA returns the current SHA of the given branch in the repo at dir.
+func headSHA(t *testing.T, dir, branch string) string {
+	t.Helper()
+
+	repo, err := gogit.PlainOpen(dir)
+	require.NoError(t, err)
+
+	hash, err := repo.ResolveRevision(plumbing.Revision(branch))
+	require.NoError(t, err)
+
+	return hash.String()
+}
+
+func checkoutVersion(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
+	t.Helper()
+
 	version, err := source.Version(channel, nil)
 	require.NoError(t, err)
 
-	checkout, err := version.Get(context.Background(), logger)
+	cfg, err := version.Get(context.Background(), logger)
 	require.NoError(t, err)
 
-	return checkout
+	return cfg
 }
 
 func TestGitGet(t *testing.T) {
@@ -77,25 +132,61 @@ func TestGitGet(t *testing.T) {
 	require.NoError(t, err)
 
 	// check main channel
-	main := checkout(t, logger, c, "main")
+	main := checkoutVersion(t, logger, c, "main")
 	verifyExampleConfig(t, main, "testsrc", "channel1")
 
 	// check another channel
-	channel2 := checkout(t, logger, c, "channel2")
+	channel2 := checkoutVersion(t, logger, c, "channel2")
 	verifyExampleConfig(t, channel2, "testsrc", "channel2")
 
-	// check sha
-	out, err := exec.Command(
-		"git",
-		"-C",
-		repoTempDir,
-		"rev-parse",
-		"main",
-	).Output()
+	// check checkout by SHA
+	sha := headSHA(t, repoTempDir, "main")
+	bySHA := checkoutVersion(t, logger, c, sha)
+	verifyExampleConfig(t, bySHA, "testsrc", "channel1")
+}
+
+func TestGitUpdateRepeat(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
-	sha := checkout(t, logger, c, strings.TrimSpace(string(out)))
-	verifyExampleConfig(t, sha, "testsrc", "channel1")
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	v1, err := c.Version("main", nil)
+	require.NoError(t, err)
+	sha1 := v1.ID()
+
+	// add a new commit to main on the remote
+	addCommit(t, repoTempDir, "main", "channel1-v2", "second commit")
+
+	// Update should pick up the new commit
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	v2, err := c.Version("main", nil)
+	require.NoError(t, err)
+	require.NotEqual(t, sha1, v2.ID(), "SHA should advance after second commit")
+
+	cfg := checkoutVersion(t, logger, c, v2.ID())
+	verifyExampleConfig(t, cfg, "testsrc", "channel1-v2")
+
+	// deleted branch should no longer resolve after pruning update
+	deleteBranch(t, repoTempDir, "channel2")
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	_, err = c.Version("channel2", nil)
+	require.Error(t, err, "deleted branch should not resolve after pruning update")
 }
 
 func TestGitGarbageCollect(t *testing.T) {
@@ -114,7 +205,6 @@ func TestGitGarbageCollect(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	// GarbageCollect should succeed without errors
 	gc, ok := c.(GarbageCollector)
 	require.True(t, ok)
 
