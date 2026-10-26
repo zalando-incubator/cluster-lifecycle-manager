@@ -214,19 +214,16 @@ func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error
 	}, nil
 }
 
-// localClone creates an independent local clone of the mirror repo checked out
-// at the given SHA. Each call gets its own directory so concurrent callers
-// don't interfere with each other. The mirror path is passed as a bare local
-// path (not file://) so go-git uses its in-process filesystem transport,
-// avoiding any dependency on the git binary.
+// localClone creates an independent local clone of the mirror repo checked
+// out at the given SHA. Each call gets its own directory so concurrent
+// callers don't interfere with each other.
 func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string, error) {
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, sha, time.Now().UTC().UnixNano(), i))
 
 	// Shared: true sets up objects/info/alternates pointing to the mirror
-	// instead of copying objects — each per-cluster clone only writes its
-	// working tree files, keeping disk usage proportional to file count
-	// rather than full history size.
+	// instead of copying the full object store — each per-cluster clone
+	// only writes its own working tree files.
 	_, err := gogit.PlainCloneContext(ctx, repoDir, false, &gogit.CloneOptions{
 		URL:               g.repoDir,
 		NoCheckout:        true,
