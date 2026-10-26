@@ -27,9 +27,9 @@ import (
 func init() {
 	// Replace the default file:// transport (which shells out to git-upload-pack)
 	// with an in-process server-based transport, so local clones from the bare
-	// mirror work without the git binary present in the container image.
-	// This only affects local bare repos (g.repoDir) — the initial remote clone
-	// always uses HTTPS or SSH in production.
+	// mirror work without the git binary in the container image.
+	// server.DefaultLoader requires a bare repository; non-bare local sources
+	// should use the Directory channel source instead.
 	client.InstallProtocol("file", server.NewClient(server.DefaultLoader))
 }
 
@@ -137,6 +137,7 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 		return nil
 	}
 
+	// mirror repo already exists (persistent volume from a previous run) — open and fetch
 	repo, err := gogit.PlainOpen(g.repoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open mirror repo: %w", err)
@@ -154,14 +155,14 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	}
 
 	// sync mirror HEAD to the remote's current default branch so that
-	// local clones don't fail if the default branch was renamed
+	// local clones don't fail if the default branch was renamed; if the
+	// sync fails, verify that HEAD still resolves — a dangling HEAD after
+	// a prune would cause all subsequent local clones to fail.
 	if syncErr := g.syncMirrorHEAD(repo); syncErr != nil {
-		logger.Warnf("failed to sync mirror HEAD (non-fatal): %v", syncErr)
-	}
-
-	// light repack equivalent to gc --prune=now
-	if err := repo.RepackObjects(&gogit.RepackConfig{UseRefDeltas: true}); err != nil {
-		logger.Warnf("repack after fetch failed (non-fatal): %v", err)
+		logger.Warnf("failed to sync mirror HEAD: %v", syncErr)
+		if _, resolveErr := repo.ResolveRevision(plumbing.Revision(plumbing.HEAD)); resolveErr != nil {
+			return fmt.Errorf("mirror HEAD does not resolve after failed sync: %w", resolveErr)
+		}
 	}
 
 	return nil
@@ -196,32 +197,6 @@ func (g *Git) syncMirrorHEAD(repo *gogit.Repository) error {
 	return nil
 }
 
-// GarbageCollect performs garbage collection on the git repository.
-func (g *Git) GarbageCollect(_ context.Context, logger *log.Entry) error {
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-
-	_, err := os.Stat(g.repoDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	repo, err := gogit.PlainOpen(g.repoDir)
-	if err != nil {
-		return fmt.Errorf("failed to open mirror repo for gc: %w", err)
-	}
-
-	// aggressive repack equivalent to gc --aggressive
-	if err := repo.RepackObjects(&gogit.RepackConfig{UseRefDeltas: true}); err != nil {
-		logger.Warnf("aggressive repack failed (non-fatal): %v", err)
-	}
-
-	return nil
-}
-
 func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error) {
 	repo, err := gogit.PlainOpen(g.repoDir)
 	if err != nil {
@@ -248,11 +223,14 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, sha, time.Now().UTC().UnixNano(), i))
 
-	// use the bare local path — go-git detects local endpoints and uses
-	// in-process filesystem storage, no git binary required
+	// Shared: true sets up objects/info/alternates pointing to the mirror
+	// instead of copying objects — each per-cluster clone only writes its
+	// working tree files, keeping disk usage proportional to file count
+	// rather than full history size.
 	_, err := gogit.PlainCloneContext(ctx, repoDir, false, &gogit.CloneOptions{
 		URL:               g.repoDir,
 		NoCheckout:        true,
+		Shared:            true,
 		RecurseSubmodules: gogit.NoRecurseSubmodules,
 	})
 	if err != nil {

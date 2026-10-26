@@ -216,29 +216,6 @@ func TestGitUpdateRepeat(t *testing.T) {
 	require.Error(t, err, "deleted branch should not resolve after pruning update")
 }
 
-func TestGitGarbageCollect(t *testing.T) {
-	logger := log.WithFields(map[string]interface{}{})
-
-	repoTempDir := CreateTempDir(t)
-	defer os.RemoveAll(repoTempDir)
-
-	workDir := CreateTempDir(t)
-	defer os.RemoveAll(workDir)
-
-	createGitRepo(t, logger, repoTempDir)
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
-	require.NoError(t, err)
-
-	err = c.Update(context.Background(), logger)
-	require.NoError(t, err)
-
-	gc, ok := c.(GarbageCollector)
-	require.True(t, ok)
-
-	err = gc.GarbageCollect(context.Background(), logger)
-	require.NoError(t, err)
-}
-
 func TestGitStaleWorkdirCleanup(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
@@ -260,24 +237,6 @@ func TestGitStaleWorkdirCleanup(t *testing.T) {
 	}
 	_, err = os.Stat(filepath.Join(workDir, "other-repo_abc123_1234_1"))
 	require.NoError(t, err, "unrelated dir should survive")
-}
-
-func TestGitGarbageCollectNoRepo(t *testing.T) {
-	logger := log.WithFields(map[string]interface{}{})
-
-	workDir := CreateTempDir(t)
-	defer os.RemoveAll(workDir)
-
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir,
-		"https://github.com/example/repo.git", "")
-	require.NoError(t, err)
-
-	gc, ok := c.(GarbageCollector)
-	require.True(t, ok)
-
-	// no Update called — mirror doesn't exist — should return nil silently
-	err = gc.GarbageCollect(context.Background(), logger)
-	require.NoError(t, err)
 }
 
 func TestGetRepoName(t *testing.T) {
