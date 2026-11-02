@@ -47,7 +47,9 @@ func init() {
 // finds a ".git" subdirectory it still roots the storage at the repo root
 // instead of inside ".git", which go-git's packfile negotiation reports as
 // "remote repository is empty". We chroot into ".git" ourselves for
-// non-bare repos before handing off to go-git's storage layer.
+// non-bare repos before handing off to go-git's storage layer. ".git/config"
+// is checked before a root-level "config" so a tracked file or directory
+// named "config" in a non-bare checkout isn't misclassified as bare.
 type localFSLoader struct {
 	base billy.Filesystem
 }
@@ -58,20 +60,22 @@ func (l *localFSLoader) Load(ep *transport.Endpoint) (storer.Storer, error) {
 		return nil, err
 	}
 
+	// check .git/config first: a non-bare checkout can have its own
+	// tracked file or directory named "config" at the repo root, which
+	// would otherwise be misclassified as a bare repository and leave
+	// storage rooted outside the actual objects/refs.
+	if gitDir, err := fs.Chroot(gogit.GitDirName); err == nil {
+		if _, err := gitDir.Stat("config"); err == nil {
+			return filesystem.NewStorage(gitDir, cache.NewObjectLRUDefault()), nil
+		}
+	}
+
 	if _, err := fs.Stat("config"); err == nil {
 		// bare repository — objects/refs live at the root
 		return filesystem.NewStorage(fs, cache.NewObjectLRUDefault()), nil
 	}
 
-	gitDir, err := fs.Chroot(gogit.GitDirName)
-	if err != nil {
-		return nil, transport.ErrRepositoryNotFound
-	}
-	if _, err := gitDir.Stat("config"); err != nil {
-		return nil, transport.ErrRepositoryNotFound
-	}
-
-	return filesystem.NewStorage(gitDir, cache.NewObjectLRUDefault()), nil
+	return nil, transport.ErrRepositoryNotFound
 }
 
 // Git defines a channel source where the channels are stored in a git
@@ -127,12 +131,14 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 
 	// only parse ~/.ssh/config for SSH sources — an unreadable or malformed
 	// file would otherwise prevent unrelated HTTPS/local-file sources from
-	// starting
+	// starting. A parse failure for an SSH source (e.g. an unsupported
+	// Match directive) falls back to --ssh-private-key-path rather than
+	// failing NewGit outright.
 	var sshCfg *ssh_config.Config
 	if isSSHURL(repositoryURL) {
 		sshCfg, err = loadSSHConfig()
 		if err != nil {
-			return nil, fmt.Errorf("failed to load SSH config: %w", err)
+			log.Warnf("failed to load SSH config for %q, falling back to --ssh-private-key-path: %v", name, err)
 		}
 	}
 
@@ -378,6 +384,7 @@ func (g *Git) sshIdentityFile() string {
 	if err != nil || identityFile == "" {
 		return ""
 	}
+	identityFile = strings.Trim(identityFile, `"`)
 
 	home, homeErr := os.UserHomeDir()
 	if homeErr == nil && strings.HasPrefix(identityFile, "~/") {
