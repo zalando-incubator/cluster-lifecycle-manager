@@ -275,7 +275,7 @@ func TestGitStaleWorkdirCleanup(t *testing.T) {
 	require.NoError(t, err, "unrelated dir should survive")
 }
 
-func TestGitResolveSSHURLAndIdentityFile(t *testing.T) {
+func TestGitSSHIdentityFile(t *testing.T) {
 	sshConfig, err := ssh_config.Decode(strings.NewReader(`
 Host ghe-logging.nonexistent.zalan.do
   HostName github.com
@@ -288,18 +288,14 @@ Host ghe-logging.nonexistent.zalan.do
 		sshConfig:     sshConfig,
 	}
 
-	// the alias host does not resolve via DNS; resolveSSHURL must rewrite it
-	// to the real HostName advertised in ~/.ssh/config
-	resolved := g.resolveSSHURL()
-	require.Equal(t, "ssh://git@github.com/zalando-build/kubernetes-logging-manifests.git", resolved)
-
-	// the per-host IdentityFile should be used instead of a global key
+	// per-host IdentityFile should be used instead of a global key
+	// (HostName aliasing is handled natively by go-git's SSH transport)
 	home, err := os.UserHomeDir()
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join(home, ".ssh", "id_logging"), g.sshIdentityFile())
 }
 
-func TestGitResolveSSHURLNoConfigMatch(t *testing.T) {
+func TestGitSSHIdentityFileNoConfigMatch(t *testing.T) {
 	sshConfig, err := ssh_config.Decode(strings.NewReader(`
 Host some-other-alias
   HostName example.com
@@ -311,9 +307,23 @@ Host some-other-alias
 		sshConfig:     sshConfig,
 	}
 
-	// no matching Host block — URL and auth fall back to defaults
-	require.Equal(t, g.repositoryURL, g.resolveSSHURL())
+	// no matching Host block — auth falls back to defaults
 	require.Empty(t, g.sshIdentityFile())
+}
+
+func TestNewGitSkipsSSHConfigForNonSSHSources(t *testing.T) {
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "test", workDir,
+		"https://github.com/zalando-incubator/kubernetes-on-aws.git", "")
+	require.NoError(t, err)
+
+	g, ok := c.(*Git)
+	require.True(t, ok)
+	// ~/.ssh/config is never parsed for HTTPS sources, so a missing or
+	// malformed file can't block them from starting
+	require.Nil(t, g.sshConfig)
 }
 
 func TestGetRepoName(t *testing.T) {

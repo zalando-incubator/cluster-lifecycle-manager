@@ -125,9 +125,15 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 		}
 	}
 
-	sshCfg, err := loadSSHConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load SSH config: %w", err)
+	// only parse ~/.ssh/config for SSH sources — an unreadable or malformed
+	// file would otherwise prevent unrelated HTTPS/local-file sources from
+	// starting
+	var sshCfg *ssh_config.Config
+	if isSSHURL(repositoryURL) {
+		sshCfg, err = loadSSHConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load SSH config: %w", err)
+		}
 	}
 
 	return &Git{
@@ -198,7 +204,7 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 		// bare mirror clone — fetches all refs; log name only, not URL (may contain credentials)
 		logger.Infof("cloning source %q into %s", g.name, g.repoDir)
 		_, err = gogit.PlainCloneContext(ctx, g.repoDir, true, &gogit.CloneOptions{
-			URL:    g.resolveSSHURL(),
+			URL:    g.repositoryURL,
 			Auth:   auth,
 			Mirror: true,
 		})
@@ -379,31 +385,6 @@ func (g *Git) sshIdentityFile() string {
 	}
 
 	return identityFile
-}
-
-// resolveSSHURL rewrites an SSH host alias (as used in ~/.ssh/config Host
-// blocks, e.g. "ghe-logging.nonexistent.zalan.do") to the real HostName it
-// maps to (e.g. "github.com"). These aliases often don't resolve via DNS —
-// they only exist to let multiple git remotes share github.com while using
-// different IdentityFiles. The real ssh binary applied this rewrite
-// transparently; go-git does not, so we do it ourselves before connecting.
-func (g *Git) resolveSSHURL() string {
-	if g.sshConfig == nil || !isSSHURL(g.repositoryURL) {
-		return g.repositoryURL
-	}
-
-	ep, err := transport.NewEndpoint(g.repositoryURL)
-	if err != nil {
-		return g.repositoryURL
-	}
-
-	hostName, err := g.sshConfig.Get(ep.Host, "HostName")
-	if err != nil || hostName == "" || hostName == ep.Host {
-		return g.repositoryURL
-	}
-
-	ep.Host = hostName
-	return ep.String()
 }
 
 // isSSHURL reports whether the given URL uses SSH transport by parsing it
