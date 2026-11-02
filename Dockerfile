@@ -15,9 +15,6 @@ LABEL maintainer="Team Teapot @ Zalando SE <team-teapot@zalando.de>"
 
 ARG TARGETARCH
 
-# install dependencies
-RUN dnf install -y openssl git openssh-clients && dnf clean all
-
 COPY --from=kubectl_download /kubectl /usr/local/bin/
 
 # add binary
