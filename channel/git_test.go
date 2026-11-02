@@ -143,6 +143,41 @@ func checkoutVersion(t *testing.T, logger *log.Entry, source ConfigSource, chann
 	return cfg
 }
 
+func TestGitGetFromNonBareLocalSource(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	// non-bare working repo, as used for local development, e.g.
+	// --config-source=main:git:file:///path/to/checkout
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInitWithOptions(repoDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, repoDir, "channel1")
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	main := checkoutVersion(t, logger, c, "main")
+	verifyExampleConfig(t, main, "testsrc", "channel1")
+}
+
 func TestGitGet(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 

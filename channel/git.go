@@ -12,13 +12,18 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/osfs"
 	gogit "github.com/go-git/go-git/v5"
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	"github.com/go-git/go-git/v5/plumbing/transport/server"
 	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -27,11 +32,46 @@ import (
 
 func init() {
 	// Replace the default file:// transport (which shells out to git-upload-pack)
-	// with an in-process server-based transport, so local clones from the bare
-	// mirror work without the git binary in the container image.
-	// server.DefaultLoader requires a bare repository; non-bare local sources
-	// should use the Directory channel source instead.
-	client.InstallProtocol("file", server.NewClient(server.DefaultLoader))
+	// with an in-process server-based transport, so local clones from the
+	// mirror — bare or non-bare — work without the git binary in the
+	// container image.
+	client.InstallProtocol("file", server.NewClient(&localFSLoader{base: osfs.New("")}))
+}
+
+// localFSLoader is a server.Loader for local file:// endpoints. It supports
+// both bare mirrors (used internally for per-cluster checkouts) and
+// non-bare working repositories (useful for local development against a
+// git checkout on disk, e.g. --config-source=main:git:file:///path/to/repo).
+//
+// server.DefaultLoader only handles this correctly for bare repos: when it
+// finds a ".git" subdirectory it still roots the storage at the repo root
+// instead of inside ".git", which go-git's packfile negotiation reports as
+// "remote repository is empty". We chroot into ".git" ourselves for
+// non-bare repos before handing off to go-git's storage layer.
+type localFSLoader struct {
+	base billy.Filesystem
+}
+
+func (l *localFSLoader) Load(ep *transport.Endpoint) (storer.Storer, error) {
+	fs, err := l.base.Chroot(ep.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := fs.Stat("config"); err == nil {
+		// bare repository — objects/refs live at the root
+		return filesystem.NewStorage(fs, cache.NewObjectLRUDefault()), nil
+	}
+
+	gitDir, err := fs.Chroot(gogit.GitDirName)
+	if err != nil {
+		return nil, transport.ErrRepositoryNotFound
+	}
+	if _, err := gitDir.Stat("config"); err != nil {
+		return nil, transport.ErrRepositoryNotFound
+	}
+
+	return filesystem.NewStorage(gitDir, cache.NewObjectLRUDefault()), nil
 }
 
 // Git defines a channel source where the channels are stored in a git
