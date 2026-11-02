@@ -12,6 +12,7 @@ import (
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -237,6 +238,47 @@ func TestGitStaleWorkdirCleanup(t *testing.T) {
 	}
 	_, err = os.Stat(filepath.Join(workDir, "other-repo_abc123_1234_1"))
 	require.NoError(t, err, "unrelated dir should survive")
+}
+
+func TestGitResolveSSHURLAndIdentityFile(t *testing.T) {
+	sshConfig, err := ssh_config.Decode(strings.NewReader(`
+Host ghe-logging.nonexistent.zalan.do
+  HostName github.com
+  IdentityFile ~/.ssh/id_logging
+`))
+	require.NoError(t, err)
+
+	g := &Git{
+		repositoryURL: "git@ghe-logging.nonexistent.zalan.do:zalando-build/kubernetes-logging-manifests.git",
+		sshConfig:     sshConfig,
+	}
+
+	// the alias host does not resolve via DNS; resolveSSHURL must rewrite it
+	// to the real HostName advertised in ~/.ssh/config
+	resolved := g.resolveSSHURL()
+	require.Equal(t, "ssh://git@github.com/zalando-build/kubernetes-logging-manifests.git", resolved)
+
+	// the per-host IdentityFile should be used instead of a global key
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(home, ".ssh", "id_logging"), g.sshIdentityFile())
+}
+
+func TestGitResolveSSHURLNoConfigMatch(t *testing.T) {
+	sshConfig, err := ssh_config.Decode(strings.NewReader(`
+Host some-other-alias
+  HostName example.com
+`))
+	require.NoError(t, err)
+
+	g := &Git{
+		repositoryURL: "git@github.com:zalando-incubator/kubernetes-on-aws.git",
+		sshConfig:     sshConfig,
+	}
+
+	// no matching Host block — URL and auth fall back to defaults
+	require.Equal(t, g.repositoryURL, g.resolveSSHURL())
+	require.Empty(t, g.sshIdentityFile())
 }
 
 func TestGetRepoName(t *testing.T) {

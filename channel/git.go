@@ -19,6 +19,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	"github.com/go-git/go-git/v5/plumbing/transport/server"
 	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	stdssh "golang.org/x/crypto/ssh"
@@ -42,6 +43,7 @@ type Git struct {
 	repoName          string
 	repoDir           string
 	sshPrivateKeyFile string
+	sshConfig         *ssh_config.Config
 	mutex             *sync.Mutex
 	counter           uint64
 }
@@ -83,6 +85,11 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 		}
 	}
 
+	sshCfg, err := loadSSHConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load SSH config: %w", err)
+	}
+
 	return &Git{
 		name:              name,
 		workdir:           absWorkdir,
@@ -90,8 +97,32 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 		repositoryURL:     repositoryURL,
 		repoDir:           path.Join(absWorkdir, repoName),
 		sshPrivateKeyFile: sshPrivateKeyFile,
+		sshConfig:         sshCfg,
 		mutex:             &sync.Mutex{},
 	}, nil
+}
+
+// loadSSHConfig parses the user's ~/.ssh/config, if present. This mirrors
+// the behaviour of the real ssh binary used before the go-git migration,
+// which resolves host aliases (HostName) and per-host private keys
+// (IdentityFile) from this file — used for example when multiple git
+// remotes are configured under aliased hosts, each with its own key.
+func loadSSHConfig() (*ssh_config.Config, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil
+	}
+
+	f, err := os.Open(filepath.Join(home, ".ssh", "config"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	return ssh_config.Decode(f)
 }
 
 var repoNameRE = regexp.MustCompile(`/?([\w-]+)(.git)?$`)
@@ -127,7 +158,7 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 		// bare mirror clone — fetches all refs; log name only, not URL (may contain credentials)
 		logger.Infof("cloning source %q into %s", g.name, g.repoDir)
 		_, err = gogit.PlainCloneContext(ctx, g.repoDir, true, &gogit.CloneOptions{
-			URL:    g.repositoryURL,
+			URL:    g.resolveSSHURL(),
 			Auth:   auth,
 			Mirror: true,
 		})
@@ -261,18 +292,78 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 // auth returns SSH auth when the repository URL is an SSH endpoint, nil otherwise.
 // This avoids passing SSH credentials to HTTPS transports which reject them.
 func (g *Git) auth() (transport.AuthMethod, error) {
-	if g.sshPrivateKeyFile == "" || !isSSHURL(g.repositoryURL) {
+	if !isSSHURL(g.repositoryURL) {
 		return nil, nil
 	}
 
 	username := sshUsername(g.repositoryURL)
-	auth, err := gogitssh.NewPublicKeysFromFile(username, g.sshPrivateKeyFile, "")
+	keyFile := g.sshPrivateKeyFile
+	if identityFile := g.sshIdentityFile(); identityFile != "" {
+		keyFile = identityFile
+	}
+	if keyFile == "" {
+		return nil, nil
+	}
+
+	auth, err := gogitssh.NewPublicKeysFromFile(username, keyFile, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SSH key %s: %w", g.sshPrivateKeyFile, err)
+		return nil, fmt.Errorf("failed to load SSH key %s: %w", keyFile, err)
 	}
 	// mirror the original behaviour: StrictHostKeyChecking no
 	auth.HostKeyCallback = stdssh.InsecureIgnoreHostKey()
 	return auth, nil
+}
+
+// sshIdentityFile resolves a per-host IdentityFile from the user's
+// ~/.ssh/config for the repository's host alias, mirroring the real ssh
+// binary's behaviour used before the go-git migration (e.g. one key per
+// aliased host, as configured for multiple git remotes).
+func (g *Git) sshIdentityFile() string {
+	if g.sshConfig == nil {
+		return ""
+	}
+
+	ep, err := transport.NewEndpoint(g.repositoryURL)
+	if err != nil {
+		return ""
+	}
+
+	identityFile, err := g.sshConfig.Get(ep.Host, "IdentityFile")
+	if err != nil || identityFile == "" {
+		return ""
+	}
+
+	home, homeErr := os.UserHomeDir()
+	if homeErr == nil && strings.HasPrefix(identityFile, "~/") {
+		identityFile = filepath.Join(home, identityFile[2:])
+	}
+
+	return identityFile
+}
+
+// resolveSSHURL rewrites an SSH host alias (as used in ~/.ssh/config Host
+// blocks, e.g. "ghe-logging.nonexistent.zalan.do") to the real HostName it
+// maps to (e.g. "github.com"). These aliases often don't resolve via DNS —
+// they only exist to let multiple git remotes share github.com while using
+// different IdentityFiles. The real ssh binary applied this rewrite
+// transparently; go-git does not, so we do it ourselves before connecting.
+func (g *Git) resolveSSHURL() string {
+	if g.sshConfig == nil || !isSSHURL(g.repositoryURL) {
+		return g.repositoryURL
+	}
+
+	ep, err := transport.NewEndpoint(g.repositoryURL)
+	if err != nil {
+		return g.repositoryURL
+	}
+
+	hostName, err := g.sshConfig.Get(ep.Host, "HostName")
+	if err != nil || hostName == "" || hostName == ep.Host {
+		return g.repositoryURL
+	}
+
+	ep.Host = hostName
+	return ep.String()
 }
 
 // isSSHURL reports whether the given URL uses SSH transport by parsing it
