@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -410,6 +411,110 @@ func TestNewGitToleratesUnparsableSSHConfig(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, g.sshConfig)
 	require.Empty(t, g.sshIdentityFile())
+}
+
+func TestGitLocalCloneExecutableAndSymlink(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInitWithOptions(repoDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, repoDir, "channel1")
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "cluster", "run.sh"), []byte("#!/bin/sh\necho hi\n"), 0755))
+	require.NoError(t, os.Symlink("run.sh", filepath.Join(repoDir, "cluster", "run-link.sh")))
+
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	version, err := c.Version("main", nil)
+	require.NoError(t, err)
+	cfg, err := version.Get(context.Background(), logger)
+	require.NoError(t, err)
+
+	simpleCfg, ok := cfg.(*SimpleConfig)
+	require.True(t, ok)
+
+	scriptPath := filepath.Join(simpleCfg.baseDir, "cluster", "run.sh")
+	info, err := os.Stat(scriptPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0755), info.Mode().Perm())
+
+	linkPath := filepath.Join(simpleCfg.baseDir, "cluster", "run-link.sh")
+	linkInfo, err := os.Lstat(linkPath)
+	require.NoError(t, err)
+	require.True(t, linkInfo.Mode()&os.ModeSymlink != 0, "expected run-link.sh to be a symlink")
+
+	target, err := os.Readlink(linkPath)
+	require.NoError(t, err)
+	require.Equal(t, "run.sh", target)
+}
+
+func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	const workers = 10
+	results := make([]Config, workers)
+	errs := make([]error, workers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			channel := "main"
+			if i%2 == 0 {
+				channel = "channel2"
+			}
+			version, err := c.Version(channel, nil)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			results[i], errs[i] = version.Get(context.Background(), logger)
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < workers; i++ {
+		require.NoError(t, errs[i])
+		if i%2 == 0 {
+			verifyExampleConfig(t, results[i], "testsrc", "channel2")
+		} else {
+			verifyExampleConfig(t, results[i], "testsrc", "channel1")
+		}
+	}
 }
 
 func TestGetRepoName(t *testing.T) {

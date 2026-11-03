@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +19,8 @@ import (
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
@@ -297,48 +300,130 @@ func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error
 	}, nil
 }
 
-// localClone creates an independent local clone of the mirror repo checked
-// out at the given SHA. Each call gets its own directory so concurrent
-// callers don't interfere with each other.
+// localClone writes out the files of the tree at the given SHA into a new
+// directory. Each call gets its own directory so concurrent callers don't
+// interfere with each other.
+//
+// This reads blobs directly from the mirror's object store and streams them
+// to disk one at a time (via object.File.Reader), instead of creating a
+// second go-git Repository/Worktree and running a full clone + checkout.
+// With hundreds of concurrent callers, decoding and holding full working
+// trees as go-git's in-memory object graph (per concurrent clone) caused
+// unbounded memory growth; streaming individual blobs keeps each caller's
+// memory footprint proportional to one file at a time, not the whole tree.
 func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string, error) {
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, sha, time.Now().UTC().UnixNano(), i))
 
-	// Shared: true sets up objects/info/alternates pointing to the mirror
-	// instead of copying the full object store — each per-cluster clone
-	// only writes its own working tree files.
-	_, err := gogit.PlainCloneContext(ctx, repoDir, false, &gogit.CloneOptions{
-		URL:               g.repoDir,
-		NoCheckout:        true,
-		Shared:            true,
-		RecurseSubmodules: gogit.NoRecurseSubmodules,
-	})
+	repo, err := gogit.PlainOpen(g.repoDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to local clone: %w", err)
+		return "", fmt.Errorf("failed to open mirror repo: %w", err)
 	}
 
-	repo, err := gogit.PlainOpen(repoDir)
+	commit, err := repo.CommitObject(plumbing.NewHash(sha))
 	if err != nil {
-		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to open local clone: %w", err)
+		return "", fmt.Errorf("failed to resolve commit %s: %w", sha, err)
 	}
 
-	wt, err := repo.Worktree()
+	tree, err := commit.Tree()
 	if err != nil {
-		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to get worktree: %w", err)
+		return "", fmt.Errorf("failed to get tree for %s: %w", sha, err)
 	}
 
-	err = wt.Checkout(&gogit.CheckoutOptions{
-		Hash:  plumbing.NewHash(sha),
-		Force: true,
-	})
-	if err != nil {
+	if err := writeTree(ctx, repo.Storer, tree, repoDir); err != nil {
 		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to checkout %s: %w", sha, err)
+		return "", fmt.Errorf("failed to write tree for %s: %w", sha, err)
 	}
 
 	return repoDir, nil
+}
+
+// writeTree streams every file in tree to disk under dir, one blob at a
+// time, creating parent directories as needed. Symlinks are recreated as
+// symlinks; submodules are skipped since they have no checked-out content
+// to write.
+func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, dir string) error {
+	walker := object.NewTreeWalker(tree, true, nil)
+	defer walker.Close()
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		name, entry, err := walker.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if entry.Mode == filemode.Dir || entry.Mode == filemode.Submodule {
+			continue
+		}
+
+		dest := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return err
+		}
+
+		blob, err := object.GetBlob(storer, entry.Hash)
+		if err != nil {
+			return fmt.Errorf("failed to get blob for %s: %w", name, err)
+		}
+
+		if entry.Mode == filemode.Symlink {
+			if err := writeSymlink(blob, dest); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := writeBlob(blob, dest, entry.Mode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeBlob(blob *object.Blob, dest string, mode filemode.FileMode) error {
+	reader, err := blob.Reader()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	perm := os.FileMode(0644)
+	if mode == filemode.Executable {
+		perm = 0755
+	}
+
+	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, reader)
+	return err
+}
+
+func writeSymlink(blob *object.Blob, dest string) error {
+	reader, err := blob.Reader()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	target, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	_ = os.Remove(dest)
+	return os.Symlink(string(target), dest)
 }
 
 // auth returns SSH auth when the repository URL is an SSH endpoint, nil otherwise.
