@@ -350,29 +350,44 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 // symlinks; submodules are skipped since they have no checked-out content
 // to write.
 //
+// This walks the tree manually instead of using object.TreeWalker: in
+// go-git v5.19.3, TreeWalker.Next() reports io.EOF when loading a child
+// tree fails (see GetTree error handling in tree.go), which a caller
+// treating io.EOF as "done" would silently treat as a successfully
+// completed, but partial, checkout.
+//
 // Every destination path is required to resolve to a location inside dir.
 // Without this, a crafted tree containing a symlink entry (e.g. "link")
 // followed by a nested entry using that name as a directory component
 // (e.g. "link/file.yaml") would cause MkdirAll/OpenFile to follow the
 // symlink and write outside the checkout.
 func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, dir string) error {
-	walker := object.NewTreeWalker(tree, true, nil)
-	defer walker.Close()
+	return writeTreeEntries(ctx, storer, tree, "", dir)
+}
 
-	for {
+func writeTreeEntries(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, base, dir string) error {
+	for _, entry := range tree.Entries {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		name, entry, err := walker.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
+		name := entry.Name
+		if base != "" {
+			name = base + "/" + entry.Name
 		}
 
-		if entry.Mode == filemode.Dir || entry.Mode == filemode.Submodule {
+		if entry.Mode == filemode.Submodule {
+			continue
+		}
+
+		if entry.Mode == filemode.Dir {
+			subtree, err := object.GetTree(storer, entry.Hash)
+			if err != nil {
+				return fmt.Errorf("failed to get subtree %s: %w", name, err)
+			}
+			if err := writeTreeEntries(ctx, storer, subtree, name, dir); err != nil {
+				return err
+			}
 			continue
 		}
 

@@ -574,6 +574,54 @@ func commitSingleFileBlob(t *testing.T, name, content string) *object.Blob {
 	return blob
 }
 
+// TestWriteTreePropagatesSubtreeLoadErrors ensures a missing/corrupt
+// subtree object causes writeTree to fail outright rather than silently
+// skip that subtree and everything under it. go-git's object.TreeWalker
+// reports io.EOF when a child tree fails to load (see tree.go), which
+// would otherwise be indistinguishable from "finished walking the tree".
+func TestWriteTreePropagatesSubtreeLoadErrors(t *testing.T) {
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "subdir"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "subdir", "file.txt"), []byte("content"), 0644))
+	_, err = wt.Add("subdir")
+	require.NoError(t, err)
+
+	commitHash, err := wt.Commit("add subdir", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	commit, err := repo.CommitObject(commitHash)
+	require.NoError(t, err)
+
+	tree, err := commit.Tree()
+	require.NoError(t, err)
+
+	subtreeEntry, err := tree.FindEntry("subdir")
+	require.NoError(t, err)
+
+	// delete the loose object backing the subtree to simulate a
+	// missing/corrupt object the mirror failed to fetch
+	objPath := filepath.Join(repoDir, ".git", "objects",
+		subtreeEntry.Hash.String()[:2], subtreeEntry.Hash.String()[2:])
+	require.NoError(t, os.Remove(objPath))
+
+	destDir := CreateTempDir(t)
+	defer os.RemoveAll(destDir)
+
+	err = writeTree(context.Background(), repo.Storer, tree, destDir)
+	require.Error(t, err, "missing subtree must fail the checkout, not be silently skipped")
+
+	_, statErr := os.Stat(filepath.Join(destDir, "subdir", "file.txt"))
+	require.True(t, os.IsNotExist(statErr), "file under the missing subtree must not appear as if it was successfully checked out")
+}
+
 func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 
