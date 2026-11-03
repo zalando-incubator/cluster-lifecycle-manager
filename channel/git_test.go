@@ -468,6 +468,34 @@ func TestGitLocalCloneExecutableAndSymlink(t *testing.T) {
 	require.Equal(t, "run.sh", target)
 }
 
+// TestSafeMkdirAllRejectsSymlinkEscape ensures writeTree's directory-creation
+// helper refuses to descend through a path component that already exists
+// but is not a directory — in particular, a symlink written for an earlier
+// tree entry pointing outside the checkout. Without this guard, a crafted
+// tree with a symlink entry (e.g. "redirect") followed by a nested entry
+// using that name as a directory component (e.g. "redirect/evil.yaml")
+// would let MkdirAll/OpenFile follow the symlink and write outside dir.
+func TestSafeMkdirAllRejectsSymlinkEscape(t *testing.T) {
+	root := CreateTempDir(t)
+	defer os.RemoveAll(root)
+
+	outsideDir := CreateTempDir(t)
+	defer os.RemoveAll(outsideDir)
+
+	require.NoError(t, os.Symlink(outsideDir, filepath.Join(root, "redirect")))
+
+	err := safeMkdirAll(root, filepath.Join(root, "redirect", "nested"))
+	require.Error(t, err, "must refuse to descend through a symlink")
+
+	_, statErr := os.Stat(filepath.Join(outsideDir, "nested"))
+	require.True(t, os.IsNotExist(statErr), "nested dir must not have been created outside the checkout")
+}
+
+func TestSafeJoinRejectsPathEscape(t *testing.T) {
+	_, err := safeJoin("/checkout", "../../etc/passwd")
+	require.Error(t, err)
+}
+
 func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 

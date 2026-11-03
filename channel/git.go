@@ -311,11 +311,18 @@ func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error
 // trees as go-git's in-memory object graph (per concurrent clone) caused
 // unbounded memory growth; streaming individual blobs keeps each caller's
 // memory footprint proportional to one file at a time, not the whole tree.
+//
+// The mirror is reopened here with a small, independent object cache
+// (rather than reusing g's shared *gogit.Repository, which defaults to a
+// 96MiB LRU cache) so concurrent calls don't each retain tens of megabytes
+// of decoded blobs — with 200 concurrent callers the default cache alone
+// could retain multiple gigabytes.
 func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string, error) {
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, sha, time.Now().UTC().UnixNano(), i))
 
-	repo, err := gogit.PlainOpen(g.repoDir)
+	storer := filesystem.NewStorage(osfs.New(g.repoDir), cache.NewObjectLRU(1*cache.MiByte))
+	repo, err := gogit.Open(storer, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to open mirror repo: %w", err)
 	}
@@ -330,7 +337,7 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 		return "", fmt.Errorf("failed to get tree for %s: %w", sha, err)
 	}
 
-	if err := writeTree(ctx, repo.Storer, tree, repoDir); err != nil {
+	if err := writeTree(ctx, storer, tree, repoDir); err != nil {
 		os.RemoveAll(repoDir)
 		return "", fmt.Errorf("failed to write tree for %s: %w", sha, err)
 	}
@@ -342,6 +349,12 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 // time, creating parent directories as needed. Symlinks are recreated as
 // symlinks; submodules are skipped since they have no checked-out content
 // to write.
+//
+// Every destination path is required to resolve to a location inside dir.
+// Without this, a crafted tree containing a symlink entry (e.g. "link")
+// followed by a nested entry using that name as a directory component
+// (e.g. "link/file.yaml") would cause MkdirAll/OpenFile to follow the
+// symlink and write outside the checkout.
 func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, dir string) error {
 	walker := object.NewTreeWalker(tree, true, nil)
 	defer walker.Close()
@@ -363,8 +376,12 @@ func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *obj
 			continue
 		}
 
-		dest := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		dest, err := safeJoin(dir, name)
+		if err != nil {
+			return err
+		}
+
+		if err := safeMkdirAll(dir, filepath.Dir(dest)); err != nil {
 			return err
 		}
 
@@ -388,6 +405,55 @@ func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *obj
 	return nil
 }
 
+// safeJoin joins dir and name and verifies the result is still located
+// inside dir, rejecting any ".."-escaping path.
+func safeJoin(dir, name string) (string, error) {
+	dest := filepath.Join(dir, name)
+	rel, err := filepath.Rel(dir, dest)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("entry %q escapes checkout directory", name)
+	}
+	return dest, nil
+}
+
+// safeMkdirAll creates destDir and any missing parents under root, refusing
+// to descend through any path component that already exists but is not a
+// directory (in particular, a symlink written for an earlier tree entry).
+// This prevents a later entry from following a symlink out of the checkout.
+func safeMkdirAll(root, destDir string) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+
+	rel, err := filepath.Rel(root, destDir)
+	if err != nil {
+		return err
+	}
+	if rel == "." {
+		return nil
+	}
+
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := os.Mkdir(current, 0755); err != nil {
+					return err
+				}
+				continue
+			}
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("refusing to write through non-directory %q", current)
+		}
+	}
+
+	return nil
+}
+
 func writeBlob(blob *object.Blob, dest string, mode filemode.FileMode) error {
 	reader, err := blob.Reader()
 	if err != nil {
@@ -404,10 +470,13 @@ func writeBlob(blob *object.Blob, dest string, mode filemode.FileMode) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	_, err = io.Copy(f, reader)
-	return err
+	if _, err := io.Copy(f, reader); err != nil {
+		f.Close()
+		return err
+	}
+
+	return f.Close()
 }
 
 func writeSymlink(blob *object.Blob, dest string) error {
