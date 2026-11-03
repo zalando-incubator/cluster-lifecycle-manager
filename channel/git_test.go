@@ -12,6 +12,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
@@ -494,6 +495,83 @@ func TestSafeMkdirAllRejectsSymlinkEscape(t *testing.T) {
 func TestSafeJoinRejectsPathEscape(t *testing.T) {
 	_, err := safeJoin("/checkout", "../../etc/passwd")
 	require.Error(t, err)
+}
+
+// TestWriteBlobRejectsExistingDestination and
+// TestWriteSymlinkRejectsExistingDestination ensure a duplicate tree entry
+// name cannot overwrite a path written by an earlier entry (e.g. a symlink
+// followed by a regular file sharing the same name), since O_TRUNC through
+// an existing symlink could otherwise write outside the checkout.
+func TestWriteBlobRejectsExistingDestination(t *testing.T) {
+	blob := commitSingleFileBlob(t, "file.txt", "content")
+
+	dir := CreateTempDir(t)
+	defer os.RemoveAll(dir)
+
+	outsideDir := CreateTempDir(t)
+	defer os.RemoveAll(outsideDir)
+
+	dest := filepath.Join(dir, "redirect")
+	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "target"), dest))
+
+	err := writeBlob(blob, dest, filemode.Regular)
+	require.Error(t, err, "must not write through an existing symlink")
+
+	_, statErr := os.Stat(filepath.Join(outsideDir, "target"))
+	require.True(t, os.IsNotExist(statErr), "target must not have been created outside the checkout")
+}
+
+func TestWriteSymlinkRejectsExistingDestination(t *testing.T) {
+	blob := commitSingleFileBlob(t, "file.txt", "/etc/passwd")
+
+	dir := CreateTempDir(t)
+	defer os.RemoveAll(dir)
+
+	dest := filepath.Join(dir, "regular")
+	require.NoError(t, os.WriteFile(dest, []byte("existing"), 0644))
+
+	err := writeSymlink(blob, dest)
+	require.Error(t, err, "must not replace an existing regular file with a symlink")
+
+	content, readErr := os.ReadFile(dest)
+	require.NoError(t, readErr)
+	require.Equal(t, "existing", string(content))
+}
+
+// commitSingleFileBlob creates a throwaway repo with a single committed
+// file and returns its blob, for tests that only need a *object.Blob.
+func commitSingleFileBlob(t *testing.T, name, content string) *object.Blob {
+	t.Helper()
+
+	repoDir := CreateTempDir(t)
+	t.Cleanup(func() { os.RemoveAll(repoDir) })
+
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, name), []byte(content), 0644))
+	_, err = wt.Add(name)
+	require.NoError(t, err)
+
+	commitHash, err := wt.Commit("add file", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	commit, err := repo.CommitObject(commitHash)
+	require.NoError(t, err)
+
+	tree, err := commit.Tree()
+	require.NoError(t, err)
+
+	entry, err := tree.FindEntry(name)
+	require.NoError(t, err)
+
+	blob, err := object.GetBlob(repo.Storer, entry.Hash)
+	require.NoError(t, err)
+
+	return blob
 }
 
 func TestGitLocalCloneConcurrentIndependence(t *testing.T) {

@@ -466,9 +466,15 @@ func writeBlob(blob *object.Blob, dest string, mode filemode.FileMode) error {
 		perm = 0755
 	}
 
-	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	// O_EXCL rejects an existing destination outright, rather than
+	// following/truncating it. Each checkout directory is freshly created,
+	// so the only way dest could already exist is a duplicate tree entry
+	// name (e.g. a symlink and a regular file sharing the same path) —
+	// which would otherwise let a later entry overwrite whatever an
+	// earlier symlink entry pointed at, including locations outside dir.
+	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create %s: %w", dest, err)
 	}
 
 	if _, err := io.Copy(f, reader); err != nil {
@@ -491,7 +497,16 @@ func writeSymlink(blob *object.Blob, dest string) error {
 		return err
 	}
 
-	_ = os.Remove(dest)
+	// dest must not already exist, for the same reason as writeBlob: each
+	// checkout directory is fresh, so an existing path here means a
+	// duplicate tree entry name that could otherwise be used to retarget
+	// or escape through a previously written symlink.
+	if _, err := os.Lstat(dest); err == nil {
+		return fmt.Errorf("refusing to overwrite existing entry %q", dest)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	return os.Symlink(string(target), dest)
 }
 
