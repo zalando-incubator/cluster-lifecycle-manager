@@ -12,13 +12,19 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/osfs"
 	gogit "github.com/go-git/go-git/v5"
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	"github.com/go-git/go-git/v5/plumbing/transport/server"
 	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/filesystem"
+	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	stdssh "golang.org/x/crypto/ssh"
@@ -26,11 +32,50 @@ import (
 
 func init() {
 	// Replace the default file:// transport (which shells out to git-upload-pack)
-	// with an in-process server-based transport, so local clones from the bare
-	// mirror work without the git binary in the container image.
-	// server.DefaultLoader requires a bare repository; non-bare local sources
-	// should use the Directory channel source instead.
-	client.InstallProtocol("file", server.NewClient(server.DefaultLoader))
+	// with an in-process server-based transport, so local clones from the
+	// mirror — bare or non-bare — work without the git binary in the
+	// container image.
+	client.InstallProtocol("file", server.NewClient(&localFSLoader{base: osfs.New("")}))
+}
+
+// localFSLoader is a server.Loader for local file:// endpoints. It supports
+// both bare mirrors (used internally for per-cluster checkouts) and
+// non-bare working repositories (useful for local development against a
+// git checkout on disk, e.g. --config-source=main:git:file:///path/to/repo).
+//
+// server.DefaultLoader only handles this correctly for bare repos: when it
+// finds a ".git" subdirectory it still roots the storage at the repo root
+// instead of inside ".git", which go-git's packfile negotiation reports as
+// "remote repository is empty". We chroot into ".git" ourselves for
+// non-bare repos before handing off to go-git's storage layer. ".git/config"
+// is checked before a root-level "config" so a tracked file or directory
+// named "config" in a non-bare checkout isn't misclassified as bare.
+type localFSLoader struct {
+	base billy.Filesystem
+}
+
+func (l *localFSLoader) Load(ep *transport.Endpoint) (storer.Storer, error) {
+	fs, err := l.base.Chroot(ep.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	// check .git/config first: a non-bare checkout can have its own
+	// tracked file or directory named "config" at the repo root, which
+	// would otherwise be misclassified as a bare repository and leave
+	// storage rooted outside the actual objects/refs.
+	if gitDir, err := fs.Chroot(gogit.GitDirName); err == nil {
+		if _, err := gitDir.Stat("config"); err == nil {
+			return filesystem.NewStorage(gitDir, cache.NewObjectLRUDefault()), nil
+		}
+	}
+
+	if _, err := fs.Stat("config"); err == nil {
+		// bare repository — objects/refs live at the root
+		return filesystem.NewStorage(fs, cache.NewObjectLRUDefault()), nil
+	}
+
+	return nil, transport.ErrRepositoryNotFound
 }
 
 // Git defines a channel source where the channels are stored in a git
@@ -42,6 +87,7 @@ type Git struct {
 	repoName          string
 	repoDir           string
 	sshPrivateKeyFile string
+	sshConfig         *ssh_config.Config
 	mutex             *sync.Mutex
 	counter           uint64
 }
@@ -83,6 +129,19 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 		}
 	}
 
+	// only parse ~/.ssh/config for SSH sources — an unreadable or malformed
+	// file would otherwise prevent unrelated HTTPS/local-file sources from
+	// starting. A parse failure for an SSH source (e.g. an unsupported
+	// Match directive) falls back to --ssh-private-key-path rather than
+	// failing NewGit outright.
+	var sshCfg *ssh_config.Config
+	if isSSHURL(repositoryURL) {
+		sshCfg, err = loadSSHConfig()
+		if err != nil {
+			log.Warnf("failed to load SSH config for %q, falling back to --ssh-private-key-path: %v", name, err)
+		}
+	}
+
 	return &Git{
 		name:              name,
 		workdir:           absWorkdir,
@@ -90,8 +149,32 @@ func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPriv
 		repositoryURL:     repositoryURL,
 		repoDir:           path.Join(absWorkdir, repoName),
 		sshPrivateKeyFile: sshPrivateKeyFile,
+		sshConfig:         sshCfg,
 		mutex:             &sync.Mutex{},
 	}, nil
+}
+
+// loadSSHConfig parses the user's ~/.ssh/config, if present. This mirrors
+// the behaviour of the real ssh binary used before the go-git migration,
+// which resolves host aliases (HostName) and per-host private keys
+// (IdentityFile) from this file — used for example when multiple git
+// remotes are configured under aliased hosts, each with its own key.
+func loadSSHConfig() (*ssh_config.Config, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil
+	}
+
+	f, err := os.Open(filepath.Join(home, ".ssh", "config"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	return ssh_config.Decode(f)
 }
 
 var repoNameRE = regexp.MustCompile(`/?([\w-]+)(.git)?$`)
@@ -261,18 +344,54 @@ func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string,
 // auth returns SSH auth when the repository URL is an SSH endpoint, nil otherwise.
 // This avoids passing SSH credentials to HTTPS transports which reject them.
 func (g *Git) auth() (transport.AuthMethod, error) {
-	if g.sshPrivateKeyFile == "" || !isSSHURL(g.repositoryURL) {
+	if !isSSHURL(g.repositoryURL) {
 		return nil, nil
 	}
 
 	username := sshUsername(g.repositoryURL)
-	auth, err := gogitssh.NewPublicKeysFromFile(username, g.sshPrivateKeyFile, "")
+	keyFile := g.sshPrivateKeyFile
+	if identityFile := g.sshIdentityFile(); identityFile != "" {
+		keyFile = identityFile
+	}
+	if keyFile == "" {
+		return nil, nil
+	}
+
+	auth, err := gogitssh.NewPublicKeysFromFile(username, keyFile, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SSH key %s: %w", g.sshPrivateKeyFile, err)
+		return nil, fmt.Errorf("failed to load SSH key %s: %w", keyFile, err)
 	}
 	// mirror the original behaviour: StrictHostKeyChecking no
 	auth.HostKeyCallback = stdssh.InsecureIgnoreHostKey()
 	return auth, nil
+}
+
+// sshIdentityFile resolves a per-host IdentityFile from the user's
+// ~/.ssh/config for the repository's host alias, mirroring the real ssh
+// binary's behaviour used before the go-git migration (e.g. one key per
+// aliased host, as configured for multiple git remotes).
+func (g *Git) sshIdentityFile() string {
+	if g.sshConfig == nil {
+		return ""
+	}
+
+	ep, err := transport.NewEndpoint(g.repositoryURL)
+	if err != nil {
+		return ""
+	}
+
+	identityFile, err := g.sshConfig.Get(ep.Host, "IdentityFile")
+	if err != nil || identityFile == "" {
+		return ""
+	}
+	identityFile = strings.Trim(identityFile, `"`)
+
+	home, homeErr := os.UserHomeDir()
+	if homeErr == nil && strings.HasPrefix(identityFile, "~/") {
+		identityFile = filepath.Join(home, identityFile[2:])
+	}
+
+	return identityFile
 }
 
 // isSSHURL reports whether the given URL uses SSH transport by parsing it

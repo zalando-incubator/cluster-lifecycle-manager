@@ -12,6 +12,7 @@ import (
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
@@ -142,6 +143,81 @@ func checkoutVersion(t *testing.T, logger *log.Entry, source ConfigSource, chann
 	return cfg
 }
 
+func TestGitGetFromNonBareLocalSource(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	// non-bare working repo, as used for local development, e.g.
+	// --config-source=main:git:file:///path/to/checkout
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInitWithOptions(repoDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, repoDir, "channel1")
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	main := checkoutVersion(t, logger, c, "main")
+	verifyExampleConfig(t, main, "testsrc", "channel1")
+}
+
+// TestGitGetFromNonBareLocalSourceWithTrackedConfigDir ensures a tracked
+// "config" file or directory at the root of a non-bare checkout isn't
+// misclassified as a bare repository — only ".git/config" should be used
+// to detect a bare repo.
+func TestGitGetFromNonBareLocalSourceWithTrackedConfigDir(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInitWithOptions(repoDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, repoDir, "channel1")
+	SetupConfig(t, repoDir, map[string]string{"config/app.yaml": "tracked-config-dir"})
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	err = wt.AddGlob("config")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	main := checkoutVersion(t, logger, c, "main")
+	verifyExampleConfig(t, main, "testsrc", "channel1")
+}
+
 func TestGitGet(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 
@@ -237,6 +313,103 @@ func TestGitStaleWorkdirCleanup(t *testing.T) {
 	}
 	_, err = os.Stat(filepath.Join(workDir, "other-repo_abc123_1234_1"))
 	require.NoError(t, err, "unrelated dir should survive")
+}
+
+func TestGitSSHIdentityFile(t *testing.T) {
+	sshConfig, err := ssh_config.Decode(strings.NewReader(`
+Host ghe-logging.nonexistent.zalan.do
+  HostName github.com
+  IdentityFile ~/.ssh/id_logging
+`))
+	require.NoError(t, err)
+
+	g := &Git{
+		repositoryURL: "git@ghe-logging.nonexistent.zalan.do:zalando-build/kubernetes-logging-manifests.git",
+		sshConfig:     sshConfig,
+	}
+
+	// per-host IdentityFile should be used instead of a global key
+	// (HostName aliasing is handled natively by go-git's SSH transport)
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(home, ".ssh", "id_logging"), g.sshIdentityFile())
+}
+
+func TestGitSSHIdentityFileQuoted(t *testing.T) {
+	sshConfig, err := ssh_config.Decode(strings.NewReader(`
+Host ghe-logging.nonexistent.zalan.do
+  HostName github.com
+  IdentityFile "~/.ssh/id_logging"
+`))
+	require.NoError(t, err)
+
+	g := &Git{
+		repositoryURL: "git@ghe-logging.nonexistent.zalan.do:zalando-build/kubernetes-logging-manifests.git",
+		sshConfig:     sshConfig,
+	}
+
+	// surrounding quotes, as allowed by the ssh_config spec, must be
+	// stripped before "~/" expansion
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(home, ".ssh", "id_logging"), g.sshIdentityFile())
+}
+
+func TestGitSSHIdentityFileNoConfigMatch(t *testing.T) {
+	sshConfig, err := ssh_config.Decode(strings.NewReader(`
+Host some-other-alias
+  HostName example.com
+`))
+	require.NoError(t, err)
+
+	g := &Git{
+		repositoryURL: "git@github.com:zalando-incubator/kubernetes-on-aws.git",
+		sshConfig:     sshConfig,
+	}
+
+	// no matching Host block — auth falls back to defaults
+	require.Empty(t, g.sshIdentityFile())
+}
+
+func TestNewGitSkipsSSHConfigForNonSSHSources(t *testing.T) {
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "test", workDir,
+		"https://github.com/zalando-incubator/kubernetes-on-aws.git", "")
+	require.NoError(t, err)
+
+	g, ok := c.(*Git)
+	require.True(t, ok)
+	// ~/.ssh/config is never parsed for HTTPS sources, so a missing or
+	// malformed file can't block them from starting
+	require.Nil(t, g.sshConfig)
+}
+
+// TestNewGitToleratesUnparsableSSHConfig ensures an SSH source doesn't fail
+// to start when ~/.ssh/config contains constructs the ssh_config library
+// can't parse (e.g. a Match directive) — it should fall back to
+// --ssh-private-key-path instead.
+func TestNewGitToleratesUnparsableSSHConfig(t *testing.T) {
+	home := CreateTempDir(t)
+	defer os.RemoveAll(home)
+
+	SetupConfig(t, home, map[string]string{
+		".ssh/config": "Match host ghe-logging.nonexistent.zalan.do\n  IdentityFile ~/.ssh/id_logging\n",
+	})
+	t.Setenv("HOME", home)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "test", workDir,
+		"git@ghe-logging.nonexistent.zalan.do:zalando-build/kubernetes-logging-manifests.git", "/fallback/key")
+	require.NoError(t, err)
+
+	g, ok := c.(*Git)
+	require.True(t, ok)
+	require.Nil(t, g.sshConfig)
+	require.Empty(t, g.sshIdentityFile())
 }
 
 func TestGetRepoName(t *testing.T) {
