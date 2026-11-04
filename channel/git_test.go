@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
@@ -410,6 +412,263 @@ func TestNewGitToleratesUnparsableSSHConfig(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, g.sshConfig)
 	require.Empty(t, g.sshIdentityFile())
+}
+
+func TestGitLocalCloneExecutableAndSymlink(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInitWithOptions(repoDir, &gogit.PlainInitOptions{
+		InitOptions: gogit.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	})
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	setupExampleConfig(t, repoDir, "channel1")
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "cluster", "run.sh"), []byte("#!/bin/sh\necho hi\n"), 0755))
+	require.NoError(t, os.Symlink("run.sh", filepath.Join(repoDir, "cluster", "run-link.sh")))
+
+	err = wt.AddGlob("cluster")
+	require.NoError(t, err)
+	_, err = wt.Commit("initial commit", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	version, err := c.Version("main", nil)
+	require.NoError(t, err)
+	cfg, err := version.Get(context.Background(), logger)
+	require.NoError(t, err)
+
+	simpleCfg, ok := cfg.(*SimpleConfig)
+	require.True(t, ok)
+
+	scriptPath := filepath.Join(simpleCfg.baseDir, "cluster", "run.sh")
+	info, err := os.Stat(scriptPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0755), info.Mode().Perm())
+
+	linkPath := filepath.Join(simpleCfg.baseDir, "cluster", "run-link.sh")
+	linkInfo, err := os.Lstat(linkPath)
+	require.NoError(t, err)
+	require.True(t, linkInfo.Mode()&os.ModeSymlink != 0, "expected run-link.sh to be a symlink")
+
+	target, err := os.Readlink(linkPath)
+	require.NoError(t, err)
+	require.Equal(t, "run.sh", target)
+}
+
+// TestSafeMkdirAllRejectsSymlinkEscape ensures writeTree's directory-creation
+// helper refuses to descend through a path component that already exists
+// but is not a directory — in particular, a symlink written for an earlier
+// tree entry pointing outside the checkout. Without this guard, a crafted
+// tree with a symlink entry (e.g. "redirect") followed by a nested entry
+// using that name as a directory component (e.g. "redirect/evil.yaml")
+// would let MkdirAll/OpenFile follow the symlink and write outside dir.
+func TestSafeMkdirAllRejectsSymlinkEscape(t *testing.T) {
+	root := CreateTempDir(t)
+	defer os.RemoveAll(root)
+
+	outsideDir := CreateTempDir(t)
+	defer os.RemoveAll(outsideDir)
+
+	require.NoError(t, os.Symlink(outsideDir, filepath.Join(root, "redirect")))
+
+	err := safeMkdirAll(root, filepath.Join(root, "redirect", "nested"))
+	require.Error(t, err, "must refuse to descend through a symlink")
+
+	_, statErr := os.Stat(filepath.Join(outsideDir, "nested"))
+	require.True(t, os.IsNotExist(statErr), "nested dir must not have been created outside the checkout")
+}
+
+func TestSafeJoinRejectsPathEscape(t *testing.T) {
+	_, err := safeJoin("/checkout", "../../etc/passwd")
+	require.Error(t, err)
+}
+
+// TestWriteBlobRejectsExistingDestination and
+// TestWriteSymlinkRejectsExistingDestination ensure a duplicate tree entry
+// name cannot overwrite a path written by an earlier entry (e.g. a symlink
+// followed by a regular file sharing the same name), since O_TRUNC through
+// an existing symlink could otherwise write outside the checkout.
+func TestWriteBlobRejectsExistingDestination(t *testing.T) {
+	blob := commitSingleFileBlob(t, "file.txt", "content")
+
+	dir := CreateTempDir(t)
+	defer os.RemoveAll(dir)
+
+	outsideDir := CreateTempDir(t)
+	defer os.RemoveAll(outsideDir)
+
+	dest := filepath.Join(dir, "redirect")
+	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "target"), dest))
+
+	err := writeBlob(blob, dest, filemode.Regular)
+	require.Error(t, err, "must not write through an existing symlink")
+
+	_, statErr := os.Stat(filepath.Join(outsideDir, "target"))
+	require.True(t, os.IsNotExist(statErr), "target must not have been created outside the checkout")
+}
+
+func TestWriteSymlinkRejectsExistingDestination(t *testing.T) {
+	blob := commitSingleFileBlob(t, "file.txt", "/etc/passwd")
+
+	dir := CreateTempDir(t)
+	defer os.RemoveAll(dir)
+
+	dest := filepath.Join(dir, "regular")
+	require.NoError(t, os.WriteFile(dest, []byte("existing"), 0644))
+
+	err := writeSymlink(blob, dest)
+	require.Error(t, err, "must not replace an existing regular file with a symlink")
+
+	content, readErr := os.ReadFile(dest)
+	require.NoError(t, readErr)
+	require.Equal(t, "existing", string(content))
+}
+
+// commitSingleFileBlob creates a throwaway repo with a single committed
+// file and returns its blob, for tests that only need a *object.Blob.
+func commitSingleFileBlob(t *testing.T, name, content string) *object.Blob {
+	t.Helper()
+
+	repoDir := CreateTempDir(t)
+	t.Cleanup(func() { os.RemoveAll(repoDir) })
+
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, name), []byte(content), 0644))
+	_, err = wt.Add(name)
+	require.NoError(t, err)
+
+	commitHash, err := wt.Commit("add file", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	commit, err := repo.CommitObject(commitHash)
+	require.NoError(t, err)
+
+	tree, err := commit.Tree()
+	require.NoError(t, err)
+
+	entry, err := tree.FindEntry(name)
+	require.NoError(t, err)
+
+	blob, err := object.GetBlob(repo.Storer, entry.Hash)
+	require.NoError(t, err)
+
+	return blob
+}
+
+// TestWriteTreePropagatesSubtreeLoadErrors ensures a missing/corrupt
+// subtree object causes writeTree to fail outright rather than silently
+// skip that subtree and everything under it. go-git's object.TreeWalker
+// reports io.EOF when a child tree fails to load (see tree.go), which
+// would otherwise be indistinguishable from "finished walking the tree".
+func TestWriteTreePropagatesSubtreeLoadErrors(t *testing.T) {
+	repoDir := CreateTempDir(t)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "subdir"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "subdir", "file.txt"), []byte("content"), 0644))
+	_, err = wt.Add("subdir")
+	require.NoError(t, err)
+
+	commitHash, err := wt.Commit("add subdir", &gogit.CommitOptions{Author: testAuthor})
+	require.NoError(t, err)
+
+	commit, err := repo.CommitObject(commitHash)
+	require.NoError(t, err)
+
+	tree, err := commit.Tree()
+	require.NoError(t, err)
+
+	subtreeEntry, err := tree.FindEntry("subdir")
+	require.NoError(t, err)
+
+	// delete the loose object backing the subtree to simulate a
+	// missing/corrupt object the mirror failed to fetch
+	objPath := filepath.Join(repoDir, ".git", "objects",
+		subtreeEntry.Hash.String()[:2], subtreeEntry.Hash.String()[2:])
+	require.NoError(t, os.Remove(objPath))
+
+	destDir := CreateTempDir(t)
+	defer os.RemoveAll(destDir)
+
+	err = writeTree(context.Background(), repo.Storer, tree, destDir)
+	require.Error(t, err, "missing subtree must fail the checkout, not be silently skipped")
+
+	_, statErr := os.Stat(filepath.Join(destDir, "subdir", "file.txt"))
+	require.True(t, os.IsNotExist(statErr), "file under the missing subtree must not appear as if it was successfully checked out")
+}
+
+func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+
+	repoTempDir := CreateTempDir(t)
+	defer os.RemoveAll(repoTempDir)
+
+	workDir := CreateTempDir(t)
+	defer os.RemoveAll(workDir)
+
+	createGitRepo(t, logger, repoTempDir)
+	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	require.NoError(t, err)
+
+	err = c.Update(context.Background(), logger)
+	require.NoError(t, err)
+
+	const workers = 10
+	results := make([]Config, workers)
+	errs := make([]error, workers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			channel := "main"
+			if i%2 == 0 {
+				channel = "channel2"
+			}
+			version, err := c.Version(channel, nil)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			results[i], errs[i] = version.Get(context.Background(), logger)
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < workers; i++ {
+		require.NoError(t, errs[i])
+		if i%2 == 0 {
+			verifyExampleConfig(t, results[i], "testsrc", "channel2")
+		} else {
+			verifyExampleConfig(t, results[i], "testsrc", "channel1")
+		}
+	}
 }
 
 func TestGetRepoName(t *testing.T) {

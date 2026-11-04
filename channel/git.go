@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +19,8 @@ import (
 	gogitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
@@ -297,48 +300,229 @@ func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error
 	}, nil
 }
 
-// localClone creates an independent local clone of the mirror repo checked
-// out at the given SHA. Each call gets its own directory so concurrent
-// callers don't interfere with each other.
+// localClone writes out the files of the tree at the given SHA into a new
+// directory. Each call gets its own directory so concurrent callers don't
+// interfere with each other.
+//
+// This reads blobs directly from the mirror's object store and streams them
+// to disk one at a time (via object.File.Reader), instead of creating a
+// second go-git Repository/Worktree and running a full clone + checkout.
+// With hundreds of concurrent callers, decoding and holding full working
+// trees as go-git's in-memory object graph (per concurrent clone) caused
+// unbounded memory growth; streaming individual blobs keeps each caller's
+// memory footprint proportional to one file at a time, not the whole tree.
+//
+// The mirror is reopened here with a small, independent object cache
+// (rather than reusing g's shared *gogit.Repository, which defaults to a
+// 96MiB LRU cache) so concurrent calls don't each retain tens of megabytes
+// of decoded blobs — with 200 concurrent callers the default cache alone
+// could retain multiple gigabytes.
 func (g *Git) localClone(ctx context.Context, _ *log.Entry, sha string) (string, error) {
 	i := atomic.AddUint64(&g.counter, 1)
 	repoDir := path.Join(g.workdir, fmt.Sprintf("%s_%s_%d_%d", g.repoName, sha, time.Now().UTC().UnixNano(), i))
 
-	// Shared: true sets up objects/info/alternates pointing to the mirror
-	// instead of copying the full object store — each per-cluster clone
-	// only writes its own working tree files.
-	_, err := gogit.PlainCloneContext(ctx, repoDir, false, &gogit.CloneOptions{
-		URL:               g.repoDir,
-		NoCheckout:        true,
-		Shared:            true,
-		RecurseSubmodules: gogit.NoRecurseSubmodules,
-	})
+	storer := filesystem.NewStorage(osfs.New(g.repoDir), cache.NewObjectLRU(1*cache.MiByte))
+	repo, err := gogit.Open(storer, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to local clone: %w", err)
+		return "", fmt.Errorf("failed to open mirror repo: %w", err)
 	}
 
-	repo, err := gogit.PlainOpen(repoDir)
+	commit, err := repo.CommitObject(plumbing.NewHash(sha))
 	if err != nil {
-		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to open local clone: %w", err)
+		return "", fmt.Errorf("failed to resolve commit %s: %w", sha, err)
 	}
 
-	wt, err := repo.Worktree()
+	tree, err := commit.Tree()
 	if err != nil {
-		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to get worktree: %w", err)
+		return "", fmt.Errorf("failed to get tree for %s: %w", sha, err)
 	}
 
-	err = wt.Checkout(&gogit.CheckoutOptions{
-		Hash:  plumbing.NewHash(sha),
-		Force: true,
-	})
-	if err != nil {
+	if err := writeTree(ctx, storer, tree, repoDir); err != nil {
 		os.RemoveAll(repoDir)
-		return "", fmt.Errorf("failed to checkout %s: %w", sha, err)
+		return "", fmt.Errorf("failed to write tree for %s: %w", sha, err)
 	}
 
 	return repoDir, nil
+}
+
+// writeTree streams every file in tree to disk under dir, one blob at a
+// time, creating parent directories as needed. Symlinks are recreated as
+// symlinks; submodules are skipped since they have no checked-out content
+// to write.
+//
+// This walks the tree manually instead of using object.TreeWalker: in
+// go-git v5.19.3, TreeWalker.Next() reports io.EOF when loading a child
+// tree fails (see GetTree error handling in tree.go), which a caller
+// treating io.EOF as "done" would silently treat as a successfully
+// completed, but partial, checkout.
+//
+// Every destination path is required to resolve to a location inside dir.
+// Without this, a crafted tree containing a symlink entry (e.g. "link")
+// followed by a nested entry using that name as a directory component
+// (e.g. "link/file.yaml") would cause MkdirAll/OpenFile to follow the
+// symlink and write outside the checkout.
+func writeTree(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, dir string) error {
+	return writeTreeEntries(ctx, storer, tree, "", dir)
+}
+
+func writeTreeEntries(ctx context.Context, storer storer.EncodedObjectStorer, tree *object.Tree, base, dir string) error {
+	for _, entry := range tree.Entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		name := entry.Name
+		if base != "" {
+			name = base + "/" + entry.Name
+		}
+
+		if entry.Mode == filemode.Submodule {
+			continue
+		}
+
+		if entry.Mode == filemode.Dir {
+			subtree, err := object.GetTree(storer, entry.Hash)
+			if err != nil {
+				return fmt.Errorf("failed to get subtree %s: %w", name, err)
+			}
+			if err := writeTreeEntries(ctx, storer, subtree, name, dir); err != nil {
+				return err
+			}
+			continue
+		}
+
+		dest, err := safeJoin(dir, name)
+		if err != nil {
+			return err
+		}
+
+		if err := safeMkdirAll(dir, filepath.Dir(dest)); err != nil {
+			return err
+		}
+
+		blob, err := object.GetBlob(storer, entry.Hash)
+		if err != nil {
+			return fmt.Errorf("failed to get blob for %s: %w", name, err)
+		}
+
+		if entry.Mode == filemode.Symlink {
+			if err := writeSymlink(blob, dest); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := writeBlob(blob, dest, entry.Mode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// safeJoin joins dir and name and verifies the result is still located
+// inside dir, rejecting any ".."-escaping path.
+func safeJoin(dir, name string) (string, error) {
+	dest := filepath.Join(dir, name)
+	rel, err := filepath.Rel(dir, dest)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("entry %q escapes checkout directory", name)
+	}
+	return dest, nil
+}
+
+// safeMkdirAll creates destDir and any missing parents under root, refusing
+// to descend through any path component that already exists but is not a
+// directory (in particular, a symlink written for an earlier tree entry).
+// This prevents a later entry from following a symlink out of the checkout.
+func safeMkdirAll(root, destDir string) error {
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return err
+	}
+
+	rel, err := filepath.Rel(root, destDir)
+	if err != nil {
+		return err
+	}
+	if rel == "." {
+		return nil
+	}
+
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := os.Mkdir(current, 0755); err != nil {
+					return err
+				}
+				continue
+			}
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("refusing to write through non-directory %q", current)
+		}
+	}
+
+	return nil
+}
+
+func writeBlob(blob *object.Blob, dest string, mode filemode.FileMode) error {
+	reader, err := blob.Reader()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	perm := os.FileMode(0644)
+	if mode == filemode.Executable {
+		perm = 0755
+	}
+
+	// O_EXCL rejects an existing destination outright, rather than
+	// following/truncating it. Each checkout directory is freshly created,
+	// so the only way dest could already exist is a duplicate tree entry
+	// name (e.g. a symlink and a regular file sharing the same path) —
+	// which would otherwise let a later entry overwrite whatever an
+	// earlier symlink entry pointed at, including locations outside dir.
+	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", dest, err)
+	}
+
+	if _, err := io.Copy(f, reader); err != nil {
+		f.Close()
+		return err
+	}
+
+	return f.Close()
+}
+
+func writeSymlink(blob *object.Blob, dest string) error {
+	reader, err := blob.Reader()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	target, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	// dest must not already exist, for the same reason as writeBlob: each
+	// checkout directory is fresh, so an existing path here means a
+	// duplicate tree entry name that could otherwise be used to retarget
+	// or escape through a previously written symlink.
+	if _, err := os.Lstat(dest); err == nil {
+		return fmt.Errorf("refusing to overwrite existing entry %q", dest)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	return os.Symlink(string(target), dest)
 }
 
 // auth returns SSH auth when the repository URL is an SSH endpoint, nil otherwise.
