@@ -17,7 +17,6 @@ import (
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 )
 
 var testAuthor = &object.Signature{
@@ -170,7 +169,7 @@ func TestGitGetFromNonBareLocalSource(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
 
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	c, err := NewGit("testsrc", workDir, "file://"+repoDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -210,7 +209,7 @@ func TestGitGetFromNonBareLocalSourceWithTrackedConfigDir(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
 
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	c, err := NewGit("testsrc", workDir, "file://"+repoDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -230,7 +229,7 @@ func TestGitGet(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	createGitRepo(t, logger, repoTempDir)
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	c, err := NewGit("testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -260,7 +259,7 @@ func TestGitUpdateRepeat(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	createGitRepo(t, logger, repoTempDir)
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	c, err := NewGit("testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -304,7 +303,7 @@ func TestGitStaleWorkdirCleanup(t *testing.T) {
 	// different repo name — should be left alone
 	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "other-repo_abc123_1234_1"), 0755))
 
-	_, err := NewGit(command.NewExecManager(1), "test", workDir,
+	_, err := NewGit("test", workDir,
 		"https://github.com/zalando-incubator/kubernetes-on-aws.git", "")
 	require.NoError(t, err)
 
@@ -377,7 +376,7 @@ func TestNewGitSkipsSSHConfigForNonSSHSources(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
 
-	c, err := NewGit(command.NewExecManager(1), "test", workDir,
+	c, err := NewGit("test", workDir,
 		"https://github.com/zalando-incubator/kubernetes-on-aws.git", "")
 	require.NoError(t, err)
 
@@ -404,7 +403,7 @@ func TestNewGitToleratesUnparsableSSHConfig(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
 
-	c, err := NewGit(command.NewExecManager(1), "test", workDir,
+	c, err := NewGit("test", workDir,
 		"git@ghe-logging.nonexistent.zalan.do:zalando-build/kubernetes-logging-manifests.git", "/fallback/key")
 	require.NoError(t, err)
 
@@ -440,7 +439,7 @@ func TestGitLocalCloneExecutableAndSymlink(t *testing.T) {
 	workDir := CreateTempDir(t)
 	defer os.RemoveAll(workDir)
 
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, "file://"+repoDir, "")
+	c, err := NewGit("testsrc", workDir, "file://"+repoDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
@@ -632,7 +631,7 @@ func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	createGitRepo(t, logger, repoTempDir)
-	c, err := NewGit(command.NewExecManager(1), "testsrc", workDir, repoTempDir, "")
+	c, err := NewGit("testsrc", workDir, repoTempDir, "")
 	require.NoError(t, err)
 
 	err = c.Update(context.Background(), logger)
