@@ -10,7 +10,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -42,7 +41,6 @@ type Options struct {
 // Controller defines the main control loop for the cluster-lifecycle-manager.
 type Controller struct {
 	logger               *log.Entry
-	execManager          *command.ExecManager
 	registry             registry.Registry
 	provisioners         map[api.ProviderID]provisioner.Provisioner
 	providers            []string
@@ -56,7 +54,6 @@ type Controller struct {
 // New initializes a new controller.
 func New(
 	logger *log.Entry,
-	execManager *command.ExecManager,
 	registry registry.Registry,
 	provisioners map[api.ProviderID]provisioner.Provisioner,
 	channelConfigSourcer channel.ConfigSource,
@@ -64,7 +61,6 @@ func New(
 ) *Controller {
 	return &Controller{
 		logger:               logger,
-		execManager:          execManager,
 		registry:             registry,
 		provisioners:         provisioners,
 		providers:            options.Providers,

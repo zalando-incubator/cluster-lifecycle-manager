@@ -12,7 +12,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -328,7 +327,6 @@ func TestProcessCluster(t *testing.T) {
 	} {
 		controller := New(
 			defaultLogger,
-			command.NewExecManager(1),
 			ti.registry,
 			ti.provisioners,
 			ti.channelSource,
@@ -358,7 +356,6 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 	registry.theCluster.Provider = "<unsupported>"
 	controller := New(
 		defaultLogger,
-		command.NewExecManager(1),
 		registry,
 		map[api.ProviderID]provisioner.Provisioner{
 			mockProvider: &mockProvisioner{},
@@ -417,7 +414,6 @@ func TestDropUnsupportedClusters(t *testing.T) {
 		controller := New(
 			defaultLogger,
 			nil,
-			nil,
 			tc.provisioners,
 			nil,
 			defaultOptions,
@@ -432,7 +428,6 @@ func TestCoalesceFailures(t *testing.T) {
 		registry := createMockRegistry("ready", nil)
 		controller := New(
 			defaultLogger,
-			command.NewExecManager(1),
 			registry,
 			map[api.ProviderID]provisioner.Provisioner{
 				mockProvider: &mockCountingErrProvisioner{},
@@ -460,7 +455,6 @@ func TestCoalesceFailures(t *testing.T) {
 		registry := createMockRegistry("ready", nil)
 		controller := New(
 			defaultLogger,
-			command.NewExecManager(1),
 			registry,
 			map[api.ProviderID]provisioner.Provisioner{
 				mockProvider: &mockErrProvisioner{},

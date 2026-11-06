@@ -22,7 +22,6 @@ import (
 	zaws "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/credentials-loader/platformiam"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 	"golang.org/x/oauth2"
@@ -35,7 +34,7 @@ var (
 	version         = "unknown"
 )
 
-func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerConfig) (channel.ConfigSource, error) {
+func setupConfigSource(cfg *config.LifecycleManagerConfig) (channel.ConfigSource, error) {
 	if cfg.Directory != "" {
 		if len(cfg.ConfigSources) > 0 {
 			log.Fatalf("--directory can't be used with --config-source")
@@ -61,7 +60,7 @@ func setupConfigSource(exec *command.ExecManager, cfg *config.LifecycleManagerCo
 			}
 			sources = append(sources, dir)
 		case "git":
-			git, err := channel.NewGit(exec, name, cfg.Workdir, parts[2], cfg.SSHPrivateKeyFile)
+			git, err := channel.NewGit(name, cfg.Workdir, parts[2], cfg.SSHPrivateKeyFile)
 			if err != nil {
 				return nil, fmt.Errorf("unable to setup git config source %s: %v", name, err)
 			}
@@ -129,11 +128,8 @@ func main() {
 
 	rootLogger := log.StandardLogger().WithFields(map[string]any{})
 
-	execManager := command.NewExecManager(cfg.ConcurrentExternalProcesses)
-
 	provisioners := map[api.ProviderID]provisioner.Provisioner{
 		api.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
-			execManager,
 			clusterTokenSource,
 			secretDecrypter,
 			cfg.AssumedRole,
@@ -147,7 +143,6 @@ func main() {
 			},
 		),
 		api.ZalandoEKSProvider: provisioner.NewZalandoEKSProvisioner(
-			execManager,
 			secretDecrypter,
 			cfg.AssumedRole,
 			awsConfigOptions,
@@ -161,7 +156,7 @@ func main() {
 		),
 	}
 
-	configSource, err := setupConfigSource(execManager, cfg)
+	configSource, err := setupConfigSource(cfg)
 	if err != nil {
 		log.Fatalf("Failed to setup channel config source: %v", err)
 	}
@@ -181,7 +176,6 @@ func main() {
 
 		ctrl := controller.New(
 			rootLogger,
-			execManager,
 			clusterRegistry,
 			provisioners,
 			configSource,

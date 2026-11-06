@@ -4,18 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	// Import the Karpenter provider AWS API package to register the CRDs
 	// with the scheme
 	_ "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/cenkalti/backoff"
 	"github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -434,99 +430,6 @@ func (c *ClientsCollection) overrideDeletionProtection(ctx context.Context, logg
 	resource.SetAnnotations(annotations)
 	_, err = c.Update(ctx, kind, namespace, resource, metav1.UpdateOptions{})
 	return err
-}
-
-type KubeCTLRunner struct {
-	execManager *command.ExecManager
-	tokenSource oauth2.TokenSource
-	logger      *logrus.Entry
-	k8sAPIURL   string
-	clusterCA   []byte
-	maxRetries  uint64
-}
-
-func NewKubeCTLRunner(
-	e *command.ExecManager,
-	ts oauth2.TokenSource,
-	l *logrus.Entry,
-	k8sAPIURL string,
-	maxRetries uint64,
-	clusterCA []byte,
-) *KubeCTLRunner {
-	return &KubeCTLRunner{
-		execManager: e,
-		tokenSource: ts,
-		logger:      l,
-		k8sAPIURL:   k8sAPIURL,
-		clusterCA:   clusterCA,
-		maxRetries:  maxRetries,
-	}
-}
-
-func (k *KubeCTLRunner) KubectlExecute(ctx context.Context, args []string, stdin string, dryRun bool) (string, error) {
-	token, err := k.tokenSource.Token()
-	if err != nil {
-		return "", err
-	}
-
-	kubeCtlOpts := []string{
-		fmt.Sprintf("--server=%s", k.k8sAPIURL),
-		fmt.Sprintf("--token=%s", token.AccessToken),
-	}
-
-	// Use custom CA if provided
-	if len(k.clusterCA) != 0 {
-		tmpfile, err := os.CreateTemp("", "cluster_*.ca.crt")
-		if err != nil {
-			return "", err
-		}
-		defer os.Remove(tmpfile.Name())
-
-		_, err = tmpfile.Write(k.clusterCA)
-		if err != nil {
-			return "", err
-		}
-
-		err = tmpfile.Close()
-		if err != nil {
-			return "", err
-		}
-
-		kubeCtlOpts = append(
-			kubeCtlOpts,
-			fmt.Sprintf("--certificate-authority=%s", tmpfile.Name()),
-		)
-	}
-
-	args = append(kubeCtlOpts, args...)
-	if stdin != "" {
-		args = append(args, "-f", "-")
-	}
-
-	newCommand := func() *exec.Cmd {
-		cmd := exec.Command("kubectl", args[0:]...)
-		// prevent kubectl to find the in-cluster config
-		cmd.Env = []string{}
-		return cmd
-	}
-	if dryRun {
-		k.logger.Debug(newCommand())
-		return "", nil
-	}
-	var output string
-	applyManifest := func() error {
-		cmd := newCommand()
-		if stdin != "" {
-			cmd.Stdin = strings.NewReader(stdin)
-		}
-		output, err = k.execManager.Run(ctx, k.logger, cmd)
-		return err
-	}
-	err = backoff.Retry(applyManifest, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), k.maxRetries))
-	if err != nil {
-		return "", err
-	}
-	return output, nil
 }
 
 func ParseTaint(taintSpec string) (*v1.Taint, error) {

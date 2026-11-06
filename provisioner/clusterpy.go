@@ -27,7 +27,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
@@ -77,7 +76,6 @@ const (
 
 type clusterpyProvisioner struct {
 	awsConfigOptions  []func(*awsconfig.LoadOptions) error
-	execManager       *command.ExecManager
 	secretDecrypter   decrypter.Decrypter
 	assumedRole       string
 	dryRun            bool
@@ -411,10 +409,8 @@ func (p *clusterpyProvisioner) provision(
 			encodeUserData: false,
 			instanceTypes:  instanceTypes,
 		},
-		p.execManager,
 		tokenSource,
 		postOptions,
-		cluster.ConfigItems["karpenter_node_pool_kubectl_apply_inline"] == "true",
 	)
 	if err != nil {
 		return err
@@ -1439,37 +1435,12 @@ func (p *clusterpyProvisioner) apply(
 	for _, module := range renderedManifests {
 		logger := logger.WithField("module", module.name)
 
-		if cluster.ConfigItems["kubectl_apply_inline"] == "true" {
-			for _, m := range module.manifests {
-				err := kubectlApplier.Apply(ctx, m)
-				if err != nil {
-					return errors.Wrapf(err, "kubectl apply failed for %s", m.SourceFile)
-				}
-				logger.Infof("%s/%s %s/%s applied", m.APIVersion, m.Kind, m.Namespace, m.Name)
-			}
-		} else {
-			manifests := make([]string, 0, len(module.manifests))
-			for _, m := range module.manifests {
-				content, err := m.ToYaml()
-				if err != nil {
-					return errors.Wrapf(err, "failed to convert manifest to yaml for %s", m.SourceFile)
-				}
-				manifests = append(manifests, content)
-			}
-
-			kubectlRunner := kubernetes.NewKubeCTLRunner(
-				p.execManager,
-				tokenSource,
-				logger,
-				cluster.APIServerURL,
-				maxApplyRetries,
-				caData,
-			)
-			_, err := kubectlRunner.KubectlExecute(ctx, []string{"apply"}, strings.Join(manifests, "---\n"), p.dryRun)
+		for _, m := range module.manifests {
+			err := kubectlApplier.Apply(ctx, m)
 			if err != nil {
-				return errors.Wrapf(err, "kubectl apply failed for %s", module.name)
+				return errors.Wrapf(err, "kubectl apply failed for %s", m.SourceFile)
 			}
-
+			logger.Infof("%s/%s %s/%s applied", m.APIVersion, m.Kind, m.Namespace, m.Name)
 		}
 	}
 
