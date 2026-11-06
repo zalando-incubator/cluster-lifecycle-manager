@@ -41,6 +41,7 @@ type LifecycleManagerConfig struct {
 	ClusterTokenName            string
 	AssumedRole                 string
 	Interval                    time.Duration
+	RestartUpdateAfter          time.Duration
 	Debug                       bool
 	DumpRequest                 bool
 	DryRun                      bool
@@ -86,6 +87,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("cluster-token-name", "Name of the token used when authenticating with a cluster.").Default(defaultClusterTokenName).StringVar(&cfg.ClusterTokenName)
 	kingpin.Flag("assumed-role", "The role ARN to assume in target accounts.").StringVar(&cfg.AssumedRole)
 	kingpin.Flag("interval", "The interval between iterations in Duration format, e.g. 60s.").Default(defaultInterval).DurationVar(&cfg.Interval)
+	kingpin.Flag("restart-update-after", "Cancel an update in progress and restart it with the new version if a different cluster version is available and the update has been running for at least this long, e.g. 30m. 0 disables it.").Default("0s").DurationVar(&cfg.RestartUpdateAfter)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&cfg.Debug)
 	kingpin.Flag("dump-request", "Enable logging http requests.").BoolVar(&cfg.DumpRequest)
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)
