@@ -2,12 +2,19 @@ package updatestrategy
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 )
+
+// ErrUpdateRestarted is the cancellation cause used when an update is stopped
+// to be started again with a newer version. Nodes already marked for
+// decommission are left as they are, so the next run continues with them, as
+// it does after a restart of the process.
+var ErrUpdateRestarted = errors.New("update restarted")
 
 type CLCUpdateStrategy struct {
 	nodePoolManager NodePoolManager
@@ -29,7 +36,7 @@ func (c *CLCUpdateStrategy) Update(ctx context.Context, nodePoolDesc *api.NodePo
 
 	err := c.doUpdate(ctx, nodePoolDesc)
 	if err != nil {
-		if ctx.Err() == context.Canceled {
+		if ctx.Err() == context.Canceled && !errors.Is(context.Cause(ctx), ErrUpdateRestarted) {
 			backoffCfg := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10)
 			err := backoff.Retry(func() error {
 				return c.rollbackUpdate(context.Background(), nodePoolDesc)

@@ -114,12 +114,12 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 	for {
 		select {
 		case <-time.After(c.interval):
-			updateCtx, cancelFunc := context.WithCancel(ctx)
+			updateCtx, cancelFunc := context.WithCancelCause(ctx)
 			nextCluster := c.clusterList.SelectNext(cancelFunc)
 			if nextCluster != nil {
 				c.processCluster(updateCtx, workerNum, nextCluster)
 			}
-			cancelFunc()
+			cancelFunc(nil)
 		case <-ctx.Done():
 			return
 		}

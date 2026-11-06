@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
 var mockStatus = &api.ClusterStatus{
@@ -19,7 +20,7 @@ var mockStatus = &api.ClusterStatus{
 	CurrentVersion: "abc#123",
 }
 
-var dummyCancelFunc = func() {}
+var dummyCancelFunc = func(error) {}
 
 func TestUpdateIgnoresClusters(t *testing.T) {
 	filter := config.IncludeExcludeFilter{
@@ -214,7 +215,7 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter)
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancelCause(context.Background())
 	next := clusterList.SelectNext(cancelFunc)
 	require.NotNil(t, next)
 	require.NoError(t, ctx.Err())
@@ -229,6 +230,7 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 	}
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{updated})
 	require.Equal(t, context.Canceled, ctx.Err())
+	require.NotErrorIs(t, context.Cause(ctx), updatestrategy.ErrUpdateRestarted)
 }
 
 func TestUpdateRestartsProcessingOnNewVersion(t *testing.T) {
@@ -300,7 +302,7 @@ func TestUpdateRestartsProcessingOnNewVersion(t *testing.T) {
 
 			clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(tc.status, nil)})
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
+			ctx, cancelFunc := context.WithCancelCause(context.Background())
 			next := clusterList.SelectNext(cancelFunc)
 			require.NotNil(t, next)
 
@@ -309,6 +311,7 @@ func TestUpdateRestartsProcessingOnNewVersion(t *testing.T) {
 
 			if tc.restarted {
 				require.Equal(t, context.Canceled, ctx.Err())
+				require.ErrorIs(t, context.Cause(ctx), updatestrategy.ErrUpdateRestarted)
 			} else {
 				require.NoError(t, ctx.Err())
 			}
