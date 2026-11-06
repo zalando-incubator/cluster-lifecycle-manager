@@ -234,3 +234,43 @@ func TestCLCUpdateStrategy(t *testing.T) {
 		})
 	}
 }
+
+func TestCLCUpdateStrategyRestartKeepsNodesMarked(t *testing.T) {
+	nodes := []*mockNodeCLC{
+		{name: "node-1", generation: 1},
+		{name: "node-2", generation: 3},
+		{name: "node-3", generation: 2},
+		{name: "node-4", generation: 4},
+		{name: "node-5", generation: 3},
+		{name: "node-6", generation: 10},
+	}
+
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+
+	nodePoolManager := &mockNodePoolManagerCLC{
+		generation:            3,
+		nodes:                 nodes,
+		abortAfterTerminating: "node-3",
+		abortFunc:             func() { cancel(ErrUpdateRestarted) },
+	}
+	strategy := NewCLCUpdateStrategy(log.WithField("test", true), nodePoolManager, 50*time.Millisecond)
+
+	err := strategy.Update(ctx, &api.NodePool{Name: "test-node-pool", Profile: "test-profile"})
+	require.EqualValues(t, context.Canceled, err)
+
+	for name, expected := range map[string]nodeState{
+		"node-1": nodeStateTerminated,
+		"node-3": nodeStateTerminated,
+		// old nodes stay marked, the next run continues with them
+		"node-4": nodeStateDecommissionPending,
+		"node-6": nodeStateDecommissionPending,
+		// current nodes are untouched
+		"node-2": nodeStateReady,
+		"node-5": nodeStateReady,
+	} {
+		node, err := nodePoolManager.findNode(name)
+		require.NoError(t, err)
+		require.Equal(t, expected, node.state, "unexpected state for %s", name)
+	}
+}

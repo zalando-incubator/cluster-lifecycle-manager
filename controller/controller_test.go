@@ -335,7 +335,7 @@ func TestProcessCluster(t *testing.T) {
 		err := controller.refresh()
 		assert.NoError(t, err)
 
-		ctx, cancelFunc := context.WithCancel(context.Background())
+		ctx, cancelFunc := context.WithCancelCause(context.Background())
 
 		next := controller.clusterList.SelectNext(cancelFunc)
 		if !assert.NotNil(t, next, ti.testcase) {
@@ -367,7 +367,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 	err := controller.refresh()
 	require.NoError(t, err)
 
-	next := controller.clusterList.SelectNext(func() {})
+	next := controller.clusterList.SelectNext(func(error) {})
 	require.Nil(t, next)
 }
 
@@ -440,7 +440,7 @@ func TestCoalesceFailures(t *testing.T) {
 			err := controller.refresh()
 			require.NoError(t, err)
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
+			ctx, cancelFunc := context.WithCancelCause(context.Background())
 
 			next := controller.clusterList.SelectNext(cancelFunc)
 			require.NotNil(t, next)
@@ -467,7 +467,7 @@ func TestCoalesceFailures(t *testing.T) {
 			err := controller.refresh()
 			require.NoError(t, err)
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
+			ctx, cancelFunc := context.WithCancelCause(context.Background())
 
 			next := controller.clusterList.SelectNext(cancelFunc)
 			require.NotNil(t, next)

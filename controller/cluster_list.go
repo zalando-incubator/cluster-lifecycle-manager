@@ -10,6 +10,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
 const (
@@ -28,8 +29,9 @@ const (
 type ClusterInfo struct {
 	lastProcessed  time.Time
 	state          int
-	cancelUpdate   context.CancelFunc
+	cancelUpdate   context.CancelCauseFunc
 	updatePriority uint32
+	processingFrom time.Time
 	Cluster        *api.Cluster
 
 	ChannelVersion channel.ConfigVersion
@@ -44,13 +46,29 @@ type ClusterList struct {
 	accountFilter config.IncludeExcludeFilter
 	clusters      map[string]*ClusterInfo
 	pendingUpdate []*ClusterInfo
+
+	// restartAfter is the minimum time an update must have been running before
+	// it's cancelled in favor of a newer version. Zero disables restarting.
+	restartAfter time.Duration
+	now          func() time.Time
 }
 
 func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
 	return &ClusterList{
 		accountFilter: accountFilter,
 		clusters:      make(map[string]*ClusterInfo),
+		now:           time.Now,
 	}
+}
+
+// SetRestartAfter enables cancelling an update in progress when a newer
+// version of the cluster is available, once the update has been running for
+// at least the given duration. The cancelled cluster is picked up again with
+// the new version. Zero (the default) disables it.
+func (clusterList *ClusterList) SetRestartAfter(d time.Duration) {
+	clusterList.Lock()
+	defer clusterList.Unlock()
+	clusterList.restartAfter = d
 }
 
 // UpdateAvailable adds new clusters to the list, updates the cluster data for existing ones and removes clusters
@@ -132,15 +150,19 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 				existing.CurrentVersion = currentVersion
 				existing.NextVersion = nextVersion
 				existing.NextError = nextError
-			} else if existing.state == stateProcessing && updateBlocked(cluster) {
+			} else if updateBlocked(cluster) {
 				// abort an update in progress
-				existing.cancelUpdate()
+				existing.cancelUpdate(context.Canceled)
+			} else if clusterList.shouldRestart(existing, nextVersion, nextError) {
+				// stop the update in progress without rolling it back, the
+				// next run continues with the new version
+				existing.cancelUpdate(updatestrategy.ErrUpdateRestarted)
 			}
 		} else {
 			clusterList.clusters[cluster.ID] = &ClusterInfo{
 				lastProcessed:  time.Unix(0, 0),
 				state:          stateIdle,
-				cancelUpdate:   func() {},
+				cancelUpdate:   func(error) {},
 				Cluster:        cluster,
 				ChannelVersion: channelVersion,
 				CurrentVersion: currentVersion,
@@ -161,6 +183,26 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 			delete(clusterList.clusters, id)
 		}
 	}
+}
+
+// shouldRestart returns true if the update in progress should be cancelled
+// because a different version is now available. New clusters are never
+// restarted because the provisioner changes their config items while creating
+// them.
+func (clusterList *ClusterList) shouldRestart(running *ClusterInfo, nextVersion *api.ClusterVersion, nextError error) bool {
+	if clusterList.restartAfter <= 0 || nextError != nil || nextVersion == nil || running.NextVersion == nil {
+		return false
+	}
+
+	if running.Cluster.LifecycleStatus == statusRequested {
+		return false
+	}
+
+	if clusterList.now().Sub(running.processingFrom) < clusterList.restartAfter {
+		return false
+	}
+
+	return *nextVersion != *running.NextVersion
 }
 
 // updatePriority returns the update priority of the clusters. Clusters with higher priority will always be selected
@@ -199,7 +241,7 @@ func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo) uint32 
 // SelectNext returns the next cluster to update, if any, and marks it as being processed. A cluster with higher
 // priority will be selected first, in case of ties it'll select a cluster that hasn't been updated for the longest
 // time.
-func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc) *ClusterInfo {
+func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelCauseFunc) *ClusterInfo {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
@@ -210,6 +252,7 @@ func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc) *Clu
 	result := clusterList.pendingUpdate[0]
 	result.state = stateProcessing
 	result.cancelUpdate = cancelUpdate
+	result.processingFrom = clusterList.now()
 	clusterList.pendingUpdate = clusterList.pendingUpdate[1:]
 
 	return result
@@ -222,7 +265,7 @@ func (clusterList *ClusterList) ClusterProcessed(cluster *ClusterInfo) {
 
 	if cluster, ok := clusterList.clusters[cluster.Cluster.ID]; ok {
 		cluster.state = stateProcessed
-		cluster.cancelUpdate = func() {}
+		cluster.cancelUpdate = func(error) {}
 		cluster.lastProcessed = time.Now()
 	}
 }

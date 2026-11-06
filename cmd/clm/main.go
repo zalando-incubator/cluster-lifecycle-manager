@@ -172,6 +172,8 @@ func main() {
 			DryRun:            cfg.DryRun,
 			Providers:         cfg.Providers,
 			ConcurrentUpdates: cfg.ConcurrentUpdates,
+
+			RestartOnChangesAfter: cfg.RestartOnChangesAfter,
 		}
 
 		ctrl := controller.New(

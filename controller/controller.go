@@ -36,6 +36,10 @@ type Options struct {
 	DryRun            bool
 	ConcurrentUpdates uint
 	EnvironmentOrder  []string
+	// RestartOnChangesAfter cancels an update that has been running for at
+	// least this long when a newer cluster version is available. Zero
+	// disables it.
+	RestartOnChangesAfter time.Duration
 }
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
@@ -59,6 +63,9 @@ func New(
 	channelConfigSourcer channel.ConfigSource,
 	options *Options,
 ) *Controller {
+	clusterList := NewClusterList(options.AccountFilter)
+	clusterList.SetRestartAfter(options.RestartOnChangesAfter)
+
 	return &Controller{
 		logger:               logger,
 		registry:             registry,
@@ -67,7 +74,7 @@ func New(
 		channelConfigSourcer: channel.NewCachingSource(channelConfigSourcer),
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
-		clusterList:          NewClusterList(options.AccountFilter),
+		clusterList:          clusterList,
 		concurrentUpdates:    options.ConcurrentUpdates,
 	}
 }
@@ -103,12 +110,12 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 	for {
 		select {
 		case <-time.After(c.interval):
-			updateCtx, cancelFunc := context.WithCancel(ctx)
+			updateCtx, cancelFunc := context.WithCancelCause(ctx)
 			nextCluster := c.clusterList.SelectNext(cancelFunc)
 			if nextCluster != nil {
 				c.processCluster(updateCtx, workerNum, nextCluster)
 			}
-			cancelFunc()
+			cancelFunc(nil)
 		case <-ctx.Done():
 			return
 		}

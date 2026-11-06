@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 )
 
 var mockStatus = &api.ClusterStatus{
@@ -18,7 +20,7 @@ var mockStatus = &api.ClusterStatus{
 	CurrentVersion: "abc#123",
 }
 
-var dummyCancelFunc = func() {}
+var dummyCancelFunc = func(error) {}
 
 func TestUpdateIgnoresClusters(t *testing.T) {
 	filter := config.IncludeExcludeFilter{
@@ -213,7 +215,7 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 	clusterList := NewClusterList(config.DefaultFilter)
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancelCause(context.Background())
 	next := clusterList.SelectNext(cancelFunc)
 	require.NotNil(t, next)
 	require.NoError(t, ctx.Err())
@@ -228,6 +230,93 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 	}
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{updated})
 	require.Equal(t, context.Canceled, ctx.Err())
+	require.NotErrorIs(t, context.Cause(ctx), updatestrategy.ErrUpdateRestarted)
+}
+
+func TestUpdateRestartsProcessingOnNewVersion(t *testing.T) {
+	newCluster := func(status string, configItems map[string]string) *api.Cluster {
+		return &api.Cluster{
+			ID:                    "aws:123456789011:eu-central-1:cluster",
+			InfrastructureAccount: "aws:123456789011",
+			LifecycleStatus:       status,
+			Channel:               "dev",
+			Status:                mockStatus,
+			ConfigItems:           configItems,
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		restartAfter time.Duration
+		status       string
+		elapsed      time.Duration
+		updated      map[string]string
+		restarted    bool
+	}{
+		{
+			name:         "new version after the minimum run time",
+			restartAfter: 10 * time.Minute,
+			status:       "ready",
+			elapsed:      11 * time.Minute,
+			updated:      map[string]string{"foo": "bar"},
+			restarted:    true,
+		},
+		{
+			name:         "new version before the minimum run time",
+			restartAfter: 10 * time.Minute,
+			status:       "ready",
+			elapsed:      5 * time.Minute,
+			updated:      map[string]string{"foo": "bar"},
+			restarted:    false,
+		},
+		{
+			name:         "same version",
+			restartAfter: 10 * time.Minute,
+			status:       "ready",
+			elapsed:      time.Hour,
+			updated:      nil,
+			restarted:    false,
+		},
+		{
+			name:         "disabled",
+			restartAfter: 0,
+			status:       "ready",
+			elapsed:      time.Hour,
+			updated:      map[string]string{"foo": "bar"},
+			restarted:    false,
+		},
+		{
+			name:         "cluster being created",
+			restartAfter: 10 * time.Minute,
+			status:       "requested",
+			elapsed:      time.Hour,
+			updated:      map[string]string{"foo": "bar"},
+			restarted:    false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Now()
+			clusterList := NewClusterList(config.DefaultFilter)
+			clusterList.SetRestartAfter(tc.restartAfter)
+			clusterList.now = func() time.Time { return now }
+
+			clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(tc.status, nil)})
+
+			ctx, cancelFunc := context.WithCancelCause(context.Background())
+			next := clusterList.SelectNext(cancelFunc)
+			require.NotNil(t, next)
+
+			now = now.Add(tc.elapsed)
+			clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(tc.status, tc.updated)})
+
+			if tc.restarted {
+				require.Equal(t, context.Canceled, ctx.Err())
+				require.ErrorIs(t, context.Cause(ctx), updatestrategy.ErrUpdateRestarted)
+			} else {
+				require.NoError(t, ctx.Err())
+			}
+		})
+	}
 }
 
 func TestUpdateDeletesUnusedClusters(t *testing.T) {

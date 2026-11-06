@@ -33,30 +33,31 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 
 // LifecycleManagerConfig stores the configuration for app
 type LifecycleManagerConfig struct {
-	Registry            string
-	AccountFilter       IncludeExcludeFilter
-	Token               string
-	RegistryTokenName   string
-	ClusterTokenName    string
-	AssumedRole         string
-	Interval            time.Duration
-	Debug               bool
-	DumpRequest         bool
-	DryRun              bool
-	ConcurrentUpdates   uint
-	Listen              string
-	Workdir             string
-	Directory           string
-	Providers           []string
-	ConfigSources       []string
-	SSHPrivateKeyFile   string
-	CredentialsDir      string
-	ApplyOnly           bool
-	AwsMaxRetries       int
-	AwsMaxRetryInterval time.Duration
-	UpdateStrategy      UpdateStrategy
-	RemoveVolumes       bool
-	ManageEtcdStack     bool
+	Registry              string
+	AccountFilter         IncludeExcludeFilter
+	Token                 string
+	RegistryTokenName     string
+	ClusterTokenName      string
+	AssumedRole           string
+	Interval              time.Duration
+	RestartOnChangesAfter time.Duration
+	Debug                 bool
+	DumpRequest           bool
+	DryRun                bool
+	ConcurrentUpdates     uint
+	Listen                string
+	Workdir               string
+	Directory             string
+	Providers             []string
+	ConfigSources         []string
+	SSHPrivateKeyFile     string
+	CredentialsDir        string
+	ApplyOnly             bool
+	AwsMaxRetries         int
+	AwsMaxRetryInterval   time.Duration
+	UpdateStrategy        UpdateStrategy
+	RemoveVolumes         bool
+	ManageEtcdStack       bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -84,6 +85,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("cluster-token-name", "Name of the token used when authenticating with a cluster.").Default(defaultClusterTokenName).StringVar(&cfg.ClusterTokenName)
 	kingpin.Flag("assumed-role", "The role ARN to assume in target accounts.").StringVar(&cfg.AssumedRole)
 	kingpin.Flag("interval", "The interval between iterations in Duration format, e.g. 60s.").Default(defaultInterval).DurationVar(&cfg.Interval)
+	kingpin.Flag("restart-on-changes-after", "Cancel an update in progress and restart it with the new version if the cluster has changes and the update has been running for at least this long, e.g. 30m. Changes are detected on every --interval. 0 disables it.").Default("0s").DurationVar(&cfg.RestartOnChangesAfter)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&cfg.Debug)
 	kingpin.Flag("dump-request", "Enable logging http requests.").BoolVar(&cfg.DumpRequest)
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)
