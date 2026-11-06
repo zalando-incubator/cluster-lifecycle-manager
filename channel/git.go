@@ -239,6 +239,15 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
 		return fmt.Errorf("failed to fetch %q: %w", g.name, err)
 	}
+	// log every cycle, even a no-op fetch, so the controller doesn't go
+	// silent for long stretches when nothing has changed — this is
+	// visible at the default log level, unlike the git-binary era's
+	// RunSilently (which only logged successful output with --debug).
+	if err == gogit.NoErrAlreadyUpToDate {
+		logger.Infof("source %q up to date", g.name)
+	} else {
+		logger.Infof("fetched updates for source %q", g.name)
+	}
 
 	// sync mirror HEAD to the remote's current default branch so that
 	// local clones don't fail if the default branch was renamed; if the
