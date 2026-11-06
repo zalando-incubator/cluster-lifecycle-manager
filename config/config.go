@@ -17,7 +17,6 @@ const (
 	defaultClusterTokenName                 = "cluster-rw"
 	defaultRegistry                         = "file://clusters.yaml"
 	defaultConcurrentUpdates                = "1"
-	defaultConcurrentExternalProcesses      = "10"
 	defaultAwsMaxRetries                    = "50"
 	defaultAwsMaxRetryInterval              = "10s"
 	defaultDrainGracePeriod                 = "6h"
@@ -34,32 +33,31 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 
 // LifecycleManagerConfig stores the configuration for app
 type LifecycleManagerConfig struct {
-	Registry                    string
-	AccountFilter               IncludeExcludeFilter
-	Token                       string
-	RegistryTokenName           string
-	ClusterTokenName            string
-	AssumedRole                 string
-	Interval                    time.Duration
-	RestartOnChangesAfter       time.Duration
-	Debug                       bool
-	DumpRequest                 bool
-	DryRun                      bool
-	ConcurrentUpdates           uint
-	Listen                      string
-	Workdir                     string
-	Directory                   string
-	Providers                   []string
-	ConfigSources               []string
-	SSHPrivateKeyFile           string
-	CredentialsDir              string
-	ConcurrentExternalProcesses uint
-	ApplyOnly                   bool
-	AwsMaxRetries               int
-	AwsMaxRetryInterval         time.Duration
-	UpdateStrategy              UpdateStrategy
-	RemoveVolumes               bool
-	ManageEtcdStack             bool
+	Registry              string
+	AccountFilter         IncludeExcludeFilter
+	Token                 string
+	RegistryTokenName     string
+	ClusterTokenName      string
+	AssumedRole           string
+	Interval              time.Duration
+	RestartOnChangesAfter time.Duration
+	Debug                 bool
+	DumpRequest           bool
+	DryRun                bool
+	ConcurrentUpdates     uint
+	Listen                string
+	Workdir               string
+	Directory             string
+	Providers             []string
+	ConfigSources         []string
+	SSHPrivateKeyFile     string
+	CredentialsDir        string
+	ApplyOnly             bool
+	AwsMaxRetries         int
+	AwsMaxRetryInterval   time.Duration
+	UpdateStrategy        UpdateStrategy
+	RemoveVolumes         bool
+	ManageEtcdStack       bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -113,7 +111,6 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("drain-poll-interval", "Interval between drain attempts.").Default(defaultDrainPollInterval).DurationVar(&cfg.UpdateStrategy.PollInterval)
 	kingpin.Flag("update-strategy", "Update strategy to use when updating node pools.").Default(defaultUpdateStrategy).EnumVar(&cfg.UpdateStrategy.Strategy, "rolling", "clc")
 	kingpin.Flag("remove-volumes", "Remove EBS volumes when decommissioning.").BoolVar(&cfg.RemoveVolumes)
-	kingpin.Flag("concurrent-external-processes", "Number of external processes allowed to run in parallel").Default(defaultConcurrentExternalProcesses).UintVar(&cfg.ConcurrentExternalProcesses)
 	kingpin.Flag("manage-etcd-stack", "Enable creation/updates of the etcd stack (should be disabled for pet clusters)").BoolVar(&cfg.ManageEtcdStack)
 	return kingpin.Parse()
 }

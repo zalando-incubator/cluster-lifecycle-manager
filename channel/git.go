@@ -29,7 +29,6 @@ import (
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	stdssh "golang.org/x/crypto/ssh"
 )
 
@@ -114,7 +113,7 @@ func (v *gitVersion) Get(ctx context.Context, logger *log.Entry) (Config, error)
 }
 
 // NewGit initializes a new git based ChannelSource.
-func NewGit(_ *command.ExecManager, name string, workdir, repositoryURL, sshPrivateKeyFile string) (ConfigSource, error) {
+func NewGit(name string, workdir, repositoryURL, sshPrivateKeyFile string) (ConfigSource, error) {
 	absWorkdir, err := filepath.Abs(workdir)
 	if err != nil {
 		return nil, err
@@ -238,6 +237,15 @@ func (g *Git) Update(ctx context.Context, logger *log.Entry) error {
 	})
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
 		return fmt.Errorf("failed to fetch %q: %w", g.name, err)
+	}
+	// log every cycle, even a no-op fetch, so the controller doesn't go
+	// silent for long stretches when nothing has changed — this is
+	// visible at the default log level, unlike the git-binary era's
+	// RunSilently (which only logged successful output with --debug).
+	if err == gogit.NoErrAlreadyUpToDate {
+		logger.Infof("source %q up to date", g.name)
+	} else {
+		logger.Infof("fetched updates for source %q", g.name)
 	}
 
 	// sync mirror HEAD to the remote's current default branch so that

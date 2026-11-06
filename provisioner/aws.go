@@ -56,6 +56,7 @@ var (
 	errDeleteFailed           = fmt.Errorf("wait for stack failed with %s", cftypes.StackStatusDeleteFailed)
 	errTimeoutExceeded        = fmt.Errorf("wait for stack timeout exceeded")
 	errDeleteCanceled         = fmt.Errorf("stack deletion was canceled")
+	errCreateFailedDeleted    = fmt.Errorf("stack creation failed and was automatically deleted (OnFailure=DELETE)")
 )
 
 type (
@@ -375,7 +376,13 @@ func (a *awsAdapter) waitForStack(ctx context.Context, waitTime time.Duration, s
 		case cftypes.StackStatusCreateComplete:
 			return nil
 		case cftypes.StackStatusDeleteComplete:
-			return nil
+			// waitForStack is only used to wait on a create/update triggered
+			// by applyStack, never on an intentional deletion (that's
+			// waitForStackDeletion's job). Seeing DELETE_COMPLETE here means
+			// stack creation failed and AWS auto-deleted it because
+			// applyStack sets OnFailure=DELETE — without this, a stack that
+			// never came into existence is silently reported as success.
+			err = errCreateFailedDeleted
 		case cftypes.StackStatusCreateFailed:
 			err = errCreateFailed
 		case cftypes.StackStatusDeleteFailed:

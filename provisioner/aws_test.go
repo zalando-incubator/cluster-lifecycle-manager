@@ -170,6 +170,7 @@ func TestWaitForStack(t *testing.T) {
 	t.Run("WaitForStackWithComplete", testWaitForStackWithComplete)
 	t.Run("WaitForStackWithTimeout", testWaitForStackWithTimeout)
 	t.Run("WaitForStackWithRollback", testWaitForStackWithRollback)
+	t.Run("WaitForStackWithCreateFailedAutoDeleted", testWaitForStackWithCreateFailedAutoDeleted)
 }
 
 func testWaitForStackWithComplete(t *testing.T) {
@@ -239,6 +240,22 @@ func testWaitForStackWithRollback(t *testing.T) {
 	}
 	if counter != 2 {
 		t.Error("should be called twice")
+	}
+}
+
+// testWaitForStackWithCreateFailedAutoDeleted covers the case where stack
+// creation fails and AWS automatically deletes it because applyStack sets
+// OnFailure=DELETE. waitForStack is only used to wait on a create/update, so
+// observing DELETE_COMPLETE here must be reported as a failure, not success
+// — otherwise a stack that never came into existence would be silently
+// reported as having been applied successfully.
+func testWaitForStackWithCreateFailedAutoDeleted(t *testing.T) {
+	awsMock := newAWSAdapterWithStubs(cftypes.StackStatusDeleteComplete, "123")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err := awsMock.waitForStack(ctx, 100*time.Millisecond, "foobar")
+	if err == nil || !strings.Contains(err.Error(), errCreateFailedDeleted.Error()) {
+		t.Errorf("should return create failed (auto-deleted), got: %v", err)
 	}
 }
 

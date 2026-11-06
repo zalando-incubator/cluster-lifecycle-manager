@@ -14,7 +14,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/eks"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
 
@@ -38,7 +37,6 @@ type (
 // NewZalandoEKSProvisioner returns a new provisioner capable of provisioning
 // EKS clusters by passing its location and and IAM role to use.
 func NewZalandoEKSProvisioner(
-	execManager *command.ExecManager,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
 	awsConfigOptions []func(*config.LoadOptions) error,
@@ -48,7 +46,6 @@ func NewZalandoEKSProvisioner(
 		clusterpyProvisioner: clusterpyProvisioner{
 			awsConfigOptions:  awsConfigOptions,
 			assumedRole:       assumedRole,
-			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
 			manageMasterNodes: false,
 			manageEtcdStack:   false,

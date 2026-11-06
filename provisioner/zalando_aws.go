@@ -9,7 +9,6 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
-	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/util/command"
 	"golang.org/x/oauth2"
 )
 
@@ -20,7 +19,6 @@ type ZalandoAWSProvisioner struct {
 // NewZalandoAWSProvisioner returns a new provisioner by passing its location
 // and and IAM role to use.
 func NewZalandoAWSProvisioner(
-	execManager *command.ExecManager,
 	tokenSource oauth2.TokenSource,
 	secretDecrypter decrypter.Decrypter,
 	assumedRole string,
@@ -31,7 +29,6 @@ func NewZalandoAWSProvisioner(
 		clusterpyProvisioner: clusterpyProvisioner{
 			awsConfigOptions:  awsConfigOptions,
 			assumedRole:       assumedRole,
-			execManager:       execManager,
 			secretDecrypter:   secretDecrypter,
 			tokenSource:       tokenSource,
 			manageMasterNodes: true,
