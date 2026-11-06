@@ -37,10 +37,10 @@ type Options struct {
 	DryRun            bool
 	ConcurrentUpdates uint
 	EnvironmentOrder  []string
-	// RestartUpdateAfter cancels an update that has been running for at
+	// RestartOnChangesAfter cancels an update that has been running for at
 	// least this long when a newer cluster version is available. Zero
 	// disables it.
-	RestartUpdateAfter time.Duration
+	RestartOnChangesAfter time.Duration
 }
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
@@ -67,7 +67,7 @@ func New(
 	options *Options,
 ) *Controller {
 	clusterList := NewClusterList(options.AccountFilter)
-	clusterList.SetRestartAfter(options.RestartUpdateAfter)
+	clusterList.SetRestartAfter(options.RestartOnChangesAfter)
 
 	return &Controller{
 		logger:               logger,
