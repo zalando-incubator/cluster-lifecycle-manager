@@ -237,6 +237,27 @@ Then for any `config-item`, the value from `source3` will be the final value and
 This is the intended behavior of the CLI flags i.e. when multiple values are specified for a flag, they are appended, in order, to a slice. Later, in the CLM code, when these are [merged](https://github.com/zalando-incubator/cluster-lifecycle-manager/blob/2bb1b5ffd184dbdffefc4c7529671025edf460c4/cmd/clm/main.go#L44), the order of the
 source names in the slice is respected.
 
+### Per-channel Git cache
+
+Use `--config-source=main:git-channel:URL` instead of `main:git:URL` to
+maintain one Git clone and checkout per branch. The existing `git` source is
+unchanged. `git-channel` accepts branch names, including per-source channel
+overrides. Each resolved version is an in-memory snapshot; an update already
+running keeps its original snapshot even when the branch changes.
+
+Refresh attempts are limited per channel by `--git-channel-refresh-interval`
+(default `15s`), including failed attempts. The controller resolves versions
+when it refreshes its cluster list, so a new commit is picked up on a subsequent
+list refresh. If Git is unavailable, the last complete cached checkout is used;
+a channel without a valid cache fails. Failures using a cache are logged.
+
+The cache lives under `--workdir/git-channels`. Mount `--workdir` on persistent
+storage to retain it across pod restarts. Use a separate workdir for each CLM
+process; the cache is not coordinated across processes. Unused channel caches
+are removed after `--git-channel-cache-max-age` (default `720h`, or 30 days).
+Both duration flags must be positive. Checkout symlinks must resolve inside the
+checkout and must not be dangling or cyclic.
+
 ## Non-disruptive rolling updates
 
 One of the main features of the CLM is the update strategy implemented which is

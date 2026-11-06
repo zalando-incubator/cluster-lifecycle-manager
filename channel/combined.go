@@ -65,7 +65,7 @@ func (c *CombinedSource) GarbageCollect(ctx context.Context, logger *logrus.Entr
 	return nil
 }
 
-func (c *CombinedSource) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+func (c *CombinedSource) Version(ctx context.Context, channel string, overrides map[string]string) (ConfigVersion, error) {
 	versions := make([]ConfigVersion, len(c.sources))
 	for i, source := range c.sources {
 		sourceChannel := channel
@@ -73,7 +73,7 @@ func (c *CombinedSource) Version(channel string, overrides map[string]string) (C
 			sourceChannel = overrideChannel
 		}
 
-		version, err := source.Version(sourceChannel, nil)
+		version, err := source.Version(ctx, sourceChannel, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine version for source %s: %v", source.Name(), err)
 		}

@@ -29,7 +29,14 @@ func (c *CachingSource) Update(ctx context.Context, logger *logrus.Entry) error 
 	return c.target.Update(ctx, logger)
 }
 
-func (c *CachingSource) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+func (c *CachingSource) GarbageCollect(ctx context.Context, logger *logrus.Entry) error {
+	if gc, ok := c.target.(GarbageCollector); ok {
+		return gc.GarbageCollect(ctx, logger)
+	}
+	return nil
+}
+
+func (c *CachingSource) Version(ctx context.Context, channel string, overrides map[string]string) (ConfigVersion, error) {
 	cacheKey := strings.Builder{}
 	cacheKey.WriteString(channel)
 	cacheKey.WriteRune('\x00')
@@ -43,7 +50,7 @@ func (c *CachingSource) Version(channel string, overrides map[string]string) (Co
 	if cached, ok := c.cache[cacheKey.String()]; ok {
 		return cached, nil
 	}
-	res, err := c.target.Version(channel, overrides)
+	res, err := c.target.Version(ctx, channel, overrides)
 	if err != nil {
 		return nil, err
 	}

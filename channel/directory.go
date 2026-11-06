@@ -28,7 +28,7 @@ func (d *Directory) Update(_ context.Context, _ *log.Entry) error {
 	return nil
 }
 
-func (d *Directory) Version(_ string, _ map[string]string) (ConfigVersion, error) {
+func (d *Directory) Version(_ context.Context, _ string, _ map[string]string) (ConfigVersion, error) {
 	return d, nil
 }
 

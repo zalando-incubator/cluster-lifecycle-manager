@@ -65,6 +65,12 @@ func setupConfigSource(cfg *config.LifecycleManagerConfig) (channel.ConfigSource
 				return nil, fmt.Errorf("unable to setup git config source %s: %v", name, err)
 			}
 			sources = append(sources, git)
+		case "git-channel":
+			git, err := channel.NewChannelGit(name, cfg.Workdir, parts[2], cfg.SSHPrivateKeyFile, cfg.GitChannelRefreshInterval, cfg.GitChannelCacheMaxAge)
+			if err != nil {
+				return nil, fmt.Errorf("unable to setup git-channel config source %s: %w", name, err)
+			}
+			sources = append(sources, git)
 		default:
 			return nil, fmt.Errorf("unknown config source type %s", parts[1])
 		}
@@ -209,7 +215,7 @@ func main() {
 			log.Fatalf("%+v", err)
 		}
 
-		version, err := configSource.Version(cluster.Channel, channelOverrides)
+		version, err := configSource.Version(context.Background(), cluster.Channel, channelOverrides)
 		if err != nil {
 			log.Fatalf("%+v", err)
 		}

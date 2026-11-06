@@ -135,7 +135,7 @@ func headSHA(t *testing.T, dir, branch string) string {
 func checkoutVersion(t *testing.T, logger *log.Entry, source ConfigSource, channel string) Config {
 	t.Helper()
 
-	version, err := source.Version(channel, nil)
+	version, err := source.Version(context.Background(), channel, nil)
 	require.NoError(t, err)
 
 	cfg, err := version.Get(context.Background(), logger)
@@ -265,7 +265,7 @@ func TestGitUpdateRepeat(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	v1, err := c.Version("main", nil)
+	v1, err := c.Version(context.Background(), "main", nil)
 	require.NoError(t, err)
 	sha1 := v1.ID()
 
@@ -276,7 +276,7 @@ func TestGitUpdateRepeat(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	v2, err := c.Version("main", nil)
+	v2, err := c.Version(context.Background(), "main", nil)
 	require.NoError(t, err)
 	require.NotEqual(t, sha1, v2.ID(), "SHA should advance after second commit")
 
@@ -289,7 +289,7 @@ func TestGitUpdateRepeat(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	_, err = c.Version("channel2", nil)
+	_, err = c.Version(context.Background(), "channel2", nil)
 	require.Error(t, err, "deleted branch should not resolve after pruning update")
 }
 
@@ -445,7 +445,7 @@ func TestGitLocalCloneExecutableAndSymlink(t *testing.T) {
 	err = c.Update(context.Background(), logger)
 	require.NoError(t, err)
 
-	version, err := c.Version("main", nil)
+	version, err := c.Version(context.Background(), "main", nil)
 	require.NoError(t, err)
 	cfg, err := version.Get(context.Background(), logger)
 	require.NoError(t, err)
@@ -650,7 +650,7 @@ func TestGitLocalCloneConcurrentIndependence(t *testing.T) {
 			if i%2 == 0 {
 				channel = "channel2"
 			}
-			version, err := c.Version(channel, nil)
+			version, err := c.Version(context.Background(), channel, nil)
 			if err != nil {
 				errs[i] = err
 				return

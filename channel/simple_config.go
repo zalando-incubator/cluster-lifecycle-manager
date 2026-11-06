@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -22,6 +23,7 @@ type SimpleConfig struct {
 	pathPrefix  string
 	baseDir     string
 	allowDelete bool
+	files       fs.FS
 }
 
 func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*SimpleConfig, error) {
@@ -33,12 +35,13 @@ func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*Simp
 		pathPrefix:  sourceName + "/",
 		baseDir:     abspath,
 		allowDelete: allowDelete,
+		files:       os.DirFS(abspath),
 	}, nil
 }
 
 func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Manifest, error) {
-	filePath := path.Join(c.baseDir, manifestDirectory, name)
-	res, err := os.ReadFile(filePath)
+	filePath := path.Join(manifestDirectory, name)
+	res, err := fs.ReadFile(c.files, filePath)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -55,8 +58,8 @@ func (c *SimpleConfig) StackManifest(manifestName string) (Manifest, error) {
 func (c *SimpleConfig) CFManifests() ([]Manifest, error) {
 	var result []Manifest
 
-	cfManifestsDir := path.Join(c.baseDir, configRoot, cfManifestsConfigDir)
-	files, err := os.ReadDir(cfManifestsDir)
+	cfManifestsDir := path.Join(configRoot, cfManifestsConfigDir)
+	files, err := fs.ReadDir(c.files, cfManifestsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -131,8 +134,8 @@ func (c *SimpleConfig) CFDeletionsManifests() ([]Manifest, error) {
 func (c *SimpleConfig) Components() ([]Component, error) {
 	var result []Component
 
-	componentsDir := path.Join(c.baseDir, configRoot, manifestsDir)
-	components, err := os.ReadDir(componentsDir)
+	componentsDir := path.Join(configRoot, manifestsDir)
+	components, err := fs.ReadDir(c.files, componentsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -147,7 +150,7 @@ func (c *SimpleConfig) Components() ([]Component, error) {
 		var manifests []Manifest
 
 		componentDir := path.Join(componentsDir, component.Name())
-		files, err := os.ReadDir(componentDir)
+		files, err := fs.ReadDir(c.files, componentDir)
 		if err != nil {
 			return nil, err
 		}

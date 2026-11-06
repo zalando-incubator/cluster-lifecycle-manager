@@ -25,7 +25,7 @@ type ConfigSource interface {
 
 	// Version returns the ConfigVersion for the corresponding channel (or overrides, if this is a
 	// combined source)
-	Version(channel string, overrides map[string]string) (ConfigVersion, error)
+	Version(ctx context.Context, channel string, overrides map[string]string) (ConfigVersion, error)
 }
 
 // GarbageCollector is an optional interface for config sources that support

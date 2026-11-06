@@ -33,30 +33,32 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 
 // LifecycleManagerConfig stores the configuration for app
 type LifecycleManagerConfig struct {
-	Registry            string
-	AccountFilter       IncludeExcludeFilter
-	Token               string
-	RegistryTokenName   string
-	ClusterTokenName    string
-	AssumedRole         string
-	Interval            time.Duration
-	Debug               bool
-	DumpRequest         bool
-	DryRun              bool
-	ConcurrentUpdates   uint
-	Listen              string
-	Workdir             string
-	Directory           string
-	Providers           []string
-	ConfigSources       []string
-	SSHPrivateKeyFile   string
-	CredentialsDir      string
-	ApplyOnly           bool
-	AwsMaxRetries       int
-	AwsMaxRetryInterval time.Duration
-	UpdateStrategy      UpdateStrategy
-	RemoveVolumes       bool
-	ManageEtcdStack     bool
+	Registry                  string
+	AccountFilter             IncludeExcludeFilter
+	Token                     string
+	RegistryTokenName         string
+	ClusterTokenName          string
+	AssumedRole               string
+	Interval                  time.Duration
+	Debug                     bool
+	DumpRequest               bool
+	DryRun                    bool
+	ConcurrentUpdates         uint
+	Listen                    string
+	Workdir                   string
+	Directory                 string
+	Providers                 []string
+	ConfigSources             []string
+	GitChannelRefreshInterval time.Duration
+	GitChannelCacheMaxAge     time.Duration
+	SSHPrivateKeyFile         string
+	CredentialsDir            string
+	ApplyOnly                 bool
+	AwsMaxRetries             int
+	AwsMaxRetryInterval       time.Duration
+	UpdateStrategy            UpdateStrategy
+	RemoveVolumes             bool
+	ManageEtcdStack           bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -93,7 +95,9 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 		"provider",
 		"Cloud provider. Defaults to single provider \"zalando-aws\".",
 	).Default(defaultProvider).EnumsVar(&cfg.Providers, "zalando-aws", "zalando-eks")
-	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH or NAME:git:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
+	kingpin.Flag("config-source", "Config source specification (NAME:dir:PATH, NAME:git:URL or NAME:git-channel:URL). At least one is required.").StringsVar(&cfg.ConfigSources)
+	kingpin.Flag("git-channel-refresh-interval", "Minimum interval between git-channel refresh attempts.").Default("15s").DurationVar(&cfg.GitChannelRefreshInterval)
+	kingpin.Flag("git-channel-cache-max-age", "Remove git-channel caches unused for this duration.").Default("720h").DurationVar(&cfg.GitChannelCacheMaxAge)
 	kingpin.Flag("directory", "Use a single directory as a config source (for local/development use)").StringVar(&cfg.Directory)
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)
 	kingpin.Flag("ssh-private-key-path", "Path to SSH private key used when pulling from a private git repository.").Envar("SSH_PRIVATE_KEY_PATH").StringVar(&cfg.SSHPrivateKeyFile)

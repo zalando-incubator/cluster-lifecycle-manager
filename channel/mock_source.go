@@ -24,7 +24,7 @@ func (s *mockSource) Update(_ context.Context, _ *logrus.Entry) error {
 	return nil
 }
 
-func (s *mockSource) Version(channel string, _ map[string]string) (ConfigVersion, error) {
+func (s *mockSource) Version(_ context.Context, channel string, _ map[string]string) (ConfigVersion, error) {
 	for _, validChannel := range s.validChannels {
 		if validChannel == channel {
 			return &mockVersion{channel: channel}, nil

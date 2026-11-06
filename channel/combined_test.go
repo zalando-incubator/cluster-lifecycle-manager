@@ -22,14 +22,14 @@ func TestCombinedSourceOverrides(t *testing.T) {
 	combined, err := NewCombinedSource([]ConfigSource{main, secondary})
 	require.NoError(t, err)
 
-	version, err := combined.Version("master", map[string]string{"secondary": "alternate"})
+	version, err := combined.Version(context.Background(), "master", map[string]string{"secondary": "alternate"})
 	require.NoError(t, err)
 	require.Equal(t, "main=master;secondary=alternate", version.ID())
 
-	_, err = combined.Version("missing", map[string]string{"secondary": "alternate"})
+	_, err = combined.Version(context.Background(), "missing", map[string]string{"secondary": "alternate"})
 	require.Error(t, err)
 
-	_, err = combined.Version("master", map[string]string{"secondary": "missing"})
+	_, err = combined.Version(context.Background(), "master", map[string]string{"secondary": "missing"})
 	require.Error(t, err)
 }
 
@@ -77,7 +77,7 @@ func TestCombinedSource(t *testing.T) {
 	combined, err := NewCombinedSource([]ConfigSource{mainSrc, secondarySrc})
 	require.NoError(t, err)
 
-	anyVersion, err := combined.Version("foobar", nil)
+	anyVersion, err := combined.Version(context.Background(), "foobar", nil)
 	require.NoError(t, err)
 
 	config, err := anyVersion.Get(context.Background(), logger)
