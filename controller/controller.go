@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -36,8 +38,9 @@ type Options struct {
 	DryRun            bool
 	ConcurrentUpdates uint
 	EnvironmentOrder  []string
-	// RestartOnChangesAfter cancels an update that has been running for at
-	// least this long when a newer cluster version is available. Zero
+	// RestartOnChangesAfter asks the node pool update of a ready cluster to
+	// restart when it has been running for at least this long and a newer
+	// cluster version is available. Zero
 	// disables it.
 	RestartOnChangesAfter time.Duration
 }
@@ -110,12 +113,13 @@ func (c *Controller) processWorkerLoop(ctx context.Context, workerNum uint) {
 	for {
 		select {
 		case <-time.After(c.interval):
-			updateCtx, cancelFunc := context.WithCancelCause(ctx)
-			nextCluster := c.clusterList.SelectNext(cancelFunc)
+			updateCtx, cancelFunc := context.WithCancel(ctx)
+			restart := updatestrategy.NewRestartSignal()
+			nextCluster := c.clusterList.SelectNext(cancelFunc, restart)
 			if nextCluster != nil {
-				c.processCluster(updateCtx, workerNum, nextCluster)
+				c.processCluster(updatestrategy.WithRestartSignal(updateCtx, restart), workerNum, nextCluster)
 			}
-			cancelFunc(nil)
+			cancelFunc()
 		case <-ctx.Done():
 			return
 		}
@@ -256,6 +260,13 @@ func (c *Controller) processCluster(updateCtx context.Context, workerNum uint, c
 	versionedLog.Infof("Processing cluster (%s)", cluster.LifecycleStatus)
 
 	err := c.doProcessCluster(updateCtx, clusterLog, clusterInfo)
+
+	// a restart was requested to pick up a newer version: it's not a failure,
+	// so no problem is recorded and the next run starts with the new version
+	if errors.Is(err, updatestrategy.ErrUpdateRestarted) {
+		versionedLog.Info("Update stopped to restart with a newer version")
+		return
+	}
 
 	// log the error and resolve the special error cases
 	if err != nil {

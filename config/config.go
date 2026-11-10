@@ -85,7 +85,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("cluster-token-name", "Name of the token used when authenticating with a cluster.").Default(defaultClusterTokenName).StringVar(&cfg.ClusterTokenName)
 	kingpin.Flag("assumed-role", "The role ARN to assume in target accounts.").StringVar(&cfg.AssumedRole)
 	kingpin.Flag("interval", "The interval between iterations in Duration format, e.g. 60s.").Default(defaultInterval).DurationVar(&cfg.Interval)
-	kingpin.Flag("restart-on-changes-after", "Cancel an update in progress and restart it with the new version if the cluster has changes and the update has been running for at least this long, e.g. 30m. Changes are detected on every --interval. 0 disables it.").Default("0s").DurationVar(&cfg.RestartOnChangesAfter)
+	kingpin.Flag("restart-on-changes-after", "Stop the node pool update of a ready cluster and restart it with the new version if the cluster has changes and the update has been running for at least this long, e.g. 30m. Changes are detected on every --interval. 0 disables it.").Default("0s").DurationVar(&cfg.RestartOnChangesAfter)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&cfg.Debug)
 	kingpin.Flag("dump-request", "Enable logging http requests.").BoolVar(&cfg.DumpRequest)
 	kingpin.Flag("dry-run", "Don't make any changes, just print.").BoolVar(&cfg.DryRun)

@@ -262,9 +262,10 @@ func TestCLCUpdateStrategyRestartKeepsNodesMarked(t *testing.T) {
 	for name, expected := range map[string]nodeState{
 		"node-1": nodeStateTerminated,
 		"node-3": nodeStateTerminated,
-		// old nodes stay marked, the next run continues with them
-		"node-4": nodeStateDecommissionPending,
-		"node-6": nodeStateDecommissionPending,
+		// nothing else is marked once the restart is requested, the next
+		// run continues with the remaining old nodes
+		"node-4": nodeStateReady,
+		"node-6": nodeStateReady,
 		// current nodes are untouched
 		"node-2": nodeStateReady,
 		"node-5": nodeStateReady,

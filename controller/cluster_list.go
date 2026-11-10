@@ -29,7 +29,8 @@ const (
 type ClusterInfo struct {
 	lastProcessed  time.Time
 	state          int
-	cancelUpdate   context.CancelCauseFunc
+	cancelUpdate   context.CancelFunc
+	restart        *updatestrategy.RestartSignal
 	updatePriority uint32
 	processingFrom time.Time
 	Cluster        *api.Cluster
@@ -61,7 +62,7 @@ func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
 	}
 }
 
-// SetRestartAfter enables cancelling an update in progress when a newer
+// SetRestartAfter enables asking an update in progress to restart when a newer
 // version of the cluster is available, once the update has been running for
 // at least the given duration. The cancelled cluster is picked up again with
 // the new version. Zero (the default) disables it.
@@ -152,17 +153,17 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 				existing.NextError = nextError
 			} else if updateBlocked(cluster) {
 				// abort an update in progress
-				existing.cancelUpdate(context.Canceled)
+				existing.cancelUpdate()
 			} else if clusterList.shouldRestart(existing, nextVersion, nextError) {
-				// stop the update in progress without rolling it back, the
-				// next run continues with the new version
-				existing.cancelUpdate(updatestrategy.ErrUpdateRestarted)
+				// ask the update in progress to stop without rolling it back,
+				// the next run continues with the new version
+				existing.restart.Request()
 			}
 		} else {
 			clusterList.clusters[cluster.ID] = &ClusterInfo{
 				lastProcessed:  time.Unix(0, 0),
 				state:          stateIdle,
-				cancelUpdate:   func(error) {},
+				cancelUpdate:   func() {},
 				Cluster:        cluster,
 				ChannelVersion: channelVersion,
 				CurrentVersion: currentVersion,
@@ -185,16 +186,17 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 	}
 }
 
-// shouldRestart returns true if the update in progress should be cancelled
-// because a different version is now available. New clusters are never
-// restarted because the provisioner changes their config items while creating
-// them.
+// shouldRestart returns true if the update in progress should be asked to
+// restart because a different version is now available. Only ready clusters
+// are restarted: clusters being created or decommissioned are left alone. The
+// request is only a signal, the steps of the update decide whether they can
+// stop (e.g. CloudFormation updates are never interrupted).
 func (clusterList *ClusterList) shouldRestart(running *ClusterInfo, nextVersion *api.ClusterVersion, nextError error) bool {
 	if clusterList.restartAfter <= 0 || nextError != nil || nextVersion == nil || running.NextVersion == nil {
 		return false
 	}
 
-	if running.Cluster.LifecycleStatus == statusRequested {
+	if running.Cluster.LifecycleStatus != statusReady {
 		return false
 	}
 
@@ -241,7 +243,7 @@ func (clusterList *ClusterList) updatePriority(clusterInfo *ClusterInfo) uint32 
 // SelectNext returns the next cluster to update, if any, and marks it as being processed. A cluster with higher
 // priority will be selected first, in case of ties it'll select a cluster that hasn't been updated for the longest
 // time.
-func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelCauseFunc) *ClusterInfo {
+func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc, restart *updatestrategy.RestartSignal) *ClusterInfo {
 	clusterList.Lock()
 	defer clusterList.Unlock()
 
@@ -252,6 +254,7 @@ func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelCauseFunc)
 	result := clusterList.pendingUpdate[0]
 	result.state = stateProcessing
 	result.cancelUpdate = cancelUpdate
+	result.restart = restart
 	result.processingFrom = clusterList.now()
 	clusterList.pendingUpdate = clusterList.pendingUpdate[1:]
 
@@ -265,7 +268,8 @@ func (clusterList *ClusterList) ClusterProcessed(cluster *ClusterInfo) {
 
 	if cluster, ok := clusterList.clusters[cluster.Cluster.ID]; ok {
 		cluster.state = stateProcessed
-		cluster.cancelUpdate = func(error) {}
+		cluster.cancelUpdate = func() {}
+		cluster.restart = nil
 		cluster.lastProcessed = time.Now()
 	}
 }
