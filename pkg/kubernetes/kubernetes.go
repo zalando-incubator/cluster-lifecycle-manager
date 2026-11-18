@@ -152,7 +152,11 @@ func NewClientsCollection(
 	tokenSrc oauth2.TokenSource,
 	caData []byte,
 ) (*ClientsCollection, error) {
-	cfg := newConfig(host, tokenSrc, caData)
+	return NewClientsCollectionFromConfig(newConfig(host, tokenSrc, caData))
+}
+
+// NewClientsCollectionFromConfig returns clients using the given Kubernetes REST configuration.
+func NewClientsCollectionFromConfig(cfg *rest.Config) (*ClientsCollection, error) {
 	typedClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
