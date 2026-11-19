@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	awsUtils "github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 	"gopkg.in/yaml.v2"
@@ -44,7 +45,13 @@ func (p *kubernetesApplyProvisioner) Provision(ctx context.Context, logger *log.
 	if !p.Supports(cluster) {
 		return ErrProviderNotSupported
 	}
+	if err := p.prepareConfig(ctx, cluster, channelConfig, nil, nil); err != nil {
+		return err
+	}
+	return p.provisionPrepared(ctx, logger, cluster, channelConfig, map[string]interface{}{}, nil, nil)
+}
 
+func (p *kubernetesApplyProvisioner) prepareConfig(ctx context.Context, cluster *api.Cluster, channelConfig channel.Config, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
 	defaultsFiles, err := channelConfig.DefaultsManifests()
 	if err != nil {
 		return fmt.Errorf("unable to read configuration defaults: %w", err)
@@ -53,7 +60,7 @@ func (p *kubernetesApplyProvisioner) Provision(ctx context.Context, logger *log.
 	withoutConfigItems.ConfigItems = make(map[string]string)
 	defaults := make(map[string]string)
 	for _, file := range defaultsFiles {
-		rendered, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, nil, nil)
+		rendered, err := renderSingleTemplate(file, &withoutConfigItems, nil, nil, adapter, instanceTypes)
 		if err != nil {
 			return fmt.Errorf("unable to render defaults file %s: %w", file.Path, err)
 		}
@@ -90,13 +97,15 @@ func (p *kubernetesApplyProvisioner) Provision(ctx context.Context, logger *log.
 			}
 		}
 	}
+	return nil
+}
 
-	values := map[string]interface{}{}
-	deletions, err := parseDeletions(channelConfig, cluster, values, nil, nil)
+func (p *kubernetesApplyProvisioner) provisionPrepared(ctx context.Context, logger *log.Entry, cluster *api.Cluster, channelConfig channel.Config, values map[string]interface{}, adapter *awsAdapter, instanceTypes *awsUtils.InstanceTypes) error {
+	deletions, err := parseDeletions(channelConfig, cluster, values, adapter, instanceTypes)
 	if err != nil {
 		return err
 	}
-	manifests, err := renderManifests(channelConfig, cluster, values, nil, nil)
+	manifests, err := renderManifests(channelConfig, cluster, values, adapter, instanceTypes)
 	if err != nil {
 		return err
 	}
@@ -115,7 +124,7 @@ func (p *kubernetesApplyProvisioner) Provision(ctx context.Context, logger *log.
 		return err
 	}
 	if client == nil {
-		return fmt.Errorf("Kubernetes client factory returned nil for provider %s", p.provider)
+		return fmt.Errorf("kubernetes client factory returned nil for provider %s", p.provider)
 	}
 	deleteResources := func(resources []*kubernetes.Resource) error {
 		for _, resource := range resources {

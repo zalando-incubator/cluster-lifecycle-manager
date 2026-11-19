@@ -66,6 +66,7 @@ func applyTestConfig(t *testing.T, deletions ...string) *channel.SimpleConfig {
 	dir := t.TempDir()
 	files := map[string]string{
 		"cluster/config-defaults.yaml":            "name: default\noverride: default\n",
+		"cluster/cluster.yaml":                    "AWSTemplateFormatVersion: '2010-09-09'\nResources: {}\n",
 		"cluster/manifests/01-first/config.yaml":  "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: '{{.Cluster.ConfigItems.name}}'\n  namespace: default\n",
 		"cluster/manifests/02-second/config.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: '{{.Cluster.ConfigItems.override}}'\n  namespace: default\n",
 		// CloudFormation deletions must not be parsed or executed.
@@ -239,9 +240,9 @@ func TestKubernetesApplyWithAnotherProvider(t *testing.T) {
 func TestNebiusProvisioner(t *testing.T) {
 	logger := log.NewEntry(log.New())
 	config := applyTestConfig(t, testApplyDeletions)
-	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, ID: "nebius-test"}
+	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, ID: "nebius-test", LocalID: "nebius-test", InfrastructureAccount: "aws:123456789012", Region: "eu-central-1"}
 	other := &api.Cluster{Provider: api.ProviderID("kubernetes-apply")}
-	p := NewNebiusProvisioner(nil, false).(*NebiusProvisioner)
+	p := newTestNebiusProvisioner()
 	require.True(t, p.Supports(cluster))
 	require.False(t, p.Supports(other))
 	require.ErrorIs(t, p.Provision(context.Background(), logger, other, config), ErrProviderNotSupported)
@@ -301,9 +302,9 @@ contexts:
 	require.Equal(t, "https://selected.example.com", cfg.Host)
 	require.Equal(t, "context-token", cfg.BearerToken)
 	require.True(t, cfg.Insecure)
-	p := NewNebiusProvisioner(nil, false).(*NebiusProvisioner)
+	p := newTestNebiusProvisioner()
 	var events []string
-	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, APIServerURL: "https://wrong.example.com"}
+	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, ID: "test", LocalID: "test", InfrastructureAccount: "aws:123456789012", Region: "eu-central-1", APIServerURL: "https://wrong.example.com"}
 	p.apply.newClient = func(c *api.Cluster) (kubernetesApplyClient, error) {
 		require.Same(t, cluster, c)
 		return &recordingClient{&recordingApplier{events: &events}, &recordingDeleter{events: &events}}, nil
@@ -321,8 +322,9 @@ func TestKubernetesApplyKubeconfigErrors(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			writeTestKubeconfig(t, tc.config)
-			p := NewNebiusProvisioner(nil, false)
-			err := p.Provision(context.Background(), log.NewEntry(log.New()), &api.Cluster{Provider: api.ZalandoNebiusProvider}, applyTestConfig(t))
+			p := newTestNebiusProvisioner()
+			cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, ID: "test", LocalID: "test", InfrastructureAccount: "aws:123456789012", Region: "eu-central-1"}
+			err := p.Provision(context.Background(), log.NewEntry(log.New()), cluster, applyTestConfig(t))
 			require.ErrorContains(t, err, tc.want)
 		})
 	}
