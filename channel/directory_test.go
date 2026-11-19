@@ -35,3 +35,20 @@ func TestDirectoryChannel(t *testing.T) {
 	_, err = os.Stat(tempDir)
 	require.NoError(t, err)
 }
+
+func TestDirectoryManifestOrigin(t *testing.T) {
+	dir := CreateTempDir(t)
+	defer os.RemoveAll(dir)
+	setupExampleConfig(t, dir, "main")
+
+	d, err := NewDirectory("main", dir)
+	require.NoError(t, err)
+	version, err := d.Version("any", nil)
+	require.NoError(t, err)
+	config, err := version.Get(context.Background(), log.NewEntry(log.New()))
+	require.NoError(t, err)
+
+	stack, err := config.StackManifest("stack.yaml")
+	require.NoError(t, err)
+	require.Equal(t, Origin{Repository: "main", Ref: "local-directory", FilePath: "cluster/stack.yaml"}, stack.Origin)
+}

@@ -22,6 +22,27 @@ type ResourceManifest struct {
 	SourceFile string
 }
 
+// SetAnnotations sets the given annotations on the resource's metadata,
+// overriding existing values for the same keys.
+func (m *ResourceManifest) SetAnnotations(annotations map[string]string) {
+	content, ok := m.Content.(map[string]any)
+	if !ok {
+		return
+	}
+	metadata, ok := content["metadata"].(map[string]any)
+	if !ok {
+		return
+	}
+	existing, ok := metadata["annotations"].(map[string]any)
+	if !ok {
+		existing = map[string]any{}
+	}
+	for k, v := range annotations {
+		existing[k] = v
+	}
+	metadata["annotations"] = existing
+}
+
 // ToYaml serializes the manifest back to Yaml
 func (m *ResourceManifest) ToYaml() (string, error) {
 	result, err := yaml.Marshal(m.Content)

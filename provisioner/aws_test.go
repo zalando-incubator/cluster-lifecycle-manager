@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 
 	log "github.com/sirupsen/logrus"
@@ -309,7 +310,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 	s3Bucket := "s3-bucket"
 
 	// test creating stack with small stack template
-	err := awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err := awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket, channel.Origin{})
 	assert.NoError(t, err)
 
 	templateValue := make([]string, stackMaxSize+1)
@@ -320,12 +321,12 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 
 	// test create when template is too big and must be uploaded to s3
 	awsAdapter.s3Uploader = &s3UploaderAPIStub{}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket, channel.Origin{})
 	assert.NoError(t, err)
 
 	// test create bucket failing when s3 upload fails
 	awsAdapter.s3Uploader = &s3UploaderAPIStub{errors.New("error")}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", hugeTemplate, cluster, s3Bucket, channel.Origin{})
 	assert.Error(t, err)
 
 	// test updating existing stack
@@ -333,7 +334,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 		createErr:   &cftypes.AlreadyExistsException{},
 	}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket, channel.Origin{})
 	assert.NoError(t, err)
 
 	// test create failing
@@ -341,7 +342,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		statusMutex: &sync.Mutex{},
 		createErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket, channel.Origin{})
 	assert.Error(t, err)
 
 	// test updating when stack is already up to date
@@ -353,7 +354,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 			Message: cloudformationNoUpdateMsg,
 		},
 	}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket, channel.Origin{})
 	assert.NoError(t, err)
 
 	// test update failing
@@ -362,7 +363,7 @@ func TestCreateOrUpdateClusterStack(t *testing.T) {
 		createErr:   &cftypes.AlreadyExistsException{},
 		updateErr:   errors.New("error"),
 	}
-	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket)
+	err = awsAdapter.applyClusterStack(context.Background(), "stack-name", `{"stack": "template"}`, cluster, s3Bucket, channel.Origin{})
 	assert.Error(t, err)
 }
 

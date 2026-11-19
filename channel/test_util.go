@@ -52,19 +52,19 @@ func expectedManifest(sourceName, manifestPath string, contents string) Manifest
 func verifyExampleConfig(t *testing.T, config Config, sourceName string, mainStack string) {
 	stack, err := config.StackManifest("stack.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest(sourceName, "cluster/stack.yaml", mainStack), stack)
+	require.Equal(t, expectedManifest(sourceName, "cluster/stack.yaml", mainStack), stripOrigin(stack))
 
 	pool, err := config.NodePoolManifest("example", "main.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest(sourceName, "cluster/node-pools/example/main.yaml", "node-pool"), pool)
+	require.Equal(t, expectedManifest(sourceName, "cluster/node-pools/example/main.yaml", "node-pool"), stripOrigin(pool))
 
 	defaults, err := config.DefaultsManifests()
 	require.NoError(t, err)
-	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/config-defaults.yaml", "defaults")}, defaults)
+	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/config-defaults.yaml", "defaults")}, stripOrigins(defaults))
 
 	deletions, err := config.DeletionsManifests()
 	require.NoError(t, err)
-	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/manifests/deletions.yaml", "deletions")}, deletions)
+	require.Equal(t, []Manifest{expectedManifest(sourceName, "cluster/manifests/deletions.yaml", "deletions")}, stripOrigins(deletions))
 
 	manifests, err := config.Components()
 	require.NoError(t, err)
@@ -83,5 +83,26 @@ func verifyExampleConfig(t *testing.T, config Config, sourceName string, mainSta
 			},
 		},
 	}
-	require.Equal(t, expected, manifests)
+	require.Equal(t, expected, stripComponentOrigins(manifests))
+}
+
+func stripOrigin(m Manifest) Manifest {
+	m.Origin = Origin{}
+	return m
+}
+
+func stripOrigins(ms []Manifest) []Manifest {
+	result := make([]Manifest, len(ms))
+	for i, m := range ms {
+		result[i] = stripOrigin(m)
+	}
+	return result
+}
+
+func stripComponentOrigins(cs []Component) []Component {
+	result := make([]Component, len(cs))
+	for i, c := range cs {
+		result[i] = Component{Name: c.Name, Manifests: stripOrigins(c.Manifests)}
+	}
+	return result
 }

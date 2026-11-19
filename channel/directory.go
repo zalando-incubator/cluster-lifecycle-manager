@@ -6,6 +6,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// directoryRef is reported as the ref of manifests read from a directory,
+// since there is no branch to speak of.
+const directoryRef = "local-directory"
+
 // Directory defines a channel source where everything is stored in a directory.
 type Directory struct {
 	name     string
@@ -37,5 +41,9 @@ func (d *Directory) ID() string {
 }
 
 func (d *Directory) Get(_ context.Context, _ *log.Entry) (Config, error) {
-	return NewSimpleConfig(d.name, d.location, false)
+	config, err := NewSimpleConfig(d.name, d.location, false)
+	if err != nil {
+		return nil, err
+	}
+	return config.WithOrigin(d.name, directoryRef), nil
 }

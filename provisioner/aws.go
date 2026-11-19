@@ -32,6 +32,7 @@ import (
 	"github.com/cenkalti/backoff"
 	log "github.com/sirupsen/logrus"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/aws/iface"
 	awsutil "github.com/zalando-incubator/kube-ingress-aws-controller/aws"
 	"github.com/zalando-incubator/kube-ingress-aws-controller/certs"
@@ -157,7 +158,7 @@ func (a *awsAdapter) VerifyAccount(ctx context.Context, accountID string) error 
 // stackTemplate.
 // If the stackTemplate exceeds the max size, it will automatically upload it
 // to S3 before creating or updating the stack.
-func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string) error {
+func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemplate string, cluster *api.Cluster, s3BucketName string, origin channel.Origin) error {
 	var templateURL string
 	if len(stackTemplate) > stackMaxSize {
 		// Upload the stack template to S3
@@ -176,6 +177,7 @@ func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemp
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 		mainStackTagKey: stackTagValueTrue,
 	}
+	stackTags = mergeTags(stackTags, sourceInformation(origin))
 
 	return a.applyStack(ctx, stackName, stackTemplate, templateURL, stackTags, true, nil)
 }
@@ -226,6 +228,7 @@ type CFManifest struct {
 	} `yaml:"Metadata"`
 	Template string
 	Path     string
+	Origin   channel.Origin
 }
 
 func (a *awsAdapter) applyCFManifest(ctx context.Context, cfManifest *CFManifest, clusterID string, s3BucketName string) error {
@@ -248,6 +251,7 @@ func (a *awsAdapter) applyCFManifest(ctx context.Context, cfManifest *CFManifest
 	stackTags := map[string]string{
 		tagNameKubernetesClusterPrefix + clusterID: resourceLifecycleOwned,
 	}
+	stackTags = mergeTags(stackTags, sourceInformation(cfManifest.Origin))
 
 	return a.applyStack(ctx, cfManifest.Metadata.StackName, cfManifest.Template, templateURL, stackTags, true, nil)
 }
