@@ -85,29 +85,29 @@ func TestCombinedSource(t *testing.T) {
 
 	stack, err := config.StackManifest("stack.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest("main", "cluster/stack.yaml", "stack"), stack)
+	require.Equal(t, expectedManifest("main", "cluster/stack.yaml", "stack"), stripOrigin(stack))
 
 	etcdStack, err := config.EtcdManifest("stack.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest("main", "cluster/etcd/stack.yaml", "etcd"), etcdStack)
+	require.Equal(t, expectedManifest("main", "cluster/etcd/stack.yaml", "etcd"), stripOrigin(etcdStack))
 
 	pool, err := config.NodePoolManifest("example", "main.yaml")
 	require.NoError(t, err)
-	require.Equal(t, expectedManifest("main", "cluster/node-pools/example/main.yaml", "node-pool"), pool)
+	require.Equal(t, expectedManifest("main", "cluster/node-pools/example/main.yaml", "node-pool"), stripOrigin(pool))
 
 	defaults, err := config.DefaultsManifests()
 	require.NoError(t, err)
 	require.Equal(t, []Manifest{
 		expectedManifest("main", "cluster/config-defaults.yaml", "defaults"),
 		expectedManifest("secondary", "cluster/config-defaults.yaml", "secondary-defaults"),
-	}, defaults)
+	}, stripOrigins(defaults))
 
 	deletions, err := config.DeletionsManifests()
 	require.NoError(t, err)
 	require.Equal(t, []Manifest{
 		expectedManifest("main", "cluster/manifests/deletions.yaml", "deletions"),
 		expectedManifest("secondary", "cluster/manifests/deletions.yaml", "secondary-deletions"),
-	}, deletions)
+	}, stripOrigins(deletions))
 
 	manifests, err := config.Components()
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestCombinedSource(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, expected, manifests)
+	require.Equal(t, expected, stripComponentOrigins(manifests))
 
 	require.NoError(t, config.Delete())
 }

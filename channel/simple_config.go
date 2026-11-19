@@ -22,6 +22,8 @@ type SimpleConfig struct {
 	pathPrefix  string
 	baseDir     string
 	allowDelete bool
+	repository  string
+	ref         string
 }
 
 func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*SimpleConfig, error) {
@@ -36,6 +38,14 @@ func NewSimpleConfig(sourceName string, baseDir string, allowDelete bool) (*Simp
 	}, nil
 }
 
+// WithOrigin records the repository and ref this config was checked out from,
+// so it can be attached to every manifest read from it.
+func (c *SimpleConfig) WithOrigin(repository, ref string) *SimpleConfig {
+	c.repository = repository
+	c.ref = ref
+	return c
+}
+
 func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Manifest, error) {
 	filePath := path.Join(c.baseDir, manifestDirectory, name)
 	res, err := os.ReadFile(filePath)
@@ -45,6 +55,11 @@ func (c *SimpleConfig) readManifest(manifestDirectory string, name string) (Mani
 	return Manifest{
 		Path:     path.Join(c.pathPrefix, manifestDirectory, name),
 		Contents: res,
+		Origin: Origin{
+			Repository: c.repository,
+			Ref:        c.ref,
+			FilePath:   path.Join(manifestDirectory, name),
+		},
 	}, nil
 }
 

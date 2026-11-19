@@ -1,0 +1,55 @@
+package provisioner
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
+)
+
+func TestProvenance(t *testing.T) {
+	require.Equal(t, map[string]string{
+		"deployment.zalando.org/owner": "cluster-lifecycle-manager",
+	}, provenance(channel.Origin{}))
+
+	require.Equal(t, map[string]string{
+		"deployment.zalando.org/owner":                "cluster-lifecycle-manager",
+		"deployment.zalando.org/repository-name":      "org/repo",
+		"deployment.zalando.org/repository-branch":    "main",
+		"deployment.zalando.org/repository-file-path": "cluster/stack.yaml",
+	}, provenance(channel.Origin{Repository: "org/repo", Ref: "main", FilePath: "cluster/stack.yaml"}))
+}
+
+func TestSetAnnotations(t *testing.T) {
+	manifests, err := kubernetes.ParseResourceManifest("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a\n  annotations:\n    keep: me\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: b\n", "x.yaml")
+	require.NoError(t, err)
+	for _, m := range manifests {
+		m.SetAnnotations(map[string]string{"foo": "bar"})
+	}
+	a, err := manifests[0].ToYaml()
+	require.NoError(t, err)
+	require.Contains(t, a, "keep: me")
+	require.Contains(t, a, "foo: bar")
+	b, err := manifests[1].ToYaml()
+	require.NoError(t, err)
+	require.Contains(t, b, "foo: bar")
+}
+
+func TestSetAnnotationsOverridesExisting(t *testing.T) {
+	manifests, err := kubernetes.ParseResourceManifest("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a\n  annotations:\n    deployment.zalando.org/owner: someone-else\n", "x.yaml")
+	require.NoError(t, err)
+	manifests[0].SetAnnotations(provenance(channel.Origin{}))
+	out, err := manifests[0].ToYaml()
+	require.NoError(t, err)
+	require.Contains(t, out, "deployment.zalando.org/owner: cluster-lifecycle-manager")
+	require.NotContains(t, out, "someone-else")
+}
+
+func TestProvenanceOverridesTemplateTags(t *testing.T) {
+	templateTags, err := tagsFromStackTemplate("Metadata:\n  Tags:\n    deployment.zalando.org/owner: someone-else\n    other: kept\n")
+	require.NoError(t, err)
+	merged := mergeTags(templateTags, provenance(channel.Origin{}))
+	require.Equal(t, "cluster-lifecycle-manager", merged["deployment.zalando.org/owner"])
+	require.Equal(t, "kept", merged["other"])
+}

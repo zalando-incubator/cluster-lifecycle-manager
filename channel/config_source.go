@@ -35,9 +35,18 @@ type GarbageCollector interface {
 	GarbageCollect(ctx context.Context, logger *log.Entry) error
 }
 
+// Origin describes where a manifest comes from: the repository (or local
+// directory), the ref it was resolved from and its path within the repository.
+type Origin struct {
+	Repository string
+	Ref        string
+	FilePath   string
+}
+
 type Manifest struct {
 	Path     string
 	Contents []byte
+	Origin   Origin
 }
 
 type Component struct {

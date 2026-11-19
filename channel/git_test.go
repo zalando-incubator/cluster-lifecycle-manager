@@ -750,3 +750,13 @@ func TestGetRepoName(t *testing.T) {
 		})
 	}
 }
+
+func TestRepositoryPath(t *testing.T) {
+	for url, expected := range map[string]string{
+		"git@github.com:zalando-incubator/kubernetes-on-aws.git":     "zalando-incubator/kubernetes-on-aws",
+		"https://github.com/zalando-incubator/kubernetes-on-aws.git": "zalando-incubator/kubernetes-on-aws",
+		"ssh://git@github.com/zalando-incubator/kubernetes-on-aws":   "zalando-incubator/kubernetes-on-aws",
+	} {
+		require.Equal(t, expected, repositoryPath(url), url)
+	}
+}

@@ -135,13 +135,13 @@ func (r *NodePoolTemplateRenderer) prepareCloudInit(ctx context.Context, nodePoo
 	return base64.StdEncoding.EncodeToString(gzipBuffer.Bytes()), nil
 }
 
-func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, error) {
+func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}, templateFileName string) (string, channel.Origin, error) {
 	var renderedUserData string
 	var err error
 
 	renderedUserData, err = r.prepareCloudInit(ctx, nodePool, values)
 	if err != nil {
-		return "", err
+		return "", channel.Origin{}, err
 	}
 
 	values[userDataValuesKey] = renderedUserData
@@ -151,9 +151,10 @@ func (r *NodePoolTemplateRenderer) generateNodePoolTemplate(ctx context.Context,
 	}
 	stackManifest, err := r.config.NodePoolManifest(nodePool.Profile, templateFileName)
 	if err != nil {
-		return "", err
+		return "", channel.Origin{}, err
 	}
-	return renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter, r.instanceTypes)
+	rendered, err := renderSingleTemplate(stackManifest, r.cluster, nodePool, values, r.awsAdapter, r.instanceTypes)
+	return rendered, stackManifest.Origin, err
 }
 
 type KarpenterNodePoolProvisioner struct {
@@ -220,7 +221,7 @@ func (p *KarpenterNodePoolProvisioner) Provision(ctx context.Context, nodePools 
 }
 
 func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool *api.NodePool, values map[string]interface{}) error {
-	template, err := p.generateNodePoolTemplate(ctx, nodePool, values, provisionersFileName)
+	template, origin, err := p.generateNodePoolTemplate(ctx, nodePool, values, provisionersFileName)
 	if err != nil {
 		return err
 	}
@@ -232,7 +233,9 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse provisioners manifest for node pool %s", nodePool.Name)
 	}
+	annotations := provenance(origin)
 	for _, m := range manifests {
+		m.SetAnnotations(annotations)
 		if err := p.applier.Apply(ctx, m); err != nil {
 			return errors.Wrapf(err, "apply failed for %s/%s in node pool %s", m.Kind, m.Name, nodePool.Name)
 		}
@@ -363,7 +366,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		values[availabilityZonesValueKey] = azInfo.AvailabilityZones()
 	}
 
-	template, err := p.generateNodePoolTemplate(ctx, nodePool, values, stackFileName)
+	template, origin, err := p.generateNodePoolTemplate(ctx, nodePool, values, stackFileName)
 	if err != nil {
 		return err
 	}
@@ -378,6 +381,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		nodePoolTagKeyLegacy:  nodePool.Name,
 		nodePoolProfileTagKey: nodePool.Profile,
 	}
+	tags = mergeTags(tags, provenance(origin))
 
 	err = p.awsAdapter.applyStack(ctx, stackName, template, "", tags, true, nil)
 	if err != nil {

@@ -97,6 +97,7 @@ type Git struct {
 type gitVersion struct {
 	git *Git
 	sha string
+	ref string
 }
 
 func (v *gitVersion) ID() string {
@@ -109,7 +110,21 @@ func (v *gitVersion) Get(ctx context.Context, logger *log.Entry) (Config, error)
 		return nil, err
 	}
 
-	return NewSimpleConfig(v.git.name, repoDir, true)
+	config, err := NewSimpleConfig(v.git.name, repoDir, true)
+	if err != nil {
+		return nil, err
+	}
+	return config.WithOrigin(repositoryPath(v.git.repositoryURL), v.ref), nil
+}
+
+// repositoryPath returns the "owner/name" path of a repository URL (without
+// the .git suffix), or the URL itself if it can't be parsed.
+func repositoryPath(repositoryURL string) string {
+	ep, err := transport.NewEndpoint(repositoryURL)
+	if err != nil {
+		return repositoryURL
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(ep.Path, "/"), ".git")
 }
 
 // NewGit initializes a new git based ChannelSource.
@@ -305,6 +320,7 @@ func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error
 	return &gitVersion{
 		git: g,
 		sha: hash.String(),
+		ref: channel,
 	}, nil
 }
 

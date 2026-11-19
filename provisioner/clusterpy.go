@@ -540,6 +540,7 @@ func createOrUpdateEtcdStack(
 		applicationTagKey: "kubernetes",
 		componentTagKey:   "etcd-cluster",
 	}
+	tags = mergeTags(tags, provenance(template.Origin))
 
 	err = adapter.applyStack(ctx, etcdStackName, rendered, "", tags, true, &stackPolicy{
 		Statements: []stackPolicyStatement{
@@ -608,6 +609,7 @@ func applyCFManifests(ctx context.Context, logger *log.Entry, adapter *awsAdapte
 
 		cfManifest.Template = rendered
 		cfManifest.Path = manifest.Path
+		cfManifest.Origin = manifest.Origin
 
 		err = adapter.applyCFManifest(ctx, cfManifest, cluster.Name(), bucketName)
 		if err != nil {
@@ -638,7 +640,7 @@ func createOrUpdateClusterStack(ctx context.Context, config channel.Config, clus
 		return nil, err
 	}
 
-	err = adapter.applyClusterStack(ctx, cluster.LocalID, rendered, cluster, bucketName)
+	err = adapter.applyClusterStack(ctx, cluster.LocalID, rendered, cluster, bucketName, template.Origin)
 	if err != nil {
 		return nil, err
 	}
@@ -1367,6 +1369,10 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 				parsedResourceManifests, err := kubernetes.ParseResourceManifest(remarshaled, manifest.Path)
 				if err != nil {
 					return nil, fmt.Errorf("error parsing manifest %s: %v", manifest.Path, err)
+				}
+				annotations := provenance(manifest.Origin)
+				for _, m := range parsedResourceManifests {
+					m.SetAnnotations(annotations)
 				}
 
 				parsedManifests = append(parsedManifests, parsedResourceManifests...)
