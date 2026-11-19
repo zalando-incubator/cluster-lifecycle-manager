@@ -9,17 +9,17 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/kubernetes"
 )
 
-func TestProvenance(t *testing.T) {
+func TestSourceInformation(t *testing.T) {
 	require.Equal(t, map[string]string{
 		"deployment.zalando.org/owner": "cluster-lifecycle-manager",
-	}, provenance(channel.Origin{}))
+	}, sourceInformation(channel.Origin{}))
 
 	require.Equal(t, map[string]string{
 		"deployment.zalando.org/owner":                "cluster-lifecycle-manager",
 		"deployment.zalando.org/repository-name":      "org/repo",
 		"deployment.zalando.org/repository-branch":    "main",
 		"deployment.zalando.org/repository-file-path": "cluster/stack.yaml",
-	}, provenance(channel.Origin{Repository: "org/repo", Ref: "main", FilePath: "cluster/stack.yaml"}))
+	}, sourceInformation(channel.Origin{Repository: "org/repo", Ref: "main", FilePath: "cluster/stack.yaml"}))
 }
 
 func TestSetAnnotations(t *testing.T) {
@@ -40,27 +40,27 @@ func TestSetAnnotations(t *testing.T) {
 func TestSetAnnotationsOverridesExisting(t *testing.T) {
 	manifests, err := kubernetes.ParseResourceManifest("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a\n  annotations:\n    deployment.zalando.org/owner: someone-else\n", "x.yaml")
 	require.NoError(t, err)
-	manifests[0].SetAnnotations(provenance(channel.Origin{}))
+	manifests[0].SetAnnotations(sourceInformation(channel.Origin{}))
 	out, err := manifests[0].ToYaml()
 	require.NoError(t, err)
 	require.Contains(t, out, "deployment.zalando.org/owner: cluster-lifecycle-manager")
 	require.NotContains(t, out, "someone-else")
 }
 
-func TestProvenanceOverridesTemplateTags(t *testing.T) {
+func TestSourceInformationOverridesTemplateTags(t *testing.T) {
 	templateTags, err := tagsFromStackTemplate("Metadata:\n  Tags:\n    deployment.zalando.org/owner: someone-else\n    other: kept\n")
 	require.NoError(t, err)
-	merged := mergeTags(templateTags, provenance(channel.Origin{}))
+	merged := mergeTags(templateTags, sourceInformation(channel.Origin{}))
 	require.Equal(t, "cluster-lifecycle-manager", merged["deployment.zalando.org/owner"])
 	require.Equal(t, "kept", merged["other"])
 }
 
-func TestProvenanceSanitizesValues(t *testing.T) {
-	tags := provenance(channel.Origin{Repository: "org/repo", Ref: "feature/a b#c", FilePath: "cluster/ünï$.yaml"})
+func TestSourceInformationSanitizesValues(t *testing.T) {
+	tags := sourceInformation(channel.Origin{Repository: "org/repo", Ref: "feature/a b#c", FilePath: "cluster/ünï$.yaml"})
 	require.Equal(t, "feature/a b_c", tags["deployment.zalando.org/repository-branch"])
 	require.Equal(t, "cluster/ünï_.yaml", tags["deployment.zalando.org/repository-file-path"])
 
 	long := strings.Repeat("a", 300)
-	tags = provenance(channel.Origin{FilePath: long})
+	tags = sourceInformation(channel.Origin{FilePath: long})
 	require.Len(t, tags["deployment.zalando.org/repository-file-path"], 256)
 }

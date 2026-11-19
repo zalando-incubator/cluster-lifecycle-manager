@@ -233,7 +233,7 @@ func (p *KarpenterNodePoolProvisioner) provisionNodePool(ctx context.Context, no
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse provisioners manifest for node pool %s", nodePool.Name)
 	}
-	annotations := provenance(origin)
+	annotations := sourceInformation(origin)
 	for _, m := range manifests {
 		m.SetAnnotations(annotations)
 		if err := p.applier.Apply(ctx, m); err != nil {
@@ -381,7 +381,7 @@ func (p *AWSNodePoolProvisioner) provisionNodePool(ctx context.Context, nodePool
 		nodePoolTagKeyLegacy:  nodePool.Name,
 		nodePoolProfileTagKey: nodePool.Profile,
 	}
-	tags = mergeTags(tags, provenance(origin))
+	tags = mergeTags(tags, sourceInformation(origin))
 
 	err = p.awsAdapter.applyStack(ctx, stackName, template, "", tags, true, nil)
 	if err != nil {

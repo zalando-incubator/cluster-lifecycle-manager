@@ -177,7 +177,7 @@ func (a *awsAdapter) applyClusterStack(ctx context.Context, stackName, stackTemp
 		tagNameKubernetesClusterPrefix + cluster.ID: resourceLifecycleOwned,
 		mainStackTagKey: stackTagValueTrue,
 	}
-	stackTags = mergeTags(stackTags, provenance(origin))
+	stackTags = mergeTags(stackTags, sourceInformation(origin))
 
 	return a.applyStack(ctx, stackName, stackTemplate, templateURL, stackTags, true, nil)
 }
@@ -251,7 +251,7 @@ func (a *awsAdapter) applyCFManifest(ctx context.Context, cfManifest *CFManifest
 	stackTags := map[string]string{
 		tagNameKubernetesClusterPrefix + clusterID: resourceLifecycleOwned,
 	}
-	stackTags = mergeTags(stackTags, provenance(cfManifest.Origin))
+	stackTags = mergeTags(stackTags, sourceInformation(cfManifest.Origin))
 
 	return a.applyStack(ctx, cfManifest.Metadata.StackName, cfManifest.Template, templateURL, stackTags, true, nil)
 }

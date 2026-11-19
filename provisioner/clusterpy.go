@@ -540,7 +540,7 @@ func createOrUpdateEtcdStack(
 		applicationTagKey: "kubernetes",
 		componentTagKey:   "etcd-cluster",
 	}
-	tags = mergeTags(tags, provenance(template.Origin))
+	tags = mergeTags(tags, sourceInformation(template.Origin))
 
 	err = adapter.applyStack(ctx, etcdStackName, rendered, "", tags, true, &stackPolicy{
 		Statements: []stackPolicyStatement{
@@ -1370,7 +1370,7 @@ func renderManifests(config channel.Config, cluster *api.Cluster, values map[str
 				if err != nil {
 					return nil, fmt.Errorf("error parsing manifest %s: %v", manifest.Path, err)
 				}
-				annotations := provenance(manifest.Origin)
+				annotations := sourceInformation(manifest.Origin)
 				for _, m := range parsedResourceManifests {
 					m.SetAnnotations(annotations)
 				}

@@ -8,31 +8,31 @@ import (
 )
 
 const (
-	provenanceOwnerKey          = "deployment.zalando.org/owner"
-	provenanceOwnerValue        = "cluster-lifecycle-manager"
-	provenanceRepositoryNameKey = "deployment.zalando.org/repository-name"
-	provenanceRepositoryRefKey  = "deployment.zalando.org/repository-branch"
-	provenanceFilePathKey       = "deployment.zalando.org/repository-file-path"
+	sourceInfoOwnerKey          = "deployment.zalando.org/owner"
+	sourceInfoOwnerValue        = "cluster-lifecycle-manager"
+	sourceInfoRepositoryNameKey = "deployment.zalando.org/repository-name"
+	sourceInfoRepositoryRefKey  = "deployment.zalando.org/repository-branch"
+	sourceInfoFilePathKey       = "deployment.zalando.org/repository-file-path"
 
 	// https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_Tag.html
 	tagSanitizationCharacter = "_"
 	tagMaxValueLength        = 256
 )
 
-// provenance returns the annotations (Kubernetes resources) or tags
+// sourceInformation returns the annotations (Kubernetes resources) or tags
 // (CloudFormation stacks) describing who manages a resource and which
 // manifest it was created from. Values are sanitized to be valid CloudFormation
 // tag values, the same way deployment-service does it for both resource kinds.
-func provenance(origin channel.Origin) map[string]string {
-	result := map[string]string{provenanceOwnerKey: provenanceOwnerValue}
+func sourceInformation(origin channel.Origin) map[string]string {
+	result := map[string]string{sourceInfoOwnerKey: sourceInfoOwnerValue}
 	if origin.Repository != "" {
-		result[provenanceRepositoryNameKey] = origin.Repository
+		result[sourceInfoRepositoryNameKey] = origin.Repository
 	}
 	if origin.Ref != "" {
-		result[provenanceRepositoryRefKey] = origin.Ref
+		result[sourceInfoRepositoryRefKey] = origin.Ref
 	}
 	if origin.FilePath != "" {
-		result[provenanceFilePathKey] = origin.FilePath
+		result[sourceInfoFilePathKey] = origin.FilePath
 	}
 	for k, v := range result {
 		result[k] = sanitizeTagValue(v)
