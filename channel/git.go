@@ -291,7 +291,10 @@ func (g *Git) syncMirrorHEAD(repo *gogit.Repository) error {
 	return nil
 }
 
-func (g *Git) Version(channel string, _ map[string]string) (ConfigVersion, error) {
+func (g *Git) Version(channel string, overrides map[string]string) (ConfigVersion, error) {
+	if override, ok := overrides[g.name]; ok {
+		channel = override
+	}
 	repo, err := gogit.PlainOpen(g.repoDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open mirror repo: %w", err)

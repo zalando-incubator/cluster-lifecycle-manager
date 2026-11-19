@@ -129,6 +129,7 @@ func main() {
 	rootLogger := log.StandardLogger().WithFields(map[string]any{})
 
 	provisioners := map[api.ProviderID]provisioner.Provisioner{
+		api.ZalandoNebiusProvider: provisioner.NewNebiusProvisioner(secretDecrypter, cfg.AssumedRole, awsConfigOptions, cfg.DryRun),
 		api.ZalandoAWSProvider: provisioner.NewZalandoAWSProvisioner(
 			clusterTokenSource,
 			secretDecrypter,

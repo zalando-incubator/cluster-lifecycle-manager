@@ -795,6 +795,9 @@ func awsValidID(id string) string {
 // instanceTypeCPUQuantity returns the vCPUs of an instance type provided as k8sresource.Quantity represented as string
 func instanceTypeCPUQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
+	if context.instanceTypes == nil {
+		return "", fmt.Errorf("instance type data is not available")
+	}
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 	if err != nil {
 		return "", err
@@ -808,6 +811,9 @@ func instanceTypeCPUQuantity(context *templateContext, instanceType ec2types.Ins
 // instanceTypeMemoryQuantity returns the memory of an instance type provided as k8sresource.Quantity represented as string
 func instanceTypeMemoryQuantity(context *templateContext, instanceType ec2types.InstanceType) (string, error) {
 	// get the instance type info
+	if context.instanceTypes == nil {
+		return "", fmt.Errorf("instance type data is not available")
+	}
 	instanceTypeInfo, err := context.instanceTypes.InstanceInfo(instanceType)
 	if err != nil {
 		return "", err

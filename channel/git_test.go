@@ -249,6 +249,43 @@ func TestGitGet(t *testing.T) {
 	verifyExampleConfig(t, bySHA, "testsrc", "channel1")
 }
 
+func TestGitSingleSourceChannelOverrides(t *testing.T) {
+	logger := log.WithFields(map[string]interface{}{})
+	repoDir := t.TempDir()
+	workDir := t.TempDir()
+	createGitRepo(t, logger, repoDir)
+
+	source, err := NewGit("main", workDir, repoDir, "")
+	require.NoError(t, err)
+	cached := NewCachingSource(source)
+	require.NoError(t, cached.Update(context.Background(), logger))
+
+	tests := []struct {
+		name      string
+		overrides map[string]string
+		branch    string
+		contents  string
+	}{
+		{name: "default channel", branch: "main", contents: "channel1"},
+		{name: "matching override", overrides: map[string]string{"main": "channel2"}, branch: "channel2", contents: "channel2"},
+		{name: "unrelated override", overrides: map[string]string{"other": "channel2"}, branch: "main", contents: "channel1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			version, err := cached.Version("main", tc.overrides)
+			require.NoError(t, err)
+			require.Equal(t, headSHA(t, repoDir, tc.branch), version.ID())
+			config, err := version.Get(context.Background(), logger)
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, config.Delete()) })
+			verifyExampleConfig(t, config, "main", tc.contents)
+		})
+	}
+
+	_, err = cached.Version("main", map[string]string{"main": "missing"})
+	require.ErrorContains(t, err, `failed to resolve "missing"`)
+}
+
 func TestGitUpdateRepeat(t *testing.T) {
 	logger := log.WithFields(map[string]interface{}{})
 

@@ -23,8 +23,8 @@ type ConfigSource interface {
 	// Update synchronizes the local copy of the configuration with the remote one.
 	Update(ctx context.Context, logger *log.Entry) error
 
-	// Version returns the ConfigVersion for the corresponding channel (or overrides, if this is a
-	// combined source)
+	// Version returns the ConfigVersion for the channel, applying an override
+	// for the source's name when supported.
 	Version(channel string, overrides map[string]string) (ConfigVersion, error)
 }
 

@@ -26,6 +26,8 @@ const (
 	ZalandoAWSProvider ProviderID = "zalando-aws"
 	// ZalandoEKSProvider is the provider ID for AWS EKS clusters.
 	ZalandoEKSProvider ProviderID = "zalando-eks"
+	// ZalandoNebiusProvider is the provider ID for Zalando Nebius clusters.
+	ZalandoNebiusProvider ProviderID = "zalando-nebius"
 )
 
 // Cluster describes a kubernetes cluster and related configuration.
