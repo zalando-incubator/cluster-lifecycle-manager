@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,14 @@ func TestProvenanceOverridesTemplateTags(t *testing.T) {
 	merged := mergeTags(templateTags, provenance(channel.Origin{}))
 	require.Equal(t, "cluster-lifecycle-manager", merged["deployment.zalando.org/owner"])
 	require.Equal(t, "kept", merged["other"])
+}
+
+func TestProvenanceSanitizesValues(t *testing.T) {
+	tags := provenance(channel.Origin{Repository: "org/repo", Ref: "feature/a b#c", FilePath: "cluster/ünï$.yaml"})
+	require.Equal(t, "feature/a b_c", tags["deployment.zalando.org/repository-branch"])
+	require.Equal(t, "cluster/ünï_.yaml", tags["deployment.zalando.org/repository-file-path"])
+
+	long := strings.Repeat("a", 300)
+	tags = provenance(channel.Origin{FilePath: long})
+	require.Len(t, tags["deployment.zalando.org/repository-file-path"], 256)
 }
