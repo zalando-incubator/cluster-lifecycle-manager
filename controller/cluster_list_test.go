@@ -565,3 +565,55 @@ func TestRestartIgnoresStatusChangedByWorker(t *testing.T) {
 
 	require.NoError(t, updatestrategy.CheckRestart(updatestrategy.WithRestartSignal(ctx, restart)))
 }
+
+func TestRestartSkipsRecoveryRun(t *testing.T) {
+	newCluster := func(currentVersion string, configItems map[string]string) *api.Cluster {
+		return &api.Cluster{
+			ID:                    "aws:123456789011:eu-central-1:cluster",
+			InfrastructureAccount: "aws:123456789011",
+			LifecycleStatus:       "ready",
+			Channel:               "dev",
+			Status:                &api.ClusterStatus{CurrentVersion: currentVersion, NextVersion: "interrupted"},
+			ConfigItems:           configItems,
+		}
+	}
+
+	// the version the cluster resolves to, so the run below targets the
+	// version it is already on
+	probe := NewClusterList(config.DefaultFilter)
+	probe.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster("", nil)})
+	target := probe.clusters["aws:123456789011:eu-central-1:cluster"].NextVersion.String()
+
+	for _, tc := range []struct {
+		name      string
+		current   string
+		restarted bool
+	}{
+		{name: "update to a new version", current: "abc#123", restarted: true},
+		{name: "recovery of an interrupted update", current: target, restarted: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Now()
+			clusterList := NewClusterList(config.DefaultFilter)
+			clusterList.SetRestartAfter(10 * time.Minute)
+			clusterList.now = func() time.Time { return now }
+			clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(tc.current, nil)})
+
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+			restart := updatestrategy.NewRestartSignal()
+			next := clusterList.SelectNext(cancelFunc, restart)
+			require.NotNil(t, next)
+
+			now = now.Add(time.Hour)
+			clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(tc.current, map[string]string{"foo": "bar"})})
+
+			err := updatestrategy.CheckRestart(updatestrategy.WithRestartSignal(ctx, restart))
+			if tc.restarted {
+				require.ErrorIs(t, err, updatestrategy.ErrUpdateRestarted)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

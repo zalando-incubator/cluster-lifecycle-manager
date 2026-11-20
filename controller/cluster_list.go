@@ -189,6 +189,13 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 	}
 }
 
+// isRecovery returns true if the run only finishes an interrupted update whose
+// target is the current version. Restarting it could leave the cluster with no
+// pending update to resume, so it is left to finish.
+func isRecovery(clusterInfo *ClusterInfo) bool {
+	return clusterInfo.CurrentVersion != nil && clusterInfo.NextVersion != nil && *clusterInfo.CurrentVersion == *clusterInfo.NextVersion
+}
+
 // shouldRestart returns true if the update in progress should be asked to
 // restart because a different version is now available. Only ready clusters
 // are restarted: clusters being created or decommissioned are left alone. The
@@ -258,7 +265,7 @@ func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc, rest
 	result.state = stateProcessing
 	result.cancelUpdate = cancelUpdate
 	result.restart = restart
-	result.restartable = result.Cluster.LifecycleStatus == statusReady
+	result.restartable = result.Cluster.LifecycleStatus == statusReady && !isRecovery(result)
 	result.processingFrom = clusterList.now()
 	clusterList.pendingUpdate = clusterList.pendingUpdate[1:]
 
