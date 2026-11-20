@@ -245,27 +245,26 @@ func TestCLCUpdateStrategyRestartKeepsNodesMarked(t *testing.T) {
 		{name: "node-6", generation: 10},
 	}
 
-	ctx, cancel := context.WithCancelCause(context.Background())
-	defer cancel(nil)
+	restart := NewRestartSignal()
+	ctx := WithRestartSignal(context.Background(), restart)
 
 	nodePoolManager := &mockNodePoolManagerCLC{
 		generation:            3,
 		nodes:                 nodes,
 		abortAfterTerminating: "node-3",
-		abortFunc:             func() { cancel(ErrUpdateRestarted) },
+		abortFunc:             restart.Request,
 	}
 	strategy := NewCLCUpdateStrategy(log.WithField("test", true), nodePoolManager, 50*time.Millisecond)
 
 	err := strategy.Update(ctx, &api.NodePool{Name: "test-node-pool", Profile: "test-profile"})
-	require.EqualValues(t, context.Canceled, err)
+	require.ErrorIs(t, err, ErrUpdateRestarted)
 
 	for name, expected := range map[string]nodeState{
 		"node-1": nodeStateTerminated,
 		"node-3": nodeStateTerminated,
-		// nothing else is marked once the restart is requested, the next
-		// run continues with the remaining old nodes
-		"node-4": nodeStateReady,
-		"node-6": nodeStateReady,
+		// old nodes stay marked, the next run continues with them
+		"node-4": nodeStateDecommissionPending,
+		"node-6": nodeStateDecommissionPending,
 		// current nodes are untouched
 		"node-2": nodeStateReady,
 		"node-5": nodeStateReady,
