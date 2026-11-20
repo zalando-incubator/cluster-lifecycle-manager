@@ -27,10 +27,13 @@ const (
 )
 
 type ClusterInfo struct {
-	lastProcessed  time.Time
-	state          int
-	cancelUpdate   context.CancelFunc
-	restart        *updatestrategy.RestartSignal
+	lastProcessed time.Time
+	state         int
+	cancelUpdate  context.CancelFunc
+	restart       *updatestrategy.RestartSignal
+	// restartable is decided when the cluster is selected, so the refresh
+	// never reads fields the worker is changing
+	restartable    bool
 	updatePriority uint32
 	processingFrom time.Time
 	Cluster        *api.Cluster
@@ -196,7 +199,7 @@ func (clusterList *ClusterList) shouldRestart(running *ClusterInfo, nextVersion 
 		return false
 	}
 
-	if running.Cluster.LifecycleStatus != statusReady {
+	if !running.restartable {
 		return false
 	}
 
@@ -255,6 +258,7 @@ func (clusterList *ClusterList) SelectNext(cancelUpdate context.CancelFunc, rest
 	result.state = stateProcessing
 	result.cancelUpdate = cancelUpdate
 	result.restart = restart
+	result.restartable = result.Cluster.LifecycleStatus == statusReady
 	result.processingFrom = clusterList.now()
 	clusterList.pendingUpdate = clusterList.pendingUpdate[1:]
 

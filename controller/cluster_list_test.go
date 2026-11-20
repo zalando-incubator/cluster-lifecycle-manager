@@ -532,3 +532,36 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 	require.NotNil(t, next2)
 	require.Equal(t, updated.LifecycleStatus, next2.Cluster.LifecycleStatus)
 }
+
+func TestRestartIgnoresStatusChangedByWorker(t *testing.T) {
+	newCluster := func(configItems map[string]string) *api.Cluster {
+		return &api.Cluster{
+			ID:                    "aws:123456789011:eu-central-1:cluster",
+			InfrastructureAccount: "aws:123456789011",
+			LifecycleStatus:       "requested",
+			Channel:               "dev",
+			Status:                mockStatus,
+			ConfigItems:           configItems,
+		}
+	}
+
+	now := time.Now()
+	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList.SetRestartAfter(10 * time.Minute)
+	clusterList.now = func() time.Time { return now }
+	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(nil)})
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	restart := updatestrategy.NewRestartSignal()
+	next := clusterList.SelectNext(cancelFunc, restart)
+	require.NotNil(t, next)
+
+	// the worker sets the cluster to ready when it finishes provisioning
+	next.Cluster.LifecycleStatus = "ready"
+
+	now = now.Add(time.Hour)
+	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{newCluster(map[string]string{"foo": "bar"})})
+
+	require.NoError(t, updatestrategy.CheckRestart(updatestrategy.WithRestartSignal(ctx, restart)))
+}
