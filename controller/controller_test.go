@@ -12,6 +12,7 @@ import (
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/channel"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/config"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/updatestrategy"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/provisioner"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
 )
@@ -75,6 +76,21 @@ func (p *mockErrCreateProvisioner) Provision(
 	_ channel.Config,
 ) error {
 	return fmt.Errorf("failed to provision")
+}
+
+type mockRestartProvisioner struct{ *mockProvisioner }
+
+func (p *mockRestartProvisioner) Supports(_ *api.Cluster) bool {
+	return true
+}
+
+func (p *mockRestartProvisioner) Provision(
+	_ context.Context,
+	_ *log.Entry,
+	_ *api.Cluster,
+	_ channel.Config,
+) error {
+	return fmt.Errorf("provisioning stopped: %w", updatestrategy.ErrUpdateRestarted)
 }
 
 type mockCountingErrProvisioner struct {
@@ -337,7 +353,7 @@ func TestProcessCluster(t *testing.T) {
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
-		next := controller.clusterList.SelectNext(cancelFunc)
+		next := controller.clusterList.SelectNext(cancelFunc, nil)
 		if !assert.NotNil(t, next, ti.testcase) {
 			continue
 		}
@@ -367,7 +383,7 @@ func TestIgnoreUnsupportedProvider(t *testing.T) {
 	err := controller.refresh()
 	require.NoError(t, err)
 
-	next := controller.clusterList.SelectNext(func() {})
+	next := controller.clusterList.SelectNext(func() {}, nil)
 	require.Nil(t, next)
 }
 
@@ -442,7 +458,7 @@ func TestCoalesceFailures(t *testing.T) {
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 
-			next := controller.clusterList.SelectNext(cancelFunc)
+			next := controller.clusterList.SelectNext(cancelFunc, nil)
 			require.NotNil(t, next)
 			controller.processCluster(ctx, 0, next)
 
@@ -469,7 +485,7 @@ func TestCoalesceFailures(t *testing.T) {
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 
-			next := controller.clusterList.SelectNext(cancelFunc)
+			next := controller.clusterList.SelectNext(cancelFunc, nil)
 			require.NotNil(t, next)
 			controller.processCluster(ctx, 0, next)
 
@@ -477,4 +493,31 @@ func TestCoalesceFailures(t *testing.T) {
 			require.Len(t, registry.theCluster.Status.Problems, 1)
 		}
 	})
+}
+
+func TestRestartIsNotRecordedAsProblem(t *testing.T) {
+	registry := createMockRegistry("ready", nil)
+	controller := New(
+		defaultLogger,
+		registry,
+		map[api.ProviderID]provisioner.Provisioner{
+			mockProvider: &mockRestartProvisioner{},
+		},
+		MockChannelSource(false, false),
+		defaultOptions,
+	)
+	require.NoError(t, controller.refresh())
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	next := controller.clusterList.SelectNext(cancelFunc, nil)
+	require.NotNil(t, next)
+	controller.processCluster(ctx, 0, next)
+
+	require.Empty(t, registry.theCluster.Status.Problems)
+	if registry.lastUpdate != nil {
+		require.Empty(t, registry.lastUpdate.Status.Problems)
+	}
+	require.Empty(t, registry.theCluster.Status.CurrentVersion)
 }
