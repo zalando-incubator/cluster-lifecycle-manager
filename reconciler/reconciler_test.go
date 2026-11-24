@@ -79,6 +79,7 @@ func TestParseSpec(t *testing.T) {
 		DeliveryRepoType:        "oci",
 		DeliveryChart:           "example-chart",
 		DeliveryChartVersion:    "1.2.3",
+		DeliveryRelease:         "example-chart",
 		DeliveryTargetNamespace: "example",
 		DeliveryValues:          map[string]interface{}{"replicas": float64(1)},
 	}, spec)

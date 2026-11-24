@@ -1,0 +1,20 @@
+{
+  "spec": {
+    "Alias": "test-cluster",
+    "ID": "test:id",
+    "ProvisionModuleRepo": "oci://registry.example.org/modules/cluster",
+    "ProvisionModuleRef": "v1",
+    "ProvisionModulePath": ".",
+    "ProvisionApprove": "auto",
+    "ProvisionVars": {},
+    "DeliveryRepoURL": "oci://registry.example.org/charts",
+    "DeliveryRepoType": "oci",
+    "DeliveryChart": "example-chart",
+    "DeliveryChartVersion": "1.2.3",
+    "DeliveryRelease": "example-chart",
+    "DeliveryTargetNamespace": "example",
+    "DeliveryValues": {}
+  },
+  "terraformVars": [],
+  "helmValues": {}
+}

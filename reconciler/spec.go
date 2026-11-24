@@ -4,6 +4,7 @@ package reconciler
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -29,8 +30,21 @@ const (
 	ConfigItemDeliveryValues          = "delivery_values"
 )
 
+// Defaults for optional config items.
+const (
+	DefaultProvisionApprove    = ApproveAuto
+	DefaultProvisionModulePath = "." // the root of the module artifact
+	DefaultDeliveryRepoType    = RepoTypeOCI
+
+	ApproveAuto   = "auto"
+	ApproveManual = "manual"
+
+	RepoTypeOCI = "oci"
+)
+
 // ClusterSpec is the typed form of the reconciler config items of a cluster.
-// Defaults are not applied here.
+// Optional items have their defaults applied; ProvisionVars and DeliveryValues
+// are never nil.
 type ClusterSpec struct {
 	Alias string
 	ID    string
@@ -75,7 +89,6 @@ func ParseSpec(cluster *api.Cluster) (*ClusterSpec, error) {
 	required := []string{
 		ConfigItemProvisionModuleRepo,
 		ConfigItemProvisionModuleRef,
-		ConfigItemProvisionModulePath,
 		ConfigItemDeliveryRepoURL,
 		ConfigItemDeliveryChart,
 		ConfigItemDeliveryChartVersion,
@@ -95,12 +108,82 @@ func ParseSpec(cluster *api.Cluster) (*ClusterSpec, error) {
 		problems = append(problems, fmt.Sprintf("config item %q: %v", ConfigItemDeliveryValues, err))
 	}
 
+	spec.applyDefaults()
+	problems = append(problems, spec.validate()...)
+
 	if len(problems) > 0 {
 		sort.Strings(problems)
 		return nil, fmt.Errorf("invalid config items for cluster %s: %s", cluster.Alias, strings.Join(problems, "; "))
 	}
 
 	return spec, nil
+}
+
+func (spec *ClusterSpec) applyDefaults() {
+	if spec.ProvisionApprove == "" {
+		spec.ProvisionApprove = DefaultProvisionApprove
+	}
+	if strings.TrimSpace(spec.ProvisionModulePath) == "" {
+		spec.ProvisionModulePath = DefaultProvisionModulePath
+	}
+	if spec.DeliveryRepoType == "" {
+		spec.DeliveryRepoType = DefaultDeliveryRepoType
+	}
+	if spec.DeliveryRelease == "" {
+		spec.DeliveryRelease = spec.DeliveryChart
+	}
+}
+
+// terraformVarName is the identifier syntax of Terraform/OpenTofu variables.
+var terraformVarName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+// validate returns one message per problem with the values of a spec.
+func (spec *ClusterSpec) validate() []string {
+	var problems []string
+
+	switch spec.ProvisionApprove {
+	case ApproveAuto, ApproveManual:
+	default:
+		problems = append(problems, fmt.Sprintf("config item %q must be %q or %q, got %q",
+			ConfigItemProvisionApprove, ApproveAuto, ApproveManual, spec.ProvisionApprove))
+	}
+
+	if spec.DeliveryRepoType != RepoTypeOCI {
+		problems = append(problems, fmt.Sprintf("config item %q must be %q, got %q",
+			ConfigItemDeliveryRepoType, RepoTypeOCI, spec.DeliveryRepoType))
+	}
+
+	for name := range spec.ProvisionVars {
+		if !terraformVarName.MatchString(name) {
+			problems = append(problems, fmt.Sprintf("config item %q: %q is not a valid variable name",
+				ConfigItemProvisionVars, name))
+		}
+	}
+
+	return problems
+}
+
+// TerraformVars returns the variables for the "vars" field of the Terraform
+// resource, sorted by name. Values keep the type they have in the YAML:
+// strings, numbers, booleans, lists and maps are passed on unchanged.
+func (spec *ClusterSpec) TerraformVars() []interface{} {
+	names := make([]string, 0, len(spec.ProvisionVars))
+	for name := range spec.ProvisionVars {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	vars := make([]interface{}, 0, len(names))
+	for _, name := range names {
+		vars = append(vars, map[string]interface{}{"name": name, "value": spec.ProvisionVars[name]})
+	}
+	return vars
+}
+
+// HelmValues returns the values for the "values" field of the HelmRelease,
+// unchanged from the config item.
+func (spec *ClusterSpec) HelmValues() map[string]interface{} {
+	return spec.DeliveryValues
 }
 
 // parseYAMLMap parses a YAML map. An empty value is an empty map.
