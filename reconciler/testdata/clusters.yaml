@@ -1,0 +1,44 @@
+clusters:
+  - alias: aws-cluster
+    id: "aws:123:eu-central-1:aws-cluster"
+    provider: zalando-aws
+    api_server_url: https://aws-cluster.example.org
+    lifecycle_status: ready
+    config_items:
+      reconciler: enabled
+  - alias: existing-poc
+    id: "nebius:poc-existing"
+    provider: zalando-nebius
+    api_server_url: https://placeholder
+    lifecycle_status: ready
+    config_items:
+      some_item: some-value
+  - alias: new-cluster
+    id: "nebius:new-cluster"
+    provider: zalando-nebius
+    api_server_url: https://placeholder
+    lifecycle_status: requested
+    config_items:
+      reconciler: enabled
+      provision_module_repo: oci://registry.example.org/modules/cluster
+      provision_module_ref: v1
+      provision_module_path: modules/cluster
+      provision_approve: auto
+      provision_vars: |
+        cluster_name: new-cluster
+        node_count: 2
+      delivery_repo_url: oci://registry.example.org/charts
+      delivery_repo_type: oci
+      delivery_chart: example-chart
+      delivery_chart_version: 1.2.3
+      delivery_target_namespace: example
+      delivery_values: |
+        replicas: 1
+  - alias: broken-cluster
+    id: "nebius:broken"
+    provider: zalando-nebius
+    api_server_url: https://placeholder
+    lifecycle_status: requested
+    config_items:
+      reconciler: enabled
+      provision_vars: "[not, a, map]"
