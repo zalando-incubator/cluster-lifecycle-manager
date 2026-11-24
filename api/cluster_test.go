@@ -455,3 +455,9 @@ func TestInitOIDCProviderSkipsNonAWSProviders(t *testing.T) {
 	require.Empty(t, cluster.OIDCProvider)
 	require.Empty(t, cluster.IAMRoleTrustRelationshipTemplate)
 }
+
+func TestManagedBy(t *testing.T) {
+	require.Equal(t, ManagedByCLM, (&Cluster{}).ManagedBy())
+	require.Equal(t, ManagedByCLM, (&Cluster{ConfigItems: map[string]string{"managed_by": ""}}).ManagedBy())
+	require.Equal(t, "reconciler", (&Cluster{ConfigItems: map[string]string{"managed_by": "reconciler"}}).ManagedBy())
+}

@@ -409,6 +409,23 @@ func TestDropUnsupportedClusters(t *testing.T) {
 				mockProvider: &mockProvisioner{},
 			},
 		},
+		{
+			testcase: "filters clusters managed by another component",
+			clusters: []*api.Cluster{
+				{Provider: mockProvider},
+				{Provider: mockProvider, ConfigItems: map[string]string{"managed_by": "clm"}},
+				{Provider: mockProvider, ConfigItems: map[string]string{"managed_by": "reconciler"}},
+				{Provider: mockProvider, ConfigItems: map[string]string{"managed_by": ""}},
+			},
+			result: []*api.Cluster{
+				{Provider: mockProvider},
+				{Provider: mockProvider, ConfigItems: map[string]string{"managed_by": "clm"}},
+				{Provider: mockProvider, ConfigItems: map[string]string{"managed_by": ""}},
+			},
+			provisioners: map[api.ProviderID]provisioner.Provisioner{
+				mockProvider: &mockProvisioner{},
+			},
+		},
 	} {
 
 		controller := New(

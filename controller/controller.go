@@ -143,9 +143,15 @@ func (c *Controller) refresh() error {
 }
 
 // dropUnsupported removes clusters not supported by the current provisioner
+// and clusters managed by another component (config item "managed_by")
 func (c *Controller) dropUnsupported(clusters []*api.Cluster) []*api.Cluster {
 	result := make([]*api.Cluster, 0, len(clusters))
 	for _, cluster := range clusters {
+		if managedBy := cluster.ManagedBy(); managedBy != api.ManagedByCLM {
+			log.Debugf("Cluster %s is managed by %q, skipping", cluster.ID, managedBy)
+			continue
+		}
+
 		supports := false
 		for _, provisioner := range c.provisioners {
 			if provisioner.Supports(cluster) {
