@@ -14,11 +14,6 @@ import (
 
 // Config items understood by the reconciler.
 const (
-	// ConfigItemEnabled marks the registry entries the reconciler handles.
-	// Entries without it set to EnabledValue are ignored.
-	ConfigItemEnabled = "reconciler"
-	EnabledValue      = "enabled"
-
 	ConfigItemProvisionModuleRepo = "provision_module_repo"
 	ConfigItemProvisionModuleRef  = "provision_module_ref"
 	ConfigItemProvisionModulePath = "provision_module_path"

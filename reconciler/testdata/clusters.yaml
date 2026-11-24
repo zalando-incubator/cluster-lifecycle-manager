@@ -5,7 +5,7 @@ clusters:
     api_server_url: https://aws-cluster.example.org
     lifecycle_status: ready
     config_items:
-      reconciler: enabled
+      managed_by: reconciler
   - alias: existing-poc
     id: "nebius:poc-existing"
     provider: zalando-nebius
@@ -13,13 +13,20 @@ clusters:
     lifecycle_status: ready
     config_items:
       some_item: some-value
+  - alias: clm-managed-cluster
+    id: "nebius:clm-managed"
+    provider: zalando-nebius
+    api_server_url: https://placeholder
+    lifecycle_status: ready
+    config_items:
+      managed_by: clm
   - alias: new-cluster
     id: "nebius:new-cluster"
     provider: zalando-nebius
     api_server_url: https://placeholder
     lifecycle_status: requested
     config_items:
-      reconciler: enabled
+      managed_by: reconciler
       provision_module_repo: oci://registry.example.org/modules/cluster
       provision_module_ref: v1
       provision_module_path: modules/cluster
@@ -40,5 +47,5 @@ clusters:
     api_server_url: https://placeholder
     lifecycle_status: requested
     config_items:
-      reconciler: enabled
+      managed_by: reconciler
       provision_vars: "[not, a, map]"

@@ -16,11 +16,13 @@ type Skipped struct {
 	OtherProvider bool
 }
 
-// Select returns the clusters the reconciler is responsible for: the provider
-// must be one of providers and the config item "reconciler" must be
-// "enabled". Every other cluster is returned as skipped with the reason. The
-// registry filter is not relied on, since not all registries apply it.
-func Select(clusters []*api.Cluster, providers []string) ([]*api.Cluster, []Skipped) {
+// Select returns the clusters the component called name is responsible for:
+// the provider must be one of providers and the config item "managed_by" must
+// be set to name. Unlike the Cluster Lifecycle Manager, a missing "managed_by"
+// does not select a cluster. Every other cluster is returned as skipped with
+// the reason. The registry filter is not relied on, since not all registries
+// apply it.
+func Select(clusters []*api.Cluster, providers []string, name string) ([]*api.Cluster, []Skipped) {
 	allowed := make(map[api.ProviderID]bool, len(providers))
 	for _, p := range providers {
 		allowed[api.ProviderID(p)] = true
@@ -35,8 +37,8 @@ func Select(clusters []*api.Cluster, providers []string) ([]*api.Cluster, []Skip
 		switch {
 		case !allowed[cluster.Provider]:
 			skipped = append(skipped, Skipped{cluster.Alias, fmt.Sprintf("provider %q is not handled", cluster.Provider), true})
-		case cluster.ConfigItems[ConfigItemEnabled] != EnabledValue:
-			skipped = append(skipped, Skipped{cluster.Alias, fmt.Sprintf("config item %q is not %q", ConfigItemEnabled, EnabledValue), false})
+		case cluster.ConfigItems[api.ManagedByConfigItem] != name:
+			skipped = append(skipped, Skipped{cluster.Alias, fmt.Sprintf("config item %q is not %q", api.ManagedByConfigItem, name), false})
 		default:
 			selected = append(selected, cluster)
 		}

@@ -8,6 +8,7 @@ import (
 
 const (
 	defaultRegistry  = "file://clusters.yaml"
+	defaultName      = "reconciler"
 	defaultProvider  = "zalando-nebius"
 	defaultNamespace = "flux-system"
 	defaultInterval  = "1m"
@@ -20,6 +21,9 @@ type Config struct {
 	Registry string
 	// RegistryToken is the bearer token used for an http(s) registry.
 	RegistryToken string
+	// Name is the component name. The reconciler handles registry entries
+	// whose config item "managed_by" equals it.
+	Name string
 	// Providers are the registry providers the reconciler is responsible for.
 	Providers []string
 	// Namespace is the host cluster namespace all resources are created in.
@@ -36,6 +40,7 @@ type Config struct {
 func (cfg *Config) ParseFlags() {
 	kingpin.Flag("registry", "Cluster registry: file://<path> or the URL of a cluster registry.").Envar("REGISTRY_URL").Default(defaultRegistry).StringVar(&cfg.Registry)
 	kingpin.Flag("registry-token", "Bearer token for an http(s) registry.").Envar("REGISTRY_TOKEN").StringVar(&cfg.RegistryToken)
+	kingpin.Flag("name", "Component name. Handles registry entries with the config item managed_by set to this name.").Envar("COMPONENT_NAME").Default(defaultName).StringVar(&cfg.Name)
 	kingpin.Flag("provider", "Provider of the registry entries to handle. Can be repeated.").Envar("PROVIDER").Default(defaultProvider).StringsVar(&cfg.Providers)
 	kingpin.Flag("namespace", "Host cluster namespace for all created resources.").Envar("NAMESPACE").Default(defaultNamespace).StringVar(&cfg.Namespace)
 	kingpin.Flag("kubeconfig", "Path to the kubeconfig of the host cluster. Defaults to in-cluster configuration.").Envar("KUBECONFIG").StringVar(&cfg.Kubeconfig)

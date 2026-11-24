@@ -54,7 +54,7 @@ func runOnce(cfg *reconciler.Config, clusterRegistry registry.Registry) {
 		return
 	}
 
-	selected, skipped := reconciler.Select(clusters, cfg.Providers)
+	selected, skipped := reconciler.Select(clusters, cfg.Providers, cfg.Name)
 	for _, s := range skipped {
 		if s.OtherProvider {
 			log.Debugf("Skipping cluster %s: %s", s.Alias, s.Reason)
