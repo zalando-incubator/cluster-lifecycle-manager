@@ -1,0 +1,123 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: provision-poc3
+  namespace: flux-system
+spec:
+  interval: 10m
+  ref:
+    tag: v1
+  secretRef:
+    name: pull-secret
+  url: oci://registry.example.org/modules/cluster
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: cluster-poc3
+  namespace: flux-system
+spec:
+  destroyResourcesOnDeletion: false
+  interval: 10m
+  path: modules/cluster
+  runnerPodTemplate:
+    spec:
+      env:
+      - name: PROVIDER_CREDENTIALS_FILE
+        value: /var/run/secrets/provider/credentials.json
+      volumeMounts:
+      - mountPath: /var/run/secrets/provider
+        name: provider-credentials
+        readOnly: true
+      volumes:
+      - name: provider-credentials
+        secret:
+          secretName: provider-credentials-secret
+  serviceAccountName: tofu-runner
+  sourceRef:
+    kind: OCIRepository
+    name: provision-poc3
+    namespace: flux-system
+  vars:
+  - name: name
+    value: poc3
+  - name: node_count
+    value: 2
+  writeOutputsToSecret:
+    name: tfout-poc3
+    outputs:
+    - cluster_id
+    - endpoint
+    - ca_certificate
+    - oidc_issuer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: status-poc3
+  namespace: flux-system
+---
+apiVersion: v1
+data:
+  value: YXBpVmVyc2lvbjogdjEKY2x1c3RlcnM6Ci0gY2x1c3RlcjoKICAgIGNlcnRpZmljYXRlLWF1dGhvcml0eS1kYXRhOiBMUzB0TFMxQ1JVZEpUaUJEUlZKVVNVWkpRMEZVUlMwdExTMHRDbHB0Um5KYVVUMDlDaTB0TFMwdFJVNUVJRU5GVWxSSlJrbERRVlJGTFMwdExTMD0KICAgIHNlcnZlcjogaHR0cHM6Ly9wdS5leGFtcGxlLm9yZzo0NDMKICBuYW1lOiBwb2MzCmNvbnRleHRzOgotIGNvbnRleHQ6CiAgICBjbHVzdGVyOiBwb2MzCiAgICB1c2VyOiBwb2MzCiAgbmFtZTogcG9jMwpjdXJyZW50LWNvbnRleHQ6IHBvYzMKa2luZDogQ29uZmlnCnVzZXJzOgotIG5hbWU6IHBvYzMKICB1c2VyOgogICAgdG9rZW46IHRlc3QtdG9rZW4K
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: kubeconfig-poc3
+  namespace: flux-system
+type: Opaque
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: delivery-poc3
+  namespace: flux-system
+spec:
+  interval: 10m
+  type: oci
+  url: oci://registry.example.org/charts
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: reconciler
+    reconciler/cluster: poc3
+  name: stackset-poc3
+  namespace: flux-system
+spec:
+  chart:
+    spec:
+      chart: example-chart
+      sourceRef:
+        kind: HelmRepository
+        name: delivery-poc3
+        namespace: flux-system
+      version: 1.2.3
+  install:
+    createNamespace: true
+  interval: 10m
+  kubeConfig:
+    secretRef:
+      name: kubeconfig-poc3
+  releaseName: stackset
+  targetNamespace: example
+  values:
+    args:
+    - --interval=10s
+    replicas: 1

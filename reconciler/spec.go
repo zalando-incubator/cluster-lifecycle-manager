@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/api"
+	"github.com/zalando-incubator/cluster-lifecycle-manager/pkg/decrypter"
 )
 
 // Config items understood by the reconciler.
@@ -106,6 +107,14 @@ func ParseSpec(cluster *api.Cluster) (*ClusterSpec, error) {
 	}
 	if spec.DeliveryValues, err = parseYAMLMap(items[ConfigItemDeliveryValues]); err != nil {
 		problems = append(problems, fmt.Sprintf("config item %q: %v", ConfigItemDeliveryValues, err))
+	}
+
+	// Secrets are not supported yet: refuse encrypted values instead of
+	// passing the ciphertext on as if it were the real value.
+	for key, value := range items {
+		if strings.HasPrefix(strings.TrimSpace(value), decrypter.AWSKMSSecretPrefix) {
+			problems = append(problems, fmt.Sprintf("config item %q is encrypted (%s), secrets are not supported", key, decrypter.AWSKMSSecretPrefix))
+		}
 	}
 
 	spec.applyDefaults()

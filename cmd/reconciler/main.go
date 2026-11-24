@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os/signal"
 	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/reconciler"
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
@@ -33,8 +38,22 @@ func main() {
 		log.Fatalf("Invalid registry %q", cfg.Registry)
 	}
 
+	hostConfig, err := hostClusterConfig(cfg.Kubeconfig)
+	if err != nil {
+		log.Fatalf("Failed to configure the host cluster client: %v", err)
+	}
+	dyn, err := dynamic.NewForConfig(hostConfig)
+	if err != nil {
+		log.Fatalf("Failed to create the host cluster client: %v", err)
+	}
+	r := &reconciler.Reconciler{
+		Client: reconciler.NewClient(dyn, cfg.Name),
+		Config: cfg.Render,
+		DryRun: cfg.DryRun,
+	}
+
 	for {
-		runOnce(cfg, clusterRegistry)
+		runOnce(ctx, cfg, clusterRegistry, r)
 		if cfg.Once {
 			return
 		}
@@ -47,7 +66,7 @@ func main() {
 	}
 }
 
-func runOnce(cfg *reconciler.Config, clusterRegistry registry.Registry) {
+func runOnce(ctx context.Context, cfg *reconciler.Config, clusterRegistry registry.Registry, r *reconciler.Reconciler) {
 	clusters, err := clusterRegistry.ListClusters(registry.Filter{})
 	if err != nil {
 		log.Errorf("Failed to list clusters: %v", err)
@@ -69,7 +88,39 @@ func runOnce(cfg *reconciler.Config, clusterRegistry registry.Registry) {
 			log.Errorf("%v", err)
 			continue
 		}
-		log.Infof("Cluster %s selected (module %s@%s, chart %s %s)", spec.Alias,
-			spec.ProvisionModuleRepo, spec.ProvisionModuleRef, spec.DeliveryChart, spec.DeliveryChartVersion)
+
+		res, err := r.Reconcile(ctx, spec)
+		if err != nil {
+			log.Errorf("Cluster %s: %v", spec.Alias, err)
+			continue
+		}
+		logResult(res, cfg.DryRun)
 	}
+}
+
+func logResult(res *reconciler.Result, dryRun bool) {
+	changed := 0
+	for _, o := range res.Objects {
+		if o.Action != reconciler.ActionUnchanged {
+			changed++
+			log.Infof("Cluster %s: %s %s %s%s", res.Cluster, o.Kind, o.Name, o.Action, map[bool]string{true: " (dry run)", false: ""}[dryRun])
+			if o.Diff != "" {
+				fmt.Print(o.Diff)
+			}
+		}
+	}
+	msg := fmt.Sprintf("Cluster %s: %s, %d of %d objects changed", res.Cluster, res.Stage, changed, len(res.Objects))
+	if res.Waiting != "" {
+		msg += ", waiting: " + res.Waiting
+	}
+	log.Info(msg)
+}
+
+// hostClusterConfig returns the client configuration of the host cluster, from
+// a kubeconfig file or in-cluster.
+func hostClusterConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig == "" {
+		return rest.InClusterConfig()
+	}
+	return clientcmd.BuildConfigFromFlags("", kubeconfig)
 }
