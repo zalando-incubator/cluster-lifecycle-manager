@@ -66,7 +66,24 @@ type Statement struct {
 	Sid       string                       `json:",omitempty"`
 }
 
+// isAWSProvider returns true for providers whose clusters are backed by AWS
+// and therefore need an OIDC provider and IAM trust relationship. An empty
+// provider is treated as AWS for backwards compatibility.
+func (cluster *Cluster) isAWSProvider() bool {
+	switch cluster.Provider {
+	case "", ZalandoAWSProvider, ZalandoEKSProvider:
+		return true
+	default:
+		return false
+	}
+}
+
 func (cluster *Cluster) InitOIDCProvider() error {
+	if !cluster.isAWSProvider() {
+		// OIDC provider and IAM trust relationships are AWS concepts.
+		return nil
+	}
+
 	if cluster.Provider == ZalandoEKSProvider {
 		cluster.OIDCProvider = strings.TrimPrefix(cluster.ConfigItems["eks_oidc_issuer_url"], "https://")
 	} else {

@@ -443,3 +443,15 @@ func TestSiblingCluster(t *testing.T) {
 		})
 	}
 }
+
+func TestInitOIDCProviderSkipsNonAWSProviders(t *testing.T) {
+	cluster := &Cluster{
+		Alias:        "some-cluster",
+		Provider:     "zalando-nebius",
+		APIServerURL: "https://placeholder", // would fail GetHostedZone
+	}
+
+	require.NoError(t, cluster.InitOIDCProvider())
+	require.Empty(t, cluster.OIDCProvider)
+	require.Empty(t, cluster.IAMRoleTrustRelationshipTemplate)
+}
