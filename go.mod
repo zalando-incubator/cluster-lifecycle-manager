@@ -36,6 +36,7 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/luci/go-render v0.0.0-20160219211803-9a04cc21af0f
 	github.com/pkg/errors v0.9.1
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/samber/lo v1.53.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -55,6 +56,7 @@ require (
 	sigs.k8s.io/aws-iam-authenticator v0.7.23
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/karpenter v1.15.1
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -157,7 +159,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.7.0 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.71.0 // indirect
@@ -215,7 +216,6 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 go 1.27.2

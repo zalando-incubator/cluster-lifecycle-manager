@@ -28,6 +28,15 @@ const (
 	ZalandoEKSProvider ProviderID = "zalando-eks"
 )
 
+const (
+	// ManagedByConfigItem is the config item naming the component that
+	// manages a cluster. A cluster must be managed by exactly one component.
+	ManagedByConfigItem = "managed_by"
+	// ManagedByCLM is the component name of the Cluster Lifecycle Manager.
+	// Clusters without the config item are managed by it as well.
+	ManagedByCLM = "clm"
+)
+
 // Cluster describes a kubernetes cluster and related configuration.
 type Cluster struct {
 	Alias                 string            `json:"alias"                  yaml:"alias"`
@@ -66,7 +75,34 @@ type Statement struct {
 	Sid       string                       `json:",omitempty"`
 }
 
+// ManagedBy returns the name of the component managing the cluster, as set in
+// the "managed_by" config item. Clusters without it are managed by the Cluster
+// Lifecycle Manager.
+func (cluster *Cluster) ManagedBy() string {
+	if v := cluster.ConfigItems[ManagedByConfigItem]; v != "" {
+		return v
+	}
+	return ManagedByCLM
+}
+
+// isAWSProvider returns true for providers whose clusters are backed by AWS
+// and therefore need an OIDC provider and IAM trust relationship. An empty
+// provider is treated as AWS for backwards compatibility.
+func (cluster *Cluster) isAWSProvider() bool {
+	switch cluster.Provider {
+	case "", ZalandoAWSProvider, ZalandoEKSProvider:
+		return true
+	default:
+		return false
+	}
+}
+
 func (cluster *Cluster) InitOIDCProvider() error {
+	if !cluster.isAWSProvider() {
+		// OIDC provider and IAM trust relationships are AWS concepts.
+		return nil
+	}
+
 	if cluster.Provider == ZalandoEKSProvider {
 		cluster.OIDCProvider = strings.TrimPrefix(cluster.ConfigItems["eks_oidc_issuer_url"], "https://")
 	} else {

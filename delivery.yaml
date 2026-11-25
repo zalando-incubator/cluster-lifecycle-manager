@@ -31,3 +31,9 @@ pipeline:
       docker buildx create --config /etc/cdp-buildkitd.toml --driver-opt network=host --bootstrap --use
       docker buildx build --rm --build-arg BASE_IMAGE=container-registry.zalando.net/library/static:latest -t "${IMAGE}:${VERSION}" --platform linux/amd64,linux/arm64 --push .
       cdp-promote-image "${IMAGE}:${VERSION}"
+
+      # The reconciler is a separate binary with its own image.
+      RECONCILER_IMAGE=container-registry-test.zalando.net/teapot/cluster-reconciler
+      make build/linux/amd64/reconciler build/linux/arm64/reconciler
+      docker buildx build --rm -f Dockerfile.reconciler --build-arg BASE_IMAGE=container-registry.zalando.net/library/static:latest -t "${RECONCILER_IMAGE}:${VERSION}" --platform linux/amd64,linux/arm64 --push .
+      cdp-promote-image "${RECONCILER_IMAGE}:${VERSION}"

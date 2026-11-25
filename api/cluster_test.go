@@ -443,3 +443,21 @@ func TestSiblingCluster(t *testing.T) {
 		})
 	}
 }
+
+func TestInitOIDCProviderSkipsNonAWSProviders(t *testing.T) {
+	cluster := &Cluster{
+		Alias:        "some-cluster",
+		Provider:     "zalando-nebius",
+		APIServerURL: "https://placeholder", // would fail GetHostedZone
+	}
+
+	require.NoError(t, cluster.InitOIDCProvider())
+	require.Empty(t, cluster.OIDCProvider)
+	require.Empty(t, cluster.IAMRoleTrustRelationshipTemplate)
+}
+
+func TestManagedBy(t *testing.T) {
+	require.Equal(t, ManagedByCLM, (&Cluster{}).ManagedBy())
+	require.Equal(t, ManagedByCLM, (&Cluster{ConfigItems: map[string]string{"managed_by": ""}}).ManagedBy())
+	require.Equal(t, "reconciler", (&Cluster{ConfigItems: map[string]string{"managed_by": "reconciler"}}).ManagedBy())
+}

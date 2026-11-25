@@ -1,0 +1,84 @@
+{
+  "spec": {
+    "Alias": "test-cluster",
+    "ID": "test:id",
+    "ProvisionModuleRepo": "oci://registry.example.org/modules/cluster",
+    "ProvisionModuleRef": "v1",
+    "ProvisionModulePath": "modules/cluster",
+    "ProvisionApprove": "manual",
+    "ProvisionVars": {
+      "cluster_name": "poc3",
+      "enabled": true,
+      "kubernetes_version": "1.30",
+      "labels": {
+        "team": "teapot",
+        "tier": 1
+      },
+      "node_count": 2,
+      "zones": [
+        "a",
+        "b"
+      ]
+    },
+    "DeliveryRepoURL": "oci://registry.example.org/charts",
+    "DeliveryRepoType": "oci",
+    "DeliveryChart": "example-chart",
+    "DeliveryChartVersion": "1.2.3",
+    "DeliveryRelease": "stackset",
+    "DeliveryTargetNamespace": "example",
+    "DeliveryValues": {
+      "args": [
+        "--interval=10s"
+      ],
+      "replicas": 1,
+      "resources": {
+        "limits": {
+          "cpu": "100m"
+        }
+      }
+    }
+  },
+  "terraformVars": [
+    {
+      "name": "cluster_name",
+      "value": "poc3"
+    },
+    {
+      "name": "enabled",
+      "value": true
+    },
+    {
+      "name": "kubernetes_version",
+      "value": "1.30"
+    },
+    {
+      "name": "labels",
+      "value": {
+        "team": "teapot",
+        "tier": 1
+      }
+    },
+    {
+      "name": "node_count",
+      "value": 2
+    },
+    {
+      "name": "zones",
+      "value": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "helmValues": {
+    "args": [
+      "--interval=10s"
+    ],
+    "replicas": 1,
+    "resources": {
+      "limits": {
+        "cpu": "100m"
+      }
+    }
+  }
+}
