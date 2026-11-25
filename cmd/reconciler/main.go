@@ -8,7 +8,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -29,11 +28,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	var tokenSource oauth2.TokenSource
-	if cfg.RegistryToken != "" {
-		tokenSource = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.RegistryToken})
-	}
-	clusterRegistry := registry.NewRegistry(cfg.Registry, tokenSource, &registry.Options{})
+	clusterRegistry := registry.NewRegistry(cfg.Registry, cfg.RegistryTokenSource(), &registry.Options{})
 	if clusterRegistry == nil {
 		log.Fatalf("Invalid registry %q", cfg.Registry)
 	}

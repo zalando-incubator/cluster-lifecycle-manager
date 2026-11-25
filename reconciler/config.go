@@ -19,8 +19,14 @@ type Config struct {
 	// Registry is a registry URI: file://<path> for a local file, or an
 	// http(s) URL for a cluster registry.
 	Registry string
-	// RegistryToken is the bearer token used for an http(s) registry.
+	// RegistryToken is a static bearer token for an http(s) registry. If it
+	// is empty, the token is read from the platform credentials directory.
 	RegistryToken string
+	// RegistryTokenName is the name of the platform credentials token used
+	// for an http(s) registry.
+	RegistryTokenName string
+	// CredentialsDir is the directory with the platform credentials.
+	CredentialsDir string
 	// Name is the component name. The reconciler handles registry entries
 	// whose config item "managed_by" equals it.
 	Name string
@@ -48,6 +54,8 @@ func (cfg *Config) ParseFlags() {
 	kingpin.Flag("registry", "Cluster registry: file://<path> or the URL of a cluster registry.").Envar("REGISTRY_URL").Default(defaultRegistry).StringVar(&cfg.Registry)
 	kingpin.Flag("registry-token", "Bearer token for an http(s) registry.").Envar("REGISTRY_TOKEN").StringVar(&cfg.RegistryToken)
 	kingpin.Flag("name", "Component name. Handles registry entries with the config item managed_by set to this name.").Envar("COMPONENT_NAME").Default(defaultName).StringVar(&cfg.Name)
+	kingpin.Flag("registry-token-name", "Name of the platform credentials token used for an http(s) registry.").Envar("REGISTRY_TOKEN_NAME").Default("cluster-registry-rw").StringVar(&cfg.RegistryTokenName)
+	kingpin.Flag("credentials-dir", "Directory with the platform credentials.").Envar("CREDENTIALS_DIR").Default("/meta/credentials").StringVar(&cfg.CredentialsDir)
 	kingpin.Flag("provider", "Provider of the registry entries to handle. Can be repeated.").Envar("PROVIDER").Default(defaultProvider).StringsVar(&cfg.Providers)
 	kingpin.Flag("namespace", "Host cluster namespace for all created resources.").Envar("NAMESPACE").Default(defaultNamespace).StringVar(&cfg.Namespace)
 	kingpin.Flag("kubeconfig", "Path to the kubeconfig of the host cluster. Defaults to in-cluster configuration.").Envar("HOST_KUBECONFIG").StringVar(&cfg.Kubeconfig)
@@ -63,10 +71,13 @@ func (cfg *Config) ParseFlags() {
 	kingpin.Flag("runner-credentials-mount-path", "Directory the provider credentials are mounted at in the runner pods.").Default("/var/run/secrets/nebius").StringVar(&cfg.Render.RunnerCredentialsMountPath)
 	kingpin.Flag("runner-credentials-file", "File name of the provider credentials in the credentials Secret.").Default("credentials.json").StringVar(&cfg.Render.RunnerCredentialsFile)
 	kingpin.Flag("cluster-token-secret", "Secret with the token used in the kubeconfigs of created clusters.").Default("nebius-deployment-credentials").StringVar(&cfg.Render.ClusterToken.Name)
-	kingpin.Flag("cluster-token-secret-namespace", "Namespace of the token Secret.").Default("default").StringVar(&cfg.Render.ClusterToken.Namespace)
+	kingpin.Flag("cluster-token-secret-namespace", "Namespace of the token Secret. Defaults to the namespace of the resources.").StringVar(&cfg.Render.ClusterToken.Namespace)
 	kingpin.Flag("cluster-token-secret-key", "Key of the token in the token Secret.").Default("kubernetes-api-token-secret").StringVar(&cfg.Render.ClusterToken.Key)
 	kingpin.Flag("oci-pull-secret", "Optional Secret with registry credentials for the infrastructure module repository.").StringVar(&cfg.Render.OCIPullSecret)
 	kingpin.Parse()
 	cfg.Render.Namespace = cfg.Namespace
 	cfg.Render.Name = cfg.Name
+	if cfg.Render.ClusterToken.Namespace == "" {
+		cfg.Render.ClusterToken.Namespace = cfg.Namespace
+	}
 }
