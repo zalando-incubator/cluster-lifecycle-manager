@@ -91,6 +91,8 @@ var testRenderConfig = RenderConfig{
 	RunnerCredentialsMountPath: "/var/run/secrets/provider",
 	RunnerCredentialsFile:      "credentials.json",
 	ClusterToken:               SecretRef{Namespace: "default", Name: "cluster-token", Key: "token"},
+	RunnerPodApplication:       "kubernetes",
+	RunnerPodComponent:         "reconciler",
 }
 
 const (
@@ -357,6 +359,7 @@ func TestRenderedObjectsGolden(t *testing.T) {
 			})
 			c := testRenderConfig
 			c.OCIPullSecret = "pull-secret"
+			c.OCIProvider = "aws"
 			kc, err := BuildKubeconfig(spec.Alias, "pu.example.org:443", testCA, "test-token")
 			require.NoError(t, err)
 

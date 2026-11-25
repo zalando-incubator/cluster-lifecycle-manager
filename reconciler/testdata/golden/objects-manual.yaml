@@ -9,6 +9,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
+  provider: aws
   ref:
     tag: v1
   secretRef:
@@ -28,6 +29,10 @@ spec:
   interval: 10m
   path: modules/cluster
   runnerPodTemplate:
+    metadata:
+      labels:
+        application: kubernetes
+        component: reconciler
     spec:
       env:
       - name: PROVIDER_CREDENTIALS_FILE

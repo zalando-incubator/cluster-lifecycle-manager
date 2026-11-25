@@ -54,6 +54,15 @@ type RenderConfig struct {
 	// OCIPullSecret is the optional name of a Secret with registry credentials
 	// for the module repository.
 	OCIPullSecret string
+	// OCIProvider is the optional Flux provider used to authenticate to the
+	// module repository (generic, aws, azure or gcp). Empty means the default.
+	OCIProvider string
+
+	// RunnerPodApplication and RunnerPodComponent are the labels of the runner
+	// pods. Without an application label kube-janitor deletes a pod after
+	// seven days.
+	RunnerPodApplication string
+	RunnerPodComponent   string
 }
 
 // Names of the resources of one cluster.
@@ -129,6 +138,9 @@ func (c RenderConfig) ProvisionSource(spec *ClusterSpec) *unstructured.Unstructu
 	if c.OCIPullSecret != "" {
 		s["secretRef"] = map[string]interface{}{"name": c.OCIPullSecret}
 	}
+	if c.OCIProvider != "" {
+		s["provider"] = c.OCIProvider
+	}
 	o.Object["spec"] = s
 	return o
 }
@@ -157,6 +169,7 @@ func (c RenderConfig) Terraform(spec *ClusterSpec) *unstructured.Unstructured {
 			},
 		},
 		"runnerPodTemplate": map[string]interface{}{
+			"metadata": map[string]interface{}{"labels": c.runnerPodLabels()},
 			"spec": map[string]interface{}{
 				"volumes": []interface{}{
 					map[string]interface{}{
@@ -187,6 +200,17 @@ func (c RenderConfig) Terraform(spec *ClusterSpec) *unstructured.Unstructured {
 	}
 	o.Object["spec"] = s
 	return o
+}
+
+func (c RenderConfig) runnerPodLabels() map[string]interface{} {
+	labels := map[string]interface{}{}
+	if c.RunnerPodApplication != "" {
+		labels["application"] = c.RunnerPodApplication
+	}
+	if c.RunnerPodComponent != "" {
+		labels["component"] = c.RunnerPodComponent
+	}
+	return labels
 }
 
 // Status renders the status ConfigMap without data. The data is owned by the

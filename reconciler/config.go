@@ -73,10 +73,16 @@ func (cfg *Config) ParseFlags() {
 	kingpin.Flag("cluster-token-secret", "Secret with the token used in the kubeconfigs of created clusters.").Default("nebius-deployment-credentials").StringVar(&cfg.Render.ClusterToken.Name)
 	kingpin.Flag("cluster-token-secret-namespace", "Namespace of the token Secret. Defaults to the namespace of the resources.").StringVar(&cfg.Render.ClusterToken.Namespace)
 	kingpin.Flag("cluster-token-secret-key", "Key of the token in the token Secret.").Default("kubernetes-api-token-secret").StringVar(&cfg.Render.ClusterToken.Key)
+	kingpin.Flag("oci-provider", "Flux provider used to authenticate to the module repository: generic, aws, azure or gcp. Default: the Flux default.").Envar("OCI_PROVIDER").EnumVar(&cfg.Render.OCIProvider, "", "generic", "aws", "azure", "gcp")
+	kingpin.Flag("runner-pod-application", "Value of the application label of the runner pods.").Default("kubernetes").StringVar(&cfg.Render.RunnerPodApplication)
+	kingpin.Flag("runner-pod-component", "Value of the component label of the runner pods. Defaults to --name.").StringVar(&cfg.Render.RunnerPodComponent)
 	kingpin.Flag("oci-pull-secret", "Optional Secret with registry credentials for the infrastructure module repository.").StringVar(&cfg.Render.OCIPullSecret)
 	kingpin.Parse()
 	cfg.Render.Namespace = cfg.Namespace
 	cfg.Render.Name = cfg.Name
+	if cfg.Render.RunnerPodComponent == "" {
+		cfg.Render.RunnerPodComponent = cfg.Name
+	}
 	if cfg.Render.ClusterToken.Namespace == "" {
 		cfg.Render.ClusterToken.Namespace = cfg.Namespace
 	}
