@@ -268,7 +268,7 @@ func TestReconcileKeepsStatusData(t *testing.T) {
 	cm := m.objs[key(gvrConfigMap, "flux-system", "status-poc3")]
 	cm.Object["data"] = map[string]interface{}{"phase": "Planning"}
 
-	res, err := r.Reconcile(context.Background(), spec)
+	res, err := r.reconcileResources(context.Background(), spec)
 	require.NoError(t, err)
 	require.Equal(t, ActionUnchanged, actions(res)["ConfigMap/status-poc3"])
 	require.Equal(t, "Planning", m.objs[key(gvrConfigMap, "flux-system", "status-poc3")].Object["data"].(map[string]interface{})["phase"])

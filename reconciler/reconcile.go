@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -32,16 +33,37 @@ type ObjectResult struct {
 type Result struct {
 	Cluster string
 	Stage   Stage
+	// Status is the derived phase of the cluster.
+	Status Status
+	// StatusChanged is true if the phase or reason changed since the last loop.
+	StatusChanged bool
 	// Waiting says what the reconciler waits for, when it stopped early.
 	Waiting string
 	Objects []ObjectResult
 }
 
-// Reconciler applies the resources of clusters.
+// Reconciler applies the resources of clusters and reports their status.
 type Reconciler struct {
 	Client Client
-	Config RenderConfig
-	DryRun bool
+	// StatusClient writes the status. It uses its own field manager, so the
+	// data of the status ConfigMap is never overwritten when the other
+	// resources are applied. Defaults to Client.
+	StatusClient Client
+	Config       RenderConfig
+	DryRun       bool
+
+	// StuckAfter is how long a not yet finished state may last before it is
+	// reported as making no progress. Defaults to DefaultStuckAfter.
+	StuckAfter time.Duration
+	// Now returns the current time. Defaults to time.Now.
+	Now func() time.Time
+}
+
+func (r *Reconciler) now() time.Time {
+	if r.Now != nil {
+		return r.Now()
+	}
+	return time.Now()
 }
 
 func (r *Reconciler) apply(ctx context.Context, res *Result, objs ...*unstructured.Unstructured) error {
@@ -66,6 +88,20 @@ func (r *Reconciler) apply(ctx context.Context, res *Result, objs ...*unstructur
 // The kubeconfig is rebuilt on every call, so it follows the renewal of the
 // token. Applying an unchanged object changes nothing.
 func (r *Reconciler) Reconcile(ctx context.Context, spec *ClusterSpec) (*Result, error) {
+	res, err := r.reconcileResources(ctx, spec)
+	if res == nil {
+		return nil, err
+	}
+	// The status is reported even if applying failed, so it does not go
+	// stale: a cluster whose token Secret is missing is InfraReady, not
+	// whatever it was before.
+	if serr := r.reportStatus(ctx, spec, res); serr != nil && err == nil {
+		err = fmt.Errorf("report status of %s: %w", spec.Alias, serr)
+	}
+	return res, err
+}
+
+func (r *Reconciler) reconcileResources(ctx context.Context, spec *ClusterSpec) (*Result, error) {
 	if err := r.Config.validateNames(spec); err != nil {
 		return nil, err
 	}

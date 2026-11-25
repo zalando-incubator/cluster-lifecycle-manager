@@ -11,7 +11,7 @@ const (
 	defaultName      = "reconciler"
 	defaultProvider  = "zalando-nebius"
 	defaultNamespace = "flux-system"
-	defaultInterval  = "1m"
+	defaultInterval  = "15s"
 )
 
 // Config is the configuration of the reconciler.
@@ -34,6 +34,9 @@ type Config struct {
 	Interval   time.Duration
 	Once       bool
 	Debug      bool
+	// StuckAfter is how long a cluster may stay in an unfinished phase before
+	// it is reported as making no progress.
+	StuckAfter time.Duration
 	// DryRun prints what would change instead of changing it.
 	DryRun bool
 
@@ -51,6 +54,7 @@ func (cfg *Config) ParseFlags() {
 	kingpin.Flag("interval", "Interval between loop iterations.").Default(defaultInterval).DurationVar(&cfg.Interval)
 	kingpin.Flag("once", "Run a single iteration and exit.").BoolVar(&cfg.Once)
 	kingpin.Flag("debug", "Enable debug logging.").BoolVar(&cfg.Debug)
+	kingpin.Flag("stuck-after", "How long an unfinished phase may last before it is reported as making no progress.").Default(DefaultStuckAfter.String()).DurationVar(&cfg.StuckAfter)
 	kingpin.Flag("dry-run", "Do not change anything, print a diff of what would change.").BoolVar(&cfg.DryRun)
 
 	kingpin.Flag("runner-service-account", "Service account of the infrastructure runner pods.").Default("tofu-runner").StringVar(&cfg.Render.RunnerServiceAccount)

@@ -48,6 +48,7 @@ type Client interface {
 var (
 	gvrSecret         = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 	gvrConfigMap      = schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
+	gvrEvent          = schema.GroupVersionResource{Version: "v1", Resource: "events"}
 	gvrOCIRepository  = schema.GroupVersionResource{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "ocirepositories"}
 	gvrHelmRepository = schema.GroupVersionResource{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "helmrepositories"}
 	gvrHelmRelease    = schema.GroupVersionResource{Group: "helm.toolkit.fluxcd.io", Version: "v2", Resource: "helmreleases"}
@@ -61,6 +62,8 @@ func gvrFor(obj *unstructured.Unstructured) (schema.GroupVersionResource, error)
 		return gvrSecret, nil
 	case "v1/ConfigMap":
 		return gvrConfigMap, nil
+	case "v1/Event":
+		return gvrEvent, nil
 	case "source.toolkit.fluxcd.io/v1/OCIRepository":
 		return gvrOCIRepository, nil
 	case "source.toolkit.fluxcd.io/v1/HelmRepository":

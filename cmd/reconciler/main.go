@@ -48,8 +48,12 @@ func main() {
 	}
 	r := &reconciler.Reconciler{
 		Client: reconciler.NewClient(dyn, cfg.Name),
-		Config: cfg.Render,
-		DryRun: cfg.DryRun,
+		// The status has its own field manager, so applying the other
+		// resources never touches the data of the status ConfigMap.
+		StatusClient: reconciler.NewClient(dyn, cfg.Name+"-status"),
+		Config:       cfg.Render,
+		DryRun:       cfg.DryRun,
+		StuckAfter:   cfg.StuckAfter,
 	}
 
 	for {
@@ -109,11 +113,16 @@ func logResult(res *reconciler.Result, dryRun bool) {
 			}
 		}
 	}
-	msg := fmt.Sprintf("Cluster %s: %s, %d of %d objects changed", res.Cluster, res.Stage, changed, len(res.Objects))
+	msg := fmt.Sprintf("Cluster %s: %s, %s, %d of %d objects changed", res.Cluster, res.Stage, res.Status, changed, len(res.Objects))
 	if res.Waiting != "" {
 		msg += ", waiting: " + res.Waiting
 	}
-	log.Info(msg)
+	// Quiet when nothing happens: this runs every few seconds.
+	if changed > 0 || res.StatusChanged {
+		log.Info(msg)
+	} else {
+		log.Debug(msg)
+	}
 }
 
 // hostClusterConfig returns the client configuration of the host cluster, from
