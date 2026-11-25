@@ -197,15 +197,32 @@ func (spec *ClusterSpec) HelmValues() map[string]interface{} {
 
 // parseYAMLMap parses a YAML map. An empty value is an empty map.
 func parseYAMLMap(value string) (map[string]interface{}, error) {
-	result := map[string]interface{}{}
 	if strings.TrimSpace(value) == "" {
-		return result, nil
+		return map[string]interface{}{}, nil
 	}
-	if err := yaml.UnmarshalStrict([]byte(value), &result); err != nil {
-		return nil, fmt.Errorf("not a valid YAML map: %w", err)
+	var parsed interface{}
+	if err := yaml.UnmarshalStrict([]byte(value), &parsed); err != nil {
+		return nil, fmt.Errorf("invalid YAML: %s", shortYAMLError(err))
 	}
-	if result == nil {
-		result = map[string]interface{}{}
+	switch v := parsed.(type) {
+	case nil:
+		return map[string]interface{}{}, nil
+	case map[string]interface{}:
+		return v, nil
+	case []interface{}:
+		return nil, fmt.Errorf("must be a YAML map, got a list")
+	case string:
+		return nil, fmt.Errorf("must be a YAML map, got a string")
+	default:
+		return nil, fmt.Errorf("must be a YAML map, got %T", v)
 	}
-	return result, nil
+}
+
+// shortYAMLError removes the wrapping the YAML library adds to its errors.
+func shortYAMLError(err error) string {
+	msg := err.Error()
+	for _, prefix := range []string{"error converting YAML to JSON: ", "error unmarshaling JSON: ", "while decoding JSON: "} {
+		msg = strings.TrimPrefix(msg, prefix)
+	}
+	return msg
 }

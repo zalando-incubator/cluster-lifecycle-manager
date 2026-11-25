@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -51,6 +52,9 @@ type Reconciler struct {
 	StatusClient Client
 	Config       RenderConfig
 	DryRun       bool
+	// Diffs receives the diffs of a dry run. Defaults to standard output,
+	// while the log goes to standard error.
+	Diffs io.Writer
 
 	// StuckAfter is how long a not yet finished state may last before it is
 	// reported as making no progress. Defaults to DefaultStuckAfter.

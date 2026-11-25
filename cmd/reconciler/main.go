@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -57,8 +57,15 @@ func main() {
 	}
 
 	for {
-		runOnce(ctx, cfg, clusterRegistry, r)
+		failures := r.RunOnce(ctx, clusterRegistry, cfg)
 		if cfg.Once {
+			// A single run is used by hand and in checks: tell the caller
+			// if anything failed.
+			stop()
+			if failures > 0 {
+				log.Errorf("%d failure(s)", failures)
+				os.Exit(1)
+			}
 			return
 		}
 		select {
@@ -67,61 +74,6 @@ func main() {
 			return
 		case <-time.After(cfg.Interval):
 		}
-	}
-}
-
-func runOnce(ctx context.Context, cfg *reconciler.Config, clusterRegistry registry.Registry, r *reconciler.Reconciler) {
-	clusters, err := clusterRegistry.ListClusters(registry.Filter{})
-	if err != nil {
-		log.Errorf("Failed to list clusters: %v", err)
-		return
-	}
-
-	selected, skipped := reconciler.Select(clusters, cfg.Providers, cfg.Name)
-	for _, s := range skipped {
-		if s.OtherProvider {
-			log.Debugf("Skipping cluster %s: %s", s.Alias, s.Reason)
-		} else {
-			log.Infof("Skipping cluster %s: %s", s.Alias, s.Reason)
-		}
-	}
-
-	for _, cluster := range selected {
-		spec, err := reconciler.ParseSpec(cluster)
-		if err != nil {
-			log.Errorf("%v", err)
-			continue
-		}
-
-		res, err := r.Reconcile(ctx, spec)
-		if err != nil {
-			log.Errorf("Cluster %s: %v", spec.Alias, err)
-			continue
-		}
-		logResult(res, cfg.DryRun)
-	}
-}
-
-func logResult(res *reconciler.Result, dryRun bool) {
-	changed := 0
-	for _, o := range res.Objects {
-		if o.Action != reconciler.ActionUnchanged {
-			changed++
-			log.Infof("Cluster %s: %s %s %s%s", res.Cluster, o.Kind, o.Name, o.Action, map[bool]string{true: " (dry run)", false: ""}[dryRun])
-			if o.Diff != "" {
-				fmt.Print(o.Diff)
-			}
-		}
-	}
-	msg := fmt.Sprintf("Cluster %s: %s, %s, %d of %d objects changed", res.Cluster, res.Stage, res.Status, changed, len(res.Objects))
-	if res.Waiting != "" {
-		msg += ", waiting: " + res.Waiting
-	}
-	// Quiet when nothing happens: this runs every few seconds.
-	if changed > 0 || res.StatusChanged {
-		log.Info(msg)
-	} else {
-		log.Debug(msg)
 	}
 }
 
