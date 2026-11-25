@@ -141,7 +141,7 @@ func Derive(in StatusInput) Status {
 	}
 
 	apply, output := tf["Apply"], tf["Output"]
-	if !(apply.Status == "True" && output.Status == "True" && in.OutputsReady) {
+	if apply.Status != "True" || output.Status != "True" || !in.OutputsReady {
 		ready, hasReady := tf["Ready"]
 		st := Status{Phase: PhasePlanning, Reason: ready.Reason, Message: ready.Message}
 		if !hasReady {
