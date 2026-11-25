@@ -316,3 +316,81 @@ func TestReportStatusWhenTheTokenIsMissing(t *testing.T) {
 	require.Equal(t, "InfraReady", statusData(m)[StatusKeyPhase])
 	require.False(t, m.has(gvrHelmRelease, "flux-system", "example-chart-poc3"))
 }
+
+func srcObj(conds ...cond) *unstructured.Unstructured { return objWith("OCIRepository", conds...) }
+
+// What the live noop test showed on 25 Nov: tofu-controller reconciled one
+// second after the creation and reported ArtifactFailed, before the source had
+// fetched the artifact.
+var artifactFailedAtCreation = []cond{
+	{"Ready", "False", "ArtifactFailed", "Source is not ready, artifact not found", time.Second},
+}
+
+func TestDeriveArtifactFailedWhileTheSourceIsFetching(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source *unstructured.Unstructured
+		phase  Phase
+		reason string
+	}{
+		{"source does not exist", nil, PhasePending, "WaitingForSource"},
+		{"source has no status yet", srcObj(), PhasePending, "WaitingForSource"},
+		{"source is fetching", srcObj(cond{"Ready", "Unknown", "Progressing", "reconciliation in progress", 0}), PhasePending, "WaitingForSource"},
+		{"source fails", srcObj(cond{"Ready", "False", "AuthenticationFailed", "denied: not authorized", time.Minute}), PhaseFailed, "AuthenticationFailed"},
+		// the source is fine, so the failure is real
+		{"source is ready", srcObj(cond{"Ready", "True", "Succeeded", "stored artifact", time.Minute}), PhaseFailed, "ArtifactFailed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Derive(StatusInput{Terraform: tfObj(artifactFailedAtCreation...), ProvisionSource: tc.source, Now: statusNow})
+			require.Equal(t, tc.phase, got.Phase)
+			require.Equal(t, tc.reason, got.Reason)
+		})
+	}
+
+	failing := Derive(StatusInput{Terraform: tfObj(artifactFailedAtCreation...),
+		ProvisionSource: srcObj(cond{"Ready", "False", "AuthenticationFailed", "denied: not authorized", time.Minute}), Now: statusNow})
+	require.Contains(t, failing.Message, "module source: denied: not authorized")
+}
+
+// The noop module has no cluster_id output: the apply succeeded and the
+// outputs could not be written (live, 25 Nov).
+func TestDeriveOutputsWritingFailed(t *testing.T) {
+	got := Derive(StatusInput{
+		Approve: "auto",
+		Terraform: tfObj(
+			cond{"Ready", "False", "OutputsWritingFailed", "output not found: cluster_id", 40 * time.Second},
+			cond{"Apply", "True", "TerraformAppliedSucceed", "Applied successfully", time.Minute},
+			cond{"Output", "True", "TerraformOutputsAvailable", "Outputs available", time.Minute},
+			cond{"Plan", "True", "TerraformPlannedWithChanges", "Plan generated", time.Minute},
+		),
+		ProvisionSource: srcObj(cond{"Ready", "True", "Succeeded", "stored artifact", time.Hour}),
+		Now:             statusNow,
+	})
+	require.Equal(t, "Failed(OutputsWritingFailed)", got.String())
+	require.Equal(t, "output not found: cluster_id", got.Message)
+}
+
+func TestReportStatusDoesNotFailWhileTheSourceFetches(t *testing.T) {
+	now := statusNow
+	m := newMemClient()
+	m.withToken("token-1")
+	r := reporter(m, &now)
+	spec := testSpec(t, nil)
+
+	_, err := r.Reconcile(context.Background(), spec)
+	require.NoError(t, err)
+	// tofu-controller is faster than the source-controller
+	m.setStatus("terraforms", "Terraform", "cluster-poc3", artifactFailedAtCreation...)
+	m.objs[key(gvrOCIRepository, "flux-system", "provision-poc3")] = &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "source.toolkit.fluxcd.io/v1", "kind": "OCIRepository",
+		"metadata": map[string]interface{}{"name": "provision-poc3", "namespace": "flux-system"},
+	}}
+
+	res, err := r.Reconcile(context.Background(), spec)
+	require.NoError(t, err)
+	require.Equal(t, PhasePending, res.Status.Phase)
+	require.Equal(t, "WaitingForSource", res.Status.Reason)
+	for _, e := range events(m) {
+		require.Equal(t, "Normal", e.Object["type"], "no Warning for a source that is still fetching")
+	}
+}

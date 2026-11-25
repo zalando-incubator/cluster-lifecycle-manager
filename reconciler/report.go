@@ -39,6 +39,10 @@ func (r *Reconciler) reportStatus(ctx context.Context, spec *ClusterSpec, res *R
 	if err != nil {
 		return fmt.Errorf("get Terraform %s: %w", n.terraform, err)
 	}
+	source, err := r.Client.Get(ctx, gvrOCIRepository, ns, n.provisionSource)
+	if err != nil {
+		return fmt.Errorf("get OCIRepository %s: %w", n.provisionSource, err)
+	}
 	hr, err := r.Client.Get(ctx, gvrHelmRelease, ns, n.release)
 	if err != nil {
 		return fmt.Errorf("get HelmRelease %s: %w", n.release, err)
@@ -49,7 +53,7 @@ func (r *Reconciler) reportStatus(ctx context.Context, spec *ClusterSpec, res *R
 	}
 
 	st := Derive(StatusInput{
-		Terraform: tf, HelmRelease: hr, OutputsReady: outputsReady,
+		Terraform: tf, HelmRelease: hr, ProvisionSource: source, OutputsReady: outputsReady,
 		Approve: spec.ProvisionApprove, Now: r.now(), StuckAfter: r.StuckAfter,
 	})
 	res.Status = st

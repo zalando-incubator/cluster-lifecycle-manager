@@ -50,6 +50,9 @@ type StatusInput struct {
 	// Terraform and HelmRelease are nil if the object does not exist.
 	Terraform   *unstructured.Unstructured
 	HelmRelease *unstructured.Unstructured
+	// ProvisionSource is the OCIRepository of the infrastructure module, nil
+	// if it does not exist.
+	ProvisionSource *unstructured.Unstructured
 	// OutputsReady is true if the outputs Secret has the endpoint and CA.
 	OutputsReady bool
 	// Approve is the config item provision_approve.
@@ -116,6 +119,13 @@ func Derive(in StatusInput) Status {
 	}
 	tf := conditionsOf(in.Terraform)
 
+	// tofu-controller reconciles a new Terraform resource before its source has
+	// fetched the artifact and reports ArtifactFailed. Look at the source
+	// itself: waiting is not a failure, and a failing source says why.
+	if st, ok := in.artifactStatus(tf); ok {
+		return st
+	}
+
 	if c, ok := tf["Stalled"]; ok && c.Status == "True" {
 		return failed(c)
 	}
@@ -178,4 +188,31 @@ func (in StatusInput) noProgress(st Status, ready condition) Status {
 		st.Reason = ReasonNoProgress
 	}
 	return st
+}
+
+// artifactStatus handles a Terraform resource that reports ArtifactFailed. It
+// returns false if the failure is not about the artifact, or if the source is
+// ready and the failure is real.
+func (in StatusInput) artifactStatus(tf map[string]condition) (Status, bool) {
+	failedOnArtifact := false
+	for _, t := range []string{"Ready", "Plan", "Apply"} {
+		if c, ok := tf[t]; ok && c.Status == "False" && c.Reason == "ArtifactFailed" {
+			failedOnArtifact = true
+		}
+	}
+	if !failedOnArtifact {
+		return Status{}, false
+	}
+
+	if in.ProvisionSource == nil {
+		return Status{Phase: PhasePending, Reason: "WaitingForSource", Message: "module source does not exist yet"}, true
+	}
+	src := conditionsOf(in.ProvisionSource)["Ready"]
+	switch src.Status {
+	case "True":
+		return Status{}, false
+	case "False":
+		return Status{Phase: PhaseFailed, Reason: src.Reason, Message: "module source: " + src.Message}, true
+	}
+	return Status{Phase: PhasePending, Reason: "WaitingForSource", Message: "module source is not ready yet: " + src.Message}, true
 }
