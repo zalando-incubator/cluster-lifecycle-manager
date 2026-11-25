@@ -1,12 +1,15 @@
 package reconciler
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"github.com/zalando-incubator/cluster-lifecycle-manager/registry"
@@ -124,4 +127,33 @@ func TestYAMLMapErrors(t *testing.T) {
 	m, err := parseYAMLMap("a: 1")
 	require.NoError(t, err)
 	require.Equal(t, map[string]interface{}{"a": float64(1)}, m)
+}
+
+func TestSkippedEntriesAreLoggedOnceUntilTheyChange(t *testing.T) {
+	var out bytes.Buffer
+	log.SetOutput(&out)
+	log.SetLevel(log.InfoLevel)
+	defer log.SetOutput(os.Stderr)
+
+	r := newRunner(newMemClient())
+	skip := []Skipped{{Alias: "a", Reason: "not mine"}, {Alias: "b", Reason: "other provider", OtherProvider: true}}
+
+	r.logSkipped(skip)
+	require.Equal(t, 1, strings.Count(out.String(), "Skipping cluster a"), "logged when it appears")
+	require.NotContains(t, out.String(), "Skipping cluster b", "other providers are not logged at info level")
+
+	out.Reset()
+	r.logSkipped(skip)
+	r.logSkipped(skip)
+	require.Empty(t, out.String(), "no repeat while nothing changes")
+
+	out.Reset()
+	r.logSkipped([]Skipped{{Alias: "a", Reason: "now another reason"}})
+	require.Equal(t, 1, strings.Count(out.String(), "Skipping cluster a: now another reason"), "logged when the reason changes")
+
+	// it disappears and comes back: logged again
+	r.logSkipped(nil)
+	out.Reset()
+	r.logSkipped(skip)
+	require.Equal(t, 1, strings.Count(out.String(), "Skipping cluster a"))
 }

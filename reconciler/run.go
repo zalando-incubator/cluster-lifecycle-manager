@@ -23,13 +23,7 @@ func (r *Reconciler) RunOnce(ctx context.Context, clusterRegistry registry.Regis
 	}
 
 	selected, skipped := Select(clusters, cfg.Providers, cfg.Name)
-	for _, s := range skipped {
-		if s.OtherProvider {
-			log.Debugf("Skipping cluster %s: %s", s.Alias, s.Reason)
-		} else {
-			log.Infof("Skipping cluster %s: %s", s.Alias, s.Reason)
-		}
-	}
+	r.logSkipped(skipped)
 
 	failures := 0
 	for _, cluster := range selected {
@@ -50,6 +44,27 @@ func (r *Reconciler) RunOnce(ctx context.Context, clusterRegistry registry.Regis
 		}
 	}
 	return failures
+}
+
+// logSkipped logs the skipped entries. Entries of other providers are expected
+// and logged at debug level. For the others, a skip is logged at info level
+// when it appears or its reason changes, and at debug level while it stays the
+// same, since this runs every few seconds.
+func (r *Reconciler) logSkipped(skipped []Skipped) {
+	previous := r.skipped
+	r.skipped = make(map[string]string, len(skipped))
+	for _, s := range skipped {
+		if s.OtherProvider {
+			log.Debugf("Skipping cluster %s: %s", s.Alias, s.Reason)
+			continue
+		}
+		r.skipped[s.Alias] = s.Reason
+		if previous[s.Alias] == s.Reason {
+			log.Debugf("Skipping cluster %s: %s", s.Alias, s.Reason)
+		} else {
+			log.Infof("Skipping cluster %s: %s", s.Alias, s.Reason)
+		}
+	}
 }
 
 func (r *Reconciler) logResult(res *Result) {

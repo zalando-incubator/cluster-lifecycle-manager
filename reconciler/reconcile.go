@@ -61,6 +61,11 @@ type Reconciler struct {
 	StuckAfter time.Duration
 	// Now returns the current time. Defaults to time.Now.
 	Now func() time.Time
+
+	// skipped remembers why each entry was skipped in the last run, so a skip
+	// is logged at info level when it appears or changes and at debug level
+	// while it stays the same.
+	skipped map[string]string
 }
 
 func (r *Reconciler) now() time.Time {
