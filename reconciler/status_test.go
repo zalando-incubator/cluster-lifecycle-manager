@@ -394,3 +394,27 @@ func TestReportStatusDoesNotFailWhileTheSourceFetches(t *testing.T) {
 		require.Equal(t, "Normal", e.Object["type"], "no Warning for a source that is still fetching")
 	}
 }
+
+// The deployed reconciler had no permission to read Events (seen live on 25 Nov): the failure must
+// not fail the run or cost the status ConfigMap, and the Event must not be lost for good.
+func TestReportStatusSurvivesAnEventFailure(t *testing.T) {
+	now := statusNow
+	m := newMemClient()
+	m.withToken("token-1")
+	m.failOn = "Event"
+	r := reporter(m, &now)
+
+	res, err := r.Reconcile(context.Background(), testSpec(t, nil))
+	require.NoError(t, err, "a failing Event is not a failure of the run")
+	require.True(t, res.StatusChanged)
+	require.Equal(t, "Pending", statusData(m)[StatusKeyPhase], "the ConfigMap is written")
+	require.Empty(t, events(m))
+
+	// once the permission exists, the next change is reported again
+	m.failOn = ""
+	now = now.Add(time.Minute)
+	m.setStatus("terraforms", "Terraform", "cluster-poc3", cond{"Ready", "Unknown", "Progressing", "", 0})
+	_, err = r.Reconcile(context.Background(), testSpec(t, nil))
+	require.NoError(t, err)
+	require.Len(t, events(m), 1)
+}

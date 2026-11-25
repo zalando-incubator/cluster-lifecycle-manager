@@ -3,6 +3,7 @@ package reconciler
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +49,9 @@ func merge(dst, src map[string]interface{}) {
 }
 
 func (m *memClient) Apply(ctx context.Context, obj *unstructured.Unstructured, dryRun bool) (ApplyResult, error) {
+	if m.failOn != "" && obj.GetKind() == m.failOn {
+		return ApplyResult{}, fmt.Errorf("forbidden: cannot apply %s", obj.GetKind())
+	}
 	gvr, err := gvrFor(obj)
 	if err != nil {
 		return ApplyResult{}, err

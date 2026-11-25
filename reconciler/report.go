@@ -74,6 +74,18 @@ func (r *Reconciler) reportStatus(ctx context.Context, spec *ClusterSpec, res *R
 		return nil
 	}
 
+	statusClient := r.StatusClient
+	if statusClient == nil {
+		statusClient = r.Client
+	}
+
+	// The Event is written first and is best effort: it is only written when
+	// the phase changes, so if it were written after the ConfigMap, a failure
+	// would lose it for good.
+	if _, err := statusClient.Apply(ctx, r.event(spec, tf, st, since), false); err != nil {
+		log.Warnf("Cluster %s: could not write the Event for %s: %v", spec.Alias, st, err)
+	}
+
 	cm := r.Config.Status(spec)
 	cm.Object["data"] = map[string]interface{}{
 		StatusKeyPhase:   string(st.Phase),
@@ -81,14 +93,7 @@ func (r *Reconciler) reportStatus(ctx context.Context, spec *ClusterSpec, res *R
 		StatusKeyMessage: truncate(st.Message),
 		StatusKeySince:   since,
 	}
-	statusClient := r.StatusClient
-	if statusClient == nil {
-		statusClient = r.Client
-	}
-	if _, err := statusClient.Apply(ctx, cm, false); err != nil {
-		return err
-	}
-	_, err = statusClient.Apply(ctx, r.event(spec, tf, st, since), false)
+	_, err = statusClient.Apply(ctx, cm, false)
 	return err
 }
 
