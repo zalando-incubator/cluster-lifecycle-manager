@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -222,6 +223,17 @@ func (c *mockConfig) Delete() error {
 
 var defaultOptions = &Options{
 	AccountFilter: config.DefaultFilter,
+}
+
+func TestControllerUsesClusterAliasFilter(t *testing.T) {
+	options := &Options{AccountFilter: config.DefaultFilter, ClusterAliasFilter: regexp.MustCompile(`^nebius-poc-2$`)}
+	controller := New(defaultLogger, nil, nil, MockChannelSource(false, false), options)
+	clusters := []*api.Cluster{
+		{ID: "one", Alias: "nebius-poc-1", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+		{ID: "two", Alias: "nebius-poc-2", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+	}
+	controller.clusterList.UpdateAvailable(MockChannelSource(false, false), clusters)
+	require.Equal(t, []string{"two"}, allClusterIDs(controller.clusterList))
 }
 
 func TestProcessCluster(t *testing.T) {

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"time"
 
@@ -30,12 +31,13 @@ var (
 // Options are options which can be used to configure the controller when it is
 // initialized.
 type Options struct {
-	Interval          time.Duration
-	AccountFilter     config.IncludeExcludeFilter
-	Providers         []string
-	DryRun            bool
-	ConcurrentUpdates uint
-	EnvironmentOrder  []string
+	Interval           time.Duration
+	AccountFilter      config.IncludeExcludeFilter
+	ClusterAliasFilter *regexp.Regexp
+	Providers          []string
+	DryRun             bool
+	ConcurrentUpdates  uint
+	EnvironmentOrder   []string
 }
 
 // Controller defines the main control loop for the cluster-lifecycle-manager.
@@ -67,7 +69,7 @@ func New(
 		channelConfigSourcer: channel.NewCachingSource(channelConfigSourcer),
 		interval:             options.Interval,
 		dryRun:               options.DryRun,
-		clusterList:          NewClusterList(options.AccountFilter),
+		clusterList:          NewClusterList(options.AccountFilter, options.ClusterAliasFilter),
 		concurrentUpdates:    options.ConcurrentUpdates,
 	}
 }

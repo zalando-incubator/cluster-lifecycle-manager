@@ -70,6 +70,30 @@ To run CLM you need to provide at least the following information:
 * URL to repository containing the configuration `--git-repository-url` or, in
   alternative, a directory `--directory`
 
+### Nebius authentication
+
+For `zalando-nebius`, set `--nebius-credentials-file` to the Nebius service
+account credentials JSON (the format produced by `nebius iam auth-public-key generate`).
+If it is unset, CLM uses the current kubeconfig context as before. A configured
+but inaccessible or invalid credentials file is an error, not a fallback to
+kubeconfig.
+
+With credentials, CLM uses the cluster registry `id` to discover the Nebius
+Managed Kubernetes public endpoint and cluster CA. It obtains and refreshes IAM
+tokens using the Nebius Go SDK. The service account needs permission to read the
+Nebius cluster and Kubernetes RBAC permission to manage the configured
+resources. This mode requires access to Nebius IAM, the Nebius API and the
+cluster's public endpoint. Existing AWS credentials are still required for the
+cluster's CloudFormation stack.
+
+### Controller cluster alias filter
+
+Use `--cluster-alias-filter` to restrict controller mode to cluster aliases
+matching a regular expression. For example, `--cluster-alias-filter='^nebius-poc-1$'`
+selects only that alias. It is combined with the account include/exclude
+filters. When unset, all aliases are eligible. The flag does not affect the
+`provision` or `decommission` commands.
+
 ### Run CLM locally
 
 To run CLM locally you can use the following command. This assumes valid AWS

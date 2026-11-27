@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"regexp"
 	"sort"
 	"sync"
 	"time"
@@ -41,15 +42,17 @@ type ClusterInfo struct {
 // ClusterList maintains the state of all active clusters
 type ClusterList struct {
 	sync.Mutex
-	accountFilter config.IncludeExcludeFilter
-	clusters      map[string]*ClusterInfo
-	pendingUpdate []*ClusterInfo
+	accountFilter      config.IncludeExcludeFilter
+	clusterAliasFilter *regexp.Regexp
+	clusters           map[string]*ClusterInfo
+	pendingUpdate      []*ClusterInfo
 }
 
-func NewClusterList(accountFilter config.IncludeExcludeFilter) *ClusterList {
+func NewClusterList(accountFilter config.IncludeExcludeFilter, clusterAliasFilter *regexp.Regexp) *ClusterList {
 	return &ClusterList{
-		accountFilter: accountFilter,
-		clusters:      make(map[string]*ClusterInfo),
+		accountFilter:      accountFilter,
+		clusterAliasFilter: clusterAliasFilter,
+		clusters:           make(map[string]*ClusterInfo),
 	}
 }
 
@@ -102,8 +105,15 @@ func (clusterList *ClusterList) updateClusters(configSource channel.ConfigSource
 			continue
 		}
 
+		if clusterList.clusterAliasFilter != nil && !clusterList.clusterAliasFilter.MatchString(cluster.Alias) {
+			log.Debugf("Skipping %s cluster, alias (%s) does not match provided filter.", cluster.ID, cluster.Alias)
+			if existing, ok := clusterList.clusters[cluster.ID]; ok && existing.state == stateProcessing {
+				existing.cancelUpdate()
+			}
+			continue
+		}
 		if !clusterList.accountFilter.Allowed(cluster.InfrastructureAccount) {
-			log.Debugf("Skipping %s cluster, infrastructure account does not match provided filter.", cluster.ID)
+			log.Debugf("Skipping %s cluster, infrastructure account (%s) does not match provided filter.", cluster.ID, cluster.InfrastructureAccount)
 			continue
 		}
 
