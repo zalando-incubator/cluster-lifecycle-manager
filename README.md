@@ -86,6 +86,14 @@ resources. This mode requires access to Nebius IAM, the Nebius API and the
 cluster's public endpoint. Existing AWS credentials are still required for the
 cluster's CloudFormation stack.
 
+### Controller cluster alias filter
+
+Use `--cluster-alias-filter` to restrict controller mode to cluster aliases
+matching a regular expression. For example, `--cluster-alias-filter='^nebius-poc-1$'`
+selects only that alias. It is combined with the account include/exclude
+filters. When unset, all aliases are eligible. The flag does not affect the
+`provision` or `decommission` commands.
+
 ### Run CLM locally
 
 To run CLM locally you can use the following command. This assumes valid AWS

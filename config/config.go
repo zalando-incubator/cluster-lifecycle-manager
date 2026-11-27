@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path"
+	"regexp"
 	"time"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
@@ -35,6 +36,7 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 type LifecycleManagerConfig struct {
 	Registry              string
 	AccountFilter         IncludeExcludeFilter
+	ClusterAliasFilter    *regexp.Regexp
 	Token                 string
 	RegistryTokenName     string
 	ClusterTokenName      string
@@ -80,6 +82,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("registry", "The location of a cluster registry. This can either be a filepath to a clusters.yaml or an URL for a cluster registry.").Default(defaultRegistry).Short('f').StringVar(&cfg.Registry)
 	kingpin.Flag("include", "Specify a regular expression to include accounts for provisioning.").Default(DefaultInclude).RegexpVar(&cfg.AccountFilter.Include)
 	kingpin.Flag("exclude", "Specify a regular expression to exclude accounts for provisioning.").Default(DefaultExclude).RegexpVar(&cfg.AccountFilter.Exclude)
+	kingpin.Flag("cluster-alias-filter", "Only manage clusters whose aliases match this regular expression in controller mode.").RegexpVar(&cfg.ClusterAliasFilter)
 	kingpin.Flag("token", "The token to authenticate with.").StringVar(&cfg.Token)
 	kingpin.Flag("registry-token-name", "Name of the token used when authenticating with a cluster registry.").Default(defaultRegistryTokenName).StringVar(&cfg.RegistryTokenName)
 	kingpin.Flag("cluster-token-name", "Name of the token used when authenticating with a cluster.").Default(defaultClusterTokenName).StringVar(&cfg.ClusterTokenName)

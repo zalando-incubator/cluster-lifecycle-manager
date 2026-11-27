@@ -168,11 +168,12 @@ func main() {
 		go startHTTPServer(cfg.Listen)
 
 		opts := &controller.Options{
-			AccountFilter:     cfg.AccountFilter,
-			Interval:          cfg.Interval,
-			DryRun:            cfg.DryRun,
-			Providers:         cfg.Providers,
-			ConcurrentUpdates: cfg.ConcurrentUpdates,
+			AccountFilter:      cfg.AccountFilter,
+			ClusterAliasFilter: cfg.ClusterAliasFilter,
+			Interval:           cfg.Interval,
+			DryRun:             cfg.DryRun,
+			Providers:          cfg.Providers,
+			ConcurrentUpdates:  cfg.ConcurrentUpdates,
 		}
 
 		ctrl := controller.New(

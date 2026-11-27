@@ -102,7 +102,7 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 			ignored: true,
 		},
 	} {
-		clusterList := NewClusterList(filter)
+		clusterList := NewClusterList(filter, nil)
 		clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{ti.cluster})
 		nextCluster := clusterList.SelectNext(dummyCancelFunc)
 		if ti.ignored {
@@ -111,6 +111,58 @@ func TestUpdateIgnoresClusters(t *testing.T) {
 			assert.NotNil(t, nextCluster, "cluster ignored: %s", ti.cluster.ID)
 		}
 	}
+}
+
+func TestUpdateFiltersClusterAliases(t *testing.T) {
+	accountFilter := config.IncludeExcludeFilter{
+		Include: regexp.MustCompile(`^aws:416911024584$`),
+		Exclude: regexp.MustCompile(`^$`),
+	}
+	clusters := []*api.Cluster{
+		{ID: "one", Alias: "nebius-poc-1", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+		{ID: "two", Alias: "nebius-poc-2", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusDecommissionRequested, Channel: "dev", Status: mockStatus},
+		{ID: "ten", Alias: "nebius-poc-10", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+		{ID: "no-alias", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+		{ID: "other-account", Alias: "nebius-poc-1", InfrastructureAccount: "aws:999999999999", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus},
+	}
+	for _, tc := range []struct {
+		name   string
+		filter *regexp.Regexp
+		want   []string
+	}{
+		{"unset", nil, []string{"no-alias", "one", "ten", "two"}},
+		{"exact", regexp.MustCompile(`^nebius-poc-1$`), []string{"one"}},
+		{"multiple", regexp.MustCompile(`^nebius-poc-[12]$`), []string{"one", "two"}},
+		{"substring", regexp.MustCompile(`poc-1`), []string{"one", "ten"}},
+		{"no match", regexp.MustCompile(`^missing$`), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			list := NewClusterList(accountFilter, tc.filter)
+			list.UpdateAvailable(MockChannelSource(false, false), clusters)
+			require.Equal(t, tc.want, sortedStrings(allClusterIDs(list)))
+		})
+	}
+}
+
+func TestUpdateCancelsClusterWhoseAliasStopsMatching(t *testing.T) {
+	list := NewClusterList(config.DefaultFilter, regexp.MustCompile(`^nebius-poc-1$`))
+	cluster := &api.Cluster{ID: "id", Alias: "nebius-poc-1", InfrastructureAccount: "aws:416911024584", LifecycleStatus: statusReady, Channel: "dev", Status: mockStatus}
+	list.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inFlight := list.SelectNext(cancel)
+	require.NotNil(t, inFlight)
+	updated := *cluster
+	updated.Alias = "nebius-poc-2"
+	list.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{&updated})
+	require.ErrorIs(t, ctx.Err(), context.Canceled)
+	require.Nil(t, list.SelectNext(dummyCancelFunc))
+	list.ClusterProcessed(inFlight)
+	list.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{&updated})
+	require.Empty(t, list.clusters)
+
+	list.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
+	require.Equal(t, []string{"id"}, allClusterIDs(list))
 }
 
 func allClusterIDs(clusterList *ClusterList) []string {
@@ -145,7 +197,7 @@ func TestUpdateAddsNewClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 
 	// No clusters yet
 	require.Nil(t, clusterList.SelectNext(dummyCancelFunc))
@@ -168,7 +220,7 @@ func TestUpdateUpdatesExistingClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 
@@ -210,7 +262,7 @@ func TestUpdateAbortsProcessingIfBlocked(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -246,7 +298,7 @@ func TestUpdateDeletesUnusedClusters(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster1, cluster2})
 	require.Equal(t, []string{cluster1.ID, cluster2.ID}, sortedStrings(allClusterIDs(clusterList)))
@@ -296,7 +348,7 @@ func TestClusterPriority(t *testing.T) {
 		{pendingUpdate, normal, decommissionRequested},
 		{pendingUpdate, decommissionRequested, normal},
 	} {
-		clusterList := NewClusterList(config.DefaultFilter)
+		clusterList := NewClusterList(config.DefaultFilter, nil)
 
 		clusterList.UpdateAvailable(MockChannelSource(false, false), clusters)
 		assert.Equal(t, []string{pendingUpdate.ID, decommissionRequested.ID, normal.ID}, allClusterIDs(clusterList))
@@ -308,7 +360,7 @@ func TestClusterPriority(t *testing.T) {
 }
 
 func TestClusterLastUpdated(t *testing.T) {
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 
 	clusters := []*api.Cluster{
 		{
@@ -369,7 +421,7 @@ func TestProcessingClusterNotDeleted(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 	next := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
@@ -405,7 +457,7 @@ func TestProcessingClusterNotUpdated(t *testing.T) {
 		Status:                mockStatus,
 	}
 
-	clusterList := NewClusterList(config.DefaultFilter)
+	clusterList := NewClusterList(config.DefaultFilter, nil)
 	clusterList.UpdateAvailable(MockChannelSource(false, false), []*api.Cluster{cluster})
 	next := clusterList.SelectNext(dummyCancelFunc)
 	require.NotNil(t, next)
