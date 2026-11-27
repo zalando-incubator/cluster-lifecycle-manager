@@ -19,15 +19,17 @@ type NebiusProvisioner struct {
 	setupAWSAdapter func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error)
 }
 
-// NewNebiusProvisioner uses the current kubectl context until Nebius authentication is implemented.
-func NewNebiusProvisioner(secretDecrypter decrypter.Decrypter, assumedRole string, awsConfigOptions []func(*awsconfig.LoadOptions) error, dryRun bool) Provisioner {
+// NewNebiusProvisioner uses Nebius credentials when available, or the current kubeconfig context otherwise.
+func NewNebiusProvisioner(secretDecrypter decrypter.Decrypter, assumedRole string, awsConfigOptions []func(*awsconfig.LoadOptions) error, credentialsFile string, dryRun bool) Provisioner {
 	// setupAWSAdapter appends a per-cluster region; do not share spare capacity
 	// between concurrent provisioning calls or with other provisioners.
 	awsConfigOptions = append([]func(*awsconfig.LoadOptions) error(nil), awsConfigOptions...)
 	awsConfigOptions = awsConfigOptions[:len(awsConfigOptions):len(awsConfigOptions)]
 	awsProvisioner := &clusterpyProvisioner{assumedRole: assumedRole, awsConfigOptions: awsConfigOptions, dryRun: dryRun}
 	return &NebiusProvisioner{
-		apply:           newKubernetesApplyProvisioner(api.ZalandoNebiusProvider, newCurrentContextKubernetesClient, secretDecrypter, dryRun),
+		apply: newKubernetesApplyProvisioner(api.ZalandoNebiusProvider, func(ctx context.Context, cluster *api.Cluster) (kubernetesApplyClient, error) {
+			return newNebiusKubernetesClient(ctx, cluster, credentialsFile)
+		}, secretDecrypter, dryRun),
 		setupAWSAdapter: awsProvisioner.setupAWSAdapter,
 	}
 }

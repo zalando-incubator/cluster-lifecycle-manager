@@ -33,30 +33,31 @@ var defaultWorkdir = path.Join(os.TempDir(), "clm-workdir")
 
 // LifecycleManagerConfig stores the configuration for app
 type LifecycleManagerConfig struct {
-	Registry            string
-	AccountFilter       IncludeExcludeFilter
-	Token               string
-	RegistryTokenName   string
-	ClusterTokenName    string
-	AssumedRole         string
-	Interval            time.Duration
-	Debug               bool
-	DumpRequest         bool
-	DryRun              bool
-	ConcurrentUpdates   uint
-	Listen              string
-	Workdir             string
-	Directory           string
-	Providers           []string
-	ConfigSources       []string
-	SSHPrivateKeyFile   string
-	CredentialsDir      string
-	ApplyOnly           bool
-	AwsMaxRetries       int
-	AwsMaxRetryInterval time.Duration
-	UpdateStrategy      UpdateStrategy
-	RemoveVolumes       bool
-	ManageEtcdStack     bool
+	Registry              string
+	AccountFilter         IncludeExcludeFilter
+	Token                 string
+	RegistryTokenName     string
+	ClusterTokenName      string
+	AssumedRole           string
+	Interval              time.Duration
+	Debug                 bool
+	DumpRequest           bool
+	DryRun                bool
+	ConcurrentUpdates     uint
+	Listen                string
+	Workdir               string
+	Directory             string
+	Providers             []string
+	ConfigSources         []string
+	SSHPrivateKeyFile     string
+	CredentialsDir        string
+	NebiusCredentialsFile string
+	ApplyOnly             bool
+	AwsMaxRetries         int
+	AwsMaxRetryInterval   time.Duration
+	UpdateStrategy        UpdateStrategy
+	RemoveVolumes         bool
+	ManageEtcdStack       bool
 }
 
 // UpdateStrategy defines the default update strategy configured for the
@@ -98,6 +99,7 @@ func (cfg *LifecycleManagerConfig) ParseFlags() string {
 	kingpin.Flag("concurrent-updates", "Number of updates allowed to run in parallel.").Default(defaultConcurrentUpdates).UintVar(&cfg.ConcurrentUpdates)
 	kingpin.Flag("ssh-private-key-path", "Path to SSH private key used when pulling from a private git repository.").Envar("SSH_PRIVATE_KEY_PATH").StringVar(&cfg.SSHPrivateKeyFile)
 	kingpin.Flag("credentials-dir", "Path to OAuth credentials").Envar("CREDENTIALS_DIR").Default(defaultCredentialsDir).StringVar(&cfg.CredentialsDir)
+	kingpin.Flag("nebius-credentials-file", "Path to Nebius service account credentials JSON; if unset, use the current kubeconfig context.").StringVar(&cfg.NebiusCredentialsFile)
 	kingpin.Flag("apply-only", "Enable apply only mode which will only apply CloudFormation stacks and manifests, but not do any rolling of nodes.").BoolVar(&cfg.ApplyOnly)
 	kingpin.Flag("aws-max-retries", "Maximum number of retries for AWS SDK requests.").Default(defaultAwsMaxRetries).IntVar(&cfg.AwsMaxRetries)
 	kingpin.Flag("aws-max-retry-interval", "Maximum interval between retries for AWS SDK requests.").Default(defaultAwsMaxRetryInterval).DurationVar(&cfg.AwsMaxRetryInterval)

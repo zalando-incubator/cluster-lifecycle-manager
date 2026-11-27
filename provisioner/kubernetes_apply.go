@@ -20,7 +20,7 @@ type kubernetesApplyClient interface {
 }
 
 // kubernetesApplyClientFactory creates a client for the cluster being provisioned.
-type kubernetesApplyClientFactory func(*api.Cluster) (kubernetesApplyClient, error)
+type kubernetesApplyClientFactory func(context.Context, *api.Cluster) (kubernetesApplyClient, error)
 
 type kubernetesApplyProvisioner struct {
 	provider        api.ProviderID
@@ -119,12 +119,19 @@ func (p *kubernetesApplyProvisioner) provisionPrepared(ctx context.Context, logg
 	if p.newClient == nil {
 		return fmt.Errorf("no Kubernetes client factory configured for provider %s", p.provider)
 	}
-	client, err := p.newClient(cluster)
+	client, err := p.newClient(ctx, cluster)
 	if err != nil {
 		return err
 	}
 	if client == nil {
 		return fmt.Errorf("kubernetes client factory returned nil for provider %s", p.provider)
+	}
+	if closer, ok := client.(interface{ Close() error }); ok {
+		defer func() {
+			if err := closer.Close(); err != nil {
+				logger.WithError(err).Warn("Failed to close Kubernetes client")
+			}
+		}()
 	}
 	deleteResources := func(resources []*kubernetes.Resource) error {
 		for _, resource := range resources {

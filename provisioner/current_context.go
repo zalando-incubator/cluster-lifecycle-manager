@@ -1,6 +1,7 @@
 package provisioner
 
 import (
+	"context"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -20,12 +21,16 @@ type kubectlClient struct {
 
 // newCurrentContextKubernetesClient uses the current kubeconfig context for testing.
 // It ignores the cluster's API server URL.
-func newCurrentContextKubernetesClient(cluster *api.Cluster) (kubernetesApplyClient, error) {
+func newCurrentContextKubernetesClient(_ context.Context, cluster *api.Cluster) (kubernetesApplyClient, error) {
 	cfg, contextName, err := currentKubeConfig()
 	if err != nil {
 		return nil, err
 	}
 	log.WithField("cluster", cluster.ID).Warnf("Using current kubeconfig context %q (%s); cluster API server URL is ignored", contextName, cfg.Host)
+	return newKubectlClient(cfg)
+}
+
+func newKubectlClient(cfg *rest.Config) (*kubectlClient, error) {
 	applier, err := kubernetes.NewApplier(cfg, maxApplyRetries)
 	if err != nil {
 		return nil, err

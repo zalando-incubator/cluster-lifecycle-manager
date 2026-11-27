@@ -21,7 +21,7 @@ import (
 )
 
 func newTestNebiusProvisioner() *NebiusProvisioner {
-	p := NewNebiusProvisioner(nil, "", nil, false).(*NebiusProvisioner)
+	p := NewNebiusProvisioner(nil, "", nil, "", false).(*NebiusProvisioner)
 	p.setupAWSAdapter = func(_ context.Context, _ *log.Entry, _ *api.Cluster) (*awsAdapter, error) {
 		return newAWSAdapterWithStubs(cftypes.StackStatusCreateComplete, ""), nil
 	}
@@ -120,7 +120,7 @@ func TestNebiusClusterStackBeforeKubernetes(t *testing.T) {
 		require.Same(t, cluster, got)
 		return adapter, nil
 	}
-	p.apply.newClient = func(got *api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(_ context.Context, got *api.Cluster) (kubernetesApplyClient, error) {
 		require.Same(t, cluster, got)
 		return &recordingClient{&recordingApplier{events: &events}, &recordingDeleter{events: &events}}, nil
 	}
@@ -166,7 +166,7 @@ func TestNebiusClusterStackFailureStopsKubernetes(t *testing.T) {
 	adapter := &awsAdapter{cloudformationClient: cf, logger: log.NewEntry(log.New())}
 	p := newTestNebiusProvisioner()
 	p.setupAWSAdapter = func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error) { return adapter, nil }
-	p.apply.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created Kubernetes client after stack failure")
 		return nil, nil
 	}
@@ -196,7 +196,7 @@ func TestNebiusDryRunDoesNotModifyAWSOrKubernetes(t *testing.T) {
 	p := newTestNebiusProvisioner()
 	p.apply.dryRun = true
 	p.setupAWSAdapter = func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error) { return adapter, nil }
-	p.apply.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created Kubernetes client in dry run")
 		return nil, nil
 	}
@@ -215,7 +215,7 @@ func TestNebiusDryRunCannotRenderUnavailableOutputs(t *testing.T) {
 	p := newTestNebiusProvisioner()
 	p.apply.dryRun = true
 	p.setupAWSAdapter = func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error) { return adapter, nil }
-	p.apply.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created Kubernetes client in dry run")
 		return nil, nil
 	}
@@ -243,7 +243,7 @@ func TestNebiusClusterStackReadFailuresStopKubernetes(t *testing.T) {
 			adapter := &awsAdapter{cloudformationClient: cf, logger: log.NewEntry(log.New())}
 			p := newTestNebiusProvisioner()
 			p.setupAWSAdapter = func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error) { return adapter, nil }
-			p.apply.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+			p.apply.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 				t.Fatal("created Kubernetes client after stack failure")
 				return nil, nil
 			}
@@ -292,7 +292,7 @@ func TestNebiusInvalidStackDoesNotModifyAWS(t *testing.T) {
 			adapter := &awsAdapter{cloudformationClient: cf, s3Client: s3, s3Uploader: s3, logger: log.NewEntry(log.New())}
 			p := newTestNebiusProvisioner()
 			p.setupAWSAdapter = func(context.Context, *log.Entry, *api.Cluster) (*awsAdapter, error) { return adapter, nil }
-			p.apply.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+			p.apply.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 				t.Fatal("created Kubernetes client for invalid stack")
 				return nil, nil
 			}

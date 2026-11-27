@@ -52,6 +52,28 @@ type recordingClient struct {
 	*recordingDeleter
 }
 
+type closeableRecordingClient struct {
+	*recordingClient
+	closed bool
+}
+
+func (c *closeableRecordingClient) Close() error { c.closed = true; return nil }
+
+func TestKubernetesApplyClosesClient(t *testing.T) {
+	for _, failure := range []error{nil, errors.New("apply failed")} {
+		p := testApplyProvisioner(nil)
+		client := &closeableRecordingClient{recordingClient: &recordingClient{recordingApplier: &recordingApplier{err: failure}}}
+		p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) { return client, nil }
+		err := p.Provision(context.Background(), log.NewEntry(log.New()), &api.Cluster{Provider: api.ZalandoNebiusProvider}, applyTestConfig(t))
+		if failure == nil {
+			require.NoError(t, err)
+		} else {
+			require.ErrorIs(t, err, failure)
+		}
+		require.True(t, client.closed)
+	}
+}
+
 func (d *recordingDeleter) DeleteResource(_ context.Context, _ *log.Entry, resource *kubernetes.Resource) error {
 	d.resources = append(d.resources, resource)
 	*d.events = append(*d.events, "delete:"+resource.Name)
@@ -104,7 +126,7 @@ func TestKubernetesApplyDeletions(t *testing.T) {
 	var events []string
 	a := &recordingApplier{events: &events}
 	d := &recordingDeleter{events: &events}
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) { return &recordingClient{a, d}, nil }
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) { return &recordingClient{a, d}, nil }
 	require.NoError(t, p.Provision(context.Background(), logger, cluster(), config))
 	require.Equal(t, []string{"delete:default-pre", "apply:default", "apply:default", "delete:default-post"}, events)
 	require.Equal(t, "default", d.resources[0].Namespace)
@@ -127,7 +149,7 @@ func TestKubernetesApplyDeletions(t *testing.T) {
 	require.Equal(t, []string{"delete:default-pre", "apply:default"}, events)
 
 	p.dryRun = true
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created client in dry run")
 		return nil, nil
 	}
@@ -137,7 +159,7 @@ func TestKubernetesApplyDeletions(t *testing.T) {
 func TestKubernetesApplyInvalidDeletions(t *testing.T) {
 	config := applyTestConfig(t, "pre_apply: [invalid")
 	p := testApplyProvisioner(nil)
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created client before parsing deletions")
 		return nil, nil
 	}
@@ -153,7 +175,7 @@ func TestKubernetesApplyProvisioner(t *testing.T) {
 	}
 	p := testApplyProvisioner(decrypter.SecretDecrypter{})
 	a := &recordingApplier{}
-	p.newClient = func(c *api.Cluster) (kubernetesApplyClient, error) {
+	p.newClient = func(_ context.Context, c *api.Cluster) (kubernetesApplyClient, error) {
 		require.Same(t, cluster, c)
 		return &recordingClient{recordingApplier: a}, nil
 	}
@@ -178,14 +200,16 @@ func TestKubernetesApplyErrorsAndDryRun(t *testing.T) {
 
 	failure := errors.New("apply error")
 	a := &recordingApplier{err: failure}
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) { return &recordingClient{recordingApplier: a}, nil }
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
+		return &recordingClient{recordingApplier: a}, nil
+	}
 	err := p.Provision(context.Background(), logger, newCluster(), config)
 	require.ErrorIs(t, err, failure)
 	require.ErrorContains(t, err, "01-first/config.yaml")
 	require.Len(t, a.manifests, 1)
 
 	p.dryRun = true
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created client in dry run")
 		return nil, nil
 	}
@@ -198,20 +222,22 @@ func TestKubernetesApplyPreparationErrors(t *testing.T) {
 	failure := errors.New("failed")
 	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider}
 	p := testApplyProvisioner(failingDecrypter{failure})
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) {
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
 		t.Fatal("created client before decrypting")
 		return nil, nil
 	}
 	require.ErrorIs(t, p.Provision(context.Background(), logger, cluster, config), failure)
 
 	p.secretDecrypter = decrypter.SecretDecrypter{}
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) { return nil, failure }
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) { return nil, failure }
 	require.ErrorIs(t, p.Provision(context.Background(), logger, cluster, config), failure)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	a := &recordingApplier{}
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) { return &recordingClient{recordingApplier: a}, nil }
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) {
+		return &recordingClient{recordingApplier: a}, nil
+	}
 	require.ErrorIs(t, p.Provision(ctx, logger, cluster, config), context.Canceled)
 	require.Empty(t, a.manifests)
 }
@@ -222,14 +248,14 @@ func TestKubernetesApplyClientFactoryErrors(t *testing.T) {
 	logger := log.NewEntry(log.New())
 	p := testApplyProvisioner(nil)
 	require.ErrorContains(t, p.Provision(context.Background(), logger, cluster, config), "no Kubernetes client factory")
-	p.newClient = func(*api.Cluster) (kubernetesApplyClient, error) { return nil, nil }
+	p.newClient = func(context.Context, *api.Cluster) (kubernetesApplyClient, error) { return nil, nil }
 	require.ErrorContains(t, p.Provision(context.Background(), logger, cluster, config), "client factory returned nil")
 }
 
 func TestKubernetesApplyWithAnotherProvider(t *testing.T) {
 	cluster := &api.Cluster{Provider: api.ProviderID("future-provider")}
 	var events []string
-	p := newKubernetesApplyProvisioner(cluster.Provider, func(got *api.Cluster) (kubernetesApplyClient, error) {
+	p := newKubernetesApplyProvisioner(cluster.Provider, func(_ context.Context, got *api.Cluster) (kubernetesApplyClient, error) {
 		require.Same(t, cluster, got)
 		return &recordingClient{&recordingApplier{events: &events}, &recordingDeleter{events: &events}}, nil
 	}, nil, false)
@@ -251,7 +277,7 @@ func TestNebiusProvisioner(t *testing.T) {
 
 	var events []string
 	calls := 0
-	p.apply.newClient = func(got *api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(_ context.Context, got *api.Cluster) (kubernetesApplyClient, error) {
 		calls++
 		require.Same(t, cluster, got)
 		require.Equal(t, api.ZalandoNebiusProvider, got.Provider)
@@ -305,7 +331,7 @@ contexts:
 	p := newTestNebiusProvisioner()
 	var events []string
 	cluster := &api.Cluster{Provider: api.ZalandoNebiusProvider, ID: "test", LocalID: "test", InfrastructureAccount: "aws:123456789012", Region: "eu-central-1", APIServerURL: "https://wrong.example.com"}
-	p.apply.newClient = func(c *api.Cluster) (kubernetesApplyClient, error) {
+	p.apply.newClient = func(_ context.Context, c *api.Cluster) (kubernetesApplyClient, error) {
 		require.Same(t, cluster, c)
 		return &recordingClient{&recordingApplier{events: &events}, &recordingDeleter{events: &events}}, nil
 	}
@@ -406,7 +432,7 @@ contexts:
     cluster: test
     user: test
 `, server.URL))
-	client, err := newCurrentContextKubernetesClient(&api.Cluster{Provider: api.ZalandoNebiusProvider})
+	client, err := newCurrentContextKubernetesClient(context.Background(), &api.Cluster{Provider: api.ZalandoNebiusProvider})
 	require.NoError(t, err)
 	manifests, err := kubernetes.ParseResourceManifest("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n", "test.yaml")
 	require.NoError(t, err)
